@@ -9,9 +9,19 @@ const passport = require("passport");
 const http = require("http");
 const app = express();
 // const doLoginWGoogle = require("./controllers/social/GoogleController");
-
+const socketHandler = require("./socket/socket");
 const port = process.env.PORT || 1357;
 const server = http.createServer(app);
+const socketIo = require("socket.io");
+
+const io = socketIo(server, {
+  cors: {
+    origin: '*',
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+  },
+});
+app.set("io", io);
 
 // Configure request body parsing
 app.use(express.json());
@@ -50,6 +60,8 @@ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).send("Something broke!");
 });
+
+socketHandler(io);
 
 (async () => {
   try {
