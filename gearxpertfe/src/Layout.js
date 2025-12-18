@@ -3,6 +3,7 @@ import { ToastContainer } from "react-toastify";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Aos from "aos";
 import Hello from "./components/Hello";
+import Chatbot from "./components/chatbot/Chatbot";
 const Layout = () => {
     useEffect(() => {
         Aos.init({ duration: 1000 });
@@ -26,6 +27,7 @@ const Layout = () => {
                     <Routes>
                         <Route path="/" element={<Hello />} />
                     </Routes>
+                    <Chatbot /> 
                 </BrowserRouter>
             </Suspense>
         </>
