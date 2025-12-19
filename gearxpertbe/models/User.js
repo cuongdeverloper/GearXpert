@@ -3,16 +3,11 @@ const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
   fullName: { type: String, required: true },
-  email: { 
-    type: String, 
-    required: true, 
-    unique: true, 
-    trim: true 
-  },
+  email: { type: String, required: true, unique: true },
   password: { type: String, required: function () { return !this.socialLogin; } },
   phone: { type: String, required: true },
-  avatar: { type: String, default: "" }, 
-  
+  avatar: { type: String, default: "" },
+
   role: {
     type: String,
     enum: ['CUSTOMER', 'SUPPLIER', 'ADMIN', 'TECHNICIAN', 'DELIVERY_STAFF'],
@@ -27,9 +22,18 @@ const userSchema = new mongoose.Schema({
   },
 
   walletBalance: { type: Number, default: 0 },
-  
-  isVerified: { type: Boolean, default: false }, 
-}, { timestamps: true }); 
+
+  /** 🔥 RANKING SYSTEM */
+  rewardPoints: { type: Number, default: 0 },   // tổng điểm
+  rank: {
+    type: String,
+    enum: ['BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'DIAMOND'],
+    default: 'BRONZE'
+  },
+
+  isVerified: { type: Boolean, default: false },
+}, { timestamps: true });
+
 
 
 userSchema.pre('save', async function (next) {

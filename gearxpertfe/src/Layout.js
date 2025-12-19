@@ -1,34 +1,38 @@
 import { Suspense, useEffect } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Aos from "aos";
+
 import Hello from "./components/Hello";
-const Layout = () => {
-    useEffect(() => {
-        Aos.init({ duration: 1000 });
-    }, []);
-    return (
-        <>
-            <Suspense fallback={<div>Loading...</div>}>
-                <ToastContainer
-                    position="top-right"
-                    autoClose={5000}
-                    hideProgressBar={false}
-                    newestOnTop={false}
-                    closeOnClick
-                    rtl={false}
-                    pauseOnFocusLoss
-                    draggable
-                    pauseOnHover
-                    theme="light"
-                />
-                <BrowserRouter>
-                    <Routes>
-                        <Route path="/" element={<Hello />} />
-                    </Routes>
-                </BrowserRouter>
-            </Suspense>
-        </>
-    )
+import DashboardLayout from "./components/layout/DashboardLayout";
+
+// pages
+// import WalletPage from "./pages/Profile/WalletPage";
+// import RentalCheckout from "./pages/Rental/RentalCheckout";
+// import RentalManagementPage from "./pages/Rental/RentalManagementPage";
+// import ProductDetailPage from "./pages/Device/ProductDetailPage";
+
+export default function Layout() {
+  useEffect(() => {
+    Aos.init({ duration: 1000 });
+  }, []);
+
+  return (
+    <BrowserRouter>
+      <Suspense fallback={<div className="p-6">Loading...</div>}>
+        <ToastContainer position="top-right" autoClose={3000} />
+
+        <Routes>
+
+          <Route element={<DashboardLayout />}>
+            <Route path="/" element={<Hello />} />
+            {/* <Route path="/device/:id" element={<ProductDetailPage />} />
+            <Route path="/wallet" element={<WalletPage />} />
+            <Route path="/rental/checkout" element={<RentalCheckout />} />
+            <Route path="/rental/manage" element={<RentalManagementPage />} /> */}
+          </Route>
+        </Routes>
+      </Suspense>
+    </BrowserRouter>
+  );
 }
-export default Layout;
