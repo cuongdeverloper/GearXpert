@@ -1,45 +1,50 @@
+// models/Rental.js
 const mongoose = require('mongoose');
 
 const rentalSchema = new mongoose.Schema({
   customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   supplierId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  deviceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Device', required: true },
 
-  rentalStartDate: { type: Date, required: true },
-  rentalEndDate: { type: Date, required: true },
-  totalDays: { type: Number, required: true },
+  rentalStartDate: Date,
+  rentalEndDate: Date,
 
   rentPriceTotal: { type: Number, required: true },
-  depositAmount: { type: Number, required: true }, 
+  depositAmount: { type: Number, required: true },
+  insuranceAmount: { type: Number, default: 0 },
+  deliveryFee: { type: Number, default: 0 },
   totalAmount: { type: Number, required: true },
-  paymentStatus: { type: String, enum: ['UNPAID', 'PAID', 'REFUNDED'], default: 'UNPAID' },
-  isDepositReturned: { type: Boolean, default: false }, 
+
+  paymentMethod: {
+    type: String,
+    enum: ['CARD', 'MOMO', 'BANK'],
+    required: true
+  },
+
+  paymentStatus: {
+    type: String,
+    enum: ['UNPAID', 'PAID', 'REFUNDED'],
+    default: 'UNPAID'
+  },
 
   status: {
     type: String,
     enum: [
-      'PENDING',      
-      'APPROVED',   
-      'PAID',         
-      'DELIVERING', 
-      'RENTING',    
-      'RETURNING',  
+      'PENDING',
+      'APPROVED',
+      'PAID',
+      'DELIVERING',
+      'RENTING',
+      'RETURNING',
       'INSPECTING',
-      'COMPLETED',    
-      'CANCELLED'  
+      'COMPLETED',
+      'CANCELLED'
     ],
     default: 'PENDING'
   },
 
-  deliveryStaffId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   deliveryAddress: { type: String, required: true },
-  
-  incidentReport: {
-    hasIssue: { type: Boolean, default: false },
-    description: String,
-    compensationAmount: { type: Number, default: 0 }, 
-    technicianId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
-  }
+  phoneNumber: { type: String, required: true },
+  notes: String
 }, { timestamps: true });
 
 module.exports = mongoose.model('Rental', rentalSchema);

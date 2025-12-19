@@ -1,6 +1,6 @@
-const Message = require("../modal/Socket IO/Message");
-const Conversation = require("../modal/Socket IO/Conversation");
-const User = require("../modal/User");
+const Message = require("../models/Socket IO/Message");
+const Conversation = require("../models/Socket IO/Conversation");
+const User = require("../models/User");
 const SendMessage = async (req, res) => {
   try {
     const { receiverId, text, conversationId } = req.body;

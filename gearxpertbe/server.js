@@ -14,6 +14,12 @@ const port = process.env.PORT || 1357;
 const server = http.createServer(app);
 const socketIo = require("socket.io");
 
+
+
+const  rentalRouter   = require('./Routes/RentalRoutes');
+const  cartRouter   = require('./Routes/CartRoutes');
+
+
 const io = socketIo(server, {
   cors: {
     origin: '*',
@@ -22,6 +28,11 @@ const io = socketIo(server, {
   },
 });
 app.set("io", io);
+
+
+app.use('/api/rentals',rentalRouter);
+app.use('/api/carts',cartRouter);
+
 
 // Configure request body parsing
 app.use(express.json());
