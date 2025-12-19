@@ -10,7 +10,7 @@ import DashboardLayout from "./components/layout/DashboardLayout";
 // import WalletPage from "./pages/Profile/WalletPage";
 import RentalCheckout from "./pages/Rental/RentalCheckout";
 // import RentalManagementPage from "./pages/Rental/RentalManagementPage";
-// import ProductDetailPage from "./pages/Device/ProductDetailPage";
+import ProductDetailPage from "./pages/Device/ProductDetailPage";
 
 export default function Layout() {
   useEffect(() => {
@@ -26,8 +26,8 @@ export default function Layout() {
 
           <Route element={<DashboardLayout />}>
             <Route path="/" element={<Hello />} />
-            {/* <Route path="/device/:id" element={<ProductDetailPage />} />
-            <Route path="/wallet" element={<WalletPage />} /> */}
+             <Route path="/device/:id" element={<ProductDetailPage />} />
+            {/*<Route path="/wallet" element={<WalletPage />} /> */}
             <Route path="/rental/checkout" element={<RentalCheckout />} />
             {/* <Route path="/rental/manage" element={<RentalManagementPage />} /> */}
           </Route>
