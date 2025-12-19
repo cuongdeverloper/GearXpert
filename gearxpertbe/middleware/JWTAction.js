@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const User = require('../modal/User');
+const User = require('../models/User');
 require('dotenv').config();
 
 const createJWT = (payload) => {
