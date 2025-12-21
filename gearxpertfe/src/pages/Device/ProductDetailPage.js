@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from "react";
 import {
   ArrowLeft,
   Star,
@@ -7,15 +7,17 @@ import {
   Package,
   CheckCircle,
   AlertCircle,
-  Cpu
-} from 'lucide-react';
-import { toast } from 'sonner';
+  Cpu,
+  ShoppingCart,
+  Zap,
+} from "lucide-react";
+import { toast } from "sonner";
 
 /* ================= MOCK DATA ================= */
 
 const MOCK_DEVICE = {
-  _id: 'device_main_1',
-  name: 'Canon EOS R5 + Lens 24-70mm',
+  _id: "device_main_1",
+  name: "Canon EOS R5 + Lens 24-70mm",
   description: `
 Canon EOS R5 là dòng máy ảnh mirrorless cao cấp dành cho nhiếp ảnh gia và videographer chuyên nghiệp.
 
@@ -26,71 +28,71 @@ Canon EOS R5 là dòng máy ảnh mirrorless cao cấp dành cho nhiếp ảnh g
 📌 Thiết bị được kiểm tra kỹ trước khi giao, đảm bảo hoạt động ổn định.
 📌 Khách thuê cần giữ gìn và hoàn trả đúng tình trạng ban đầu.
   `,
-  category: 'CAMERA',
+  category: "CAMERA",
   images: [
-    'https://images.unsplash.com/photo-1431068799455-80bae0caf685',
-    'https://images.unsplash.com/photo-1510127034890-ba27508e9f1c',
-    'https://images.unsplash.com/photo-1502920917128-1aa500764b8a'
+    "https://images.unsplash.com/photo-1431068799455-80bae0caf685",
+    "https://images.unsplash.com/photo-1510127034890-ba27508e9f1c",
+    "https://images.unsplash.com/photo-1502920917128-1aa500764b8a",
   ],
   rentPrice: { perDay: 300000 },
   depositAmount: 5000000,
   ratingAvg: 4.9,
   reviewCount: 128,
-  location: { city: 'TP. Hồ Chí Minh' },
+  location: { city: "TP. Hồ Chí Minh" },
   specs: {
-    'Cảm biến': 'Full-frame 45MP',
-    'Quay video': '8K RAW',
-    'Chống rung': 'IBIS 8-stop',
-    'ISO': '100–51200',
-    'Trọng lượng': '738g'
-  }
+    "Cảm biến": "Full-frame 45MP",
+    "Quay video": "8K RAW",
+    "Chống rung": "IBIS 8-stop",
+    ISO: "100–51200",
+    "Trọng lượng": "738g",
+  },
 };
 
 const MOCK_ADDONS = [
-  { _id: 'addon_1', name: 'Pin Canon LP-E6NH', rentPrice: { perDay: 20000 } },
-  { _id: 'addon_2', name: 'Tripod Manfrotto', rentPrice: { perDay: 30000 } }
+  { _id: "addon_1", name: "Pin Canon LP-E6NH", rentPrice: { perDay: 20000 } },
+  { _id: "addon_2", name: "Tripod Manfrotto", rentPrice: { perDay: 30000 } },
 ];
 
 const MOCK_REVIEWS = [
   {
-    _id: 'r1',
-    userName: 'Nguyễn Văn A',
-    avatar: 'https://i.pravatar.cc/40?img=1',
+    _id: "r1",
+    userName: "Nguyễn Văn A",
+    avatar: "https://i.pravatar.cc/40?img=1",
     rating: 5,
-    date: '12/10/2025',
+    date: "12/10/2025",
     comment:
-      'Máy rất mới, đầy đủ phụ kiện. Quay 8K cực kỳ nét, pin trâu. Shop hỗ trợ nhiệt tình.'
+      "Máy rất mới, đầy đủ phụ kiện. Quay 8K cực kỳ nét, pin trâu. Shop hỗ trợ nhiệt tình.",
   },
   {
-    _id: 'r2',
-    userName: 'Trần Thị B',
-    avatar: 'https://i.pravatar.cc/40?img=2',
+    _id: "r2",
+    userName: "Trần Thị B",
+    avatar: "https://i.pravatar.cc/40?img=2",
     rating: 4,
-    date: '02/10/2025',
+    date: "02/10/2025",
     comment:
-      'Giao hàng đúng hẹn, máy hoạt động ổn định. Lần sau sẽ tiếp tục thuê.'
-  }
+      "Giao hàng đúng hẹn, máy hoạt động ổn định. Lần sau sẽ tiếp tục thuê.",
+  },
 ];
 
 const RELATED_DEVICES = [
   {
-    _id: 'rel1',
-    name: 'Sony A7 IV + 24-70mm',
+    _id: "rel1",
+    name: "Sony A7 IV + 24-70mm",
     price: 280000,
     rating: 4.8,
-    city: 'Hà Nội',
+    city: "Hà Nội",
     rented: 86,
-    image: 'https://images.unsplash.com/photo-1519183071298-a2962eadc7b9'
+    image: "https://images.unsplash.com/photo-1519183071298-a2962eadc7b9",
   },
   {
-    _id: 'rel2',
-    name: 'Canon R6 Mark II',
+    _id: "rel2",
+    name: "Canon R6 Mark II",
     price: 240000,
     rating: 4.7,
-    city: 'TP. HCM',
+    city: "TP. HCM",
     rented: 64,
-    image: 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f'
-  }
+    image: "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f",
+  },
 ];
 
 /* ================= COMPONENT ================= */
@@ -98,11 +100,43 @@ const RELATED_DEVICES = [
 export default function ProductDetailPage() {
   const device = MOCK_DEVICE;
   const [selectedImage, setSelectedImage] = useState(0);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [addons, setAddons] = useState([]);
   const hasRented = true;
+  const validateRental = () => {
+    if (!startDate || !endDate) {
+      toast.error("Vui lòng chọn thời gian thuê");
+      return false;
+    }
+    return true;
+  };
 
+  const handleAddToCart = () => {
+    if (!validateRental()) return;
+
+    toast.success("Đã thêm vào giỏ hàng");
+    console.log("ADD TO CART", {
+      deviceId: device._id,
+      startDate,
+      endDate,
+      addons,
+    });
+  };
+
+  const handleBuyNow = () => {
+    if (!validateRental()) return;
+
+    toast.success("Chuyển đến thanh toán");
+    console.log("BUY NOW", {
+      deviceId: device._id,
+      startDate,
+      endDate,
+      addons,
+    });
+
+    // 👉 sau này navigate('/checkout')
+  };
   const toggleAddon = (addon) => {
     setAddons((prev) =>
       prev.find((a) => a._id === addon._id)
@@ -123,11 +157,6 @@ export default function ProductDetailPage() {
     days *
     (device.rentPrice.perDay +
       addons.reduce((s, a) => s + a.rentPrice.perDay, 0));
-
-  const handleAddToCart = () => {
-    if (!startDate || !endDate) return toast.error('Vui lòng chọn thời gian thuê');
-    toast.success('Đã thêm vào giỏ hàng');
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -154,9 +183,7 @@ export default function ProductDetailPage() {
                 src={img}
                 onClick={() => setSelectedImage(i)}
                 className={`h-32 w-full object-cover rounded-xl cursor-pointer border ${
-                  selectedImage === i
-                    ? 'border-purple-600'
-                    : 'border-gray-200'
+                  selectedImage === i ? "border-purple-600" : "border-gray-200"
                 }`}
               />
             ))}
@@ -189,8 +216,16 @@ export default function ProductDetailPage() {
           {/* DATE + ADDON */}
           <div className="bg-white p-6 rounded-2xl shadow space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <input type="date" onChange={(e) => setStartDate(e.target.value)} className="border rounded-xl p-3" />
-              <input type="date" onChange={(e) => setEndDate(e.target.value)} className="border rounded-xl p-3" />
+              <input
+                type="date"
+                onChange={(e) => setStartDate(e.target.value)}
+                className="border rounded-xl p-3"
+              />
+              <input
+                type="date"
+                onChange={(e) => setEndDate(e.target.value)}
+                className="border rounded-xl p-3"
+              />
             </div>
 
             <div>
@@ -216,14 +251,25 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            <button
-              onClick={handleAddToCart}
-              className="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white"
-            >
-              Thêm vào giỏ / Thuê ngay
-            </button>
-          </div>
+            {/* ACTION BUTTONS */}
+            <div className="grid grid-cols-2 gap-4 pt-2">
+              <button
+                onClick={handleAddToCart}
+                className="flex items-center justify-center gap-2 py-4 rounded-xl border border-purple-600 text-purple-600 font-semibold hover:bg-purple-50"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                Thêm vào giỏ
+              </button>
 
+              <button
+                onClick={handleBuyNow}
+                className="flex items-center justify-center gap-2 py-4 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold"
+              >
+                <Zap className="w-5 h-5" />
+                Thuê ngay
+              </button>
+            </div>
+          </div>
           <div className="grid grid-cols-3 gap-4">
             <Criteria icon={<Shield />} text="Bảo hiểm" />
             <Criteria icon={<Package />} text="Giao nhanh" />
@@ -267,7 +313,10 @@ export default function ProductDetailPage() {
                 </div>
                 <div className="flex gap-1 my-1">
                   {Array.from({ length: r.rating }).map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    <Star
+                      key={i}
+                      className="w-4 h-4 fill-yellow-400 text-yellow-400"
+                    />
                   ))}
                 </div>
                 <p className="text-gray-700">{r.comment}</p>
@@ -289,21 +338,24 @@ export default function ProductDetailPage() {
         <h2 className="text-2xl font-bold mb-6">Thiết bị tương tự</h2>
         <div className="grid md:grid-cols-4 gap-6">
           {RELATED_DEVICES.map((d) => (
-            <div key={d._id} className="bg-white rounded-2xl shadow overflow-hidden">
+            <div
+              key={d._id}
+              className="bg-white rounded-2xl shadow overflow-hidden"
+            >
               <img src={d.image} className="h-48 w-full object-cover" />
               <div className="p-4 space-y-1">
                 <p className="font-semibold">{d.name}</p>
                 <p className="text-sm text-gray-500">{d.city}</p>
                 <div className="flex justify-between">
-                  <span className="text-blue-600">{d.price.toLocaleString()}đ/ngày</span>
+                  <span className="text-blue-600">
+                    {d.price.toLocaleString()}đ/ngày
+                  </span>
                   <span className="flex items-center gap-1">
                     <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                     {d.rating}
                   </span>
                 </div>
-                <p className="text-xs text-gray-400">
-                  Đã thuê {d.rented} lượt
-                </p>
+                <p className="text-xs text-gray-400">Đã thuê {d.rented} lượt</p>
               </div>
             </div>
           ))}

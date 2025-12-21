@@ -45,18 +45,5 @@ export default function Layout() {
       </Suspense>
     </BrowserRouter>
   );
-                <Routes>
-                    {/* Bọc các route trong DashboardLayout từ main */}
-                    <Route element={<DashboardLayout />}>
-                        <Route path="/" element={<Hello />} />
-                        <Route path="/device/:id" element={<ProductDetailPage />} />
-                        <Route path="/rental/checkout" element={<RentalCheckout />} />
-                    </Route>
-                </Routes>
 
-                {/* Chatbot của bạn để ở đây để nó hiện xuyên suốt các trang */}
-                <Chatbot /> 
-            </Suspense>
-        </BrowserRouter>
-    );
 }
