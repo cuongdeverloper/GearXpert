@@ -26,7 +26,7 @@ export default function Layout() {
 
           <Route element={<DashboardLayout />}>
             <Route path="/" element={<Hello />} />
-             <Route path="/device/:id" element={<ProductDetailPage />} />
+             <Route path="/device/" element={<ProductDetailPage />} />
             {/*<Route path="/wallet" element={<WalletPage />} /> */}
             <Route path="/rental/checkout" element={<RentalCheckout />} />
             {/* <Route path="/rental/manage" element={<RentalManagementPage />} /> */}

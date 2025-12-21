@@ -3,13 +3,7 @@ import { Sidebar } from '../navigation/Sidebar'
 import { TopNavbar } from '../navigation/TopNavbar'
 
 export default function DashboardLayout() {
-  // ===== MOCK DATA =====
-  const cart = [
-    { id: 'cam-01', name: 'Canon R6' },
-    { id: 'mic-01', name: 'Rode Wireless Go' }
-  ]
 
-  const notifications = 3
   const currentPage = 'dashboard'
 
   const onNavigate = (page) => {
@@ -31,8 +25,6 @@ export default function DashboardLayout() {
       <div className="flex-1 flex flex-col">
         <TopNavbar
           onNavigate={onNavigate}
-          cartCount={cart.length}
-          notifications={notifications}
         />
 
         {/* 👇 CÁC PAGE DASHBOARD SẼ RENDER Ở ĐÂY */}
