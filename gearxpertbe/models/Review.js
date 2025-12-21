@@ -10,5 +10,15 @@ const reviewSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 reviewSchema.index({ rentalId: 1 }, { unique: true });
+reviewSchema.post('save', async function () {
+  const reviews = await mongoose.model('Review')
+    .find({ deviceId: this.deviceId });
 
+  const avg = reviews.reduce((s, r) => s + r.rating, 0) / reviews.length;
+
+  await mongoose.model('Device').findByIdAndUpdate(this.deviceId, {
+    ratingAvg: avg,
+    reviewCount: reviews.length
+  });
+});
 module.exports = mongoose.model('Review', reviewSchema);

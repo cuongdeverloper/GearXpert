@@ -1,19 +1,27 @@
 import { Suspense, useEffect } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Aos from "aos";
+
 import Hello from "./components/Hello";
-import Chatbot from "./components/chatbot/Chatbot";
-const Layout = () => {
+import Chatbot from "./components/chatbot/Chatbot"; // Giữ Chatbot của bạn
+import DashboardLayout from "./components/layout/DashboardLayout"; // Giữ Layout từ main
+
+// pages
+import RentalCheckout from "./pages/Rental/RentalCheckout";
+import ProductDetailPage from "./pages/Device/ProductDetailPage";
+
+export default function Layout() {
     useEffect(() => {
         Aos.init({ duration: 1000 });
     }, []);
+
     return (
-        <>
-            <Suspense fallback={<div>Loading...</div>}>
-                <ToastContainer
-                    position="top-right"
-                    autoClose={5000}
+        <BrowserRouter>
+            <Suspense fallback={<div className="p-6">Loading...</div>}>
+                <ToastContainer 
+                    position="top-right" 
+                    autoClose={3000} 
                     hideProgressBar={false}
                     newestOnTop={false}
                     closeOnClick
@@ -23,14 +31,19 @@ const Layout = () => {
                     pauseOnHover
                     theme="light"
                 />
-                <BrowserRouter>
-                    <Routes>
+
+                <Routes>
+                    {/* Bọc các route trong DashboardLayout từ main */}
+                    <Route element={<DashboardLayout />}>
                         <Route path="/" element={<Hello />} />
-                    </Routes>
-                    <Chatbot /> 
-                </BrowserRouter>
+                        <Route path="/device/:id" element={<ProductDetailPage />} />
+                        <Route path="/rental/checkout" element={<RentalCheckout />} />
+                    </Route>
+                </Routes>
+
+                {/* Chatbot của bạn để ở đây để nó hiện xuyên suốt các trang */}
+                <Chatbot /> 
             </Suspense>
-        </>
-    )
+        </BrowserRouter>
+    );
 }
-export default Layout;

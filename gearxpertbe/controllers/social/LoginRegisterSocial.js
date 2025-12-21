@@ -1,4 +1,4 @@
-const User = require("../../modal/User");
+const User = require("../../models/User");
 
 const upsertSocialMedia = async (typeAcc, dataRaw) => {
     try {

@@ -1,4 +1,4 @@
-const Conversation = require("../modal/Socket IO/Conversation");
+const Conversation = require("../models/Socket IO/Conversation");
 
 const NewConversation = async (req, res) => {
     try {
