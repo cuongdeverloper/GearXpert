@@ -13,6 +13,7 @@ const socketHandler = require("./socket/socket");
 const port = process.env.PORT || 1357;
 const server = http.createServer(app);
 const socketIo = require("socket.io");
+const { handleAIChat } = require("./controllers/AIChatController")
 
 
 
@@ -65,7 +66,7 @@ configViewEngine(app);
 app.get("/", (req, res) => {
   res.json("Hello");
 });
-
+app.post("/api/ai-chat", handleAIChat);
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
