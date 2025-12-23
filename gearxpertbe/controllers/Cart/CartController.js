@@ -99,3 +99,42 @@ exports.instantBuy = async (req, res) => {
 
   res.status(201).json({ message: 'Instant cart created' });
 };
+/**
+ * DELETE /cart/items/:cartItemId
+ */
+exports.removeCartItem = async (req, res) => {
+  const customerId = req.user._id;
+  const { cartItemId } = req.params;
+
+  const item = await CartItem.findById(cartItemId);
+  if (!item) return res.status(404).json({ message: 'Item not found' });
+
+  const cart = await Cart.findOne({
+    _id: item.cartId,
+    customerId
+  });
+
+  if (!cart) return res.status(403).json({ message: 'Access denied' });
+
+  await CartItem.deleteOne({ _id: cartItemId });
+  cart.items.pull(cartItemId);
+  await cart.save();
+
+  res.json({ message: 'Item removed' });
+};
+
+/**
+ * DELETE /cart/clear?type=NORMAL|INSTANT
+ */
+exports.clearCart = async (req, res) => {
+  const customerId = req.user._id;
+  const cartType = req.query.type || 'NORMAL';
+
+  const cart = await Cart.findOne({ customerId, cartType });
+  if (!cart) return res.json({ message: 'Cart already empty' });
+
+  await CartItem.deleteMany({ cartId: cart._id });
+  await Cart.deleteOne({ _id: cart._id });
+
+  res.json({ message: 'Cart cleared' });
+};

@@ -106,3 +106,18 @@ exports.checkoutRental = async (req, res) => {
     res.status(500).json({ message: 'Checkout failed' });
   }
 };
+/**
+ * GET /rentals/has-rented/:deviceId
+ */
+exports.hasRentedDevice = async (req, res) => {
+  const customerId = req.user._id;
+  const deviceId = req.params.deviceId;
+
+  const rented = await RentalItem.findOne({ deviceId })
+    .populate({
+      path: 'rentalId',
+      match: { customerId }
+    });
+
+  res.json({ hasRented: !!rented?.rentalId });
+};
