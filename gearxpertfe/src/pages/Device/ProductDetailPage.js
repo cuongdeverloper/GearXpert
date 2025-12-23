@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   Star,
@@ -12,98 +12,62 @@ import {
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useParams, useNavigate } from "react-router-dom";
 
-/* ================= MOCK DATA ================= */
-
-const MOCK_DEVICE = {
-  _id: "device_main_1",
-  name: "Canon EOS R5 + Lens 24-70mm",
-  description: `
-Canon EOS R5 là dòng máy ảnh mirrorless cao cấp dành cho nhiếp ảnh gia và videographer chuyên nghiệp.
-
-✔ Phù hợp chụp cưới, sự kiện, TVC, quảng cáo
-✔ Chất lượng hình ảnh vượt trội với cảm biến Full-frame 45MP
-✔ Khả năng quay video 8K cực kỳ sắc nét
-
-📌 Thiết bị được kiểm tra kỹ trước khi giao, đảm bảo hoạt động ổn định.
-📌 Khách thuê cần giữ gìn và hoàn trả đúng tình trạng ban đầu.
-  `,
-  category: "CAMERA",
-  images: [
-    "https://images.unsplash.com/photo-1431068799455-80bae0caf685",
-    "https://images.unsplash.com/photo-1510127034890-ba27508e9f1c",
-    "https://images.unsplash.com/photo-1502920917128-1aa500764b8a",
-  ],
-  rentPrice: { perDay: 300000 },
-  depositAmount: 5000000,
-  ratingAvg: 4.9,
-  reviewCount: 128,
-  location: { city: "TP. Hồ Chí Minh" },
-  specs: {
-    "Cảm biến": "Full-frame 45MP",
-    "Quay video": "8K RAW",
-    "Chống rung": "IBIS 8-stop",
-    ISO: "100–51200",
-    "Trọng lượng": "738g",
-  },
-};
-
-const MOCK_ADDONS = [
-  { _id: "addon_1", name: "Pin Canon LP-E6NH", rentPrice: { perDay: 20000 } },
-  { _id: "addon_2", name: "Tripod Manfrotto", rentPrice: { perDay: 30000 } },
-];
-
-const MOCK_REVIEWS = [
-  {
-    _id: "r1",
-    userName: "Nguyễn Văn A",
-    avatar: "https://i.pravatar.cc/40?img=1",
-    rating: 5,
-    date: "12/10/2025",
-    comment:
-      "Máy rất mới, đầy đủ phụ kiện. Quay 8K cực kỳ nét, pin trâu. Shop hỗ trợ nhiệt tình.",
-  },
-  {
-    _id: "r2",
-    userName: "Trần Thị B",
-    avatar: "https://i.pravatar.cc/40?img=2",
-    rating: 4,
-    date: "02/10/2025",
-    comment:
-      "Giao hàng đúng hẹn, máy hoạt động ổn định. Lần sau sẽ tiếp tục thuê.",
-  },
-];
-
-const RELATED_DEVICES = [
-  {
-    _id: "rel1",
-    name: "Sony A7 IV + 24-70mm",
-    price: 280000,
-    rating: 4.8,
-    city: "Hà Nội",
-    rented: 86,
-    image: "https://images.unsplash.com/photo-1519183071298-a2962eadc7b9",
-  },
-  {
-    _id: "rel2",
-    name: "Canon R6 Mark II",
-    price: 240000,
-    rating: 4.7,
-    city: "TP. HCM",
-    rented: 64,
-    image: "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f",
-  },
-];
-
-/* ================= COMPONENT ================= */
+/* ===== API ===== */
+import {
+  getDeviceDetail,
+  getDeviceAddons,
+  getRelatedDevices,
+} from "../../service/ApiService/DeviceApi";
+import {
+  addToCart,
+  addInstantToCart,
+} from "../../service/ApiService/CartApi";
+import { hasRentedDevice } from "../../service/ApiService/RentalApi";
 
 export default function ProductDetailPage() {
-  const device = MOCK_DEVICE;
+  const { id } = useParams();
+  const navigate = useNavigate();
+
+  const [device, setDevice] = useState(null);
+  const [addonsList, setAddonsList] = useState([]);
+  const [relatedDevices, setRelatedDevices] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const [hasRented, setHasRented] = useState(false);
+
   const [selectedImage, setSelectedImage] = useState(0);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [addons, setAddons] = useState([]);
-  const hasRented = true;
+
+  /* ===== LOAD DATA ===== */
+  useEffect(() => {
+    fetchData();
+  }, [id]);
+
+  const fetchData = async () => {
+    try {
+      const [d, a, r, rented] = await Promise.all([
+        getDeviceDetail(id),
+        getDeviceAddons(id),
+        getRelatedDevices(id),
+        hasRentedDevice(id),
+      ]);
+
+      setDevice(d.data);
+      setAddonsList(a.data || []);
+      setRelatedDevices(r.data || []);
+      setHasRented(rented.data?.hasRented || false);
+      setReviews(d.data.reviews || []);
+    } catch (err) {
+      toast.error("Không thể tải dữ liệu thiết bị");
+    }
+  };
+
+  if (!device) return null;
+
+  /* ===== LOGIC ===== */
   const validateRental = () => {
     if (!startDate || !endDate) {
       toast.error("Vui lòng chọn thời gian thuê");
@@ -112,37 +76,48 @@ export default function ProductDetailPage() {
     return true;
   };
 
-  const handleAddToCart = () => {
-    if (!validateRental()) return;
-
-    toast.success("Đã thêm vào giỏ hàng");
-    console.log("ADD TO CART", {
-      deviceId: device._id,
-      startDate,
-      endDate,
-      addons,
-    });
-  };
-
-  const handleBuyNow = () => {
-    if (!validateRental()) return;
-
-    toast.success("Chuyển đến thanh toán");
-    console.log("BUY NOW", {
-      deviceId: device._id,
-      startDate,
-      endDate,
-      addons,
-    });
-
-    // 👉 sau này navigate('/checkout')
-  };
   const toggleAddon = (addon) => {
     setAddons((prev) =>
       prev.find((a) => a._id === addon._id)
         ? prev.filter((a) => a._id !== addon._id)
         : [...prev, addon]
     );
+  };
+
+  const handleAddToCart = async () => {
+    if (!validateRental()) return;
+
+    try {
+      await addToCart({
+        deviceId: device._id,
+        quantity: 1,
+        rentalStartDate: startDate,
+        rentalEndDate: endDate,
+        addons: addons.map((a) => a._id),
+      });
+
+      toast.success("Đã thêm vào giỏ hàng");
+    } catch {
+      toast.error("Thêm vào giỏ thất bại");
+    }
+  };
+
+  const handleBuyNow = async () => {
+    if (!validateRental()) return;
+
+    try {
+      await addInstantToCart({
+        deviceId: device._id,
+        quantity: 1,
+        rentalStartDate: startDate,
+        rentalEndDate: endDate,
+        addons: addons.map((a) => a._id),
+      });
+
+      navigate("/checkout");
+    } catch {
+      toast.error("Thuê ngay thất bại");
+    }
   };
 
   const days =
@@ -158,6 +133,7 @@ export default function ProductDetailPage() {
     (device.rentPrice.perDay +
       addons.reduce((s, a) => s + a.rentPrice.perDay, 0));
 
+  /* ===== UI (GIỮ NGUYÊN) ===== */
   return (
     <div className="min-h-screen bg-gray-50">
       {/* HEADER */}
@@ -183,7 +159,9 @@ export default function ProductDetailPage() {
                 src={img}
                 onClick={() => setSelectedImage(i)}
                 className={`h-32 w-full object-cover rounded-xl cursor-pointer border ${
-                  selectedImage === i ? "border-purple-600" : "border-gray-200"
+                  selectedImage === i
+                    ? "border-purple-600"
+                    : "border-gray-200"
                 }`}
               />
             ))}
@@ -230,7 +208,7 @@ export default function ProductDetailPage() {
 
             <div>
               <h3 className="font-semibold mb-2">Phụ kiện đi kèm</h3>
-              {MOCK_ADDONS.map((a) => (
+              {addonsList.map((a) => (
                 <button
                   key={a._id}
                   onClick={() => toggleAddon(a)}
@@ -251,7 +229,6 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            {/* ACTION BUTTONS */}
             <div className="grid grid-cols-2 gap-4 pt-2">
               <button
                 onClick={handleAddToCart}
@@ -270,6 +247,7 @@ export default function ProductDetailPage() {
               </button>
             </div>
           </div>
+
           <div className="grid grid-cols-3 gap-4">
             <Criteria icon={<Shield />} text="Bảo hiểm" />
             <Criteria icon={<Package />} text="Giao nhanh" />
@@ -303,13 +281,15 @@ export default function ProductDetailPage() {
       {/* REVIEWS */}
       <div className="max-w-7xl mx-auto px-6 mt-10">
         <Box title="Đánh giá từ khách thuê">
-          {MOCK_REVIEWS.map((r) => (
+          {reviews.map((r) => (
             <div key={r._id} className="flex gap-4 border-b pb-6 mb-6">
-              <img src={r.avatar} className="w-10 h-10 rounded-full" />
+              <img src={r.user.avatar} className="w-10 h-10 rounded-full" />
               <div>
                 <div className="flex justify-between">
-                  <b>{r.userName}</b>
-                  <span className="text-sm text-gray-400">{r.date}</span>
+                  <b>{r.user.fullName}</b>
+                  <span className="text-sm text-gray-400">
+                    {new Date(r.createdAt).toLocaleDateString()}
+                  </span>
                 </div>
                 <div className="flex gap-1 my-1">
                   {Array.from({ length: r.rating }).map((_, i) => (
@@ -337,7 +317,7 @@ export default function ProductDetailPage() {
       <div className="max-w-7xl mx-auto px-6 mt-12 pb-20">
         <h2 className="text-2xl font-bold mb-6">Thiết bị tương tự</h2>
         <div className="grid md:grid-cols-4 gap-6">
-          {RELATED_DEVICES.map((d) => (
+          {relatedDevices.map((d) => (
             <div
               key={d._id}
               className="bg-white rounded-2xl shadow overflow-hidden"
@@ -345,17 +325,16 @@ export default function ProductDetailPage() {
               <img src={d.image} className="h-48 w-full object-cover" />
               <div className="p-4 space-y-1">
                 <p className="font-semibold">{d.name}</p>
-                <p className="text-sm text-gray-500">{d.city}</p>
+                <p className="text-sm text-gray-500">{d.location.city}</p>
                 <div className="flex justify-between">
                   <span className="text-blue-600">
-                    {d.price.toLocaleString()}đ/ngày
+                    {d.rentPrice.perDay.toLocaleString()}đ/ngày
                   </span>
                   <span className="flex items-center gap-1">
                     <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    {d.rating}
+                    {d.ratingAvg}
                   </span>
                 </div>
-                <p className="text-xs text-gray-400">Đã thuê {d.rented} lượt</p>
               </div>
             </div>
           ))}
@@ -365,8 +344,7 @@ export default function ProductDetailPage() {
   );
 }
 
-/* ================= UI HELPERS ================= */
-
+/* ===== UI HELPERS ===== */
 const Box = ({ title, children }) => (
   <div className="bg-white rounded-2xl p-8 shadow">
     <h2 className="text-xl font-bold mb-4">{title}</h2>

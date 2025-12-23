@@ -7,5 +7,6 @@ import axios from "../AxiosCustomize";
 const checkout = (data) => {
     return axios.post("/api/rentals/checkout", data);
 };
-
-export { checkout };
+const hasRentedDevice = (deviceId) =>
+  axios.get(`/rentals/has-rented/${deviceId}`);
+export { checkout,hasRentedDevice };

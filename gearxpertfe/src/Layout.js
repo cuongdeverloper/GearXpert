@@ -10,7 +10,7 @@ import DashboardLayout from "./components/layout/DashboardLayout"; // Giữ Layo
 // pages
 import RentalCheckout from "./pages/Rental/RentalCheckout";
 import ProductDetailPage from "./pages/Device/ProductDetailPage";
-
+import WalletPage from "./pages/User/WalletPage";
 export default function Layout() {
     useEffect(() => {
         Aos.init({ duration: 1000 });
@@ -37,7 +37,7 @@ export default function Layout() {
           <Route element={<DashboardLayout />}>
             <Route path="/" element={<Hello />} />
              <Route path="/device/" element={<ProductDetailPage />} />
-            {/*<Route path="/wallet" element={<WalletPage />} /> */}
+            <Route path="/wallet" element={<WalletPage />} />
             <Route path="/rental/checkout" element={<RentalCheckout />} />
             {/* <Route path="/rental/manage" element={<RentalManagementPage />} /> */}
           </Route>
