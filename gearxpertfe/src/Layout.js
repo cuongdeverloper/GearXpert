@@ -4,43 +4,55 @@ import { ToastContainer } from "react-toastify";
 import Aos from "aos";
 
 import Hello from "./components/Hello";
-import Chatbot from "./components/chatbot/Chatbot"; // Giữ Chatbot của bạn
-import DashboardLayout from "./components/layout/DashboardLayout"; // Giữ Layout từ main
+import Chatbot from "./components/chatbot/Chatbot";
+import DashboardLayout from "./components/layout/DashboardLayout";
 
 // pages
 import RentalCheckout from "./pages/Rental/RentalCheckout";
 import ProductDetailPage from "./pages/Device/ProductDetailPage";
 import WalletPage from "./pages/User/WalletPage";
+import SignIn from "./components/Auth/Sign in/SignIn";
+import EnterOTPRegister from "./components/Auth/OTP/EnterOTPRegister";
+import VerifyAccount from "./components/Auth/VerifyAccount";
+import AuthCallback from "./components/Auth/AuthCallback";
+import RequestPasswordReset from "./components/Auth/reset password/RequestPasswordReset";
+import ResetPassword from "./components/Auth/reset password/ResetPassword";
 export default function Layout() {
-    useEffect(() => {
-        Aos.init({ duration: 1000 });
-    }, []);
+  useEffect(() => {
+    Aos.init({ duration: 1000 });
+  }, []);
 
-    return (
-        <BrowserRouter>
-            <Suspense fallback={<div className="p-6">Loading...</div>}>
-                <ToastContainer 
-                    position="top-right" 
-                    autoClose={3000} 
-                    hideProgressBar={false}
-                    newestOnTop={false}
-                    closeOnClick
-                    rtl={false}
-                    pauseOnFocusLoss
-                    draggable
-                    pauseOnHover
-                    theme="light"
-                />
+  return (
+    <BrowserRouter>
+      <Suspense fallback={<div className="p-6">Loading...</div>}>
+        <ToastContainer
+          position="top-right"
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="light"
+        />
 
         <Routes>
 
           <Route element={<DashboardLayout />}>
             <Route path="/" element={<Hello />} />
-             <Route path="/device/" element={<ProductDetailPage />} />
+            <Route path="/device/" element={<ProductDetailPage />} />
             <Route path="/wallet" element={<WalletPage />} />
             <Route path="/rental/checkout" element={<RentalCheckout />} />
+            <Route path="/signin" element={<SignIn />} />
+            <Route path="/otp-verify" element={<EnterOTPRegister />} />
+            <Route path="auth/callback" element={<AuthCallback />} />
+            <Route path="/forgot-password" element={<RequestPasswordReset />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             {/* <Route path="/rental/manage" element={<RentalManagementPage />} /> */}
           </Route>
+          <Route path="/verify-account" element={<VerifyAccount />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

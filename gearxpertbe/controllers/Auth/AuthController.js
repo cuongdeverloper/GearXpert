@@ -1,0 +1,227 @@
+const { createJWT, createRefreshToken, verifyAccessToken, createJWTResetPassword, createJWTVerifyEmail } = require('../../middleware/JWTAction');
+const bcrypt = require('bcryptjs');
+const uploadCloud = require('../../configs/cloudinaryConfig');
+const { sendMail } = require('../../configs/sendMail'); 
+const UserOTPVerification = require('../../models/UserOTPVerification');
+const User = require('../../models/User');
+require('dotenv').config();
+
+const apiLogin = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        const userRecord = await User.findOne({ email });
+        if (!userRecord) return res.status(200).json({ errorCode: 2, message: 'Email does not exist' });
+
+        const isPasswordValid = await userRecord.comparePassword(password);
+        if (!isPasswordValid) return res.status(200).json({ errorCode: 3, message: 'Invalid password' });
+
+        const payload = {
+            id: userRecord._id,
+            email: userRecord.email,
+            role: userRecord.role
+        };
+
+        const accessToken = createJWT(payload);
+        const refreshToken = createRefreshToken(payload);
+
+        return res.status(200).json({
+            errorCode: 0,
+            message: 'Login successful',
+            data: {
+                id: userRecord._id,
+                access_token: accessToken,
+                refresh_token: refreshToken,
+                fullName: userRecord.fullName,
+                role: userRecord.role,
+                email: userRecord.email,
+                phone: userRecord.phone,
+                avatar: userRecord.avatar,
+                rank: userRecord.rank,
+                walletBalance: userRecord.walletBalance
+            }
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ errorCode: 5, message: 'Login error' });
+    }
+};
+
+const apiRegister = async (req, res) => {
+    try {
+        uploadCloud.single('avatar')(req, res, async (err) => {
+            if (err) return res.status(400).json({ errorCode: 4, message: `Upload Error: ${err.message}` });
+
+            const { fullName, email, password, phone, role, street, district, city } = req.body;
+            const avatar = req.file ? req.file.path : "";
+
+            if (!fullName || !email || !password || !phone) {
+                return res.status(203).json({ errorCode: 1, message: 'Required fields are missing' });
+            }
+
+            const existingUser = await User.findOne({ email });
+            if (existingUser) return res.status(200).json({ errorCode: 2, message: 'Email already exists' });
+
+            const newUser = new User({
+                fullName, email, password, phone, avatar,
+                role: role || 'CUSTOMER',
+                address: { street, district, city, fullAddress: `${street}, ${district}, ${city}` }
+            });
+
+            await newUser.save();
+
+            // Tạo Token xác thực
+            const verifyToken = createJWTVerifyEmail({ id: newUser._id, email: newUser.email });
+            const verifyLink = `${process.env.FRONTEND_URL}/verify-account?token=${verifyToken}`;
+
+            const emailContent = `
+                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 10px;">
+                    <div style="background: #1a1a1a; color: #fff; padding: 20px; text-align: center;"><h2>GearXpert</h2></div>
+                    <div style="padding: 30px;">
+                        <p>Xin chào <strong>${fullName}</strong>,</p>
+                        <p>Vui lòng nhấn vào nút bên dưới để xác thực tài khoản của bạn:</p>
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="${verifyLink}" style="background: #e67e22; color: #fff; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Xác thực ngay</a>
+                        </div>
+                        <p style="font-size: 12px; color: #888;">Lưu ý: Liên kết hết hạn trong 5 phút.</p>
+                    </div>
+                </div>`;
+
+            // Gửi mail
+            await sendMail(email, 'Xác thực tài khoản GearXpert', emailContent);
+
+            // Tự động xóa nếu không verify sau 5p
+            setTimeout(async () => {
+                const userCheck = await User.findById(newUser._id);
+                if (userCheck && !userCheck.isVerified) {
+                    await User.findByIdAndDelete(newUser._id);
+                    console.log(`🧹 Deleted unverified user: ${email}`);
+                }
+            }, 5 * 60 * 1000);
+
+            return res.status(201).json({
+                errorCode: 0,
+                message: 'Register success. Check email to verify.',
+                data: { id: newUser._id, email: newUser.email }
+            });
+        });
+    } catch (error) {
+        return res.status(500).json({ errorCode: 5, message: 'Registration error' });
+    }
+};
+
+// --- Quên mật khẩu ---
+const requestPasswordReset = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const userRecord = await User.findOne({ email });
+        if (!userRecord) return res.status(203).json({ errorCode: 2, message: 'Email not found' });
+
+        const resetToken = createJWTResetPassword({ id: userRecord._id, email: userRecord.email });
+        const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+        const html = `<p>Bạn nhận được email này vì đã yêu cầu đặt lại mật khẩu.</p>
+                      <p>Nhấn vào đây để tiếp tục: <a href="${resetLink}">Đặt lại mật khẩu</a></p>`;
+
+        await sendMail(email, 'Đặt lại mật khẩu GearXpert', html);
+
+        return res.status(200).json({ errorCode: 0, message: 'Reset email sent' });
+    } catch (error) {
+        return res.status(500).json({ errorCode: 3, message: 'Request Reset Error' });
+    }
+};
+
+const verifyOtp = async (req, res) => {
+    try {
+        const { userId, OTP } = req.body;
+        if (!userId || !OTP) return res.status(400).json({ errorCode: 100, message: 'Missing info' });
+
+        const otpRecord = await UserOTPVerification.findOne({ userId });
+        if (!otpRecord) return res.status(400).json({ errorCode: 2, message: 'OTP record not found' });
+
+        const isOtpValid = await bcrypt.compare(OTP, otpRecord.otp);
+        if (!isOtpValid) return res.status(400).json({ errorCode: 3, message: 'Invalid OTP' });
+
+        await User.findByIdAndUpdate(userId, { isVerified: true });
+        await UserOTPVerification.deleteMany({ userId });
+
+        return res.status(200).json({ errorCode: 0, message: 'OTP verified' });
+    } catch (error) {
+        return res.status(500).json({ errorCode: 4, message: 'OTP Error' });
+    }
+};
+
+const resendOTPVerificationCode = async (req, res) => {
+    try {
+        const { userId, email } = req.body;
+        await UserOTPVerification.deleteMany({ userId });
+
+        const otp = `${Math.floor(1000 + Math.random() * 9000)}`;
+        const hashedOTP = await bcrypt.hash(otp, 10);
+
+        await new UserOTPVerification({ userId, otp: hashedOTP }).save();
+
+        await sendMail(email, 'Mã OTP mới', `<p>Mã OTP của bạn là: <b>${otp}</b></p>`);
+
+        return res.status(200).json({ errorCode: 0, message: 'New OTP sent' });
+    } catch (error) {
+        return res.status(500).json({ errorCode: 2, message: 'Resend Error' });
+    }
+};
+
+
+const resetPassword = async (req, res) => {
+    try {
+        const { token, newPassword } = req.body;
+        const decoded = verifyAccessToken(token);
+        if (!decoded) return res.status(403).json({ errorCode: 2, message: 'Token expired' });
+
+        const userRecord = await User.findById(decoded.id);
+        if (!userRecord) return res.status(404).json({ errorCode: 3, message: 'User not found' });
+
+        userRecord.password = newPassword;
+        await userRecord.save();
+
+        return res.status(200).json({ errorCode: 0, message: 'Password reset success' });
+    } catch (error) {
+        return res.status(500).json({ errorCode: 5, message: 'Reset Password Error' });
+    }
+};
+
+const changePassword = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { oldPassword, newPassword, confirmPassword } = req.body;
+
+        if (newPassword !== confirmPassword) return res.status(400).json({ errorCode: 2, message: 'Not match' });
+
+        const userRecord = await User.findById(userId);
+        const isMatch = await userRecord.comparePassword(oldPassword);
+        if (!isMatch) return res.status(400).json({ errorCode: 4, message: 'Old password wrong' });
+
+        userRecord.password = newPassword;
+        await userRecord.save();
+
+        return res.status(200).json({ errorCode: 0, message: 'Password changed' });
+    } catch (error) {
+        return res.status(500).json({ errorCode: 6, message: 'Change Password Error' });
+    }
+};
+
+const verifyAccountByLink = async (req, res) => {
+    try {
+        const { token } = req.query;
+        const decoded = verifyAccessToken(token);
+        if (!decoded) return res.status(403).json({ errorCode: 2, message: 'Invalid token' });
+
+        await User.findByIdAndUpdate(decoded.id, { isVerified: true });
+        return res.status(200).json({ errorCode: 0, message: 'Verified successfully' });
+    } catch (error) {
+        return res.status(500).json({ errorCode: 4, message: 'Link verification error' });
+    }
+};
+
+module.exports = {
+    apiLogin, apiRegister, verifyOtp, resendOTPVerificationCode,
+    requestPasswordReset, resetPassword, changePassword, verifyAccountByLink
+};
