@@ -20,6 +20,7 @@ const { handleAIChat } = require("./controllers/AIChatController")
 const  rentalRouter   = require('./Routes/RentalRoutes');
 const  cartRouter   = require('./Routes/CartRoutes');
 const  deviceRouter   = require('./Routes/DeviceRoutes');
+const  voucherRouter   = require('./Routes/VoucherRoutes');
 
 const io = socketIo(server, {
   cors: {
@@ -34,6 +35,7 @@ app.set("io", io);
 app.use('/api/rentals',rentalRouter);
 app.use('/api/carts',cartRouter);
 app.use('/api/devices',deviceRouter);
+app.use('/api/vounchers',voucherRouter);
 
 
 // Configure request body parsing
