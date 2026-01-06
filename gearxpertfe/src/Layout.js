@@ -11,38 +11,41 @@ import DashboardLayout from "./components/layout/DashboardLayout"; // Giữ Layo
 import RentalCheckout from "./pages/Rental/RentalCheckout";
 import ProductDetailPage from "./pages/Device/ProductDetailPage";
 import RentalReviewPage from "./pages/Rental/RentalReviewPage";
+import Messenger from "./components/Message Socket/Page/Messenger";
 
 export default function Layout() {
-    useEffect(() => {
-        Aos.init({ duration: 1000 });
-    }, []);
+  useEffect(() => {
+    Aos.init({ duration: 1000 });
+  }, []);
 
-    return (
-        <BrowserRouter>
-            <Suspense fallback={<div className="p-6">Loading...</div>}>
-                <ToastContainer 
-                    position="top-right" 
-                    autoClose={3000} 
-                    hideProgressBar={false}
-                    newestOnTop={false}
-                    closeOnClick
-                    rtl={false}
-                    pauseOnFocusLoss
-                    draggable
-                    pauseOnHover
-                    theme="light"
-                />
+  return (
+    <BrowserRouter>
+      <Suspense fallback={<div className="p-6">Loading...</div>}>
+        <ToastContainer
+          position="top-right"
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="light"
+        />
 
         <Routes>
 
           <Route element={<DashboardLayout />}>
             <Route path="/" element={<Hello />} />
-             <Route path="/device/" element={<ProductDetailPage />} />
+            <Route path="/device/" element={<ProductDetailPage />} />
 
             <Route path="/rental/checkout" element={<RentalCheckout />} />
             <Route path="/rental/checkout/review" element={<RentalReviewPage />} />
             {/* <Route path="/rental/manage" element={<RentalManagementPage />} /> */}
           </Route>
+          <Route path="/messenger" element={<Messenger />} />
+          <Route path="/messenger/:conversationId" element={<Messenger />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

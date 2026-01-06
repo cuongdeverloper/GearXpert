@@ -21,7 +21,7 @@ const  rentalRouter   = require('./Routes/RentalRoutes');
 const  cartRouter   = require('./Routes/CartRoutes');
 const  deviceRouter   = require('./Routes/DeviceRoutes');
 const  voucherRouter   = require('./Routes/VoucherRoutes');
-
+const  routerMessage   = require('./Routes/MessengerRoutes');
 const io = socketIo(server, {
   cors: {
     origin: '*',
@@ -36,7 +36,7 @@ app.use('/api/rentals',rentalRouter);
 app.use('/api/carts',cartRouter);
 app.use('/api/devices',deviceRouter);
 app.use('/api/vounchers',voucherRouter);
-
+app.use('/api/messages',routerMessage);
 
 // Configure request body parsing
 app.use(express.json());
