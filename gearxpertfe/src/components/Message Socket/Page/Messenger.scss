@@ -1,0 +1,211 @@
+:root {
+  --bg: #f0f2f5;
+  --text: #050505;
+  --secondary-bg: #ffffff;
+  --input-bg: #e4e6eb;
+  --message-bg: #e4e6eb;
+  --own-message-bg: #0084ff;
+  --own-message-text: #fff;
+  --border-color: #ddd;
+}
+
+.messenger {
+  display: flex;
+  flex: 1; /* thay height: 100vh */
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", sans-serif;
+  overflow: hidden; /* ngăn thừa scroll */
+  height: 100vh;
+}
+
+.chatMenu, .chatOnline {
+  flex: 1;
+  background-color: var(--secondary-bg);
+  border-right: 1px solid var(--border-color);
+  overflow-y: auto;
+}
+
+.chatMenuWrapper {
+  padding: 20px;
+}
+
+.chatMenuInput {
+  width: 100%;
+  padding: 10px;
+  border-radius: 20px;
+  border: none;
+  background: var(--input-bg);
+  color: var(--text);
+}
+
+.chatBox {
+  flex: 3;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--secondary-bg);
+}
+
+.chatBoxWrapper {
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.chatBoxTop {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 10px;
+  justify-self: flex-end;
+}
+
+.chatBoxBottom {
+  border-top: 1px solid var(--border-color);
+  padding: 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.chatMessageInput {
+  flex: 1;
+  background: var(--input-bg);
+  color: var(--text);
+  border: none;
+  border-radius: 20px;
+  padding: 10px 15px;
+  resize: none;
+  font-size: 16px;
+}
+
+.chatSubmitButton {
+  background-color: var(--own-message-bg);
+  border: none;
+  color: var(--own-message-text);
+  padding: 10px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background 0.3s;
+}
+
+.chatSubmitButton:hover {
+  background-color: #006bbd;
+}
+
+.noMessageYet,
+.noConversationText {
+  text-align: center;
+  margin-top: 30px;
+  color: #888;
+}
+.chatBoxTop::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chatBoxTop::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.chatBoxTop::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chatBoxTop {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+.chatHeader {
+  background-color: #f6f6f6;
+  color: white;
+  padding: 10px 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chatHeaderLeft {
+  display: flex;
+  align-items: center;
+}
+
+.chatHeaderAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-right: 10px;
+  object-fit: cover;
+}
+
+.chatHeaderName {
+  font-weight: bold;
+  color:#333
+}
+
+.chatHeaderStatus {
+  font-size: 12px;
+  color: #a9a9a9;
+}
+
+.onlineDot {
+  width: 8px;
+  height: 8px;
+  background-color: #0f0;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 5px;
+}
+
+.chatHeaderRight i {
+  color: #ccc;
+  font-size: 18px;
+  margin-left: 15px;
+  cursor: pointer;
+}
+.chatInputContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  width: 100%;
+}
+
+.iconButton {
+  background: none;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.emojiPicker,
+.stickerPicker {
+  position: absolute;
+  bottom: 60px;
+  left: 10px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.15);
+  z-index: 10;
+}
+
+.stickerPicker {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  flex-wrap: wrap;
+  width: 200px;
+}
+
+.stickerItem {
+  width: 50px;
+  height: 50px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.stickerItem:hover {
+  transform: scale(1.1);
+}

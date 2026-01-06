@@ -1,3 +1,4 @@
+import "./Message.scss";
 import ImageUser from "../../../public/avatar.jpg";
 
 const Message = ({ message, own, sender, showTime }) => {

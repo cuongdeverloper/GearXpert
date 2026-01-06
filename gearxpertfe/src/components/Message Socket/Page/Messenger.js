@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
+import './Messenger.scss'
 import Conversation from "../components/conversations";
 import { useNavigate, useParams } from "react-router-dom";
 import ChatBox from "./ChatBox";
-import { ApiGetMessageByConversationId, ApiSendMessage, getConversationApi } from "../ApiMessage";
+import { ApiGetMessageByConversationId, ApiGetUserByUserId, ApiSendMessage, getConversationApi } from "../ApiMessage";
 import { toast } from "react-toastify";
 import { useSocket } from "../../../SocketContext";
-import { ApiGetUserByUserId } from "../ApiMessage";
 
 const Messenger = () => {
   const { conversationId } = useParams();
@@ -172,7 +172,7 @@ const Messenger = () => {
         <div className="chatMenu">
           <div className="chatMenuWrapper">
             <input placeholder="Search for friends" className="chatMenuInput" />
-            {conversations?.map((c) => (
+            {conversations.map((c) => (
               <div key={c._id} onClick={() => navigate(`/messenger/${c._id}`)}>
                 <Conversation conversation={c} currentUser={user.account} />
               </div>

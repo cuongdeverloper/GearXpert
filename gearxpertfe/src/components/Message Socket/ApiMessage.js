@@ -49,6 +49,7 @@ export const ApiSendMessage = async (receiverId, text, conversationId = null) =>
   }
 };
 
+
 export const getConversationApi = async () => {
   try {
     const token = Cookies.get("accessToken");
@@ -70,7 +71,6 @@ export const getConversationApi = async () => {
     return null;
   }
 };
-
 export const ApiGetMessageByConversationId = async (conversationId) => {
   try {
     const token = Cookies.get("accessToken");

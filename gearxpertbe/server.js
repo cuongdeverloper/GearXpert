@@ -31,17 +31,17 @@ const io = socketIo(server, {
 });
 app.set("io", io);
 
-
-app.use('/api/rentals',rentalRouter);
-app.use('/api/carts',cartRouter);
-app.use('/api/devices',deviceRouter);
-app.use('/api/vounchers',voucherRouter);
-app.use('/api/messages',routerMessage);
-
-// Configure request body parsing
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// Configure CORS
+app.use(
+  cors({
+    origin: "http://localhost:2468",
+    credentials: true,
+  })
+);
 
 // Configure session middleware
 app.use(
@@ -57,13 +57,14 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session()); // Enable passport session support
 
-// Configure CORS
-app.use(
-  cors({
-    origin: "http://localhost:2468",
-    credentials: true,
-  })
-);
+app.use('/api/rentals',rentalRouter);
+app.use('/api/carts',cartRouter);
+app.use('/api/devices',deviceRouter);
+app.use('/api/vounchers',voucherRouter);
+app.use('/api/message',routerMessage);
+
+
+// Configure request body parsing
 
 configViewEngine(app);
 app.get("/", (req, res) => {

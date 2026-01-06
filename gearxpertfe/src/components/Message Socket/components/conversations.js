@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import "./conversation.scss";
 import ImageUser from "../../public/avatar.jpg"
 import { ApiGetUserByUserId } from "../ApiMessage";
 
@@ -8,6 +9,7 @@ const  Conversation = ({ conversation, currentUser }) => {
 const getUser = async (friendId) => {
   try {
     const response = await ApiGetUserByUserId(friendId);
+    console.log(response)
     if (response) setUser(response);
   } catch (err) {
     console.error("Error getting user:", err);
@@ -26,13 +28,13 @@ useEffect(() => {
     <div className="conversation">
       <img
         className="conversationImg"
-        src={user?.image || ImageUser
+        src={user?.avatar || ImageUser
             // 
             // : PF + "person/noAvatar.png"
         }
         alt=""
       />
-      <span className="conversationName">{user?.username}</span>
+      <span className="conversationName">{user?.fullName}</span>
     </div>
   );
 }
