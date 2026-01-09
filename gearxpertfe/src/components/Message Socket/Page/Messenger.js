@@ -172,7 +172,7 @@ const Messenger = () => {
         <div className="chatMenu">
           <div className="chatMenuWrapper">
             <input placeholder="Search for friends" className="chatMenuInput" />
-            {conversations.map((c) => (
+            {conversations?.map((c) => (
               <div key={c._id} onClick={() => navigate(`/messenger/${c._id}`)}>
                 <Conversation conversation={c} currentUser={user.account} />
               </div>
