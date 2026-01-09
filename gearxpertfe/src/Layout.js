@@ -17,6 +17,8 @@ import VerifyAccount from "./components/Auth/VerifyAccount";
 import AuthCallback from "./components/Auth/AuthCallback";
 import RequestPasswordReset from "./components/Auth/reset password/RequestPasswordReset";
 import ResetPassword from "./components/Auth/reset password/ResetPassword";
+import RentalReviewPage from "./pages/Rental/RentalReviewPage";
+
 export default function Layout() {
   useEffect(() => {
     Aos.init({ duration: 1000 });
@@ -50,6 +52,10 @@ export default function Layout() {
             <Route path="auth/callback" element={<AuthCallback />} />
             <Route path="/forgot-password" element={<RequestPasswordReset />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+             <Route path="/device/" element={<ProductDetailPage />} />
+
+            <Route path="/rental/checkout" element={<RentalCheckout />} />
+            <Route path="/rental/checkout/review" element={<RentalReviewPage />} />
             {/* <Route path="/rental/manage" element={<RentalManagementPage />} /> */}
           </Route>
           <Route path="/verify-account" element={<VerifyAccount />} />
