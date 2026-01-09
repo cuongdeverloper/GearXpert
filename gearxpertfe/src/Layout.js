@@ -4,8 +4,8 @@ import { ToastContainer } from "react-toastify";
 import Aos from "aos";
 
 import Hello from "./components/Hello";
-import Chatbot from "./components/chatbot/Chatbot";
-import DashboardLayout from "./components/layout/DashboardLayout";
+import Chatbot from "./components/chatbot/Chatbot"; // Giữ Chatbot của bạn
+import DashboardLayout from "./components/layout/DashboardLayout"; // Giữ Layout từ main
 
 // pages
 import RentalCheckout from "./pages/Rental/RentalCheckout";
@@ -44,14 +44,6 @@ export default function Layout() {
 
           <Route element={<DashboardLayout />}>
             <Route path="/" element={<Hello />} />
-            <Route path="/device/" element={<ProductDetailPage />} />
-            <Route path="/wallet" element={<WalletPage />} />
-            <Route path="/rental/checkout" element={<RentalCheckout />} />
-            <Route path="/signin" element={<SignIn />} />
-            <Route path="/otp-verify" element={<EnterOTPRegister />} />
-            <Route path="auth/callback" element={<AuthCallback />} />
-            <Route path="/forgot-password" element={<RequestPasswordReset />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
              <Route path="/device/" element={<ProductDetailPage />} />
 
             <Route path="/rental/checkout" element={<RentalCheckout />} />
