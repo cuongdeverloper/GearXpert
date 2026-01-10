@@ -18,6 +18,8 @@ router.post('/forgot-password', authController.requestPasswordReset);
 
 router.post('/reset-password', authController.resetPassword);
 
+router.post('/send-otp-change-password', checkAccessToken, authController.sendOTPForPasswordChange);
+
 
 router.post('/decode-token', (req, res) => {
     const { token } = req.body;
@@ -31,5 +33,9 @@ router.post('/decode-token', (req, res) => {
 
 
 router.post('/change-password', checkAccessToken, authController.changePassword);
+
+router.get('/me', checkAccessToken, authController.getCurrentUser);
+
+router.put('/update-profile', checkAccessToken, authController.updateProfile);
 
 module.exports = router;

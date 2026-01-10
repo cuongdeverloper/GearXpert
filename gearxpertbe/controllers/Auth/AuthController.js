@@ -1,7 +1,7 @@
 const { createJWT, createRefreshToken, verifyAccessToken, createJWTResetPassword, createJWTVerifyEmail } = require('../../middleware/JWTAction');
 const bcrypt = require('bcryptjs');
 const uploadCloud = require('../../configs/cloudinaryConfig');
-const { sendMail } = require('../../configs/sendMail'); 
+const { sendMail } = require('../../configs/sendMail');
 const UserOTPVerification = require('../../models/UserOTPVerification');
 const User = require('../../models/User');
 require('dotenv').config();
@@ -169,6 +169,66 @@ const resendOTPVerificationCode = async (req, res) => {
     }
 };
 
+const sendOTPForPasswordChange = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { oldPassword } = req.body;
+
+        if (!oldPassword) {
+            return res.status(400).json({ errorCode: 1, message: 'Old password is required' });
+        }
+
+        // Verify old password first
+        const userRecord = await User.findById(userId);
+        if (!userRecord) {
+            return res.status(404).json({ errorCode: 2, message: 'User not found' });
+        }
+
+        const isMatch = await userRecord.comparePassword(oldPassword);
+        if (!isMatch) {
+            return res.status(400).json({ errorCode: 3, message: 'Old password is incorrect' });
+        }
+
+        // Delete any existing OTP for this user
+        await UserOTPVerification.deleteMany({ userId });
+
+        // Generate 6-digit OTP
+        const otp = `${Math.floor(100000 + Math.random() * 900000)}`;
+        const hashedOTP = await bcrypt.hash(otp, 10);
+
+        // Save OTP to database (auto-expires in 5 minutes)
+        await new UserOTPVerification({ userId, otp: hashedOTP }).save();
+
+        // Send OTP via email
+        const emailContent = `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 10px;">
+                <div style="background: #1a1a1a; color: #fff; padding: 20px; text-align: center;"><h2>GearXpert</h2></div>
+                <div style="padding: 30px;">
+                    <p>Xin chào <strong>${userRecord.fullName}</strong>,</p>
+                    <p>Bạn đã yêu cầu đổi mật khẩu. Mã OTP xác thực của bạn là:</p>
+                    <div style="text-align: center; margin: 30px 0;">
+                        <div style="background: #f0f0f0; color: #333; padding: 15px 30px; font-size: 32px; font-weight: bold; letter-spacing: 8px; border-radius: 8px; display: inline-block;">${otp}</div>
+                    </div>
+                    <p style="color: #e74c3c; font-weight: bold;">⚠️ Mã OTP này sẽ hết hạn sau 5 phút.</p>
+                    <p style="font-size: 12px; color: #888;">Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này.</p>
+                </div>
+            </div>
+        `;
+
+        await sendMail(userRecord.email, 'Mã OTP Đổi Mật Khẩu - GearXpert', emailContent);
+
+        return res.status(200).json({
+            errorCode: 0,
+            message: 'OTP has been sent to your email',
+            data: { email: userRecord.email }
+        });
+    } catch (error) {
+        console.error('Send OTP Error:', error);
+        return res.status(500).json({ errorCode: 5, message: 'Failed to send OTP' });
+    }
+};
+
+
 
 const resetPassword = async (req, res) => {
     try {
@@ -191,20 +251,51 @@ const resetPassword = async (req, res) => {
 const changePassword = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { oldPassword, newPassword, confirmPassword } = req.body;
+        const { oldPassword, newPassword, confirmPassword, otp } = req.body;
 
-        if (newPassword !== confirmPassword) return res.status(400).json({ errorCode: 2, message: 'Not match' });
+        // Validate OTP is provided
+        if (!otp) {
+            return res.status(400).json({ errorCode: 1, message: 'OTP is required' });
+        }
 
+        if (newPassword !== confirmPassword) {
+            return res.status(400).json({ errorCode: 2, message: 'Passwords do not match' });
+        }
+
+        // Find user
         const userRecord = await User.findById(userId);
-        const isMatch = await userRecord.comparePassword(oldPassword);
-        if (!isMatch) return res.status(400).json({ errorCode: 4, message: 'Old password wrong' });
+        if (!userRecord) {
+            return res.status(404).json({ errorCode: 3, message: 'User not found' });
+        }
 
+        // Verify old password
+        const isMatch = await userRecord.comparePassword(oldPassword);
+        if (!isMatch) {
+            return res.status(400).json({ errorCode: 4, message: 'Old password is incorrect' });
+        }
+
+        // Verify OTP
+        const otpRecord = await UserOTPVerification.findOne({ userId });
+        if (!otpRecord) {
+            return res.status(400).json({ errorCode: 5, message: 'OTP not found or expired' });
+        }
+
+        const isOtpValid = await bcrypt.compare(otp, otpRecord.otp);
+        if (!isOtpValid) {
+            return res.status(400).json({ errorCode: 6, message: 'Invalid OTP' });
+        }
+
+        // All validations passed, change password
         userRecord.password = newPassword;
         await userRecord.save();
 
-        return res.status(200).json({ errorCode: 0, message: 'Password changed' });
+        // Delete OTP after successful password change
+        await UserOTPVerification.deleteMany({ userId });
+
+        return res.status(200).json({ errorCode: 0, message: 'Password changed successfully' });
     } catch (error) {
-        return res.status(500).json({ errorCode: 6, message: 'Change Password Error' });
+        console.error('Change Password Error:', error);
+        return res.status(500).json({ errorCode: 7, message: 'Failed to change password' });
     }
 };
 
@@ -221,7 +312,86 @@ const verifyAccountByLink = async (req, res) => {
     }
 };
 
+const getCurrentUser = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const userRecord = await User.findById(userId);
+        if (!userRecord) return res.status(404).json({ errorCode: 2, message: 'User not found' });
+
+        return res.status(200).json({
+            errorCode: 0,
+            message: 'Get user success',
+            data: {
+                id: userRecord._id,
+                fullName: userRecord.fullName,
+                email: userRecord.email,
+                phone: userRecord.phone,
+                avatar: userRecord.avatar,
+                role: userRecord.role,
+                address: userRecord.address || {},
+                rank: userRecord.rank,
+                walletBalance: userRecord.walletBalance,
+                rewardPoints: userRecord.rewardPoints
+            }
+        });
+    } catch (error) {
+        return res.status(500).json({ errorCode: 5, message: 'Get user error' });
+    }
+};
+
+const updateProfile = async (req, res) => {
+    try {
+        uploadCloud.single('avatar')(req, res, async (err) => {
+            if (err) return res.status(400).json({ errorCode: 4, message: `Upload Error: ${err.message}` });
+
+            const userId = req.user.id;
+            const { fullName, phone, street, district, city } = req.body;
+            const avatar = req.file ? req.file.path : undefined;
+
+            const userRecord = await User.findById(userId);
+            if (!userRecord) return res.status(404).json({ errorCode: 2, message: 'User not found' });
+
+            // Update fields
+            if (fullName) userRecord.fullName = fullName;
+            if (phone) userRecord.phone = phone;
+            if (avatar) userRecord.avatar = avatar;
+
+            // Update address
+            if (street || district || city) {
+                userRecord.address = {
+                    street: street || userRecord.address?.street || '',
+                    district: district || userRecord.address?.district || '',
+                    city: city || userRecord.address?.city || '',
+                    fullAddress: `${street || userRecord.address?.street || ''}, ${district || userRecord.address?.district || ''}, ${city || userRecord.address?.city || ''}`.trim().replace(/^,\s*|,\s*$/g, '')
+                };
+            }
+
+            await userRecord.save();
+
+            return res.status(200).json({
+                errorCode: 0,
+                message: 'Profile updated successfully',
+                data: {
+                    id: userRecord._id,
+                    fullName: userRecord.fullName,
+                    email: userRecord.email,
+                    phone: userRecord.phone,
+                    avatar: userRecord.avatar,
+                    role: userRecord.role,
+                    address: userRecord.address || {},
+                    rank: userRecord.rank,
+                    walletBalance: userRecord.walletBalance,
+                    rewardPoints: userRecord.rewardPoints
+                }
+            });
+        });
+    } catch (error) {
+        return res.status(500).json({ errorCode: 5, message: 'Update profile error' });
+    }
+};
+
 module.exports = {
     apiLogin, apiRegister, verifyOtp, resendOTPVerificationCode,
-    requestPasswordReset, resetPassword, changePassword, verifyAccountByLink
+    requestPasswordReset, resetPassword, changePassword, verifyAccountByLink,
+    getCurrentUser, updateProfile, sendOTPForPasswordChange
 };
