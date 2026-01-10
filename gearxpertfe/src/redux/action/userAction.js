@@ -18,6 +18,7 @@ const doLogin = (response) => {
             phoneNumber: data?.phoneNumber || data?.phone || '',
             gender: data?.gender || '',
             image: data?.image || data?.avatar || '',
+            address: data?.address || {},
             rank: data?.rank || 'BRONZE',
             walletBalance: data?.walletBalance || 0,
             rewardPoints: data?.rewardPoints || 0
@@ -38,6 +39,7 @@ const doLoginWGoogle = (response, access_token, refresh_token) => {
             phoneNumber: response?.phoneNumber || response?.phone || '',
             gender: response?.gender || '',
             image: response?.image || response?.avatar || '',
+            address: response?.address || {},
             rank: response?.rank || 'BRONZE',
             walletBalance: response?.walletBalance || 0,
             rewardPoints: response?.rewardPoints || 0

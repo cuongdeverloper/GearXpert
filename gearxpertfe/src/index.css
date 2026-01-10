@@ -23,3 +23,79 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Rank LED Border Animation */
+@keyframes led-border-gold {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 300% 0%;
+  }
+}
+
+@keyframes led-border-bronze {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 300% 0%;
+  }
+}
+
+@keyframes led-border-silver {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 300% 0%;
+  }
+}
+
+.rank-card-gold {
+  @apply relative p-[3px] rounded-xl overflow-hidden;
+}
+
+.rank-card-gold::after {
+  content: '';
+  @apply absolute inset-0 rounded-xl p-[3px] z-0 pointer-events-none;
+  background: linear-gradient(90deg, #FFD700 0%, #FFFFFF 20%, #FFD700 40%, #FFFFFF 60%, #FFD700 80%, #FFFFFF 100%);
+  background-size: 300% 100%;
+  animation: led-border-gold 3s linear infinite;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+
+.rank-card-bronze {
+  @apply relative p-[3px] rounded-xl overflow-hidden;
+}
+
+.rank-card-bronze::after {
+  content: '';
+  @apply absolute inset-0 rounded-xl p-[3px] z-0 pointer-events-none;
+  background: linear-gradient(90deg, #CD7F32 0%, #FFFFFF 20%, #CD7F32 40%, #FFFFFF 60%, #CD7F32 80%, #FFFFFF 100%);
+  background-size: 300% 100%;
+  animation: led-border-bronze 3s linear infinite;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+
+.rank-card-silver {
+  @apply relative p-[3px] rounded-xl overflow-hidden;
+}
+
+.rank-card-silver::after {
+  content: '';
+  @apply absolute inset-0 rounded-xl p-[3px] z-0 pointer-events-none;
+  background: linear-gradient(90deg, #C0C0C0 0%, #FFFFFF 20%, #C0C0C0 40%, #FFFFFF 60%, #C0C0C0 80%, #FFFFFF 100%);
+  background-size: 300% 100%;
+  animation: led-border-silver 3s linear infinite;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}

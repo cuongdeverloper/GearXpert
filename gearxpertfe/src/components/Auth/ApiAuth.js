@@ -6,13 +6,13 @@ export const ApiLogin = (userEmail, userPassword) => {
 
 export const ApiRegister = async (fullName, email, password, phone, role, imageFile) => {
   const formData = new FormData();
-  
+
   formData.append('fullName', fullName);
   formData.append('email', email);
   formData.append('password', password);
   formData.append('phone', phone);
   formData.append('role', role || 'CUSTOMER');
-  
+
   if (imageFile) {
     formData.append('avatar', imageFile);
   }

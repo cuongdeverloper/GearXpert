@@ -80,6 +80,36 @@ export default function Header() {
     return rank.charAt(0) + rank.slice(1).toLowerCase();
   };
 
+  // Get rank card class based on rank
+  const getRankCardClass = (rank) => {
+    if (!rank) return 'rank-card-gold';
+    const rankUpper = rank.toUpperCase();
+    if (rankUpper === 'GOLD') return 'rank-card-gold';
+    if (rankUpper === 'BRONZE') return 'rank-card-bronze';
+    if (rankUpper === 'SILVER') return 'rank-card-silver';
+    return 'rank-card-gold'; // Default to gold
+  };
+
+  // Get rank inner background class based on rank
+  const getRankInnerClass = (rank) => {
+    if (!rank) return 'bg-gradient-to-br from-amber-400 via-amber-300 to-yellow-200';
+    const rankUpper = rank.toUpperCase();
+    if (rankUpper === 'GOLD') return 'bg-gradient-to-br from-amber-400 via-amber-300 to-yellow-200';
+    if (rankUpper === 'BRONZE') return 'bg-gradient-to-br from-amber-800 via-amber-700 to-orange-600';
+    if (rankUpper === 'SILVER') return 'bg-gradient-to-br from-slate-300 via-slate-200 to-gray-100';
+    return 'bg-gradient-to-br from-amber-400 via-amber-300 to-yellow-200'; // Default to gold
+  };
+
+  // Get rank text color class based on rank
+  const getRankTextClass = (rank) => {
+    if (!rank) return 'text-amber-900';
+    const rankUpper = rank.toUpperCase();
+    if (rankUpper === 'GOLD') return 'text-amber-900';
+    if (rankUpper === 'BRONZE') return 'text-white';
+    if (rankUpper === 'SILVER') return 'text-slate-800';
+    return 'text-amber-900'; // Default to gold
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full glass-panel bg-white/70 border-b border-slate-200">
       <div className="max-w-[1440px] mx-auto px-6 lg:px-10 h-[72px] flex items-center justify-between">
@@ -145,7 +175,13 @@ export default function Header() {
               {isDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
                   {/* User Info */}
-                  <div className="p-4 border-b border-slate-100 bg-gradient-to-r from-primary/5 to-accent-cyan/5">
+                  <div 
+                    className="p-4 border-b border-slate-100 bg-gradient-to-r from-primary/5 to-accent-cyan/5 cursor-pointer hover:from-primary/10 hover:to-accent-cyan/10 transition-all"
+                    onClick={() => {
+                      navigate('/profile');
+                      setIsDropdownOpen(false);
+                    }}
+                  >
                     <div className="flex items-center gap-3">
                       <div 
                         className="w-12 h-12 rounded-full bg-cover bg-center ring-2 ring-primary/20"
@@ -169,6 +205,7 @@ export default function Header() {
                           {userAccount.email || ''}
                         </p>
                       </div>
+                      <span className="material-symbols-outlined text-slate-400 text-[20px]">chevron_right</span>
                     </div>
                   </div>
 
@@ -176,17 +213,18 @@ export default function Header() {
                   <div className="p-4 space-y-3 border-b border-slate-100">
                     {/* Rank Card */}
                     <div 
-                      className="flex items-center gap-3 p-3 rounded-lg text-white cursor-pointer hover:opacity-90 transition-opacity"
-                      style={{ backgroundColor: '#F59E0B' }}
+                      className={`${getRankCardClass(userAccount.rank)} cursor-pointer hover:opacity-90 transition-opacity`}
                     >
-                      <div className="flex-shrink-0">
-                        <span className="material-symbols-outlined text-[24px] fill-current">military_tech</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-sm">Hạng {formatRank(userAccount.rank)}</span>
-                          <span className="text-white/80 text-sm">•</span>
-                          <span className="text-sm">{(userAccount.rewardPoints || 1240).toLocaleString('vi-VN')} điểm</span>
+                      <div className={`${getRankInnerClass(userAccount.rank)} relative rounded-[calc(0.75rem-3px)] w-full h-full flex items-center gap-3 p-3 z-[1]`}>
+                        <div className="flex-shrink-0">
+                          <span className={`material-symbols-outlined text-[24px] fill-current ${getRankTextClass(userAccount.rank)}`}>military_tech</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className={`flex items-center gap-2 flex-wrap ${getRankTextClass(userAccount.rank)}`}>
+                            <span className="font-bold text-sm">Hạng {formatRank(userAccount.rank)}</span>
+                            <span className={`${getRankTextClass(userAccount.rank)}/80 text-sm`}>•</span>
+                            <span className="text-sm">{(userAccount.rewardPoints || 1240).toLocaleString('vi-VN')} điểm</span>
+                          </div>
                         </div>
                       </div>
                     </div>

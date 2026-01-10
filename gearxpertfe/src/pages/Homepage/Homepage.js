@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { getDevices } from "../../service/ApiService/DeviceApi";
 import Header from "../../components/navigation/Header";
 import HeroSection from "../../components/homepage/HeroSection";
-import CategoryFilters from "../../components/homepage/CategoryFilters";
+import CategoryPills from "../../components/common/CategoryPills";
 import AISuggestedSection from "../../components/homepage/AISuggestedSection";
 import TrendingNowSection from "../../components/homepage/TrendingNowSection";
 import NewArrivalsSection from "../../components/homepage/NewArrivalsSection";
@@ -29,12 +29,12 @@ export default function Homepage() {
       const response = await getDevices(params);
       const fetchedDevices = response.devices || [];
       setDevices(fetchedDevices);
-      
+
       // Set trending device (first device or most popular)
       if (fetchedDevices.length > 0) {
         setTrendingDevice(fetchedDevices[0]);
       }
-      
+
       // Set new arrivals (last 3 devices)
       if (fetchedDevices.length > 0) {
         setNewArrivals(fetchedDevices.slice(-3).reverse());
@@ -61,15 +61,17 @@ export default function Homepage() {
   return (
     <div className="min-h-screen flex flex-col bg-background-light">
       <Header />
-      
+
       <main className="flex-grow w-full max-w-[1440px] mx-auto pb-12">
         <HeroSection />
-        
-        <CategoryFilters
-          categories={categories}
-          selectedCategory={selectedCategory}
-          onCategorySelect={handleCategorySelect}
-        />
+
+        <section className="px-6 lg:px-10 mb-12">
+          <CategoryPills
+            categories={categories}
+            activeCategory={selectedCategory}
+            onSelect={handleCategorySelect}
+          />
+        </section>
 
         <AISuggestedSection devices={devices.slice(0, 3)} />
 
