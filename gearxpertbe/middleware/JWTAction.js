@@ -56,10 +56,10 @@ const verifyRefreshToken = (token) => verifyToken(token, process.env.REFRESH_TOK
 
 const checkAccessToken = (req, res, next) => {
 
-    
+
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-    
+
 
     if (!token) {
         console.log("No token found");
@@ -71,7 +71,7 @@ const checkAccessToken = (req, res, next) => {
     }
 
     const verifiedToken = verifyAccessToken(token);
-    
+
     if (!verifiedToken) {
         console.log("Token verification failed");
         return res.status(401).json({ message: 'Invalid or expired access token' });
@@ -81,9 +81,9 @@ const checkAccessToken = (req, res, next) => {
     next();
 };
 const createJWTVerifyEmail = (payload) => {
-  const key = process.env.JWT_SECRET;
-  const options = { expiresIn: '5m' };
-  return jwt.sign(payload, key, options);
+    const key = process.env.JWT_SECRET;
+    const options = { expiresIn: '5m' };
+    return jwt.sign(payload, key, options);
 };
 module.exports = {
     createJWT,
@@ -93,5 +93,15 @@ module.exports = {
     checkAccessToken,
     decodeToken,
     createJWTResetPassword,
-    createJWTVerifyEmail
+    createJWTVerifyEmail,
+    createJWTOtp: (payload) => {
+        const key = process.env.JWT_SECRET;
+        const options = { expiresIn: '5m' }; // Token OTP short-lived (5 minutes)
+        try {
+            return jwt.sign(payload, key, options);
+        } catch (error) {
+            console.error('Error creating OTP JWT:', error);
+            return null;
+        }
+    }
 };

@@ -6,6 +6,8 @@ import Aos from "aos";
 import Homepage from "./pages/Homepage/Homepage";
 import Chatbot from "./components/chatbot/Chatbot"; // Giữ Chatbot của bạn
 import DashboardLayout from "./components/layout/DashboardLayout"; // Giữ Layout từ main
+import GlobalLoadingOverlay from "./components/common/GlobalLoadingOverlay";
+import RouteHandler from "./components/common/RouteHandler";
 
 // pages
 import RentalCheckout from "./pages/Rental/RentalCheckout";
@@ -15,7 +17,6 @@ import SignIn from "./components/Auth/Sign in/SignIn";
 import EnterOTPRegister from "./components/Auth/OTP/EnterOTPRegister";
 import VerifyAccount from "./components/Auth/VerifyAccount";
 import AuthCallback from "./components/Auth/AuthCallback";
-import RequestPasswordReset from "./components/Auth/reset password/RequestPasswordReset";
 import ResetPassword from "./components/Auth/reset password/ResetPassword";
 import RentalReviewPage from "./pages/Rental/RentalReviewPage";
 import ProfilePage from "./pages/User/ProfilePage";
@@ -27,6 +28,8 @@ export default function Layout() {
 
   return (
     <BrowserRouter>
+      <RouteHandler />
+      <GlobalLoadingOverlay />
       <Suspense fallback={<div className="p-6">Loading...</div>}>
         <ToastContainer
           position="top-right"
@@ -44,12 +47,12 @@ export default function Layout() {
         <Routes>
           {/* Homepage has its own Header and Footer */}
           <Route path="/" element={<Homepage />} />
-          
+
           {/* Auth pages */}
           <Route path="/signin" element={<SignIn />} />
           <Route path="/otp-verify" element={<EnterOTPRegister />} />
           <Route path="auth/callback" element={<AuthCallback />} />
-          <Route path="/forgot-password" element={<RequestPasswordReset />} />
+          {/* Forgot Password is now a modal on SignIn, route removed */}
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-account" element={<VerifyAccount />} />
 

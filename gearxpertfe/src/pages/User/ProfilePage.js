@@ -22,6 +22,7 @@ export default function ProfilePage() {
   const [otpSent, setOtpSent] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
   const [otpCode, setOtpCode] = useState('');
+  const [tempToken, setTempToken] = useState(''); // Store stateless token
 
   // Profile form state
   const [formData, setFormData] = useState({
@@ -203,6 +204,9 @@ export default function ProfilePage() {
       if (response.errorCode === 0) {
         toast.success('Mã OTP đã được gửi đến email của bạn');
         setOtpSent(true);
+        if (response.data && response.data.tempToken) {
+          setTempToken(response.data.tempToken);
+        }
       } else {
         toast.error(response.message || 'Gửi OTP thất bại');
       }
@@ -241,10 +245,10 @@ export default function ProfilePage() {
 
     try {
       const response = await changePassword({
-        oldPassword: passwordData.oldPassword,
         newPassword: passwordData.newPassword,
         confirmPassword: passwordData.confirmPassword,
-        otp: otpCode
+        otp: otpCode,
+        tempToken: tempToken
       });
 
       if (response.errorCode === 0) {
@@ -651,6 +655,7 @@ export default function ProfilePage() {
                       setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
                       setOtpSent(false);
                       setOtpCode('');
+                      setTempToken('');
                     }}
                     className="px-6 py-3 border border-slate-300 rounded-xl text-slate-700 font-semibold hover:bg-slate-50 hover:shadow-md transition-all duration-300"
                   >

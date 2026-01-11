@@ -1,8 +1,8 @@
-const { createJWT, createRefreshToken, verifyAccessToken, createJWTResetPassword, createJWTVerifyEmail } = require('../../middleware/JWTAction');
+const { createJWT, createRefreshToken, verifyAccessToken, createJWTResetPassword, createJWTVerifyEmail, createJWTOtp } = require('../../middleware/JWTAction');
 const bcrypt = require('bcryptjs');
 const uploadCloud = require('../../configs/cloudinaryConfig');
 const { sendMail } = require('../../configs/sendMail');
-const UserOTPVerification = require('../../models/UserOTPVerification');
+
 const User = require('../../models/User');
 require('dotenv').config();
 
@@ -131,43 +131,7 @@ const requestPasswordReset = async (req, res) => {
     }
 };
 
-const verifyOtp = async (req, res) => {
-    try {
-        const { userId, OTP } = req.body;
-        if (!userId || !OTP) return res.status(400).json({ errorCode: 100, message: 'Missing info' });
 
-        const otpRecord = await UserOTPVerification.findOne({ userId });
-        if (!otpRecord) return res.status(400).json({ errorCode: 2, message: 'OTP record not found' });
-
-        const isOtpValid = await bcrypt.compare(OTP, otpRecord.otp);
-        if (!isOtpValid) return res.status(400).json({ errorCode: 3, message: 'Invalid OTP' });
-
-        await User.findByIdAndUpdate(userId, { isVerified: true });
-        await UserOTPVerification.deleteMany({ userId });
-
-        return res.status(200).json({ errorCode: 0, message: 'OTP verified' });
-    } catch (error) {
-        return res.status(500).json({ errorCode: 4, message: 'OTP Error' });
-    }
-};
-
-const resendOTPVerificationCode = async (req, res) => {
-    try {
-        const { userId, email } = req.body;
-        await UserOTPVerification.deleteMany({ userId });
-
-        const otp = `${Math.floor(1000 + Math.random() * 9000)}`;
-        const hashedOTP = await bcrypt.hash(otp, 10);
-
-        await new UserOTPVerification({ userId, otp: hashedOTP }).save();
-
-        await sendMail(email, 'Mã OTP mới', `<p>Mã OTP của bạn là: <b>${otp}</b></p>`);
-
-        return res.status(200).json({ errorCode: 0, message: 'New OTP sent' });
-    } catch (error) {
-        return res.status(500).json({ errorCode: 2, message: 'Resend Error' });
-    }
-};
 
 const sendOTPForPasswordChange = async (req, res) => {
     try {
@@ -189,15 +153,18 @@ const sendOTPForPasswordChange = async (req, res) => {
             return res.status(400).json({ errorCode: 3, message: 'Old password is incorrect' });
         }
 
-        // Delete any existing OTP for this user
-        await UserOTPVerification.deleteMany({ userId });
-
         // Generate 6-digit OTP
         const otp = `${Math.floor(100000 + Math.random() * 900000)}`;
-        const hashedOTP = await bcrypt.hash(otp, 10);
 
-        // Save OTP to database (auto-expires in 5 minutes)
-        await new UserOTPVerification({ userId, otp: hashedOTP }).save();
+        // Hash OTP
+        const otpHash = await bcrypt.hash(otp, 10);
+
+        // Create Stateless Token containing the hash
+        const tempToken = createJWTOtp({
+            userId,
+            otpHash,
+            purpose: 'CHANGE_PASSWORD'
+        });
 
         // Send OTP via email
         const emailContent = `
@@ -220,7 +187,10 @@ const sendOTPForPasswordChange = async (req, res) => {
         return res.status(200).json({
             errorCode: 0,
             message: 'OTP has been sent to your email',
-            data: { email: userRecord.email }
+            data: {
+                email: userRecord.email,
+                tempToken // Send token to client to send back with OTP
+            }
         });
     } catch (error) {
         console.error('Send OTP Error:', error);
@@ -251,15 +221,27 @@ const resetPassword = async (req, res) => {
 const changePassword = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { oldPassword, newPassword, confirmPassword, otp } = req.body;
+        const { newPassword, confirmPassword, otp, tempToken } = req.body;
 
-        // Validate OTP is provided
-        if (!otp) {
-            return res.status(400).json({ errorCode: 1, message: 'OTP is required' });
+        // Validate OTP and Token are provided
+        if (!otp || !tempToken) {
+            return res.status(400).json({ errorCode: 1, message: 'OTP and Token are required' });
         }
 
         if (newPassword !== confirmPassword) {
             return res.status(400).json({ errorCode: 2, message: 'Passwords do not match' });
+        }
+
+        // Verify The Stateless Token
+        const decoded = verifyAccessToken(tempToken); // Using verifyAccessToken assuming same secret, or use specific verify if different
+        if (!decoded || decoded.purpose !== 'CHANGE_PASSWORD' || decoded.userId !== userId) {
+            return res.status(403).json({ errorCode: 5, message: 'Invalid or expired session' });
+        }
+
+        // Verify OTP against the hash in the token
+        const isOtpValid = await bcrypt.compare(otp, decoded.otpHash);
+        if (!isOtpValid) {
+            return res.status(400).json({ errorCode: 6, message: 'Invalid OTP' });
         }
 
         // Find user
@@ -268,29 +250,9 @@ const changePassword = async (req, res) => {
             return res.status(404).json({ errorCode: 3, message: 'User not found' });
         }
 
-        // Verify old password
-        const isMatch = await userRecord.comparePassword(oldPassword);
-        if (!isMatch) {
-            return res.status(400).json({ errorCode: 4, message: 'Old password is incorrect' });
-        }
-
-        // Verify OTP
-        const otpRecord = await UserOTPVerification.findOne({ userId });
-        if (!otpRecord) {
-            return res.status(400).json({ errorCode: 5, message: 'OTP not found or expired' });
-        }
-
-        const isOtpValid = await bcrypt.compare(otp, otpRecord.otp);
-        if (!isOtpValid) {
-            return res.status(400).json({ errorCode: 6, message: 'Invalid OTP' });
-        }
-
         // All validations passed, change password
         userRecord.password = newPassword;
         await userRecord.save();
-
-        // Delete OTP after successful password change
-        await UserOTPVerification.deleteMany({ userId });
 
         return res.status(200).json({ errorCode: 0, message: 'Password changed successfully' });
     } catch (error) {
@@ -391,7 +353,7 @@ const updateProfile = async (req, res) => {
 };
 
 module.exports = {
-    apiLogin, apiRegister, verifyOtp, resendOTPVerificationCode,
+    apiLogin, apiRegister,
     requestPasswordReset, resetPassword, changePassword, verifyAccountByLink,
     getCurrentUser, updateProfile, sendOTPForPasswordChange
 };

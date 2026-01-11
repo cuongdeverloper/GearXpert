@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const authController = require('../controllers/Auth/authController');
+const authController = require('../controllers/Auth/AuthController');
 const { checkAccessToken } = require('../middleware/JWTAction');
 
 
@@ -10,9 +10,7 @@ router.post('/login', authController.apiLogin);
 
 router.get('/verify-account', authController.verifyAccountByLink);
 
-router.post('/verify-otp', authController.verifyOtp);
 
-router.post('/resend-otp', authController.resendOTPVerificationCode);
 
 router.post('/forgot-password', authController.requestPasswordReset);
 
