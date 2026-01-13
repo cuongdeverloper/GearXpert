@@ -26,6 +26,13 @@ const doLoginWGoogle = require("./controllers/social/GoogleController");
 const  voucherRouter   = require('./Routes/VoucherRoutes');
 const  walletRouter   = require('./Routes/WalletRoutes');
 const  payosRouter   = require('./Routes/PayOsRoutes');
+// Configure CORS
+app.use(
+  cors({
+    origin: "http://localhost:2468",
+    credentials: true,
+  })
+);
 
 const io = socketIo(server, {
   cors: {
@@ -64,13 +71,6 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session()); // Enable passport session support
 
-// Configure CORS
-app.use(
-  cors({
-    origin: "http://localhost:2468",
-    credentials: true,
-  })
-);
 
 configViewEngine(app);
 app.get("/", (req, res) => {
