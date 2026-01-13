@@ -21,6 +21,8 @@ const  rentalRouter   = require('./Routes/RentalRoutes');
 const  cartRouter   = require('./Routes/CartRoutes');
 const  deviceRouter   = require('./Routes/DeviceRoutes');
 const  voucherRouter   = require('./Routes/VoucherRoutes');
+const  walletRouter   = require('./Routes/WalletRoutes');
+const  payosRouter   = require('./Routes/PayOsRoutes');
 
 const io = socketIo(server, {
   cors: {
@@ -30,18 +32,20 @@ const io = socketIo(server, {
   },
 });
 app.set("io", io);
-
+// Configure request body parsing
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 app.use('/api/rentals',rentalRouter);
 app.use('/api/carts',cartRouter);
 app.use('/api/devices',deviceRouter);
 app.use('/api/vounchers',voucherRouter);
+app.use('/api/wallet', walletRouter);
+app.use('/api/payos', payosRouter);
 
 
-// Configure request body parsing
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
+
 
 // Configure session middleware
 app.use(
