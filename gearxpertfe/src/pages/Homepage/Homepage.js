@@ -3,6 +3,7 @@ import { getDevices } from "../../service/ApiService/DeviceApi";
 import Header from "../../components/navigation/Header";
 import HeroSection from "../../components/homepage/HeroSection";
 import CategoryPills from "../../components/common/CategoryPills";
+import FeaturedProductsSection from "../../components/homepage/FeaturedProductsSection";
 import AISuggestedSection from "../../components/homepage/AISuggestedSection";
 import TrendingNowSection from "../../components/homepage/TrendingNowSection";
 import NewArrivalsSection from "../../components/homepage/NewArrivalsSection";
@@ -27,7 +28,9 @@ export default function Homepage() {
         ...(selectedCategory && { category: selectedCategory }),
       };
       const response = await getDevices(params);
+      console.log("API Response:", response);
       const fetchedDevices = response.devices || [];
+      console.log("Fetched Devices:", fetchedDevices);
       setDevices(fetchedDevices);
 
       // Set trending device (first device or most popular)
@@ -73,7 +76,9 @@ export default function Homepage() {
           />
         </section>
 
-        <AISuggestedSection devices={devices.slice(0, 3)} />
+        <FeaturedProductsSection devices={devices.slice(0, 6)} />
+
+        <AISuggestedSection devices={devices.slice(6, 9)} />
 
         <section className="px-6 lg:px-10">
           <div className="flex flex-col lg:flex-row gap-10">

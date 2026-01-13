@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import ImageWithFallback from './ImageWithFallback';
 
 /**
@@ -20,6 +21,9 @@ export default function ProductCard({
   className = ''
 }) {
   const navigate = useNavigate();
+  const user = useSelector(state => state.user.account);
+  const isAuthenticated = useSelector(state => state.user.isAuthenticated);
+  const socket = user?.socketConnection;
 
   if (!device) return null;
 
@@ -87,9 +91,8 @@ export default function ProductCard({
   // Detailed variant (for AISuggestedSection)
   return (
     <div
-      className={`group relative bg-white rounded-3xl p-1 shadow-lg hover:shadow-glow-cyan transition-all duration-300 border border-slate-100 ${
-        match ? `ring-2 ${getRingColor(match)}` : ''
-      } ${className}`}
+      className={`group relative bg-white rounded-3xl p-1 shadow-lg hover:shadow-glow-cyan transition-all duration-300 border border-slate-100 ${match ? `ring-2 ${getRingColor(match)}` : ''
+        } ${className}`}
     >
       <div className="bg-white rounded-[22px] overflow-hidden flex flex-col h-full">
         {/* Image Section */}
@@ -101,7 +104,7 @@ export default function ProductCard({
               {match}% Match
             </div>
           )}
-          
+
           {/* Rating Badge (if no match badge) */}
           {match === null && rating !== null && (
             <div className="absolute top-4 right-4 z-10 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full flex items-center gap-1 text-sm font-semibold text-gray-900">
@@ -126,15 +129,15 @@ export default function ProductCard({
           <span className="text-[10px] font-bold text-primary uppercase tracking-[0.2em]">
             {category}
           </span>
-          
+
           {/* Name */}
           <h3 className="text-xl font-bold text-slate-900 mt-1 font-display">{name}</h3>
-          
+
           {/* Description */}
           {description && (
             <p className="text-sm text-slate-500 mt-2 line-clamp-2">{description}</p>
           )}
-          
+
           {/* Price & Button */}
           <div className="mt-6 flex items-center justify-between">
             <span className="text-2xl font-bold text-slate-900">

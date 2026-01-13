@@ -12,7 +12,7 @@ export default function Header() {
   const dispatch = useDispatch();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
-  
+
   const userAccount = useSelector((state) => state.user.account);
   const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
   const socketConnection = useSelector((state) => state.user.account.socketConnection);
@@ -37,23 +37,23 @@ export default function Header() {
       if (socketConnection) {
         socketConnection.disconnect();
       }
-      
+
       // Dispatch logout action to clear Redux state
       dispatch(doLogout());
-      
+
       // Remove cookies
       Cookies.remove('accessToken');
       Cookies.remove('refreshToken');
-      
+
       // Purge Redux persist storage
       await persistor.purge();
-      
+
       // Show success message
       toast.success('Đăng xuất thành công');
-      
+
       // Close dropdown
       setIsDropdownOpen(false);
-      
+
       // Navigate to login page
       navigate('/signin');
     } catch (error) {
@@ -114,7 +114,7 @@ export default function Header() {
     <header className="sticky top-0 z-50 w-full glass-panel bg-white/70 border-b border-slate-200">
       <div className="max-w-[1440px] mx-auto px-6 lg:px-10 h-[72px] flex items-center justify-between">
         {/* Logo */}
-        <div 
+        <div
           className="flex items-center gap-3 cursor-pointer group"
           onClick={() => navigate('/')}
         >
@@ -134,13 +134,13 @@ export default function Header() {
           </button>
           <button
             className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors cursor-pointer bg-transparent border-none"
-            onClick={() => {}}
+            onClick={() => { }}
           >
             Productions
           </button>
           <button
             className="flex items-center gap-1.5 text-sm font-bold text-primary bg-indigo-50 px-4 py-2 rounded-full border border-indigo-100 cursor-pointer bg-transparent"
-            onClick={() => {}}
+            onClick={() => { }}
           >
             <span className="material-symbols-outlined text-[18px] fill-current">auto_awesome</span>
             AI Discovery
@@ -152,14 +152,14 @@ export default function Header() {
           <button className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors">
             <span className="material-symbols-outlined text-[20px]">notifications</span>
           </button>
-          
+
           {isAuthenticated ? (
             <div className="relative" ref={dropdownRef}>
-              <div 
+              <div
                 className="w-10 h-10 rounded-full bg-cover bg-center ring-2 ring-white shadow-md cursor-pointer hover:ring-primary transition-all"
-                style={{ 
-                  backgroundImage: userAccount.image 
-                    ? `url("${userAccount.image}")` 
+                style={{
+                  backgroundImage: userAccount.image
+                    ? `url("${userAccount.image}")`
                     : 'linear-gradient(to right, #6366F1, #22D3EE)'
                 }}
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -175,7 +175,7 @@ export default function Header() {
               {isDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
                   {/* User Info */}
-                  <div 
+                  <div
                     className="p-4 border-b border-slate-100 bg-gradient-to-r from-primary/5 to-accent-cyan/5 cursor-pointer hover:from-primary/10 hover:to-accent-cyan/10 transition-all"
                     onClick={() => {
                       navigate('/profile');
@@ -183,11 +183,11 @@ export default function Header() {
                     }}
                   >
                     <div className="flex items-center gap-3">
-                      <div 
+                      <div
                         className="w-12 h-12 rounded-full bg-cover bg-center ring-2 ring-primary/20"
-                        style={{ 
-                          backgroundImage: userAccount.image 
-                            ? `url("${userAccount.image}")` 
+                        style={{
+                          backgroundImage: userAccount.image
+                            ? `url("${userAccount.image}")`
                             : 'linear-gradient(to right, #6366F1, #22D3EE)'
                         }}
                       >
@@ -212,7 +212,7 @@ export default function Header() {
                   {/* Rank & Wallet Cards */}
                   <div className="p-4 space-y-3 border-b border-slate-100">
                     {/* Rank Card */}
-                    <div 
+                    <div
                       className={`${getRankCardClass(userAccount.rank)} cursor-pointer hover:opacity-90 transition-opacity`}
                     >
                       <div className={`${getRankInnerClass(userAccount.rank)} relative rounded-[calc(0.75rem-3px)] w-full h-full flex items-center gap-3 p-3 z-[1]`}>
@@ -230,7 +230,7 @@ export default function Header() {
                     </div>
 
                     {/* Wallet Card */}
-                    <div 
+                    <div
                       className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                       style={{ backgroundColor: '#D1FAE5' }}
                       onClick={() => {
@@ -257,11 +257,10 @@ export default function Header() {
                         <button
                           key={item.path}
                           onClick={() => handleMenuItemClick(item.path)}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
-                            isActive
-                              ? 'bg-gradient-to-r from-primary/10 to-accent-cyan/10 text-primary'
-                              : 'text-slate-700 hover:bg-slate-50'
-                          }`}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${isActive
+                            ? 'bg-gradient-to-r from-primary/10 to-accent-cyan/10 text-primary'
+                            : 'text-slate-700 hover:bg-slate-50'
+                            }`}
                         >
                           <span className={`material-symbols-outlined text-[20px] ${isActive ? 'fill-current' : ''}`}>
                             {item.icon}

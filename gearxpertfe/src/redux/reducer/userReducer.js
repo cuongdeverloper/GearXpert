@@ -14,7 +14,7 @@ const INITIAL_STATE = {
         rank: 'BRONZE',
         walletBalance: 0,
         rewardPoints: 0
-    },
+},
     isAuthenticated: false
 };
 
@@ -26,7 +26,7 @@ const userReducer = (state = INITIAL_STATE, action) => {
                 ...state,
                 account: {
                     ...state.account,
-                    ...action.payload, 
+                    ...action.payload,
                     onlineUser: state.account.onlineUser
                 },
                 isAuthenticated: true,
@@ -42,7 +42,7 @@ const userReducer = (state = INITIAL_STATE, action) => {
         case Fetch_User_LogOut:
             return {
                 ...state,
-                account: INITIAL_STATE.account, 
+                account: INITIAL_STATE.account,
                 isAuthenticated: false,
             };
         case Set_Socket_Connection:
