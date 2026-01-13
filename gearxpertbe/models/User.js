@@ -26,7 +26,7 @@ const userSchema = new mongoose.Schema({
     fullAddress: String
   },
 
-  walletBalance: { type: Number, default: 0 },
+
 
   /** 🔥 RANKING SYSTEM */
   rewardPoints: { type: Number, default: 0 },   // tổng điểm
