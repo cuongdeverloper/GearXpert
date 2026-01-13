@@ -7,18 +7,18 @@ const Device = require('../../models/Device');
 exports.getDevices = async (req, res) => {
   try {
     const { category, limit = 12, page = 1 } = req.query;
-    
-    const query = { 
+
+    const query = {
       status: 'AVAILABLE',
-      isAddon: false 
+      isAddon: false
     };
-    
+
     if (category) {
       query.category = category;
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    
+
     const devices = await Device.find(query)
       .select('name rentPrice ratingAvg reviewCount location images category')
       .limit(parseInt(limit))
@@ -26,7 +26,8 @@ exports.getDevices = async (req, res) => {
       .sort({ ratingAvg: -1, reviewCount: -1 });
 
     const total = await Device.countDocuments(query);
-
+    console.log(devices)
+    
     res.json({
       devices,
       total,
@@ -56,31 +57,30 @@ exports.getDeviceDetail = async (req, res) => {
  * GET /devices/:id/addons
  */
 exports.getDeviceAddons = async (req, res) => {
-    const deviceId = req.params.id;
-  
-    const addons = await Device.find({
-      isAddon: true,
-      compatibleWith: deviceId,
-      status: 'AVAILABLE'
-    }).select('name rentPrice images');
-  
-    res.json(addons);
-  };
+  const deviceId = req.params.id;
+
+  const addons = await Device.find({
+    isAddon: true,
+    compatibleWith: deviceId,
+    status: 'AVAILABLE'
+  }).select('name rentPrice images');
+
+  res.json(addons);
+};
 /**
  * GET /devices/:id/related
  */
 exports.getRelatedDevices = async (req, res) => {
-    const device = await Device.findById(req.params.id);
-    if (!device) return res.status(404).json({ message: 'Device not found' });
-  
-    const related = await Device.find({
-      _id: { $ne: device._id },
-      category: device.category,
-      status: 'AVAILABLE'
-    })
-      .limit(4)
-      .select('name rentPrice ratingAvg location images');
-  
-    res.json(related);
-  };
-    
+  const device = await Device.findById(req.params.id);
+  if (!device) return res.status(404).json({ message: 'Device not found' });
+
+  const related = await Device.find({
+    _id: { $ne: device._id },
+    category: device.category,
+    status: 'AVAILABLE'
+  })
+    .limit(4)
+    .select('name rentPrice ratingAvg location images');
+
+  res.json(related);
+};

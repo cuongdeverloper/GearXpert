@@ -45,22 +45,22 @@ instance.interceptors.response.use(
                     // Get socket connection before clearing state
                     const state = store.getState();
                     const socketConnection = state.user.account.socketConnection;
-                    
+
                     // Disconnect socket if connected
                     if (socketConnection) {
                         socketConnection.disconnect();
                     }
-                    
+
                     // Dispatch logout action
                     store.dispatch(doLogout());
-                    
+
                     // Remove cookies
                     Cookies.remove('accessToken');
                     Cookies.remove('refreshToken');
-                    
+
                     // Purge Redux persist storage
                     persistor.purge();
-                    
+
                     // Navigate to login page
                     window.location.href = '/signin';
                 }

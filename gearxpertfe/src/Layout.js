@@ -20,6 +20,8 @@ import AuthCallback from "./components/Auth/AuthCallback";
 import ResetPassword from "./components/Auth/reset password/ResetPassword";
 import RentalReviewPage from "./pages/Rental/RentalReviewPage";
 import ProfilePage from "./pages/User/ProfilePage";
+import FavoritesPage from "./pages/Favorites/FavoritesPage";
+import ProductsPage from "./pages/Products/ProductsPage";
 
 export default function Layout() {
   useEffect(() => {
@@ -65,6 +67,11 @@ export default function Layout() {
             <Route path="/rental/checkout/review" element={<RentalReviewPage />} />
             {/* <Route path="/rental/manage" element={<RentalManagementPage />} /> */}
           </Route>
+
+
+          {/* Favorites page */}
+          <Route path="/favorites" element={<FavoritesPage />} />
+          <Route path="/products" element={<ProductsPage />} />
 
           {/* Profile page (has its own Header and Footer) */}
           <Route path="/profile" element={<ProfilePage />} />
