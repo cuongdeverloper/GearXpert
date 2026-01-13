@@ -134,7 +134,7 @@ export default function Header() {
           </button>
           <button
             className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors cursor-pointer bg-transparent border-none"
-            onClick={() => { }}
+            onClick={() => navigate('/products')}
           >
             Productions
           </button>

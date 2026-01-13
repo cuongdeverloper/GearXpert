@@ -10,6 +10,8 @@ import {
   Cpu,
   ShoppingCart,
   Zap,
+  Calendar,
+  PlusCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useParams, useNavigate } from "react-router-dom";
@@ -20,10 +22,7 @@ import {
   getDeviceAddons,
   getRelatedDevices,
 } from "../../service/ApiService/DeviceApi";
-import {
-  addToCart,
-  addInstantToCart,
-} from "../../service/ApiService/CartApi";
+import { addToCart, addInstantToCart } from "../../service/ApiService/CartApi";
 import { hasRentedDevice } from "../../service/ApiService/RentalApi";
 
 export default function ProductDetailPage() {
@@ -35,19 +34,21 @@ export default function ProductDetailPage() {
   const [relatedDevices, setRelatedDevices] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [hasRented, setHasRented] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [addons, setAddons] = useState([]);
 
-  /* ===== LOAD DATA ===== */
   useEffect(() => {
     fetchData();
+    window.scrollTo(0, 0);
   }, [id]);
 
   const fetchData = async () => {
     try {
+      setLoading(true);
       const [d, a, r, rented] = await Promise.all([
         getDeviceDetail(id),
         getDeviceAddons(id),
@@ -55,19 +56,18 @@ export default function ProductDetailPage() {
         hasRentedDevice(id),
       ]);
 
-      setDevice(d.data);
-      setAddonsList(a.data || []);
-      setRelatedDevices(r.data || []);
-      setHasRented(rented.data?.hasRented || false);
-      setReviews(d.data.reviews || []);
+      setDevice(d);
+      setAddonsList(a || []);
+      setRelatedDevices(r || []);
+      setHasRented(rented?.hasRented || false);
+      setReviews(d.reviews || []);
     } catch (err) {
       toast.error("Không thể tải dữ liệu thiết bị");
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (!device) return null;
-
-  /* ===== LOGIC ===== */
   const validateRental = () => {
     if (!startDate || !endDate) {
       toast.error("Vui lòng chọn thời gian thuê");
@@ -86,7 +86,6 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = async () => {
     if (!validateRental()) return;
-
     try {
       await addToCart({
         deviceId: device._id,
@@ -95,7 +94,6 @@ export default function ProductDetailPage() {
         rentalEndDate: endDate,
         addons: addons.map((a) => a._id),
       });
-
       toast.success("Đã thêm vào giỏ hàng");
     } catch {
       toast.error("Thêm vào giỏ thất bại");
@@ -104,7 +102,6 @@ export default function ProductDetailPage() {
 
   const handleBuyNow = async () => {
     if (!validateRental()) return;
-
     try {
       await addInstantToCart({
         deviceId: device._id,
@@ -113,7 +110,6 @@ export default function ProductDetailPage() {
         rentalEndDate: endDate,
         addons: addons.map((a) => a._id),
       });
-
       navigate("/checkout");
     } catch {
       toast.error("Thuê ngay thất bại");
@@ -128,233 +124,442 @@ export default function ProductDetailPage() {
         )
       : 0;
 
-  const totalPrice =
-    days *
-    (device.rentPrice.perDay +
-      addons.reduce((s, a) => s + a.rentPrice.perDay, 0));
+  const totalPrice = device
+    ? days *
+      (device.rentPrice.perDay +
+        addons.reduce((s, a) => s + a.rentPrice.perDay, 0))
+    : 0;
 
-  /* ===== UI (GIỮ NGUYÊN) ===== */
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background-light">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  if (!device) return null;
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* HEADER */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-3">
-          <ArrowLeft className="w-5 h-5" />
-          Quay lại
+    <div className="min-h-screen bg-background-light pb-20">
+      {/* Thêm margin-top, margin ngang, và rounded-full hoặc rounded-2xl */}
+      <div className="sticky top-4 z-50 mx-6 bg-white/80 backdrop-blur-md border border-slate-200 rounded-[24px] shadow-lg">
+        <div className="max-w-[1440px] mx-auto px-6 py-3 flex items-center justify-between">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-slate-600 hover:text-indigo-600 transition-colors font-semibold"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            Back to Catalog
+          </button>
+          <div className="hidden md:flex items-center gap-4">
+            <span className="text-sm font-medium text-slate-400">
+              Home / Devices / {device?.category}
+            </span>
+          </div>
         </div>
       </div>
-
-      {/* MAIN */}
-      <div className="max-w-7xl mx-auto px-6 py-10 grid lg:grid-cols-2 gap-12">
-        {/* IMAGES */}
-        <div>
-          <img
-            src={device.images[selectedImage]}
-            className="w-full h-[520px] object-cover rounded-2xl"
-          />
-          <div className="grid grid-cols-3 gap-4 mt-4">
-            {device.images.map((img, i) => (
+      <div className="max-w-[1440px] mx-auto px-6 py-10">
+        <div className="grid lg:grid-cols-12 gap-12">
+          {/* LEFT: IMAGES (Col 7) */}
+          <div className="lg:col-span-7 space-y-6">
+            <div className="relative rounded-[32px] overflow-hidden bg-white shadow-2xl shadow-indigo-100/50 border border-slate-100 group">
               <img
-                key={i}
-                src={img}
-                onClick={() => setSelectedImage(i)}
-                className={`h-32 w-full object-cover rounded-xl cursor-pointer border ${
-                  selectedImage === i
-                    ? "border-purple-600"
-                    : "border-gray-200"
-                }`}
+                src={device.images?.[selectedImage]}
+                className="w-full h-[600px] object-cover transition-transform duration-700 group-hover:scale-105"
+                alt={device.name}
               />
-            ))}
-          </div>
-        </div>
-
-        {/* INFO */}
-        <div className="space-y-6">
-          <h1 className="text-3xl font-bold">{device.name}</h1>
-
-          <div className="flex items-center gap-2">
-            <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-            {device.ratingAvg} ({device.reviewCount} đánh giá)
-          </div>
-
-          <div className="flex items-center gap-2 text-gray-600">
-            <MapPin className="w-4 h-4" />
-            {device.location.city}
-          </div>
-
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-2xl">
-            <p className="text-3xl font-bold text-blue-600">
-              {device.rentPrice.perDay.toLocaleString()}đ / ngày
-            </p>
-            <p className="text-sm text-gray-500">
-              Cọc: {device.depositAmount.toLocaleString()}đ
-            </p>
-          </div>
-
-          {/* DATE + ADDON */}
-          <div className="bg-white p-6 rounded-2xl shadow space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <input
-                type="date"
-                onChange={(e) => setStartDate(e.target.value)}
-                className="border rounded-xl p-3"
-              />
-              <input
-                type="date"
-                onChange={(e) => setEndDate(e.target.value)}
-                className="border rounded-xl p-3"
-              />
+              <div className="absolute top-6 left-6">
+                <span className="bg-indigo-600 text-white text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest shadow-lg">
+                  {device.status}
+                </span>
+              </div>
             </div>
 
-            <div>
-              <h3 className="font-semibold mb-2">Phụ kiện đi kèm</h3>
-              {addonsList.map((a) => (
+            <div className="flex gap-4 overflow-x-auto pb-2 hide-scroll">
+              {device.images?.map((img, i) => (
                 <button
-                  key={a._id}
-                  onClick={() => toggleAddon(a)}
-                  className="w-full flex justify-between p-3 border rounded-xl mb-2"
+                  key={i}
+                  onClick={() => setSelectedImage(i)}
+                  className={`relative min-w-[120px] h-24 rounded-2xl overflow-hidden border-2 transition-all ${
+                    selectedImage === i
+                      ? "border-indigo-600 scale-95 shadow-lg"
+                      : "border-transparent opacity-60 hover:opacity-100"
+                  }`}
                 >
-                  {a.name}
-                  <span>+{a.rentPrice.perDay.toLocaleString()}đ</span>
+                  <img
+                    src={img}
+                    className="w-full h-full object-cover"
+                    alt="thumb"
+                  />
                 </button>
               ))}
             </div>
+          </div>
 
-            {days > 0 && (
-              <div className="flex justify-between font-semibold">
-                <span>{days} ngày</span>
-                <span className="text-blue-600">
-                  {totalPrice.toLocaleString()}đ
-                </span>
+          {/* RIGHT: CONFIG & RENTAL (Col 5) */}
+          <div className="lg:col-span-5 space-y-8">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-indigo-600 font-bold text-sm uppercase tracking-wider">
+                <div className="w-8 h-[2px] bg-indigo-600"></div>
+                {device.category}
               </div>
-            )}
+              <h1 className="text-4xl md:text-5xl font-bold text-slate-900 font-display leading-tight">
+                {device.name}
+              </h1>
 
-            <div className="grid grid-cols-2 gap-4 pt-2">
-              <button
-                onClick={handleAddToCart}
-                className="flex items-center justify-center gap-2 py-4 rounded-xl border border-purple-600 text-purple-600 font-semibold hover:bg-purple-50"
-              >
-                <ShoppingCart className="w-5 h-5" />
-                Thêm vào giỏ
-              </button>
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-1.5">
+                  <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
+                  <span className="font-bold text-slate-900">
+                    {device.ratingAvg}
+                  </span>
+                  <span className="text-slate-400 text-sm">
+                    ({device.reviewCount} reviews)
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 text-slate-500">
+                  <MapPin className="w-4 h-4" />
+                  <span className="text-sm font-medium">
+                    {device.location?.city}
+                  </span>
+                </div>
+              </div>
+            </div>
 
-              <button
-                onClick={handleBuyNow}
-                className="flex items-center justify-center gap-2 py-4 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold"
-              >
-                <Zap className="w-5 h-5" />
-                Thuê ngay
-              </button>
+            {/* PRICING CARD */}
+            <div className="glass-panel !bg-indigo-600 rounded-[32px] p-8 text-white shadow-xl shadow-indigo-200">
+              <div className="flex justify-between items-end">
+                <div>
+                  <p className="text-indigo-100 text-sm font-bold uppercase tracking-widest mb-1">
+                    Rental Rate
+                  </p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-bold">
+                      {device.rentPrice?.perDay.toLocaleString()}đ
+                    </span>
+                    <span className="text-indigo-200">/ day</span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest mb-1">
+                    Security Deposit
+                  </p>
+                  <p className="font-bold">
+                    {device.depositAmount?.toLocaleString()}đ
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* RENTAL FORM */}
+            <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm space-y-6">
+              <div className="space-y-4">
+                <label className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wider">
+                  <Calendar className="w-4 h-4 text-indigo-600" />
+                  Select Rental Period
+                </label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase ml-2">
+                      Start Date
+                    </p>
+                    <input
+                      type="date"
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase ml-2">
+                      End Date
+                    </p>
+                    <input
+                      type="date"
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ADDONS */}
+              <div className="space-y-4">
+                <label className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wider">
+                  <PlusCircle className="w-4 h-4 text-indigo-600" />
+                  Essential Add-ons
+                </label>
+                <div className="space-y-3">
+                  {addonsList.map((a) => {
+                    const isSelected = addons.find(
+                      (item) => item._id === a._id
+                    );
+                    return (
+                      <button
+                        key={a._id}
+                        onClick={() => toggleAddon(a)}
+                        className={`w-full flex justify-between items-center p-4 rounded-2xl border-2 transition-all ${
+                          isSelected
+                            ? "border-indigo-600 bg-indigo-50 shadow-sm"
+                            : "border-slate-100 hover:border-slate-200 bg-white"
+                        }`}
+                      >
+                        <div className="text-left">
+                          <p
+                            className={`font-bold text-sm ${
+                              isSelected ? "text-indigo-700" : "text-slate-700"
+                            }`}
+                          >
+                            {a.name}
+                          </p>
+                          <p className="text-[10px] text-slate-400 uppercase font-bold">
+                            Compatible Gear
+                          </p>
+                        </div>
+                        <span className="font-bold text-indigo-600">
+                          +{a.rentPrice?.perDay.toLocaleString()}đ
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* TOTAL */}
+              {days > 0 && (
+                <div className="pt-4 border-t border-dashed border-slate-200">
+                  <div className="flex justify-between items-center">
+                    <div className="text-sm font-bold text-slate-500 uppercase tracking-widest">
+                      Estimated Total ({days} days)
+                    </div>
+                    <div className="text-2xl font-black text-indigo-600">
+                      {totalPrice.toLocaleString()}đ
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ACTIONS */}
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={handleAddToCart}
+                  className="flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-slate-200 text-slate-700 font-bold hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95"
+                >
+                  <ShoppingCart className="w-5 h-5" />
+                  Add to Cart
+                </button>
+                <button
+                  onClick={handleBuyNow}
+                  className="flex items-center justify-center gap-2 py-4 rounded-2xl bg-slate-900 text-white font-bold hover:bg-black shadow-lg shadow-slate-200 transition-all active:scale-95"
+                >
+                  <Zap className="w-5 h-5 fill-current" />
+                  Rent Now
+                </button>
+              </div>
+            </div>
+
+            {/* TRUST CRITERIA */}
+            <div className="grid grid-cols-3 gap-4">
+              <Criteria
+                icon={<Shield className="w-5 h-5" />}
+                text="Pro Insurance"
+              />
+              <Criteria
+                icon={<Package className="w-5 h-5" />}
+                text="Same-day Delivery"
+              />
+              <Criteria
+                icon={<CheckCircle className="w-5 h-5" />}
+                text="Tech Inspected"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* DETAILS SECTION */}
+        <div className="mt-20 grid lg:grid-cols-12 gap-12">
+          <div className="lg:col-span-7 space-y-12">
+            <div className="space-y-6">
+              <h2 className="text-3xl font-bold text-slate-900 font-display flex items-center gap-3">
+                Overview
+                <div className="h-1 flex-1 bg-slate-100 rounded-full"></div>
+              </h2>
+              <p className="text-lg text-slate-600 leading-relaxed whitespace-pre-line font-medium">
+                {device.description}
+              </p>
+            </div>
+
+            {/* REVIEWS */}
+            <div className="space-y-8">
+              <h2 className="text-3xl font-bold text-slate-900 font-display flex items-center gap-3">
+                Production Reviews
+                <div className="h-1 flex-1 bg-slate-100 rounded-full"></div>
+              </h2>
+
+              <div className="space-y-6">
+                {reviews.length > 0 ? (
+                  reviews.map((r) => (
+                    <div
+                      key={r._id}
+                      className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex gap-6"
+                    >
+                      <img
+                        src={r.user?.avatar}
+                        className="w-14 h-14 rounded-2xl object-cover ring-4 ring-slate-50"
+                        alt="avatar"
+                      />
+                      <div className="flex-1 space-y-2">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-bold text-slate-900">
+                              {r.user?.fullName}
+                            </h4>
+                            <div className="flex gap-0.5 mt-1">
+                              {Array.from({ length: 5 }).map((_, i) => (
+                                <Star
+                                  key={i}
+                                  className={`w-3.5 h-3.5 ${
+                                    i < r.rating
+                                      ? "fill-amber-400 text-amber-400"
+                                      : "text-slate-200"
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                          <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter">
+                            {new Date(r.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p className="text-slate-600 font-medium leading-relaxed italic">
+                          "{r.comment}"
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-12 bg-slate-50 rounded-[32px] border border-dashed border-slate-200">
+                    <AlertCircle className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="text-slate-400 font-bold uppercase text-xs tracking-widest">
+                      No production reviews yet
+                    </p>
+                  </div>
+                )}
+
+                {!hasRented && (
+                  <div className="flex items-center justify-center gap-3 p-4 bg-indigo-50 rounded-2xl text-indigo-600 text-sm font-bold">
+                    <AlertCircle className="w-5 h-5" />
+                    Verified renters only can leave reviews
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <Criteria icon={<Shield />} text="Bảo hiểm" />
-            <Criteria icon={<Package />} text="Giao nhanh" />
-            <Criteria icon={<CheckCircle />} text="Đã kiểm tra" />
+          {/* SPECS (Col 5) */}
+          <div className="lg:col-span-5">
+            <div className="sticky top-28 bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm space-y-6">
+              <h3 className="text-2xl font-bold text-slate-900 font-display">
+                Technical Specs
+              </h3>
+              <div className="space-y-4">
+                {device.specs &&
+                  Object.entries(device.specs).map(([k, v]) => (
+                    <div
+                      key={k}
+                      className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-white rounded-xl shadow-sm">
+                          <Cpu className="w-4 h-4 text-indigo-600" />
+                        </div>
+                        <span className="text-sm font-bold text-slate-500 uppercase tracking-tighter">
+                          {k}
+                        </span>
+                      </div>
+                      <span className="text-sm font-black text-slate-900">
+                        {v}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* DESCRIPTION + SPECS */}
-      <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-8">
-        <Box title="Mô tả chi tiết">
-          <p className="whitespace-pre-line text-gray-700">
-            {device.description}
-          </p>
-        </Box>
+        {/* RELATED DEVICES (GRID FROM HOMEPAGE STYLE) */}
+        <div className="mt-32 space-y-10">
+          <div className="flex items-end justify-between">
+            <div>
+              <h2 className="text-4xl font-bold text-slate-900 font-display">
+                Similar Equipment
+              </h2>
+              <p className="text-slate-500 font-medium mt-2">
+                Recommended gear based on this production kit.
+              </p>
+            </div>
+            <button className="text-indigo-600 font-bold hover:underline flex items-center gap-2">
+              View All <ArrowLeft className="w-4 h-4 rotate-180" />
+            </button>
+          </div>
 
-        <Box title="Thông số kỹ thuật">
-          <div className="space-y-3">
-            {Object.entries(device.specs).map(([k, v]) => (
-              <div key={k} className="flex gap-3 items-start">
-                <Cpu className="w-4 h-4 mt-1 text-blue-600" />
-                <p>
-                  <b>{k}:</b> {v}
-                </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {relatedDevices.slice(0, 4).map((d) => (
+              <div
+                key={d._id}
+                className="group bg-white rounded-[28px] border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-500 cursor-pointer overflow-hidden"
+                onClick={() => navigate(`/device/${d._id}`)}
+              >
+                <div className="relative h-64 overflow-hidden">
+                  <img
+                    src={d.image}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    alt={d.name}
+                  />
+                  <div className="absolute bottom-4 left-4">
+                    <div className="glass-panel text-white text-[10px] font-bold px-3 py-1.5 rounded-xl backdrop-blur-md">
+                      {d.location?.city}
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div className="flex justify-between items-start">
+                    <h4 className="font-bold text-slate-900 line-clamp-1 group-hover:text-indigo-600 transition-colors">
+                      {d.name}
+                    </h4>
+                    <div className="flex items-center gap-1">
+                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                      <span className="text-xs font-bold">{d.ratingAvg}</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center pt-4 border-t border-slate-50">
+                    <div className="text-indigo-600 font-black text-lg">
+                      {d.rentPrice?.perDay.toLocaleString()}đ
+                      <span className="text-[10px] text-slate-400 font-bold uppercase ml-1">
+                        / day
+                      </span>
+                    </div>
+                    <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Zap className="w-4 h-4 fill-current" />
+                    </div>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
-        </Box>
-      </div>
-
-      {/* REVIEWS */}
-      <div className="max-w-7xl mx-auto px-6 mt-10">
-        <Box title="Đánh giá từ khách thuê">
-          {reviews.map((r) => (
-            <div key={r._id} className="flex gap-4 border-b pb-6 mb-6">
-              <img src={r.user.avatar} className="w-10 h-10 rounded-full" />
-              <div>
-                <div className="flex justify-between">
-                  <b>{r.user.fullName}</b>
-                  <span className="text-sm text-gray-400">
-                    {new Date(r.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-                <div className="flex gap-1 my-1">
-                  {Array.from({ length: r.rating }).map((_, i) => (
-                    <Star
-                      key={i}
-                      className="w-4 h-4 fill-yellow-400 text-yellow-400"
-                    />
-                  ))}
-                </div>
-                <p className="text-gray-700">{r.comment}</p>
-              </div>
-            </div>
-          ))}
-
-          {!hasRented && (
-            <div className="flex gap-2 text-gray-500">
-              <AlertCircle className="w-5 h-5" />
-              Chỉ khách đã thuê mới được đánh giá
-            </div>
-          )}
-        </Box>
-      </div>
-
-      {/* RELATED */}
-      <div className="max-w-7xl mx-auto px-6 mt-12 pb-20">
-        <h2 className="text-2xl font-bold mb-6">Thiết bị tương tự</h2>
-        <div className="grid md:grid-cols-4 gap-6">
-          {relatedDevices.map((d) => (
-            <div
-              key={d._id}
-              className="bg-white rounded-2xl shadow overflow-hidden"
-            >
-              <img src={d.image} className="h-48 w-full object-cover" />
-              <div className="p-4 space-y-1">
-                <p className="font-semibold">{d.name}</p>
-                <p className="text-sm text-gray-500">{d.location.city}</p>
-                <div className="flex justify-between">
-                  <span className="text-blue-600">
-                    {d.rentPrice.perDay.toLocaleString()}đ/ngày
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    {d.ratingAvg}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     </div>
   );
 }
 
-/* ===== UI HELPERS ===== */
-const Box = ({ title, children }) => (
-  <div className="bg-white rounded-2xl p-8 shadow">
-    <h2 className="text-xl font-bold mb-4">{title}</h2>
-    {children}
-  </div>
-);
-
 const Criteria = ({ icon, text }) => (
-  <div className="bg-white rounded-xl p-4 shadow text-center">
-    <div className="mx-auto w-6 h-6 text-blue-600">{icon}</div>
-    <p className="text-sm mt-2">{text}</p>
+  <div className="bg-white rounded-[24px] p-4 border border-slate-100 shadow-sm text-center flex flex-col items-center gap-2">
+    <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+      {icon}
+    </div>
+    <p className="text-[10px] font-black uppercase tracking-tight text-slate-500 leading-tight">
+      {text}
+    </p>
   </div>
 );
