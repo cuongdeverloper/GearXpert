@@ -5,24 +5,25 @@ const upsertSocialMedia = async (typeAcc, dataRaw) => {
         let dataUser = await User.findOne({ email: dataRaw.email });
 
         if (dataUser) {
-            if (dataUser.type !== typeAcc) {
-                dataUser.type = typeAcc;
-                dataUser.googleId = dataRaw.googleId;
-                dataUser.profileImage = dataRaw.photo;
-                dataUser.image = dataRaw.photo;
-                dataUser.socialLogin = true;
-                await dataUser.save();
-            }
+            dataUser.type = typeAcc;
+            dataUser.avatar = dataRaw.photo || dataUser.avatar;
+            dataUser.socialLogin = true;
+            if (dataRaw.googleId) dataUser.googleId = dataRaw.googleId;
+            
+            await dataUser.save();
         } else {
             dataUser = new User({
+                fullName: dataRaw.name,    
                 email: dataRaw.email,
-                username: dataRaw.name,
-                type: typeAcc,
-                profileImage: dataRaw.photo,
-                image: dataRaw.photo,
-                socialLogin: true,
-                googleId: dataRaw.googleId
+                type: typeAcc,            
+                avatar: dataRaw.photo,       
+                socialLogin: true,          
+                googleId: dataRaw.googleId,
+                isVerified: true,            
+                phone: "0000000000",         
+                role: 'CUSTOMER'             
             });
+            
             await dataUser.save();
         }
 

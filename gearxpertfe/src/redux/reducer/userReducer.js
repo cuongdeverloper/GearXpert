@@ -10,7 +10,10 @@ const INITIAL_STATE = {
         role: '',
         onlineUser: null,
         socketConnection: null,
-        image:''
+        image: '',
+        rank: 'BRONZE',
+        walletBalance: 0,
+        rewardPoints: 0
     },
     isAuthenticated: false
 };
