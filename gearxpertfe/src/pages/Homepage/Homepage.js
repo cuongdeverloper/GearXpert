@@ -3,6 +3,7 @@ import { getDevices } from "../../service/ApiService/DeviceApi";
 import Header from "../../components/navigation/Header";
 import HeroSection from "../../components/homepage/HeroSection";
 import CategoryPills from "../../components/common/CategoryPills";
+import ScrollAnimation from "../../components/common/ScrollAnimation";
 import FeaturedProductsSection from "../../components/homepage/FeaturedProductsSection";
 import AISuggestedSection from "../../components/homepage/AISuggestedSection";
 import TrendingNowSection from "../../components/homepage/TrendingNowSection";
@@ -66,24 +67,37 @@ export default function Homepage() {
       <Header />
 
       <main className="flex-grow w-full max-w-[1440px] mx-auto pb-12">
-        <HeroSection />
+        <ScrollAnimation direction="down" duration={0.8}>
+          <HeroSection />
+        </ScrollAnimation>
 
         <section className="px-6 lg:px-10 mb-12">
-          <CategoryPills
-            categories={categories}
-            activeCategory={selectedCategory}
-            onSelect={handleCategorySelect}
-          />
+          <ScrollAnimation direction="up" delay={0.2}>
+            <CategoryPills
+              categories={categories}
+              activeCategory={selectedCategory}
+              onSelect={handleCategorySelect}
+            />
+          </ScrollAnimation>
         </section>
 
-        <FeaturedProductsSection devices={devices.slice(0, 6)} />
+        <ScrollAnimation direction="up" viewportAmount={0.2}>
+          <FeaturedProductsSection devices={devices.slice(0, 6)} />
+        </ScrollAnimation>
 
-        <AISuggestedSection devices={devices.slice(6, 9)} />
+        <ScrollAnimation effect="scale" viewportAmount={0.4}>
+          <AISuggestedSection devices={devices.slice(6, 9)} />
+        </ScrollAnimation>
 
         <section className="px-6 lg:px-10">
           <div className="flex flex-col lg:flex-row gap-10">
-            <TrendingNowSection device={trendingDevice} />
-            <NewArrivalsSection devices={newArrivals} />
+            <ScrollAnimation direction="left" className="w-full lg:w-5/12">
+              <TrendingNowSection device={trendingDevice} />
+            </ScrollAnimation>
+
+            <ScrollAnimation direction="right" className="w-full lg:w-7/12" delay={0.2}>
+              <NewArrivalsSection devices={newArrivals} />
+            </ScrollAnimation>
           </div>
         </section>
       </main>

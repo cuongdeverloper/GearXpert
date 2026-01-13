@@ -13,7 +13,7 @@ export default function TrendingNowSection({ device = null }) {
   };
 
   return (
-    <div className="w-full lg:w-5/12">
+    <div className="w-full">
       <h3 className="text-2xl font-bold text-slate-900 mb-6 font-display">Trending Now</h3>
       <div className="relative rounded-3xl overflow-hidden h-[450px] shadow-xl group">
         <div className="absolute inset-0 bg-cover bg-center transition-transform duration-1000 group-hover:scale-110">

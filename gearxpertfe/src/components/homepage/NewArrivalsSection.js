@@ -38,7 +38,7 @@ export default function NewArrivalsSection({ devices = [] }) {
   };
 
   return (
-    <div className="w-full lg:w-7/12 flex flex-col">
+    <div className="w-full h-full flex flex-col">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-2xl font-bold text-slate-900 font-display">New Arrivals</h3>
         <div className="flex gap-2">
