@@ -11,10 +11,12 @@
 .hide-scroll::-webkit-scrollbar {
   display: none;
 }
+
 .hide-scroll {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
 .glass-panel {
   @apply backdrop-blur-xl bg-white/10 border border-white/20;
 }
@@ -29,6 +31,7 @@ code {
   0% {
     background-position: 0% 0%;
   }
+
   100% {
     background-position: 300% 0%;
   }
@@ -38,6 +41,7 @@ code {
   0% {
     background-position: 0% 0%;
   }
+
   100% {
     background-position: 300% 0%;
   }
@@ -47,6 +51,7 @@ code {
   0% {
     background-position: 0% 0%;
   }
+
   100% {
     background-position: 300% 0%;
   }
@@ -98,4 +103,8 @@ code {
   -webkit-mask-composite: xor;
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
+}
+
+.material-symbols-filled {
+  font-variation-settings: 'FILL' 1;
 }

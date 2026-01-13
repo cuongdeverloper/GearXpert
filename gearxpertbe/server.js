@@ -24,6 +24,7 @@ const authRouter = require('./Routes/AuthRoutes');
 const googleAuthRouter = require('./Routes/GoogleAuthRoutes');
 const doLoginWGoogle = require("./controllers/social/GoogleController");
 const voucherRouter = require('./Routes/VoucherRoutes');
+const favoriteRouter = require('./Routes/FavoriteRoutes');
 
 const io = socketIo(server, {
     cors: {
@@ -68,6 +69,7 @@ app.use('/api/rentals', rentalRouter);
 app.use('/api/carts', cartRouter);
 app.use('/api/devices', deviceRouter);
 app.use('/api/vouchers', voucherRouter);
+app.use('/api/favorites', favoriteRouter);
 app.use('/api/auths', authRouter);
 app.use('/', googleAuthRouter);
 app.post("/api/ai-chat", handleAIChat);

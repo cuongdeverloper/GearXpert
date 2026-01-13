@@ -66,7 +66,7 @@ export default function Header() {
     { label: 'Trang chủ', icon: 'home', path: '/' },
     { label: 'Đơn thuê của tôi', icon: 'description', path: '/rental/manage' },
     { label: 'Ví của tôi', icon: 'account_balance_wallet', path: '/wallet' },
-    { label: 'Thống kê', icon: 'bar_chart', path: '/statistics' },
+    { label: 'Yêu thích', icon: 'favorite', path: '/favorites' },
   ];
 
   const handleMenuItemClick = (path) => {
