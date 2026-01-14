@@ -20,6 +20,7 @@ import AuthCallback from "./components/Auth/AuthCallback";
 import ResetPassword from "./components/Auth/reset password/ResetPassword";
 import RentalReviewPage from "./pages/Rental/RentalReviewPage";
 import ProfilePage from "./pages/User/ProfilePage";
+import CartPage from "./pages/Rental/CartPage";
 
 export default function Layout() {
   useEffect(() => {
@@ -56,15 +57,15 @@ export default function Layout() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-account" element={<VerifyAccount />} />
 
-          {/* Dashboard pages with Sidebar */}
-          <Route element={<DashboardLayout />}>
+  
             <Route path="/device/:id" element={<ProductDetailPage />} />
             <Route path="/wallet" element={<WalletPage />} />
             <Route path="/rental/checkout" element={<RentalCheckout />} />
             <Route path="/device/" element={<ProductDetailPage />} />
             <Route path="/rental/checkout/review" element={<RentalReviewPage />} />
+            <Route path="/user/cart" element={<CartPage />} />
             {/* <Route path="/rental/manage" element={<RentalManagementPage />} /> */}
-          </Route>
+     
 
           {/* Profile page (has its own Header and Footer) */}
           <Route path="/profile" element={<ProfilePage />} />
