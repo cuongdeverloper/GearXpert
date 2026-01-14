@@ -14,43 +14,53 @@ import SupplierRentalRequests from "./pages/Supplier/SupplierRentalRequests";
 import SupplierMaintenance from "./pages/Supplier/SupplierMaintenance";
 import SupplierRevenue from "./pages/Supplier/SupplierRevenue";
 
+import AdminLayout from "./components/layout/AdminLayout";
+
+import UsersPage from "./pages/Admin/UsersPage";
+import SuppliersPage from "./pages/Admin/SuppliersPage";
+import DevicesModerationPage from "./pages/Admin/DevicesModerationPage";
+import RentalsPage from "./pages/Admin/RentalsPage";
+import ReportsPage from "./pages/Admin/ReportsPage";
+import SettingsPage from "./pages/Admin/SettingsPage";
+
+
 // pages
 import RentalCheckout from "./pages/Rental/RentalCheckout";
 import ProductDetailPage from "./pages/Device/ProductDetailPage";
 import RentalReviewPage from "./pages/Rental/RentalReviewPage";
 
 export default function Layout() {
-    useEffect(() => {
-        Aos.init({ duration: 1000 });
-    }, []);
+  useEffect(() => {
+    Aos.init({ duration: 1000 });
+  }, []);
 
-    return (
-        <BrowserRouter>
-            <Suspense fallback={<div className="p-6">Loading...</div>}>
-                <ToastContainer 
-                    position="top-right" 
-                    autoClose={3000} 
-                    hideProgressBar={false}
-                    newestOnTop={false}
-                    closeOnClick
-                    rtl={false}
-                    pauseOnFocusLoss
-                    draggable
-                    pauseOnHover
-                    theme="light"
-                />
+  return (
+    <BrowserRouter>
+      <Suspense fallback={<div className="p-6">Loading...</div>}>
+        <ToastContainer
+          position="top-right"
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="light"
+        />
 
         <Routes>
           <Route element={<DashboardLayout />}>
             <Route path="/" element={<Homepage />} />
-             <Route path="/device/:id" element={<ProductDetailPage />} />
+            <Route path="/device/:id" element={<ProductDetailPage />} />
 
             <Route path="/rental/checkout" element={<RentalCheckout />} />
             <Route path="/rental/checkout/review" element={<RentalReviewPage />} />
             {/* <Route path="/rental/manage" element={<RentalManagementPage />} /> */}
           </Route>
 
-            {/* Supplier Portal routes */}
+          {/* Supplier Portal routes */}
           <Route path="/supplier" element={<SupplierLayout />}>
             <Route index element={<Navigate to="/supplier/devices" replace />} />
             <Route path="devices" element={<SupplierDevicesList />} />
@@ -58,6 +68,17 @@ export default function Layout() {
             <Route path="maintenance" element={<SupplierMaintenance />} />
             <Route path="revenue" element={<SupplierRevenue />} />
           </Route>
+
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<Navigate to="/admin/users" replace />} />
+            <Route path="users" element={<UsersPage />} />
+            <Route path="suppliers" element={<SuppliersPage />} />
+            <Route path="devices" element={<DevicesModerationPage />} />
+            <Route path="rentals" element={<RentalsPage />} />
+            <Route path="reports" element={<ReportsPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+          </Route>
+
         </Routes>
       </Suspense>
     </BrowserRouter>
