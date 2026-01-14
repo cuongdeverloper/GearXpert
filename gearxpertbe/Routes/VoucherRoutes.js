@@ -1,8 +1,9 @@
 const express = require('express');
 const voucherRouter = express.Router();
-const { validateVoucher } = require('../controllers/Voucher/VoucherController');
+const voucherController = require('../controllers/Voucher/VoucherController');
 const { checkAccessToken } = require('../middleware/JWTAction');
 
-voucherRouter.post('/apply', checkAccessToken, validateVoucher);
+voucherRouter.post('/apply', checkAccessToken, voucherController.validateVoucher);
+voucherRouter.get('/', voucherController.getAllVouchers);
 
 module.exports = voucherRouter;
