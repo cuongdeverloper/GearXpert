@@ -8,7 +8,7 @@ const DAY = 1000 * 60 * 60 * 24;
  * GET /cart?type=NORMAL|INSTANT
  */
 exports.getCart = async (req, res) => {
-  const customerId = req.user._id;
+  const customerId = req.user.id;
   const cartType = req.query.type || 'NORMAL';
 
   const cart = await Cart.findOne({
@@ -26,7 +26,8 @@ exports.getCart = async (req, res) => {
  * POST /cart/items (NORMAL)
  */
 exports.addToCart = async (req, res) => {
-  const customerId = req.user._id;
+  console.log('USER:', req.user);
+  const customerId = req.user.id;
   const { deviceId, quantity, rentalStartDate, rentalEndDate } = req.body;
 
   const device = await Device.findById(deviceId);
@@ -103,7 +104,7 @@ exports.instantBuy = async (req, res) => {
  * DELETE /cart/items/:cartItemId
  */
 exports.removeCartItem = async (req, res) => {
-  const customerId = req.user._id;
+  const customerId = req.user.id;
   const { cartItemId } = req.params;
 
   const item = await CartItem.findById(cartItemId);

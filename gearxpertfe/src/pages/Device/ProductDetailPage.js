@@ -13,7 +13,7 @@ import {
   Calendar,
   PlusCircle,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast, Toaster } from "sonner"; // CẬP NHẬT: Thêm Toaster để hiển thị
 import { useParams, useNavigate } from "react-router-dom";
 
 /* ===== API ===== */
@@ -62,7 +62,9 @@ export default function ProductDetailPage() {
       setHasRented(rented?.hasRented || false);
       setReviews(d.reviews || []);
     } catch (err) {
-      toast.error("Không thể tải dữ liệu thiết bị");
+      toast.error("Không thể tải dữ liệu thiết bị", {
+        position: "top-right",
+      });
     } finally {
       setLoading(false);
     }
@@ -70,18 +72,35 @@ export default function ProductDetailPage() {
 
   const validateRental = () => {
     if (!startDate || !endDate) {
-      toast.error("Vui lòng chọn thời gian thuê");
+      toast.warning("Vui lòng chọn ngày bắt đầu và ngày kết thúc thuê!", {
+        position: "top-right",
+        description: "Thời gian thuê là bắt buộc để tính giá.",
+      });
       return false;
     }
+    if (new Date(startDate) > new Date(endDate)) {
+        toast.error("Ngày kết thúc không được nhỏ hơn ngày bắt đầu!", {
+          position: "top-right",
+        });
+        return false;
+      }
     return true;
   };
 
   const toggleAddon = (addon) => {
+    const isSelected = addons.find((a) => a._id === addon._id);
     setAddons((prev) =>
-      prev.find((a) => a._id === addon._id)
+      isSelected
         ? prev.filter((a) => a._id !== addon._id)
         : [...prev, addon]
     );
+
+    if(!isSelected) {
+        toast.info(`Đã thêm phụ kiện: ${addon.name}`, {
+            position: "bottom-center",
+            duration: 1500
+        });
+    }
   };
 
   const handleAddToCart = async () => {
@@ -94,14 +113,22 @@ export default function ProductDetailPage() {
         rentalEndDate: endDate,
         addons: addons.map((a) => a._id),
       });
-      toast.success("Đã thêm vào giỏ hàng");
+      toast.success("Đã thêm vào giỏ hàng thành công!", {
+        position: "top-right",
+        description: `${device.name} đã sẵn sàng trong giỏ của bạn.`,
+        action: {
+          label: "Đến giỏ hàng",
+          onClick: () => navigate("/user/cart"),
+        },
+      });
     } catch {
-      toast.error("Thêm vào giỏ thất bại");
+      toast.error("Thêm vào giỏ thất bại. Vui lòng thử lại!");
     }
   };
 
   const handleBuyNow = async () => {
     if (!validateRental()) return;
+    const toastId = toast.loading("Đang xử lý yêu cầu thuê ngay...");
     try {
       await addInstantToCart({
         deviceId: device._id,
@@ -110,9 +137,10 @@ export default function ProductDetailPage() {
         rentalEndDate: endDate,
         addons: addons.map((a) => a._id),
       });
+      toast.success("Đang chuyển đến trang thanh toán", { id: toastId });
       navigate("/checkout");
     } catch {
-      toast.error("Thuê ngay thất bại");
+      toast.error("Thuê ngay thất bại", { id: toastId });
     }
   };
 
@@ -141,8 +169,11 @@ export default function ProductDetailPage() {
   if (!device) return null;
 
   return (
-    <div className="min-h-screen bg-background-light pb-20">
-      {/* Thêm margin-top, margin ngang, và rounded-full hoặc rounded-2xl */}
+    <div className="min-h-screen bg-background-light pb-20 font-sans">
+      {/* Cấu hình Sonner Toaster */}
+      <Toaster richColors closeButton expand={true} />
+
+      {/* HEADER NAV */}
       <div className="sticky top-4 z-50 mx-6 bg-white/80 backdrop-blur-md border border-slate-200 rounded-[24px] shadow-lg">
         <div className="max-w-[1440px] mx-auto px-6 py-3 flex items-center justify-between">
           <button
@@ -159,6 +190,7 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </div>
+
       <div className="max-w-[1440px] mx-auto px-6 py-10">
         <div className="grid lg:grid-cols-12 gap-12">
           {/* LEFT: IMAGES (Col 7) */}
@@ -204,7 +236,7 @@ export default function ProductDetailPage() {
                 <div className="w-8 h-[2px] bg-indigo-600"></div>
                 {device.category}
               </div>
-              <h1 className="text-4xl md:text-5xl font-bold text-slate-900 font-display leading-tight">
+              <h1 className="text-4xl md:text-5xl font-bold text-slate-900 font-display leading-tight italic">
                 {device.name}
               </h1>
 
@@ -266,6 +298,7 @@ export default function ProductDetailPage() {
                     </p>
                     <input
                       type="date"
+                      value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
                       className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                     />
@@ -276,6 +309,7 @@ export default function ProductDetailPage() {
                     </p>
                     <input
                       type="date"
+                      value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
                       className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                     />
@@ -327,7 +361,7 @@ export default function ProductDetailPage() {
 
               {/* TOTAL */}
               {days > 0 && (
-                <div className="pt-4 border-t border-dashed border-slate-200">
+                <div className="pt-4 border-t border-dashed border-slate-200 animate-in fade-in slide-in-from-top-2">
                   <div className="flex justify-between items-center">
                     <div className="text-sm font-bold text-slate-500 uppercase tracking-widest">
                       Estimated Total ({days} days)
@@ -487,7 +521,7 @@ export default function ProductDetailPage() {
           </div>
         </div>
 
-        {/* RELATED DEVICES (GRID FROM HOMEPAGE STYLE) */}
+        {/* RELATED DEVICES */}
         <div className="mt-32 space-y-10">
           <div className="flex items-end justify-between">
             <div>
@@ -512,7 +546,7 @@ export default function ProductDetailPage() {
               >
                 <div className="relative h-64 overflow-hidden">
                   <img
-                    src={d.image}
+                    src={d.images?.[0] || d.image} // Ưu tiên mảng images
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                     alt={d.name}
                   />
