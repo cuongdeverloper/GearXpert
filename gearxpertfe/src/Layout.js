@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import Aos from "aos";
 
-import Hello from "./components/Hello";
+import Homepage from "./pages/Homepage/Homepage";
 import Chatbot from "./components/chatbot/Chatbot"; // Giữ Chatbot của bạn
 import DashboardLayout from "./components/layout/DashboardLayout"; // Giữ Layout từ main
 
@@ -37,8 +37,9 @@ export default function Layout() {
         <Routes>
 
           <Route element={<DashboardLayout />}>
-            <Route path="/" element={<Hello />} />
+            <Route path="/" element={<Homepage />} />
             <Route path="/device/" element={<ProductDetailPage />} />
+             <Route path="/device/:id" element={<ProductDetailPage />} />
 
             <Route path="/rental/checkout" element={<RentalCheckout />} />
             <Route path="/rental/checkout/review" element={<RentalReviewPage />} />
