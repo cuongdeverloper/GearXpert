@@ -13,11 +13,14 @@ const doLogin = (response) => {
             access_token: data?.access_token || '',
             email: data?.email || '',
             refresh_token: data?.refresh_token || '',
-            username: data?.username || '',
+            username: data?.username || data?.fullName || '',
             role: data?.role || '',
-            phoneNumber: data?.phoneNumber || '',
+            phoneNumber: data?.phoneNumber || data?.phone || '',
             gender: data?.gender || '',
-            image: data?.image || ''
+            image: data?.image || data?.avatar || '',
+            rank: data?.rank || 'BRONZE',
+            walletBalance: data?.walletBalance || 0,
+            rewardPoints: data?.rewardPoints || 0
         }
     };
 };
@@ -30,11 +33,14 @@ const doLoginWGoogle = (response, access_token, refresh_token) => {
             access_token: access_token || '',
             email: response?.email || '',
             refresh_token: refresh_token || '',
-            username: response?.username || '',
+            username: response?.username || response?.fullName || '',
             role: response?.role || '',
-            phoneNumber: response?.phoneNumber || '',
+            phoneNumber: response?.phoneNumber || response?.phone || '',
             gender: response?.gender || '',
-            image: response?.image || ''
+            image: response?.image || response?.avatar || '',
+            rank: response?.rank || 'BRONZE',
+            walletBalance: response?.walletBalance || 0,
+            rewardPoints: response?.rewardPoints || 0
         }
     };
 };

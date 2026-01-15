@@ -1,5 +1,8 @@
 import axios from "../AxiosCustomize";
 
+export const getDevices = (params = {}) =>
+  axios.get(`/devices`, { params });
+
 export const getDeviceDetail = (id) =>
   axios.get(`/devices/${id}`);
 

@@ -37,15 +37,26 @@ const AuthCallback = () => {
                 if(user){
                     const userData = JSON.parse(decodeURIComponent(user));
                     dispatch(doLoginWGoogle(userData, accessToken, refreshToken));
+                    
+                    // Redirect based on role
+                    const userRole = userData?.role;
+                    if (userRole === "ADMIN") {
+                        navigate("/admin");
+                    } else if (userRole === "SUPPLIER") {
+                        navigate("/supplier-dashboard");
+                    } else {
+                        // CUSTOMER or other roles -> redirect to homepage
+                        navigate("/");
+                    }
+                } else {
+                    // If no user data, redirect to homepage
+                    navigate('/');
                 }
-                // Dispatch user data to Redux store
-    
-                // Navigate to home or another page
-                navigate('/');
             } else {
                 // Handle the case where tokens are not present
                 console.error("Authentication failed: No tokens received.");
                 toast.error("Authentication failed.");
+                navigate('/signin');
             }
         };
     

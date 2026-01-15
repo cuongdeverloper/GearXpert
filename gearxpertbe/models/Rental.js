@@ -41,8 +41,17 @@ const rentalSchema = new mongoose.Schema({
     ],
     default: 'PENDING'
   },
-
-  deliveryAddress: { type: String, required: true },
+  voucherCode: String,
+  voucherDiscount: {
+    type: Number,
+    default: 0
+  },
+  deliveryAddress: {
+    street: { type: String },
+    district: { type: String },
+    city: { type: String },
+    fullAddress: { type: String, required: true }
+  },
   phoneNumber: { type: String, required: true },
   notes: String
 }, { timestamps: true });

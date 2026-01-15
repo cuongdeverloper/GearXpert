@@ -3,9 +3,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import Aos from "aos";
 
-import Hello from "./components/Hello";
-import Chatbot from "./components/chatbot/Chatbot";
-import DashboardLayout from "./components/layout/DashboardLayout";
+import Homepage from "./pages/Homepage/Homepage";
+import Chatbot from "./components/chatbot/Chatbot"; // Giữ Chatbot của bạn
+import DashboardLayout from "./components/layout/DashboardLayout"; // Giữ Layout từ main
 
 // pages
 import RentalCheckout from "./pages/Rental/RentalCheckout";
@@ -17,6 +17,8 @@ import VerifyAccount from "./components/Auth/VerifyAccount";
 import AuthCallback from "./components/Auth/AuthCallback";
 import RequestPasswordReset from "./components/Auth/reset password/RequestPasswordReset";
 import ResetPassword from "./components/Auth/reset password/ResetPassword";
+import RentalReviewPage from "./pages/Rental/RentalReviewPage";
+
 export default function Layout() {
   useEffect(() => {
     Aos.init({ duration: 1000 });
@@ -39,20 +41,26 @@ export default function Layout() {
         />
 
         <Routes>
+          {/* Homepage has its own Header and Footer */}
+          <Route path="/" element={<Homepage />} />
+          
+          {/* Auth pages */}
+          <Route path="/signin" element={<SignIn />} />
+          <Route path="/otp-verify" element={<EnterOTPRegister />} />
+          <Route path="auth/callback" element={<AuthCallback />} />
+          <Route path="/forgot-password" element={<RequestPasswordReset />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/verify-account" element={<VerifyAccount />} />
 
+          {/* Dashboard pages with Sidebar */}
           <Route element={<DashboardLayout />}>
-            <Route path="/" element={<Hello />} />
-            <Route path="/device/" element={<ProductDetailPage />} />
+            <Route path="/device/:id" element={<ProductDetailPage />} />
             <Route path="/wallet" element={<WalletPage />} />
             <Route path="/rental/checkout" element={<RentalCheckout />} />
-            <Route path="/signin" element={<SignIn />} />
-            <Route path="/otp-verify" element={<EnterOTPRegister />} />
-            <Route path="auth/callback" element={<AuthCallback />} />
-            <Route path="/forgot-password" element={<RequestPasswordReset />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/device/" element={<ProductDetailPage />} />
+            <Route path="/rental/checkout/review" element={<RentalReviewPage />} />
             {/* <Route path="/rental/manage" element={<RentalManagementPage />} /> */}
           </Route>
-          <Route path="/verify-account" element={<VerifyAccount />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

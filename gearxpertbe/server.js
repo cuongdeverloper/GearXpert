@@ -23,6 +23,7 @@ const  deviceRouter   = require('./Routes/DeviceRoutes');
 const  authRouter   = require('./Routes/AuthRoutes');
 const  googleAuthRouter   = require('./Routes/GoogleAuthRoutes');
 const doLoginWGoogle = require("./controllers/social/GoogleController");
+const  voucherRouter   = require('./Routes/VoucherRoutes');
 
 const io = socketIo(server, {
   cors: {
@@ -34,6 +35,10 @@ const io = socketIo(server, {
 app.set("io", io);
 
 
+app.use('/api/rentals',rentalRouter);
+app.use('/api/carts',cartRouter);
+app.use('/api/devices',deviceRouter);
+app.use('/api/vounchers',voucherRouter);
 
 
 // Configure request body parsing
