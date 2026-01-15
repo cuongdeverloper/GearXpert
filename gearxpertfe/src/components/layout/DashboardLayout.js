@@ -24,20 +24,20 @@ export default function DashboardLayout() {
       if (socketConnection) {
         socketConnection.disconnect()
       }
-      
+
       // Dispatch logout action to clear Redux state
       dispatch(doLogout())
-      
+
       // Remove cookies
       Cookies.remove('accessToken')
       Cookies.remove('refreshToken')
-      
+
       // Purge Redux persist storage
       await persistor.purge()
-      
+
       // Show success message
       toast.success('Đăng xuất thành công')
-      
+
       // Navigate to login page
       navigate('/signin')
     } catch (error) {
