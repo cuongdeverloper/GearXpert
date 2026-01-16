@@ -1,5 +1,6 @@
 import ReactDOM from 'react-dom/client';
-import './tailwind.css';    
+import './tailwind.css';
+import './index.css';
 import 'nprogress/nprogress.css';
 import reportWebVitals from './reportWebVitals';
 import Layout from './Layout';

@@ -1,0 +1,77 @@
+.enterotp-bigcontainer{
+     height: 100vh;
+     display: flex;
+}
+.EnterOTP-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 400px;
+    margin: auto; 
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+    background-color: #f9f9f9; 
+}
+
+.otp-title {
+    font-size: 2rem; 
+    color: #333; 
+    margin-bottom: 1.5rem; 
+}
+
+.otp-input-group {
+    display: flex;
+    flex-direction: column;
+    width: 100%; 
+}
+
+.otp-input {
+    padding: 0.75rem;
+    border: 1px solid #ccc; 
+    border-radius: 5px;
+    transition: border-color 0.3s;
+    margin-bottom: 1rem; 
+    font-size: 1rem; 
+}
+
+.otp-input:focus {
+    border-color: #6e8efb; 
+    outline: none; 
+}
+
+.btn-verify-otp {
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    padding: 0.75rem;
+    background-color: #6e8efb; 
+    color: white; 
+    border: none; 
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.3s;
+    font-size: 1rem; 
+}
+
+.btn-verify-otp:hover {
+    background-color: #5a78e1; 
+    transform: translateY(-2px); 
+}
+
+.btn-verify-otp:disabled {
+    background-color: #cccccc; 
+    cursor: not-allowed; 
+}
+
+.loaderIcon {
+    margin-right: 0.5rem; 
+    animation: spin 1s linear infinite; 
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

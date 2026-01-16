@@ -81,3 +81,30 @@ exports.validateVoucher = async (req, res) => {
     discount
   });
 };
+
+exports.getAllVouchers = async (req, res) => {
+  try {
+    const currentDate = new Date();
+
+    // DEBUG: Find ALL vouchers to check connection
+    const allVouchers = await Voucher.find({});
+
+    // Find vouchers that are ACTIVE and not expired
+    const vouchers = await Voucher.find({
+      status: "ACTIVE",
+      expiredAt: { $gt: currentDate }
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      message: "Lấy danh sách voucher thành công",
+      vouchers
+    });
+  } catch (error) {
+    console.error("Get all vouchers error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi lấy danh sách voucher"
+    });
+  }
+};

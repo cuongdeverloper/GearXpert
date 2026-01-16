@@ -16,7 +16,7 @@ const rentalSchema = new mongoose.Schema({
 
   paymentMethod: {
     type: String,
-    enum: ['CARD', 'MOMO', 'BANK'],
+    enum: ['BANK','WALLET'],
     required: true
   },
 

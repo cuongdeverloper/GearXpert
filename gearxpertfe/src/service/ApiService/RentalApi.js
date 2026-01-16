@@ -5,8 +5,8 @@ import axios from "../AxiosCustomize";
  * Backend tự biết checkout NORMAL hay INSTANT
  */
 const checkout = (data) => {
-    return axios.post("/api/rentals/checkout", data);
+  return axios.post("/api/rentals/checkout", data);
 };
 const hasRentedDevice = (deviceId) =>
-  axios.get(`/rentals/has-rented/${deviceId}`);
+  axios.get(`/api/rentals/has-rented/${deviceId}`);
 export { checkout,hasRentedDevice };

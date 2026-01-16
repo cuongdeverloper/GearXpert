@@ -1,30 +1,36 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   Trash2,
   CreditCard,
   Wallet,
-  Tag,
   Ticket,
   MapPin,
   Home,
   X,
+  ChevronLeft,
+  ShieldCheck,
+  Truck,
+  Phone,
+  PackageCheck,
 } from "lucide-react";
-import { toast } from "sonner";
-import {
-  getCart,
-  removeCartItem,
-  clearCart,
-} from "../../service/ApiService/CartApi";
+import { useNavigate, useLocation } from "react-router-dom";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
+import { getCart, removeCartItem } from "../../service/ApiService/CartApi";
 import { validateVoucher } from "../../service/ApiService/VoucherApi.js";
 import { checkout } from "../../service/ApiService/RentalApi";
-// --- IMPORT THÊM CHO MAP ---
+// Giả định bạn đã import API lấy thông tin ví
+import { getMyWallet } from "../../service/ApiService/WalletApi";
+
+// --- MAP IMPORTS ---
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-// Fix lỗi hiển thị icon marker mặc định của Leaflet trong React
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
+
 let DefaultIcon = L.icon({
   iconUrl: markerIcon,
   shadowUrl: markerShadow,
@@ -32,15 +38,14 @@ let DefaultIcon = L.icon({
   iconAnchor: [12, 41],
 });
 L.Marker.prototype.options.icon = DefaultIcon;
-// ----------------------------
 
 export default function CheckoutPage() {
-  const CART_TYPE = "NORMAL";
+  const navigate = useNavigate();
+  const location = useLocation();
+  const CART_TYPE = location.state?.cartType || "NORMAL";
 
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  /* ================= ADDRESS STATE ================= */
   const [address, setAddress] = useState({
     street: "",
     district: "",
@@ -49,131 +54,108 @@ export default function CheckoutPage() {
   });
   const [phoneNumber, setPhoneNumber] = useState("");
   const [notes, setNotes] = useState("");
-
   const [useInsurance, setUseInsurance] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState("BANK");
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-
-  /* ================= VOUCHER STATE ================= */
   const [voucherCode, setVoucherCode] = useState("");
   const [appliedVoucher, setAppliedVoucher] = useState(null);
   const [isApplyingVoucher, setIsApplyingVoucher] = useState(false);
-
-  /* ================= MAP MODAL STATE ================= */
   const [showMapModal, setShowMapModal] = useState(false);
-  const [mapPosition, setMapPosition] = useState([10.8231, 106.6297]); // Mặc định TP.HCM
+  const [mapPosition, setMapPosition] = useState([10.8231, 106.6297]);
 
-  /* ================= AUTO-UPDATE FULL ADDRESS ================= */
+  // --- WALLET STATE ---
+  const [wallet, setWallet] = useState(null);
+
+  // Tự động cập nhật Full Address
   useEffect(() => {
     const { street, district, city } = address;
-    // Chỉ tự động nối chuỗi khi các trường nhỏ thay đổi
     const full = [street, district, city].filter(Boolean).join(", ");
     setAddress((prev) => ({ ...prev, fullAddress: full }));
   }, [address.street, address.district, address.city]);
 
-  /* ================= LOAD CART ================= */
-  useEffect(() => {
-    const fetchCart = async () => {
-      try {
-        const res = await getCart(CART_TYPE);
-        setCart(res.data?.items || []);
-      } catch {
-        toast.error("Không thể tải giỏ hàng");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchCart();
+  const fetchCart = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await getCart(CART_TYPE);
+      setCart(res.items || []);
+    } catch {
+      toast.error("Không thể tải đơn hàng");
+    } finally {
+      setLoading(false);
+    }
+  }, [CART_TYPE]);
+
+  // --- FETCH WALLET DATA ---
+  const fetchWalletData = useCallback(async () => {
+    try {
+      const res = await getMyWallet();
+      setWallet(res);
+    } catch (err) {
+      console.error("Lỗi lấy thông tin ví:", err);
+    }
   }, []);
 
-  /* ================= MAP COMPONENT LOGIC (FIXED) ================= */
+  useEffect(() => {
+    fetchCart();
+    fetchWalletData();
+  }, [fetchCart, fetchWalletData]);
+
+  // --- MAP LOGIC ---
   function MapEventsHandler() {
-    const map = useMapEvents({
+    useMapEvents({
       click: async (e) => {
         const { lat, lng } = e.latlng;
-
-        // Kiểm tra an toàn trước khi set state
         if (lat !== undefined && lng !== undefined) {
           setMapPosition([lat, lng]);
-
           try {
             const res = await fetch(
               `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=vi`
             );
             const data = await res.json();
-
             if (data && data.address) {
               const addr = data.address;
-              const city =
-                addr.city || addr.town || addr.province || addr.state || "";
-              const district =
-                addr.suburb ||
-                addr.district ||
-                addr.county ||
-                addr.quarter ||
-                "";
-              const street =
-                addr.road || addr.house_number || addr.amenity || "";
-
               setAddress({
-                city: city.replace("Thành phố ", "").replace("Tỉnh ", ""),
-                district: district,
-                street: street,
+                city: (addr.city || addr.town || addr.province || "")
+                  .replace("Thành phố ", "")
+                  .replace("Tỉnh ", ""),
+                district:
+                  addr.suburb ||
+                  addr.district ||
+                  addr.county ||
+                  addr.quarter ||
+                  "",
+                street: addr.road || addr.house_number || "",
                 fullAddress: data.display_name,
               });
-
-              toast.success("Đã chọn vị trí");
-              // Không nên tắt modal ngay lập tức nếu muốn người dùng thấy Marker đã nhảy
-              setTimeout(() => setShowMapModal(false), 500);
+              toast.success("Đã lấy vị trí từ bản đồ!");
+              setTimeout(() => setShowMapModal(false), 800);
             }
-          } catch (error) {
-            toast.error("Không thể lấy thông tin địa chỉ");
+          } catch {
+            toast.error("Lỗi lấy địa chỉ");
           }
         }
       },
     });
-
-    // Chỉ render Marker nếu mapPosition hợp lệ và tồn tại
-    return mapPosition && mapPosition[0] && mapPosition[1] ? (
+    return mapPosition && mapPosition[0] ? (
       <Marker position={mapPosition} />
     ) : null;
   }
 
-  /* ================= ADDRESS HELPERS ================= */
-  const handleSetDefaultAddress = () => {
-    setAddress({
-      street: "Số 1 Võ Văn Ngân",
-      district: "Thủ Đức",
-      city: "TP. Hồ Chí Minh",
-      fullAddress: "Số 1 Võ Văn Ngân, Thủ Đức, TP. Hồ Chí Minh",
-    });
-    setPhoneNumber("0901234567");
-    toast.info("Đã áp dụng địa chỉ mặc định");
-  };
-
-  const handlePickOnMap = () => {
-    setShowMapModal(true);
-  };
-
-  /* ================= REMOVE ITEM ================= */
-  const handleRemoveFromCart = async (itemId) => {
+  // --- HANDLERS ---
+  const handleRemoveItem = async (id) => {
     try {
-      await removeCartItem(itemId);
-      setCart((prev) => prev.filter((i) => i._id !== itemId));
+      await removeCartItem(id);
+      setCart((prev) => prev.filter((i) => i._id !== id));
       setAppliedVoucher(null);
+      toast.success("Đã xóa khỏi đơn hàng");
     } catch {
-      toast.error("Xóa sản phẩm thất bại");
+      toast.error("Xóa thất bại");
     }
   };
 
-  /* ================= APPLY VOUCHER ================= */
   const handleApplyVoucher = async () => {
-    if (!voucherCode.trim()) {
-      toast.error("Vui lòng nhập mã giảm giá");
-      return;
-    }
-
+    if (!voucherCode.trim()) return toast.warning("Nhập mã giảm giá");
     try {
       setIsApplyingVoucher(true);
       const res = await validateVoucher({
@@ -181,45 +163,46 @@ export default function CheckoutPage() {
         cartType: CART_TYPE,
       });
       setAppliedVoucher(res.data);
-      toast.success(
-        `Áp dụng mã thành công: Giảm ${res.data.discount.toLocaleString(
-          "vi-VN"
-        )} đ`
-      );
-    } catch (error) {
+      toast.success(`Đã áp dụng giảm ${res.data.discount.toLocaleString()}đ`);
+    } catch (err) {
       setAppliedVoucher(null);
-      toast.error(error.response?.data?.message || "Mã giảm giá không hợp lệ");
+      toast.error(err.response?.data?.message || "Mã không hợp lệ");
     } finally {
       setIsApplyingVoucher(false);
     }
   };
 
-  /* ================= PRICE CALC ================= */
-  const subtotal = cart.reduce((sum, item) => {
-    const device = item.deviceId;
-    return sum + device.rentPrice.perDay * item.totalDays * item.quantity;
-  }, 0);
-
+  // --- CALCULATION ---
+  const subtotal = cart.reduce(
+    (sum, item) =>
+      sum + item.deviceId?.rentPrice?.perDay * item.totalDays * item.quantity,
+    0
+  );
   const deliveryFee = 50000;
   const insuranceFee = useInsurance ? Math.round(subtotal * 0.05) : 0;
-  const discountAmount = appliedVoucher ? appliedVoucher.discount : 0;
-  const total = subtotal + deliveryFee + insuranceFee - discountAmount;
+  const total =
+    subtotal + deliveryFee + insuranceFee - (appliedVoucher?.discount || 0);
 
-  /* ================= CHECKOUT ================= */
   const handleCheckout = async () => {
-    if (!address.fullAddress || !phoneNumber) {
-      toast.error("Vui lòng nhập đầy đủ địa chỉ và số điện thoại");
-      return;
-    }
+    if (!address.fullAddress || !phoneNumber)
+      return toast.warning("Vui lòng điền đủ thông tin nhận hàng");
+    if (!agreeTerms) return toast.warning("Bạn chưa đồng ý điều khoản");
 
-    if (!agreeTerms) {
-      toast.error("Bạn cần đồng ý điều khoản");
-      return;
+    const phoneRegex = /^(0[3|5|7|8|9])([0-9]{8})$/;
+    if (!phoneRegex.test(phoneNumber)) {
+      return toast.error(
+        "Số điện thoại không hợp lệ (Phải có 10 số, ví dụ: 0912345678)"
+      );
+    }
+    // KIỂM TRA SỐ DƯ VÍ NẾU CHỌN THANH TOÁN QUA VÍ
+    if (selectedPayment === "WALLET") {
+      if (!wallet || wallet.balance < total) {
+        return toast.error("Số dư ví không đủ để thanh toán đơn hàng này!");
+      }
     }
 
     try {
       setIsProcessing(true);
-
       await checkout({
         cartType: CART_TYPE,
         deliveryAddress: address,
@@ -229,334 +212,512 @@ export default function CheckoutPage() {
         notes,
         voucherCode: appliedVoucher?.code,
       });
-
-      toast.success("Đặt thuê thành công");
-      setCart([]);
-      setAppliedVoucher(null);
-    } catch {
-      toast.error("Thanh toán thất bại");
+      toast.success("Đặt thuê thành công!");
+      setTimeout(() => navigate("/profile/rentals"), 2000);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Thanh toán thất bại");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  if (loading) {
-    return <div className="p-6">Đang tải...</div>;
-  }
+  if (loading)
+    return (
+      <div className="min-h-screen flex items-center justify-center font-black text-slate-400 animate-pulse">
+        GEARXPERT LOADING...
+      </div>
+    );
 
   return (
-    <div className="max-w-6xl mx-auto p-6 grid grid-cols-1 md:grid-cols-3 gap-6 relative">
-      {/* ================= MODAL MAP ================= */}
-      {showMapModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-white rounded-xl w-full max-w-4xl overflow-hidden shadow-2xl">
-            <div className="p-4 border-b flex justify-between items-center bg-gray-50">
-              <div>
-                <h3 className="font-bold text-gray-800">
-                  Chọn vị trí giao hàng
-                </h3>
-                <p className="text-xs text-gray-500 italic">
-                  Click vào bản đồ để lấy địa chỉ tự động
+    <div className="min-h-screen bg-[#f8fafc] pb-20 font-sans text-slate-900">
+      <ToastContainer theme="colored" position="top-right" autoClose={2000} />
+
+      {/* HEADER SECTION */}
+      <div className="sticky top-0 z-[60] bg-white/80 backdrop-blur-xl border-b border-slate-200 rounded-b-[40px] shadow-sm mb-10">
+        <div className="max-w-[1440px] mx-auto px-10 py-6 flex items-center justify-between">
+          <button
+            onClick={() => navigate("/user/cart")}
+            className="group flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold transition-all"
+          >
+            <div className="p-2 bg-slate-50 rounded-full group-hover:bg-indigo-50 transition-colors">
+              <ChevronLeft size={20} />
+            </div>
+            Quay lại giỏ hàng
+          </button>
+          <div className="flex flex-col items-center">
+            <h1 className="text-2xl font-black uppercase tracking-tighter italic leading-none">
+              Checkout
+            </h1>
+            <span className="text-[10px] font-bold text-indigo-500 tracking-[0.2em] uppercase mt-1">
+              Hoàn tất đơn hàng
+            </span>
+          </div>
+          <div className="w-32 hidden md:block"></div>
+        </div>
+      </div>
+
+      <div className="max-w-[1440px] mx-auto px-10 grid grid-cols-1 lg:grid-cols-12 gap-10">
+        {/* LEFT: DELIVERY & PAYMENT */}
+        <div className="lg:col-span-7 space-y-8">
+          <div className="bg-white rounded-[40px] p-10 border border-slate-100 shadow-sm">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="p-3 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-200">
+                <MapPin size={24} />
+              </div>
+              <h2 className="text-xl font-black uppercase italic tracking-tight">
+                Thông tin nhận máy
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <button
+                onClick={() =>
+                  setAddress({
+                    street: "Số 1 Võ Văn Ngân",
+                    district: "Thủ Đức",
+                    city: "TP. Hồ Chí Minh",
+                    fullAddress: "Số 1 Võ Văn Ngân, Thủ Đức, TP. Hồ Chí Minh",
+                  })
+                }
+                className="flex items-center justify-center gap-3 bg-slate-50 hover:bg-slate-100 py-4 rounded-2xl border border-slate-200 transition-all font-bold text-slate-700"
+              >
+                <Home size={18} /> Địa chỉ mặc định
+              </button>
+              <button
+                onClick={() => setShowMapModal(true)}
+                className="flex items-center justify-center gap-3 bg-indigo-50 hover:bg-indigo-100 py-4 rounded-2xl border border-indigo-200 transition-all font-bold text-indigo-700"
+              >
+                <MapPin size={18} /> Chọn từ bản đồ
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <span className="ml-4 text-[10px] font-black text-slate-400 uppercase">
+                    Tỉnh / Thành phố
+                  </span>
+                  <input
+                    className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-bold focus:ring-2 ring-indigo-500"
+                    placeholder="..."
+                    value={address.city}
+                    onChange={(e) =>
+                      setAddress({ ...address, city: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-1">
+                  <span className="ml-4 text-[10px] font-black text-slate-400 uppercase">
+                    Quận / Huyện
+                  </span>
+                  <input
+                    className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-bold focus:ring-2 ring-indigo-500"
+                    placeholder="..."
+                    value={address.district}
+                    onChange={(e) =>
+                      setAddress({ ...address, district: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <span className="ml-4 text-[10px] font-black text-slate-400 uppercase">
+                  Số nhà, tên đường
+                </span>
+                <input
+                  className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-bold focus:ring-2 ring-indigo-500"
+                  placeholder="..."
+                  value={address.street}
+                  onChange={(e) =>
+                    setAddress({ ...address, street: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="bg-indigo-600 text-white p-5 rounded-[24px] shadow-inner relative overflow-hidden group">
+                <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform">
+                  <MapPin size={80} />
+                </div>
+                <span className="text-[10px] font-black opacity-60 uppercase tracking-widest">
+                  Xem lại địa chỉ
+                </span>
+                <p className="text-sm font-bold mt-1 leading-relaxed z-10 relative">
+                  {address.fullAddress || "Chưa có địa chỉ..."}
                 </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="relative">
+                  <Phone
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                    size={18}
+                  />
+                  <input
+                    type="tel"
+                    className="w-full bg-slate-50 border-none rounded-2xl p-4 pl-12 text-sm font-bold focus:ring-2 ring-indigo-500"
+                    placeholder="Số điện thoại (10 số)"
+                    value={phoneNumber}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, "");
+                      if (value.length <= 10) setPhoneNumber(value);
+                    }}
+                  />
+                </div>
+                <input
+                  className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-bold focus:ring-2 ring-indigo-500"
+                  placeholder="Ghi chú thêm..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section: Payment Methods */}
+          <div className="bg-white rounded-[40px] p-10 border border-slate-100 shadow-sm">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="p-3 bg-slate-900 rounded-2xl text-white">
+                <CreditCard size={24} />
+              </div>
+              <h2 className="text-xl font-black uppercase italic tracking-tight text-slate-900">
+                Phương thức thanh toán
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <label
+                className={`relative flex items-center gap-4 p-6 rounded-3xl border-2 transition-all cursor-pointer group ${
+                  selectedPayment === "BANK"
+                    ? "border-indigo-600 bg-indigo-50/50"
+                    : "border-slate-100 bg-slate-50 hover:border-slate-200"
+                }`}
+              >
+                <input
+                  type="radio"
+                  className="hidden"
+                  checked={selectedPayment === "BANK"}
+                  onChange={() => setSelectedPayment("BANK")}
+                />
+                <div
+                  className={`p-3 rounded-2xl transition-all ${
+                    selectedPayment === "BANK"
+                      ? "bg-indigo-600 text-white"
+                      : "bg-white text-slate-400 group-hover:text-slate-600"
+                  }`}
+                >
+                  <CreditCard size={24} />
+                </div>
+                <div>
+                  <p className="font-black text-slate-900 leading-none">
+                    Chuyển khoản
+                  </p>
+                  <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">
+                    VietQR Instant
+                  </p>
+                </div>
+                {selectedPayment === "BANK" && (
+                  <div className="absolute top-4 right-4 w-3 h-3 bg-indigo-600 rounded-full animate-ping" />
+                )}
+              </label>
+
+              {/* HIỂN THỊ VÍ VỚI SỐ DƯ */}
+              <label
+                className={`relative flex items-center gap-4 p-6 rounded-3xl border-2 transition-all cursor-pointer group ${
+                  selectedPayment === "WALLET"
+                    ? "border-indigo-600 bg-indigo-50/50"
+                    : "border-slate-100 bg-slate-50 hover:border-slate-200"
+                }`}
+              >
+                <input
+                  type="radio"
+                  className="hidden"
+                  checked={selectedPayment === "WALLET"}
+                  onChange={() => setSelectedPayment("WALLET")}
+                />
+                <div
+                  className={`p-3 rounded-2xl transition-all ${
+                    selectedPayment === "WALLET"
+                      ? "bg-indigo-600 text-white"
+                      : "bg-white text-slate-400 group-hover:text-slate-600"
+                  }`}
+                >
+                  <Wallet size={24} />
+                </div>
+                <div className="flex-1">
+                  <div className="flex justify-between items-center">
+                    <p className="font-black text-slate-900 leading-none">
+                      Ví GearXpert
+                    </p>
+                    <span
+                      className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
+                        wallet?.balance >= total
+                          ? "bg-emerald-100 text-emerald-600"
+                          : "bg-red-100 text-red-600"
+                      }`}
+                    >
+                      {wallet?.balance?.toLocaleString() || 0}đ
+                    </span>
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">
+                    Dùng số dư ví
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            {selectedPayment === "BANK" && (
+              <div className="mt-8 p-8 bg-slate-900 rounded-[32px] text-white flex flex-col md:flex-row items-center gap-8 animate-in zoom-in-95 duration-300">
+                <div className="bg-white p-3 rounded-[24px] shadow-2xl rotate-3 hover:rotate-0 transition-transform duration-500">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=GEARXPERT_PAY_${total}`}
+                    alt="QR"
+                    className="w-32 h-32"
+                  />
+                </div>
+                <div className="flex-1 text-center md:text-left">
+                  <span className="inline-block bg-indigo-500/20 text-indigo-400 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter mb-3">
+                    Tự động xác nhận
+                  </span>
+                  <p className="text-sm text-slate-300 leading-relaxed font-medium">
+                    Vui lòng quét mã QR để thanh toán. <br /> Nội dung:{" "}
+                    <span className="text-white font-black underline decoration-indigo-500 underline-offset-4">
+                      GEARXPERT {phoneNumber}
+                    </span>
+                  </p>
+                  <p className="text-[10px] text-slate-500 mt-4 italic">
+                    * Đơn hàng sẽ được duyệt ngay sau khi giao dịch thành công.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {selectedPayment === "WALLET" && wallet?.balance < total && (
+              <div className="mt-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-600 animate-pulse">
+                <X size={20} className="shrink-0" />
+                <p className="text-xs font-bold uppercase">
+                  Số dư ví không đủ. Vui lòng nạp thêm hoặc chọn Chuyển khoản.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* RIGHT: ORDER SUMMARY */}
+        <div className="lg:col-span-5">
+          <div className="bg-white rounded-[40px] p-8 border border-slate-100 shadow-xl sticky top-28">
+            <h2 className="text-xl font-black text-slate-900 uppercase italic mb-8 flex items-center justify-between">
+              Giỏ hàng của bạn
+              <span className="text-sm not-italic font-bold bg-slate-100 text-slate-500 px-3 py-1 rounded-full uppercase tracking-tighter">
+                {cart.length} món
+              </span>
+            </h2>
+
+            <div className="max-h-[320px] overflow-y-auto pr-2 space-y-6 mb-8 scrollbar-hide">
+              {cart.map((item) => (
+                <div key={item._id} className="flex gap-4 items-start group">
+                  <div className="relative w-20 h-20 shrink-0">
+                    <img
+                      src={item.deviceId?.images?.[0]}
+                      className="w-full h-full rounded-2xl object-cover border border-slate-100 group-hover:scale-105 transition-transform"
+                    />
+                    <button
+                      onClick={() => handleRemoveItem(item._id)}
+                      className="absolute -top-2 -left-2 bg-white text-red-500 p-1.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-black text-slate-900 text-sm truncate uppercase tracking-tight">
+                      {item.deviceId?.name}
+                    </p>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tighter flex items-center gap-1">
+                        {item.totalDays} ngày
+                      </span>
+                      <span className="w-1 h-1 bg-slate-200 rounded-full" />
+                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tighter">
+                        SL: {item.quantity}
+                      </span>
+                    </div>
+                    <p className="font-black text-indigo-600 text-sm mt-1">
+                      {(
+                        item.deviceId?.rentPrice?.perDay *
+                        item.totalDays *
+                        item.quantity
+                      ).toLocaleString()}
+                      đ
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-4 pt-8 border-t border-slate-100">
+              <div className="flex justify-between text-sm font-bold text-slate-400 uppercase tracking-tighter">
+                <span>Tạm tính</span>
+                <span className="text-slate-600">
+                  {subtotal.toLocaleString()}đ
+                </span>
+              </div>
+              <div className="flex justify-between text-sm font-bold text-slate-400 uppercase tracking-tighter">
+                <span className="flex items-center gap-2">Phí vận chuyển</span>
+                <span className="text-slate-600">
+                  {deliveryFee.toLocaleString()}đ
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-sm font-bold text-slate-400 uppercase tracking-tighter">
+                <label className="flex items-center gap-3 cursor-pointer text-slate-500 hover:text-indigo-600 transition-colors">
+                  <input
+                    type="checkbox"
+                    className="w-5 h-5 rounded-lg border-slate-200 text-indigo-600 focus:ring-indigo-500 transition-all"
+                    checked={useInsurance}
+                    onChange={(e) => setUseInsurance(e.target.checked)}
+                  />
+                  Phí bảo hiểm thiết bị (5%)
+                </label>
+                <span className="text-slate-600">
+                  {insuranceFee.toLocaleString()}đ
+                </span>
+              </div>
+
+              <div className="flex gap-2 py-4">
+                <div className="relative flex-1 group">
+                  <Ticket
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors"
+                    size={18}
+                  />
+                  <input
+                    className="w-full bg-slate-50 border-none rounded-[20px] pl-12 pr-4 py-4 text-sm uppercase font-black placeholder:text-slate-300 focus:ring-2 ring-indigo-500 transition-all"
+                    placeholder="Mã voucher"
+                    value={voucherCode}
+                    onChange={(e) => setVoucherCode(e.target.value)}
+                  />
+                </div>
+                <button
+                  onClick={handleApplyVoucher}
+                  disabled={isApplyingVoucher || !voucherCode}
+                  className="bg-slate-900 text-white px-6 rounded-[20px] text-xs font-black uppercase hover:bg-indigo-600 disabled:opacity-30 transition-all shadow-lg shadow-slate-200"
+                >
+                  {isApplyingVoucher ? "..." : "Áp dụng"}
+                </button>
+              </div>
+
+              {appliedVoucher && (
+                <div className="flex justify-between items-center bg-emerald-50 text-emerald-600 p-4 rounded-2xl border border-emerald-100 animate-in slide-in-from-top-2">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-emerald-600 text-white rounded-lg">
+                      <Ticket size={14} />
+                    </div>
+                    <span className="text-xs font-black uppercase">
+                      Đã giảm: {appliedVoucher.code}
+                    </span>
+                  </div>
+                  <span className="font-black">
+                    -{appliedVoucher.discount.toLocaleString()}đ
+                  </span>
+                </div>
+              )}
+
+              <div className="pt-6 flex justify-between items-end border-t border-slate-50">
+                <div className="space-y-1">
+                  <span className="block font-black text-slate-400 uppercase text-[10px] tracking-widest">
+                    Tổng cộng
+                  </span>
+                  <span className="text-4xl font-black text-slate-900 tracking-tighter leading-none">
+                    {total.toLocaleString()}đ
+                  </span>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <div className="flex items-center gap-1 text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg uppercase tracking-tight">
+                    <ShieldCheck size={12} /> Bảo mật 100%
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <label className="flex items-center gap-4 mt-8 p-5 bg-slate-50 rounded-[24px] cursor-pointer group hover:bg-slate-100 transition-all">
+              <input
+                type="checkbox"
+                className="w-6 h-6 rounded-lg border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all"
+                checked={agreeTerms}
+                onChange={(e) => setAgreeTerms(e.target.checked)}
+              />
+              <span className="text-[11px] text-slate-500 font-bold leading-tight group-hover:text-slate-700">
+                Tôi đồng ý với các{" "}
+                <span className="text-indigo-600 underline">
+                  Điều khoản dịch vụ
+                </span>{" "}
+                và{" "}
+                <span className="text-indigo-600 underline">
+                  Quy định thuê trả
+                </span>{" "}
+                của GearXpert.
+              </span>
+            </label>
+
+            <button
+              disabled={isProcessing || cart.length === 0}
+              onClick={handleCheckout}
+              className="w-full mt-6 bg-slate-900 text-white py-6 rounded-[28px] font-black text-xl uppercase tracking-widest hover:bg-indigo-600 hover:-translate-y-1 transition-all shadow-2xl shadow-indigo-200 active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-3"
+            >
+              {isProcessing ? (
+                <>
+                  <div className="w-5 h-5 border-4 border-white/30 border-t-white rounded-full animate-spin" />{" "}
+                  Xử lý...
+                </>
+              ) : (
+                <>
+                  <PackageCheck size={24} /> Xác nhận thuê ngay
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* MODAL MAP */}
+      {showMapModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-6">
+          <div className="bg-white rounded-[48px] w-full max-w-5xl overflow-hidden shadow-2xl border border-white animate-in zoom-in-95 duration-300">
+            <div className="p-8 border-b flex justify-between items-center bg-slate-50/50">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-indigo-600 rounded-2xl text-white">
+                  <MapPin size={24} />
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-900 uppercase italic tracking-tight text-xl">
+                    Chọn vị trí của bạn
+                  </h3>
+                  <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">
+                    Click vào bản đồ để tự định vị
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => setShowMapModal(false)}
-                className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+                className="p-4 hover:bg-white rounded-full transition-all text-slate-400 hover:text-red-500 shadow-sm border border-slate-100"
               >
-                <X size={20} />
+                <X size={24} />
               </button>
             </div>
-            <div className="h-[500px] w-full relative">
+            <div className="h-[550px] w-full relative">
               <MapContainer
                 center={mapPosition}
                 zoom={13}
                 style={{ height: "100%", width: "100%" }}
-                // Thêm các thuộc tính này để map ổn định hơn
-                whenCreated={(mapInstance) => {
-                  mapInstance.invalidateSize();
-                }}
+                whenCreated={(map) => map.invalidateSize()}
               >
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                 <MapEventsHandler />
               </MapContainer>
+              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[1000] bg-white px-8 py-4 rounded-[24px] shadow-2xl border border-slate-100 font-bold text-sm text-indigo-600 animate-bounce">
+                👆 Click vào vị trí bất kỳ trên bản đồ
+              </div>
             </div>
           </div>
         </div>
       )}
-
-      {/* ================= CART ================= */}
-      <div className="md:col-span-2">
-        <h2 className="text-xl font-semibold mb-4">Thiết bị thuê</h2>
-
-        {cart.length === 0 && <p className="text-gray-500">Giỏ hàng trống</p>}
-
-        {cart.map((item) => {
-          const device = item.deviceId;
-          const itemTotal =
-            device.rentPrice.perDay * item.totalDays * item.quantity;
-
-          return (
-            <div
-              key={item._id}
-              className="flex gap-4 p-4 bg-gray-50 rounded-lg mb-4"
-            >
-              <img
-                src={device.images?.[0]}
-                alt={device.name}
-                className="w-24 h-24 rounded object-cover"
-              />
-
-              <div className="flex-1">
-                <div className="flex justify-between">
-                  <h3 className="font-medium">{device.name}</h3>
-                  <button
-                    onClick={() => handleRemoveFromCart(item._id)}
-                    className="text-red-600"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-
-                <p className="text-sm text-gray-500">
-                  {item.totalDays} ngày • SL {item.quantity}
-                </p>
-
-                <p className="text-blue-600 mt-1 font-medium">
-                  {itemTotal.toLocaleString("vi-VN")} đ
-                </p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* ================= SUMMARY ================= */}
-      <div className="bg-white border rounded-lg p-6 h-fit sticky top-6">
-        <h3 className="text-lg font-semibold mb-4">Thanh toán</h3>
-
-        {/* ADDRESS SECTION */}
-        <div className="space-y-3 mb-4">
-          <div className="flex gap-2 mb-2">
-            <button
-              onClick={handleSetDefaultAddress}
-              className="flex-1 flex items-center justify-center gap-1 text-[11px] bg-gray-100 hover:bg-gray-200 py-1.5 rounded border transition-colors"
-            >
-              <Home size={14} /> Mặc định
-            </button>
-            <button
-              onClick={handlePickOnMap}
-              className="flex-1 flex items-center justify-center gap-1 text-[11px] bg-blue-50 text-blue-600 hover:bg-blue-100 py-1.5 rounded border border-blue-200 transition-colors"
-            >
-              <MapPin size={14} /> Chọn trên Map
-            </button>
-          </div>
-
-          <input
-            className="w-full border p-2 rounded text-sm"
-            placeholder="Tỉnh / Thành phố"
-            value={address.city}
-            onChange={(e) => setAddress({ ...address, city: e.target.value })}
-          />
-          <input
-            className="w-full border p-2 rounded text-sm"
-            placeholder="Quận / Huyện"
-            value={address.district}
-            onChange={(e) =>
-              setAddress({ ...address, district: e.target.value })
-            }
-          />
-          <input
-            className="w-full border p-2 rounded text-sm"
-            placeholder="Số nhà, tên đường"
-            value={address.street}
-            onChange={(e) => setAddress({ ...address, street: e.target.value })}
-          />
-
-          {/* HIỂN THỊ ĐỊA CHỈ ĐẦY ĐỦ (NEW FIX) */}
-          <div className="bg-gray-50 p-2 rounded border border-dashed border-gray-300">
-            <label className="text-[10px] font-bold text-gray-500 uppercase">
-              Địa chỉ đầy đủ:
-            </label>
-            <p className="text-xs text-gray-700 leading-relaxed min-h-[1.5rem]">
-              {address.fullAddress || "Chưa có thông tin địa chỉ..."}
-            </p>
-          </div>
-
-          <input
-            className="w-full border p-2 rounded text-sm"
-            placeholder="Số điện thoại"
-            value={phoneNumber}
-            onChange={(e) => setPhoneNumber(e.target.value)}
-          />
-
-          <textarea
-            className="w-full border p-2 rounded text-sm"
-            placeholder="Ghi chú"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
-        </div>
-
-        {/* ================= VOUCHER SECTION ================= */}
-        <div className="mb-6 border-t border-b py-4">
-          <p className="flex items-center gap-2 font-medium mb-3 text-sm">
-            <Ticket size={16} className="text-blue-600" /> Mã giảm giá
-          </p>
-          <div className="flex gap-2">
-            <input
-              className="flex-1 border p-2 rounded text-sm uppercase"
-              placeholder="Nhập mã giảm giá..."
-              value={voucherCode}
-              onChange={(e) => setVoucherCode(e.target.value)}
-            />
-            <button
-              onClick={handleApplyVoucher}
-              disabled={isApplyingVoucher || !voucherCode}
-              className="bg-gray-800 text-white px-4 py-2 rounded text-sm hover:bg-black disabled:opacity-50 transition-colors"
-            >
-              {isApplyingVoucher ? "..." : "Áp dụng"}
-            </button>
-          </div>
-          {appliedVoucher && (
-            <div className="mt-2 flex items-center justify-between bg-green-50 p-2 rounded border border-green-100">
-              <p className="text-green-700 text-xs font-medium">
-                ✓ Đã áp dụng mã: {appliedVoucher.code}
-              </p>
-              <button
-                onClick={() => {
-                  setAppliedVoucher(null);
-                  setVoucherCode("");
-                }}
-                className="text-xs text-red-500 hover:underline"
-              >
-                Gỡ bỏ
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* ================= PAYMENT METHODS ================= */}
-        <div className="mb-6">
-          <p className="font-medium mb-3 text-sm">Phương thức thanh toán</p>
-
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 p-2 border rounded cursor-pointer hover:bg-gray-50 has-[:checked]:border-blue-500 transition-all">
-              <input
-                type="radio"
-                name="payment"
-                className="w-4 h-4 text-blue-600"
-                checked={selectedPayment === "BANK"}
-                onChange={() => setSelectedPayment("BANK")}
-              />
-              <CreditCard size={18} className="text-gray-600" />
-              <span className="text-sm">Chuyển khoản ngân hàng</span>
-            </label>
-
-            <label className="flex items-center gap-2 p-2 border rounded cursor-pointer hover:bg-gray-50 has-[:checked]:border-blue-500 transition-all">
-              <input
-                type="radio"
-                name="payment"
-                className="w-4 h-4 text-blue-600"
-                checked={selectedPayment === "WALLET"}
-                onChange={() => setSelectedPayment("WALLET")}
-              />
-              <Wallet size={18} className="text-gray-600" />
-              <span className="text-sm">Ví GearXpert</span>
-            </label>
-          </div>
-
-          {/* BANK QR */}
-          {selectedPayment === "BANK" && (
-            <div className="mt-4 p-4 border rounded bg-gray-50 text-center animate-in fade-in duration-300">
-              <p className="font-medium mb-2 text-sm text-gray-700">
-                Quét QR để chuyển khoản
-              </p>
-              <img
-                className="mx-auto border-2 border-white shadow-sm"
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=GEARXPERT_BANK_TRANSFER_${total}`}
-                alt="QR"
-              />
-              <p className="text-xs text-gray-500 mt-2">
-                Nội dung:{" "}
-                <span className="font-bold text-gray-800">
-                  GEARXPERT {phoneNumber}
-                </span>
-              </p>
-            </div>
-          )}
-
-          {/* WALLET */}
-          {selectedPayment === "WALLET" && (
-            <div className="mt-4 p-4 border rounded bg-blue-50 border-blue-100 animate-in fade-in duration-300">
-              <p className="font-medium text-blue-800 text-sm">
-                Thanh toán bằng ví GearXpert
-              </p>
-              <p className="text-xs text-blue-600 mt-1">
-                Số dư sẽ được hệ thống khấu trừ tự động sau khi bạn xác nhận đơn
-                hàng.
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* ================= TOTAL BREAKDOWN ================= */}
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between text-gray-600">
-            <span>Tạm tính</span>
-            <span>{subtotal.toLocaleString("vi-VN")} đ</span>
-          </div>
-
-          <div className="flex justify-between text-gray-600">
-            <span>Phí giao hàng</span>
-            <span>{deliveryFee.toLocaleString("vi-VN")} đ</span>
-          </div>
-
-          <div className="flex justify-between text-gray-600">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                className="rounded text-blue-600"
-                checked={useInsurance}
-                onChange={(e) => setUseInsurance(e.target.checked)}
-              />
-              Phí bảo hiểm (5%)
-            </label>
-            <span>{insuranceFee.toLocaleString("vi-VN")} đ</span>
-          </div>
-
-          {discountAmount > 0 && (
-            <div className="flex justify-between text-green-600 font-medium">
-              <span>Giảm giá voucher</span>
-              <span>-{discountAmount.toLocaleString("vi-VN")} đ</span>
-            </div>
-          )}
-
-          <div className="flex justify-between font-bold text-lg pt-3 border-t mt-2">
-            <span>Tổng thanh toán</span>
-            <span className="text-blue-600">
-              {Math.max(0, total).toLocaleString("vi-VN")} đ
-            </span>
-          </div>
-        </div>
-
-        <label className="flex items-center gap-2 mt-6 text-xs text-gray-500 cursor-pointer">
-          <input
-            type="checkbox"
-            className="rounded"
-            checked={agreeTerms}
-            onChange={(e) => setAgreeTerms(e.target.checked)}
-          />
-          Tôi đồng ý với các Điều khoản & Chính sách của GearXpert
-        </label>
-
-        <button
-          onClick={handleCheckout}
-          disabled={isProcessing || cart.length === 0}
-          className="w-full mt-4 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md active:scale-[0.98]"
-        >
-          {isProcessing ? "Đang xử lý đơn hàng..." : "Xác nhận & Đặt thuê"}
-        </button>
-      </div>
     </div>
   );
 }

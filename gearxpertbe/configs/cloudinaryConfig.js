@@ -11,7 +11,7 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
   cloudinary,
   params: {
-    folder: 'GearXpert',
+    folder: 'gearxpert',
     allowed_formats: ['pdf', 'docx', 'doc', 'jpg', 'png'],
     public_id: (req, file) => `img-${Date.now()}-${file.originalname}`,
   },

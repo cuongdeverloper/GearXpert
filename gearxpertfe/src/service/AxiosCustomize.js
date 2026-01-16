@@ -2,6 +2,8 @@ import axios from 'axios';
 import NProgress from 'nprogress';
 import { store } from '../redux/store';
 import { doLogout } from '../redux/action/userAction';
+import Cookies from 'js-cookie';
+import { persistor } from '../redux/store';
 
 const instance = axios.create({
     baseURL: 'http://localhost:1357/',
@@ -40,7 +42,26 @@ instance.interceptors.response.use(
             if (errorCode === -999) {
                 const currentPath = window.location.pathname;
                 if (currentPath !== '/signin') {
+                    // Get socket connection before clearing state
+                    const state = store.getState();
+                    const socketConnection = state.user.account.socketConnection;
+
+                    // Disconnect socket if connected
+                    if (socketConnection) {
+                        socketConnection.disconnect();
+                    }
+
+                    // Dispatch logout action
                     store.dispatch(doLogout());
+
+                    // Remove cookies
+                    Cookies.remove('accessToken');
+                    Cookies.remove('refreshToken');
+
+                    // Purge Redux persist storage
+                    persistor.purge();
+
+                    // Navigate to login page
                     window.location.href = '/signin';
                 }
             }
