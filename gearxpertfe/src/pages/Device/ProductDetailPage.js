@@ -625,10 +625,10 @@ export default function ProductDetailPage() {
               ))}
             </div>
           </div>
-        </div >
-      </main >
+        </div>
+      </main>
       <Footer />
-    </div >
+    </div>
   );
 }
 
