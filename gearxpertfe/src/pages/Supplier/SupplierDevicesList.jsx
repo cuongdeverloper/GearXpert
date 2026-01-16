@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { mockSupplierDevices } from "../../mocks/devices.mock";
 import { DEVICE_STATUS_CONFIG } from "../../utils/deviceStatus";
 import { FiEdit2, FiTrash2, FiPlus } from "react-icons/fi";
+import AddDeviceModal from "../../components/admin/AddDeviceModal";
 
 const CATEGORIES = ["ALL", "CAMERA", "AUDIO", "OFFICE", "GAMING", "ACCESSORY"];
 const PAGE_SIZES = [5, 10, 20];
@@ -10,6 +11,7 @@ export default function SupplierDevicesList() {
   const [category, setCategory] = useState("ALL");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   /* ===== FILTER ===== */
   const filteredDevices = useMemo(() => {
@@ -54,7 +56,9 @@ export default function SupplierDevicesList() {
           <p className="mt-1 text-sm text-slate-600">Manage and monitor your equipment listings</p>
         </div>
 
-        <button className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-primary to-primary-dark text-white rounded-2xl font-semibold shadow-lg shadow-primary/30 hover:shadow-lg hover:shadow-primary/40 transition-all hover:scale-105 active:scale-95">
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-primary to-primary-dark text-white rounded-2xl font-semibold shadow-lg shadow-primary/30 hover:shadow-lg hover:shadow-primary/40 transition-all hover:scale-105 active:scale-95">
           <FiPlus size={20} />
           <span>Add Device</span>
         </button>
@@ -221,6 +225,9 @@ export default function SupplierDevicesList() {
           </button>
         </div>
       </div>
+
+      {/* Add Device Modal */}
+      <AddDeviceModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 }

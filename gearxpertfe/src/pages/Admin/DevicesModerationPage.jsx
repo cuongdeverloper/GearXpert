@@ -2,13 +2,15 @@ import { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { mockDevices } from "../../mocks/adminMock";
 import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
-import { FiSearch, FiFilter, FiStar, FiEdit2, FiTrash2, FiCheckCircle, FiAlertCircle } from "react-icons/fi";
+import AddDeviceModal from "../../components/admin/AddDeviceModal";
+import { FiSearch, FiFilter, FiStar, FiEdit2, FiTrash2, FiCheckCircle, FiAlertCircle, FiPlus } from "react-icons/fi";
 
 export default function DevicesModerationPage() {
   const dispatch = useDispatch();
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Simulate data loading
   useEffect(() => {
@@ -98,6 +100,14 @@ export default function DevicesModerationPage() {
             <option value="STOPPED">Stopped</option>
           </select>
         </div>
+
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white font-medium hover:bg-primary-dark transition whitespace-nowrap"
+        >
+          <FiPlus size={18} />
+          Add Device
+        </button>
       </div>
 
       {/* Table */}
@@ -170,6 +180,9 @@ export default function DevicesModerationPage() {
           <p className="text-slate-500">No devices found</p>
         </div>
       )}
+
+      {/* Add Device Modal */}
+      <AddDeviceModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 }
