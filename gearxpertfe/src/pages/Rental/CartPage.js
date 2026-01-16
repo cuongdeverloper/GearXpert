@@ -56,7 +56,7 @@ const CartPage = () => {
       theme: "colored",
     });
     setTimeout(() => {
-        navigate('/checkout'); 
+        navigate('/rental/checkout'); 
     }, 1500);
   };
 

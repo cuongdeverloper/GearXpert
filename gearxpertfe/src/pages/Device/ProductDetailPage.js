@@ -138,7 +138,9 @@ export default function ProductDetailPage() {
         addons: addons.map((a) => a._id),
       });
       toast.success("Đang chuyển đến trang thanh toán", { id: toastId });
-      navigate("/checkout");
+      navigate('/rental/checkout', { 
+        state: { cartType: 'INSTANT' } 
+      });
     } catch {
       toast.error("Thuê ngay thất bại", { id: toastId });
     }

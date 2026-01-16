@@ -7,7 +7,7 @@ const Voucher = require('../../models/Voucher');
 
 exports.checkoutRental = async (req, res) => {
   try {
-    const customerId = req.user._id;
+    const customerId = req.user.id;
 
     const {
       cartType = 'NORMAL',
