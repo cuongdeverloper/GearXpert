@@ -16,12 +16,12 @@ const socketIo = require("socket.io");
 const { handleAIChat } = require("./controllers/AIChatController")
 
 
-
 const  rentalRouter   = require('./Routes/RentalRoutes');
 const  cartRouter   = require('./Routes/CartRoutes');
 const  deviceRouter   = require('./Routes/DeviceRoutes');
 const  voucherRouter   = require('./Routes/VoucherRoutes');
 const  routerMessage   = require('./Routes/MessengerRoutes');
+const  routerEkyce   = require('./Routes/EkycRoutes');
 const io = socketIo(server, {
   cors: {
     origin: '*',
@@ -62,7 +62,7 @@ app.use('/api/carts',cartRouter);
 app.use('/api/devices',deviceRouter);
 app.use('/api/vounchers',voucherRouter);
 app.use('/api/message',routerMessage);
-
+app.use('/api/ekyc',routerEkyce);
 
 // Configure request body parsing
 

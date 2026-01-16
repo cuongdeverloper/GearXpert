@@ -12,6 +12,7 @@ import RentalCheckout from "./pages/Rental/RentalCheckout";
 import ProductDetailPage from "./pages/Device/ProductDetailPage";
 import RentalReviewPage from "./pages/Rental/RentalReviewPage";
 import Messenger from "./components/Message Socket/Page/Messenger";
+import EkycVerification from "./components/EkycVerification";
 
 export default function Layout() {
   useEffect(() => {
@@ -47,6 +48,7 @@ export default function Layout() {
           </Route>
           <Route path="/messenger" element={<Messenger />} />
           <Route path="/messenger/:conversationId" element={<Messenger />} />
+          <Route path="/ekyc" element={<EkycVerification />} />
         </Routes>
       </Suspense>
     </BrowserRouter>
