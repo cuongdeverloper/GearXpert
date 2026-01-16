@@ -8,13 +8,15 @@ const INITIAL_STATE = {
         refresh_token: '',
         username: '',
         role: '',
+        phoneNumber: '',
+        phone: '',
         onlineUser: null,
         socketConnection: null,
         image: '',
         rank: 'BRONZE',
         walletBalance: 0,
         rewardPoints: 0
-},
+    },
     isAuthenticated: false
 };
 

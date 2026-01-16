@@ -140,6 +140,13 @@ export default function ProfilePage() {
 
     const handleSubmitProfile = async (e) => {
         e.preventDefault();
+
+        // Validate phone number
+        if (!/^\d{10}$/.test(formData.phone)) {
+            toast.error('Số điện thoại phải có đúng 10 chữ số');
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -355,14 +362,16 @@ export default function ProfilePage() {
                                         />
                                         <label
                                             htmlFor="avatar-upload"
-                                            className="w-32 h-32 rounded-full bg-cover bg-center ring-4 ring-white shadow-[0_8px_30px_rgba(0,0,0,0.2)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.3)] mb-4 cursor-pointer hover:ring-primary transition-all duration-300 relative overflow-hidden block"
-                                            style={{
-                                                backgroundImage: avatarPreview
-                                                    ? `url("${avatarPreview}")`
-                                                    : 'linear-gradient(to right, #6366F1, #22D3EE)'
-                                            }}
+                                            className="w-32 h-32 rounded-full ring-4 ring-white shadow-[0_8px_30px_rgba(0,0,0,0.2)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.3)] mb-4 cursor-pointer hover:ring-primary transition-all duration-300 relative overflow-hidden block bg-gradient-to-r from-indigo-500 to-cyan-400"
                                         >
-                                            {!avatarPreview && (
+                                            {avatarPreview ? (
+                                                <img
+                                                    src={avatarPreview}
+                                                    alt="Avatar Preview"
+                                                    className="w-full h-full object-cover"
+                                                    referrerPolicy="no-referrer"
+                                                />
+                                            ) : (
                                                 <div className="w-full h-full rounded-full flex items-center justify-center text-white pointer-events-none">
                                                     <span className="material-symbols-outlined text-5xl">person</span>
                                                 </div>
@@ -474,6 +483,7 @@ export default function ProfilePage() {
                                         <input
                                             type="tel"
                                             name="phone"
+                                            id="phone-input"
                                             value={formData.phone}
                                             onChange={handleInputChange}
                                             required
