@@ -13,7 +13,7 @@ import {
   Calendar,
   PlusCircle,
   Minus,
-  Plus
+  Plus,
 } from "lucide-react";
 import { toast, Toaster } from "sonner"; // CẬP NHẬT: Thêm Toaster để hiển thị
 import { useParams, useNavigate } from "react-router-dom";
@@ -33,6 +33,7 @@ export default function ProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
+  const today = new Date().toISOString().split("T")[0];
   const [device, setDevice] = useState(null);
   const [addonsList, setAddonsList] = useState([]);
   const [relatedDevices, setRelatedDevices] = useState([]);
@@ -95,15 +96,13 @@ export default function ProductDetailPage() {
   const toggleAddon = (addon) => {
     const isSelected = addons.find((a) => a._id === addon._id);
     setAddons((prev) =>
-      isSelected
-        ? prev.filter((a) => a._id !== addon._id)
-        : [...prev, addon]
+      isSelected ? prev.filter((a) => a._id !== addon._id) : [...prev, addon]
     );
 
     if (!isSelected) {
       toast.info(`Đã thêm phụ kiện: ${addon.name}`, {
         position: "bottom-center",
-        duration: 1500
+        duration: 1500,
       });
     }
   };
@@ -143,7 +142,9 @@ export default function ProductDetailPage() {
         addons: addons.map((a) => a._id),
       });
       toast.success("Đang chuyển đến trang thanh toán", { id: toastId });
-      navigate("/checkout");
+      navigate("/rental/checkout", {
+        state: { cartType: "INSTANT" },
+      });
     } catch {
       toast.error("Thuê ngay thất bại", { id: toastId });
     }
@@ -152,15 +153,16 @@ export default function ProductDetailPage() {
   const days =
     startDate && endDate
       ? Math.max(
-        1,
-        Math.ceil((new Date(endDate) - new Date(startDate)) / 86400000)
-      )
+          1,
+          Math.ceil((new Date(endDate) - new Date(startDate)) / 86400000)
+        )
       : 0;
 
   const totalPrice = device
     ? days *
-    (device.rentPrice.perDay +
-      addons.reduce((s, a) => s + a.rentPrice.perDay, 0)) * quantity
+      (device.rentPrice.perDay +
+        addons.reduce((s, a) => s + a.rentPrice.perDay, 0)) *
+      quantity
     : 0;
 
   if (loading) {
@@ -220,10 +222,11 @@ export default function ProductDetailPage() {
                   <button
                     key={i}
                     onClick={() => setSelectedImage(i)}
-                    className={`relative min-w-[120px] h-24 rounded-2xl overflow-hidden border-2 transition-all ${selectedImage === i
-                      ? "border-indigo-600 scale-95 shadow-lg"
-                      : "border-transparent opacity-60 hover:opacity-100"
-                      }`}
+                    className={`relative min-w-[120px] h-24 rounded-2xl overflow-hidden border-2 transition-all ${
+                      selectedImage === i
+                        ? "border-indigo-600 scale-95 shadow-lg"
+                        : "border-transparent opacity-60 hover:opacity-100"
+                    }`}
                   >
                     <img
                       src={img}
@@ -304,8 +307,14 @@ export default function ProductDetailPage() {
                       </p>
                       <input
                         type="date"
+                        min={today} // Chặn chọn ngày trước hôm nay
                         value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
+                        onChange={(e) => {
+                          setStartDate(e.target.value);
+                          // Nếu ngày kết thúc cũ nhỏ hơn ngày bắt đầu mới, hãy xóa ngày kết thúc
+                          if (endDate && e.target.value > endDate)
+                            setEndDate("");
+                        }}
                         className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                       />
                     </div>
@@ -315,6 +324,7 @@ export default function ProductDetailPage() {
                       </p>
                       <input
                         type="date"
+                        min={startDate || today} // Ngày kết thúc tối thiểu phải là ngày bắt đầu
                         value={endDate}
                         onChange={(e) => setEndDate(e.target.value)}
                         className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
@@ -348,13 +358,22 @@ export default function ProductDetailPage() {
                       onChange={(e) => {
                         const val = parseInt(e.target.value);
                         if (!isNaN(val)) {
-                          setQuantity(Math.min(Math.max(1, val), device?.stockQuantity || 1));
+                          setQuantity(
+                            Math.min(
+                              Math.max(1, val),
+                              device?.stockQuantity || 1
+                            )
+                          );
                         }
                       }}
                       className="w-12 text-center bg-transparent border-none text-lg font-black text-slate-900 outline-none select-none"
                     />
                     <button
-                      onClick={() => setQuantity(Math.min(device?.stockQuantity || 1, quantity + 1))}
+                      onClick={() =>
+                        setQuantity(
+                          Math.min(device?.stockQuantity || 1, quantity + 1)
+                        )
+                      }
                       className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-900 flex items-center justify-center text-white hover:bg-indigo-600 hover:border-indigo-600 transition-all active:scale-90 disabled:opacity-50 disabled:bg-slate-300 disabled:border-slate-300"
                       disabled={quantity >= (device?.stockQuantity || 1)}
                     >
@@ -378,15 +397,19 @@ export default function ProductDetailPage() {
                         <button
                           key={a._id}
                           onClick={() => toggleAddon(a)}
-                          className={`w-full flex justify-between items-center p-4 rounded-2xl border-2 transition-all ${isSelected
-                            ? "border-indigo-600 bg-indigo-50 shadow-sm"
-                            : "border-slate-100 hover:border-slate-200 bg-white"
-                            }`}
+                          className={`w-full flex justify-between items-center p-4 rounded-2xl border-2 transition-all ${
+                            isSelected
+                              ? "border-indigo-600 bg-indigo-50 shadow-sm"
+                              : "border-slate-100 hover:border-slate-200 bg-white"
+                          }`}
                         >
                           <div className="text-left">
                             <p
-                              className={`font-bold text-sm ${isSelected ? "text-indigo-700" : "text-slate-700"
-                                }`}
+                              className={`font-bold text-sm ${
+                                isSelected
+                                  ? "text-indigo-700"
+                                  : "text-slate-700"
+                              }`}
                             >
                               {a.name}
                             </p>
@@ -496,10 +519,11 @@ export default function ProductDetailPage() {
                                 {Array.from({ length: 5 }).map((_, i) => (
                                   <Star
                                     key={i}
-                                    className={`w-3.5 h-3.5 ${i < r.rating
-                                      ? "fill-amber-400 text-amber-400"
-                                      : "text-slate-200"
-                                      }`}
+                                    className={`w-3.5 h-3.5 ${
+                                      i < r.rating
+                                        ? "fill-amber-400 text-amber-400"
+                                        : "text-slate-200"
+                                    }`}
                                   />
                                 ))}
                               </div>

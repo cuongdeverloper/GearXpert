@@ -20,7 +20,7 @@ console.log('PayOS v2 - paymentRequests tồn tại:', !!payos.paymentRequests);
  */
 exports.topUpWallet = async (req, res) => {
   try {
-    const userId = req.user?._id || '6954a73190b6a28de8ea2c8b'; // test fallback
+    const userId = req.user?.id || '6954a73190b6a28de8ea2c8b'; // test fallback
     const { amount } = req.body || {};
 
     if (!amount || Number(amount) < 10000) {
@@ -72,7 +72,7 @@ exports.topUpWallet = async (req, res) => {
  * GET /api/wallet/me
  */
 exports.getMyWallet = async (req, res) => {
-  const wallet = await Wallet.findOne({ user: req.user._id });
+  const wallet = await Wallet.findOne({ user: req.user.id });
   res.json(wallet);
 };
 
@@ -81,7 +81,7 @@ exports.getMyWallet = async (req, res) => {
  * GET /api/wallet/transactions
  */
 exports.getWalletTransactions = async (req, res) => {
-  const wallet = await Wallet.findOne({ user: req.user._id });
+  const wallet = await Wallet.findOne({ user: req.user.id });
   if (!wallet) return res.json([]);
 
   const transactions = await WalletTransaction
