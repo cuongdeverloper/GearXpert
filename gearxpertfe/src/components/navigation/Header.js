@@ -12,7 +12,7 @@ export default function Header() {
   const dispatch = useDispatch();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
-  
+
   const userAccount = useSelector((state) => state.user.account);
   const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
   const socketConnection = useSelector((state) => state.user.account.socketConnection);
@@ -37,23 +37,23 @@ export default function Header() {
       if (socketConnection) {
         socketConnection.disconnect();
       }
-      
+
       // Dispatch logout action to clear Redux state
       dispatch(doLogout());
-      
+
       // Remove cookies
       Cookies.remove('accessToken');
       Cookies.remove('refreshToken');
-      
+
       // Purge Redux persist storage
       await persistor.purge();
-      
+
       // Show success message
       toast.success('Đăng xuất thành công');
-      
+
       // Close dropdown
       setIsDropdownOpen(false);
-      
+
       // Navigate to login page
       navigate('/signin');
     } catch (error) {
@@ -65,12 +65,26 @@ export default function Header() {
   const menuItems = [
     { label: 'Trang chủ', icon: 'home', path: '/' },
     { label: 'Đơn thuê của tôi', icon: 'description', path: '/rental/manage' },
-    { label: 'Ví của tôi', icon: 'account_balance_wallet', path: '/wallet' },
-    { label: 'Thống kê', icon: 'bar_chart', path: '/statistics' },
+    { label: 'Giỏ hàng', icon: 'shopping_bag', path: '/user/cart' },
+    { label: 'Vouchers', icon: 'local_activity', path: '/vouchers' },
+    { label: 'Yêu thích', icon: 'favorite', path: '/favorites' },
   ];
 
-  const handleMenuItemClick = (path) => {
+  const handleRestrictedNavigation = (path) => {
+    if (location.pathname === '/profile' && !userAccount.phone && !userAccount.phoneNumber) {
+      toast.warning("Vui lòng cập nhật số điện thoại trước khi tiếp tục!");
+      const phoneInput = document.getElementById('phone-input');
+      if (phoneInput) {
+        phoneInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        phoneInput.focus();
+      }
+      return;
+    }
     navigate(path);
+  };
+
+  const handleMenuItemClick = (path) => {
+    handleRestrictedNavigation(path);
     setIsDropdownOpen(false);
   };
 
@@ -114,9 +128,9 @@ export default function Header() {
     <header className="sticky top-0 z-50 w-full glass-panel bg-white/70 border-b border-slate-200">
       <div className="max-w-[1440px] mx-auto px-6 lg:px-10 h-[72px] flex items-center justify-between">
         {/* Logo */}
-        <div 
+        <div
           className="flex items-center gap-3 cursor-pointer group"
-          onClick={() => navigate('/')}
+          onClick={() => handleRestrictedNavigation('/')}
         >
           <div className="bg-primary rounded-xl p-2 text-white shadow-lg shadow-indigo-200">
             <span className="material-symbols-outlined text-[24px] block">videocam</span>
@@ -128,19 +142,19 @@ export default function Header() {
         <nav className="hidden md:flex items-center gap-8">
           <button
             className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors cursor-pointer bg-transparent border-none"
-            onClick={() => navigate('/')}
+            onClick={() => handleRestrictedNavigation('/')}
           >
             Marketplace
           </button>
           <button
             className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors cursor-pointer bg-transparent border-none"
-            onClick={() => {}}
+            onClick={() => handleRestrictedNavigation('/products')}
           >
             Productions
           </button>
           <button
             className="flex items-center gap-1.5 text-sm font-bold text-primary bg-indigo-50 px-4 py-2 rounded-full border border-indigo-100 cursor-pointer bg-transparent"
-            onClick={() => {}}
+            onClick={() => { }}
           >
             <span className="material-symbols-outlined text-[18px] fill-current">auto_awesome</span>
             AI Discovery
@@ -152,22 +166,29 @@ export default function Header() {
           <button className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors">
             <span className="material-symbols-outlined text-[20px]">notifications</span>
           </button>
-          
+
+          <button
+            onClick={() => handleRestrictedNavigation('/user/cart')}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors"
+          >
+            <span className="material-symbols-outlined text-[20px]">shopping_bag</span>
+          </button>
+
           {isAuthenticated ? (
             <div className="relative" ref={dropdownRef}>
-              <div 
-                className="w-10 h-10 rounded-full bg-cover bg-center ring-2 ring-white shadow-md cursor-pointer hover:ring-primary transition-all"
-                style={{ 
-                  backgroundImage: userAccount.image 
-                    ? `url("${userAccount.image}")` 
-                    : 'linear-gradient(to right, #6366F1, #22D3EE)'
-                }}
+              <div
+                className="w-10 h-10 rounded-full ring-2 ring-white shadow-md cursor-pointer hover:ring-primary transition-all overflow-hidden flex items-center justify-center bg-gradient-to-r from-indigo-500 to-cyan-400"
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               >
-                {!userAccount.image && (
-                  <div className="w-full h-full rounded-full flex items-center justify-center text-white">
-                    <span className="material-symbols-outlined text-[20px]">person</span>
-                  </div>
+                {userAccount.image ? (
+                  <img
+                    src={userAccount.image}
+                    alt="User Avatar"
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <span className="material-symbols-outlined text-[20px] text-white">person</span>
                 )}
               </div>
 
@@ -175,26 +196,26 @@ export default function Header() {
               {isDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
                   {/* User Info */}
-                  <div 
+                  <div
                     className="p-4 border-b border-slate-100 bg-gradient-to-r from-primary/5 to-accent-cyan/5 cursor-pointer hover:from-primary/10 hover:to-accent-cyan/10 transition-all"
                     onClick={() => {
-                      navigate('/profile');
+                      handleRestrictedNavigation('/profile');
                       setIsDropdownOpen(false);
                     }}
                   >
                     <div className="flex items-center gap-3">
-                      <div 
-                        className="w-12 h-12 rounded-full bg-cover bg-center ring-2 ring-primary/20"
-                        style={{ 
-                          backgroundImage: userAccount.image 
-                            ? `url("${userAccount.image}")` 
-                            : 'linear-gradient(to right, #6366F1, #22D3EE)'
-                        }}
+                      <div
+                        className="w-12 h-12 rounded-full ring-2 ring-primary/20 overflow-hidden flex items-center justify-center bg-gradient-to-r from-indigo-500 to-cyan-400"
                       >
-                        {!userAccount.image && (
-                          <div className="w-full h-full rounded-full flex items-center justify-center text-white">
-                            <span className="material-symbols-outlined text-[24px]">person</span>
-                          </div>
+                        {userAccount.image ? (
+                          <img
+                            src={userAccount.image}
+                            alt="User Avatar"
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <span className="material-symbols-outlined text-[24px] text-white">person</span>
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -212,7 +233,7 @@ export default function Header() {
                   {/* Rank & Wallet Cards */}
                   <div className="p-4 space-y-3 border-b border-slate-100">
                     {/* Rank Card */}
-                    <div 
+                    <div
                       className={`${getRankCardClass(userAccount.rank)} cursor-pointer hover:opacity-90 transition-opacity`}
                     >
                       <div className={`${getRankInnerClass(userAccount.rank)} relative rounded-[calc(0.75rem-3px)] w-full h-full flex items-center gap-3 p-3 z-[1]`}>
@@ -223,18 +244,18 @@ export default function Header() {
                           <div className={`flex items-center gap-2 flex-wrap ${getRankTextClass(userAccount.rank)}`}>
                             <span className="font-bold text-sm">Hạng {formatRank(userAccount.rank)}</span>
                             <span className={`${getRankTextClass(userAccount.rank)}/80 text-sm`}>•</span>
-                            <span className="text-sm">{(userAccount.rewardPoints || 1240).toLocaleString('vi-VN')} điểm</span>
+                            <span className="text-sm">{(userAccount.rewardPoints || 0).toLocaleString('vi-VN')} điểm</span>
                           </div>
                         </div>
                       </div>
                     </div>
 
                     {/* Wallet Card */}
-                    <div 
+                    <div
                       className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                       style={{ backgroundColor: '#D1FAE5' }}
                       onClick={() => {
-                        navigate('/wallet');
+                        handleRestrictedNavigation('/wallet');
                         setIsDropdownOpen(false);
                       }}
                     >
@@ -243,7 +264,7 @@ export default function Header() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <span className="font-bold text-slate-900 text-sm">
-                          {(userAccount.walletBalance || 3500000).toLocaleString('vi-VN')}đ
+                          {(userAccount.walletBalance || 0).toLocaleString('vi-VN')}đ
                         </span>
                       </div>
                     </div>
@@ -257,11 +278,10 @@ export default function Header() {
                         <button
                           key={item.path}
                           onClick={() => handleMenuItemClick(item.path)}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
-                            isActive
-                              ? 'bg-gradient-to-r from-primary/10 to-accent-cyan/10 text-primary'
-                              : 'text-slate-700 hover:bg-slate-50'
-                          }`}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${isActive
+                            ? 'bg-gradient-to-r from-primary/10 to-accent-cyan/10 text-primary'
+                            : 'text-slate-700 hover:bg-slate-50'
+                            }`}
                         >
                           <span className={`material-symbols-outlined text-[20px] ${isActive ? 'fill-current' : ''}`}>
                             {item.icon}
@@ -300,7 +320,7 @@ export default function Header() {
             </div>
           ) : (
             <button
-              onClick={() => navigate('/signin')}
+              onClick={() => handleRestrictedNavigation('/signin')}
               className="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-accent-cyan flex items-center justify-center text-white shadow-md cursor-pointer hover:shadow-lg transition-all"
             >
               <span className="material-symbols-outlined text-[20px]">person</span>

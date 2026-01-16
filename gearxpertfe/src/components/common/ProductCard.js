@@ -1,5 +1,9 @@
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { useState, useEffect } from 'react';
 import ImageWithFallback from './ImageWithFallback';
+import { toggleFavorite, checkIsFavorite } from '../../service/ApiService/FavoriteApi';
+import { toast } from 'react-toastify';
 
 /**
  * ProductCard Component - Reusable product card for displaying devices/equipment
@@ -17,20 +21,51 @@ export default function ProductCard({
   match = null,
   buttonText = 'Rent Gear',
   onClick,
+  onFavoriteChange,
   className = ''
 }) {
   const navigate = useNavigate();
+  // const user = useSelector(state => state.user.account); // Removed unnecessary user selector
+  const isAuthenticated = useSelector(state => state.user.isAuthenticated);
+  // const socket = user?.socketConnection; // Removed unused socket variable
 
-  if (!device) return null;
+  // Local state for favorite status with optimistic updates
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
 
   // Extract device data
-  const deviceId = device._id || device.id;
-  const name = device.name || '';
-  const category = device.category || 'Equipment';
-  const description = device.description || '';
-  const price = device.price || device.rentPrice?.perDay || 0;
-  const image = device.image || device.images?.[0] || '';
-  const rating = device.ratingAvg || device.rating || null;
+  const deviceId = device?._id || device?.id;
+  const name = device?.name || '';
+  const category = device?.category || 'Equipment';
+  const description = device?.description || '';
+  const price = device?.price || device?.rentPrice?.perDay || 0;
+  const image = device?.image || device?.images?.[0] || '';
+  const rating = device?.ratingAvg || device?.rating || null;
+
+  // Load initial favorite status
+  useEffect(() => {
+    const loadFavoriteStatus = async () => {
+      if (isAuthenticated && deviceId) {
+        try {
+          const response = await checkIsFavorite(deviceId);
+          // Handle both response.data.isFavorited and response.isFavorited
+          const isFav = response?.data?.isFavorited ?? response?.isFavorited ?? false;
+          setIsFavorited(isFav);
+        } catch (error) {
+          // Silently fail - not critical, just set to false
+          setIsFavorited(false);
+        }
+      } else {
+        // Reset to false if not authenticated
+        setIsFavorited(false);
+      }
+    };
+
+    loadFavoriteStatus();
+  }, [deviceId, isAuthenticated]);
+
+  // Early return after all hooks
+  if (!device) return null;
 
   // Handle click
   const handleClick = () => {
@@ -38,6 +73,50 @@ export default function ProductCard({
       onClick(device);
     } else if (deviceId) {
       navigate(`/device/${deviceId}`);
+    }
+  };
+
+  // Handle favorite toggle
+  const handleToggleFavorite = async (e) => {
+    e.stopPropagation();
+
+    if (!isAuthenticated) {
+      toast.error('Please login to add favorites');
+      return;
+    }
+
+    if (isTogglingFavorite) return;
+
+    // Optimistic update
+    const previousState = isFavorited;
+    setIsFavorited(!isFavorited);
+    setIsTogglingFavorite(true);
+
+    try {
+      const response = await toggleFavorite(deviceId);
+
+      // Handle both response.data.isFavorited and response.isFavorited
+      const isFav = response?.data?.isFavorited ?? response?.isFavorited ?? !previousState;
+      setIsFavorited(isFav);
+
+      // Notify parent if callback exists
+      if (onFavoriteChange) {
+        onFavoriteChange(isFav);
+      }
+
+      // Removed toast messages as requested
+    } catch (error) {
+      // Revert on error
+      setIsFavorited(previousState);
+      console.error('Toggle favorite error:', error);
+
+      if (error.response?.status === 401) {
+        toast.error('Please login to add favorites');
+      } else {
+        toast.error('Failed to update favorite');
+      }
+    } finally {
+      setIsTogglingFavorite(false);
     }
   };
 
@@ -66,7 +145,29 @@ export default function ProductCard({
         className={`min-w-[280px] snap-start group bg-white p-4 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer ${className}`}
         onClick={handleClick}
       >
-        <div className="aspect-[4/3] rounded-2xl overflow-hidden mb-4 bg-slate-50">
+        <div className="aspect-[4/3] rounded-2xl overflow-hidden mb-4 bg-slate-50 relative">
+          {/* Rating Badge - Top Left */}
+          {rating !== null && (
+            <div className="absolute top-3 left-3 z-10 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1 text-xs font-semibold text-gray-900">
+              <span className="material-symbols-outlined text-[14px] fill-yellow-400 text-yellow-400">star</span>
+              {rating.toFixed(1)}
+            </div>
+          )}
+
+          {/* Favorite Heart - Top Right */}
+          {isAuthenticated && (
+            <button
+              onClick={handleToggleFavorite}
+              className="absolute top-3 right-3 z-10 bg-white/30 backdrop-blur-md border border-white/40 shadow-lg w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/50 transition-all"
+              disabled={isTogglingFavorite}
+            >
+              <span className={`material-symbols-outlined text-[20px] transition-all ${isFavorited ? 'material-symbols-filled bg-gradient-to-r from-accent-cyan to-indigo-500 bg-clip-text text-transparent' : 'text-slate-600'
+                }`}>
+                {isFavorited ? 'favorite' : 'favorite_border'}
+              </span>
+            </button>
+          )}
+
           <div className="w-full h-full bg-cover bg-center transition-transform duration-500 group-hover:scale-110">
             <ImageWithFallback
               src={image}
@@ -87,27 +188,40 @@ export default function ProductCard({
   // Detailed variant (for AISuggestedSection)
   return (
     <div
-      className={`group relative bg-white rounded-3xl p-1 shadow-lg hover:shadow-glow-cyan transition-all duration-300 border border-slate-100 ${
-        match ? `ring-2 ${getRingColor(match)}` : ''
-      } ${className}`}
+      className={`group relative bg-white rounded-3xl p-1 shadow-lg hover:shadow-glow-cyan transition-all duration-300 border border-slate-100 ${match ? `ring-2 ${getRingColor(match)}` : ''
+        } ${className}`}
     >
       <div className="bg-white rounded-[22px] overflow-hidden flex flex-col h-full">
         {/* Image Section */}
         <div className="relative h-64">
-          {/* Match Badge */}
+          {/* Rating Badge - Top Left (always show if available) */}
+          {rating !== null && (
+            <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full flex items-center gap-1 text-sm font-semibold text-gray-900">
+              <span className="material-symbols-outlined text-[16px] fill-yellow-400 text-yellow-400">star</span>
+              {rating.toFixed(1)}
+            </div>
+          )}
+
+          {/* Match Badge - Below Rating if both exist */}
           {match !== null && (
-            <div className={`absolute top-4 left-4 z-10 ${getMatchBadgeColor(match)} text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-lg flex items-center gap-1`}>
+            <div className={`absolute ${rating !== null ? 'top-14' : 'top-4'} left-4 z-10 ${getMatchBadgeColor(match)} text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-lg flex items-center gap-1`}>
               <span className="material-symbols-outlined text-[12px] fill-current">{getMatchIcon(match)}</span>
               {match}% Match
             </div>
           )}
-          
-          {/* Rating Badge (if no match badge) */}
-          {match === null && rating !== null && (
-            <div className="absolute top-4 right-4 z-10 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full flex items-center gap-1 text-sm font-semibold text-gray-900">
-              <span className="material-symbols-outlined text-[16px] fill-yellow-400 text-yellow-400">star</span>
-              {rating.toFixed(1)}
-            </div>
+
+          {/* Favorite Heart - Top Right */}
+          {isAuthenticated && (
+            <button
+              onClick={handleToggleFavorite}
+              className="absolute top-4 right-4 z-10 bg-white/30 backdrop-blur-md border border-white/40 shadow-lg w-11 h-11 flex items-center justify-center rounded-full hover:bg-white/50 transition-all hover:shadow-glow-indigo"
+              disabled={isTogglingFavorite}
+            >
+              <span className={`material-symbols-outlined text-[24px] transition-all ${isFavorited ? 'material-symbols-filled bg-gradient-to-r from-accent-cyan to-indigo-500 bg-clip-text text-transparent scale-110' : 'text-slate-600'
+                }`}>
+                {isFavorited ? 'favorite' : 'favorite_border'}
+              </span>
+            </button>
           )}
 
           {/* Image */}
@@ -126,15 +240,15 @@ export default function ProductCard({
           <span className="text-[10px] font-bold text-primary uppercase tracking-[0.2em]">
             {category}
           </span>
-          
+
           {/* Name */}
           <h3 className="text-xl font-bold text-slate-900 mt-1 font-display">{name}</h3>
-          
+
           {/* Description */}
           {description && (
             <p className="text-sm text-slate-500 mt-2 line-clamp-2">{description}</p>
           )}
-          
+
           {/* Price & Button */}
           <div className="mt-6 flex items-center justify-between">
             <span className="text-2xl font-bold text-slate-900">

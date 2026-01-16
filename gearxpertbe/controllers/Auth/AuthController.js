@@ -4,6 +4,8 @@ const uploadCloud = require('../../configs/cloudinaryConfig');
 const { sendMail } = require('../../configs/sendMail');
 
 const User = require('../../models/User');
+const Wallet = require('../../models/Wallet');
+const { ensureUserWallet } = require('../../services/WalletService');
 require('dotenv').config();
 
 const apiLogin = async (req, res) => {
@@ -25,6 +27,10 @@ const apiLogin = async (req, res) => {
         const accessToken = createJWT(payload);
         const refreshToken = createRefreshToken(payload);
 
+        // Fetch wallet balance
+        const wallet = await Wallet.findOne({ user: userRecord._id });
+        const walletBalance = wallet ? wallet.balance : 0;
+
         return res.status(200).json({
             errorCode: 0,
             message: 'Login successful',
@@ -38,7 +44,8 @@ const apiLogin = async (req, res) => {
                 phone: userRecord.phone,
                 avatar: userRecord.avatar,
                 rank: userRecord.rank,
-                walletBalance: userRecord.walletBalance
+                walletBalance: walletBalance,
+                rewardPoints: userRecord.rewardPoints
             }
         });
     } catch (error) {
@@ -59,6 +66,10 @@ const apiRegister = async (req, res) => {
                 return res.status(203).json({ errorCode: 1, message: 'Required fields are missing' });
             }
 
+            if (!/^\d{10}$/.test(phone)) {
+                return res.status(200).json({ errorCode: 6, message: 'Phone number must be exactly 10 digits' });
+            }
+
             const existingUser = await User.findOne({ email });
             if (existingUser) return res.status(200).json({ errorCode: 2, message: 'Email already exists' });
 
@@ -69,6 +80,9 @@ const apiRegister = async (req, res) => {
             });
 
             await newUser.save();
+
+            // Tự động tạo ví cho người dùng mới
+            await ensureUserWallet(newUser._id);
 
             // Tạo Token xác thực
             const verifyToken = createJWTVerifyEmail({ id: newUser._id, email: newUser.email });
@@ -280,6 +294,10 @@ const getCurrentUser = async (req, res) => {
         const userRecord = await User.findById(userId);
         if (!userRecord) return res.status(404).json({ errorCode: 2, message: 'User not found' });
 
+        // Fetch wallet balance
+        const wallet = await Wallet.findOne({ user: userId });
+        const walletBalance = wallet ? wallet.balance : 0;
+
         return res.status(200).json({
             errorCode: 0,
             message: 'Get user success',
@@ -292,7 +310,7 @@ const getCurrentUser = async (req, res) => {
                 role: userRecord.role,
                 address: userRecord.address || {},
                 rank: userRecord.rank,
-                walletBalance: userRecord.walletBalance,
+                walletBalance: walletBalance,
                 rewardPoints: userRecord.rewardPoints
             }
         });
@@ -330,6 +348,10 @@ const updateProfile = async (req, res) => {
 
             await userRecord.save();
 
+            // Fetch wallet balance
+            const wallet = await Wallet.findOne({ user: userId });
+            const walletBalance = wallet ? wallet.balance : 0;
+
             return res.status(200).json({
                 errorCode: 0,
                 message: 'Profile updated successfully',
@@ -342,7 +364,7 @@ const updateProfile = async (req, res) => {
                     role: userRecord.role,
                     address: userRecord.address || {},
                     rank: userRecord.rank,
-                    walletBalance: userRecord.walletBalance,
+                    walletBalance: walletBalance,
                     rewardPoints: userRecord.rewardPoints
                 }
             });

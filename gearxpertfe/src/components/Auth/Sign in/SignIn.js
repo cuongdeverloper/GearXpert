@@ -41,12 +41,19 @@ const SignIn = () => {
   }, [email, password]);
 
   useEffect(() => {
-    setIsFormValidRegister(fullName && emailReg && passwordReg && phone);
+    const isPhoneValid = /^\d{10}$/.test(phone);
+    setIsFormValidRegister(fullName && emailReg && passwordReg && isPhoneValid);
   }, [fullName, emailReg, passwordReg, phone]);
 
   useEffect(() => {
     if (isAuthenticated) {
       const currentRole = userAccount.role;
+      // If phone is missing, redirect to profile regardless of role (except maybe admin/supplier if they have different needs, but user request says redirect to /profile)
+      if (!userAccount.phone && !userAccount.phoneNumber) {
+        navigate("/profile");
+        return;
+      }
+
       if (currentRole === "ADMIN") {
         navigate("/admin");
       } else if (currentRole === "SUPPLIER") {
@@ -55,7 +62,7 @@ const SignIn = () => {
         navigate("/");
       }
     }
-  }, [isAuthenticated, userAccount.role, navigate]);
+  }, [isAuthenticated, userAccount.role, userAccount.phone, userAccount.phoneNumber, navigate]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -78,13 +85,17 @@ const SignIn = () => {
 
         await dispatch(doLogin(response));
 
-        const userRole = response.data?.role;
-        if (userRole === "ADMIN") {
-          navigate("/admin");
-        } else if (userRole === "SUPPLIER") {
-          navigate("/supplier-dashboard");
+        if (!response.data.phone) {
+          navigate("/profile");
         } else {
-          navigate("/");
+          const userRole = response.data?.role;
+          if (userRole === "ADMIN") {
+            navigate("/admin");
+          } else if (userRole === "SUPPLIER") {
+            navigate("/supplier-dashboard");
+          } else {
+            navigate("/");
+          }
         }
       } else {
         toast.error(response.message || "Đăng nhập không thành công.");
