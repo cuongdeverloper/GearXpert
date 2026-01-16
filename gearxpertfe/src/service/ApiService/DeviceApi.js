@@ -1,13 +1,13 @@
 import axios from "../AxiosCustomize";
 
 export const getDevices = (params = {}) =>
-  axios.get(`/devices`, { params });
+  axios.get(`/api/devices`, { params });
 
 export const getDeviceDetail = (id) =>
-  axios.get(`/devices/${id}`);
+  axios.get(`/api/devices/${id}`);
 
 export const getDeviceAddons = (id) =>
-  axios.get(`/devices/${id}/addons`);
+  axios.get(`/api/devices/${id}/addons`);
 
 export const getRelatedDevices = (id) =>
-  axios.get(`/devices/${id}/related`);
+  axios.get(`/api/devices/${id}/related`);
