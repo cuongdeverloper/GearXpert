@@ -65,6 +65,7 @@ export default function Header() {
   const menuItems = [
     { label: 'Trang chủ', icon: 'home', path: '/' },
     { label: 'Đơn thuê của tôi', icon: 'description', path: '/rental/manage' },
+    { label: 'Giỏ hàng', icon: 'shopping_bag', path: '/user/cart' },
     { label: 'Vouchers', icon: 'local_activity', path: '/vouchers' },
     { label: 'Yêu thích', icon: 'favorite', path: '/favorites' },
   ];
@@ -164,6 +165,13 @@ export default function Header() {
         <div className="flex items-center gap-4">
           <button className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors">
             <span className="material-symbols-outlined text-[20px]">notifications</span>
+          </button>
+
+          <button
+            onClick={() => handleRestrictedNavigation('/user/cart')}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors"
+          >
+            <span className="material-symbols-outlined text-[20px]">shopping_bag</span>
           </button>
 
           {isAuthenticated ? (

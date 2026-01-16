@@ -27,14 +27,14 @@ const getCart = (type = "NORMAL") => {
  * Xóa item khỏi cart
  */
 const removeCartItem = (itemId) => {
-    return axios.delete(`/cart/items/${itemId}`);
+    return axios.delete(`/api/carts/items/${itemId}`);
 };
 
 /**
  * Clear cart
  */
 const clearCart = (type = "NORMAL") => {
-    return axios.delete(`/cart/clear?type=${type}`);
+    return axios.delete(`/api/carts/clear?type=${type}`);
 };
 
 export {
