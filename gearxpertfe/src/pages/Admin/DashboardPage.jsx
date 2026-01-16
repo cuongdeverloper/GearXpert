@@ -1,7 +1,20 @@
+import { useEffect } from "react";
+import { useDispatch } from "react-redux";
 import { mockDashboard, mockRentals, mockDevices } from "../../mocks/adminMock";
+import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
 import { FiTrendingUp, FiUsers, FiBox, FiDollarSign, FiCalendar, FiStar } from "react-icons/fi";
 
 export default function AdminDashboard() {
+  const dispatch = useDispatch();
+
+  // Simulate data loading on mount
+  useEffect(() => {
+    dispatch(showAdminLoading());
+    const timer = setTimeout(() => {
+      dispatch(hideAdminLoading());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [dispatch]);
   return (
     <div className="space-y-8">
       {/* KPI Cards */}

@@ -1,7 +1,20 @@
+import { useEffect } from "react";
+import { useDispatch } from "react-redux";
 import { mockReports, mockDashboard } from "../../mocks/adminMock";
+import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
 import { FiDownload, FiBarChart2, FiTrendingUp, FiUsers, FiBox } from "react-icons/fi";
 
 export default function ReportsPage() {
+  const dispatch = useDispatch();
+
+  // Simulate data loading
+  useEffect(() => {
+    dispatch(showAdminLoading());
+    const timer = setTimeout(() => {
+      dispatch(hideAdminLoading());
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [dispatch]);
   return (
     <div className="space-y-8">
       {/* KPI Cards */}

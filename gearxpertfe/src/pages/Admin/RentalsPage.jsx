@@ -1,10 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useDispatch } from "react-redux";
 import { mockRentals } from "../../mocks/adminMock";
+import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
 import { FiSearch, FiFilter, FiCheckCircle, FiAlertCircle, FiClock, FiX } from "react-icons/fi";
 
 export default function RentalsPage() {
+  const dispatch = useDispatch();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+
+  // Simulate data loading
+  useEffect(() => {
+    dispatch(showAdminLoading());
+    const timer = setTimeout(() => {
+      dispatch(hideAdminLoading());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [dispatch, statusFilter]);
 
   const filteredRentals = mockRentals.filter((rental) => {
     const matchesSearch =

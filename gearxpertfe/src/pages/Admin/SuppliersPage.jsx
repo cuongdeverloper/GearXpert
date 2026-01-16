@@ -1,9 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useDispatch } from "react-redux";
 import { mockUsers, mockDevices } from "../../mocks/adminMock";
+import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
 import { FiSearch, FiFilter, FiStar, FiEdit2, FiTrash2, FiCheck, FiX } from "react-icons/fi";
 
 export default function SuppliersPage() {
+  const dispatch = useDispatch();
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Simulate data loading
+  useEffect(() => {
+    dispatch(showAdminLoading());
+    const timer = setTimeout(() => {
+      dispatch(hideAdminLoading());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [dispatch]);
 
   const suppliers = mockUsers.filter((user) => user.role === "SUPPLIER");
 

@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useDispatch } from "react-redux";
+import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
 import { FiSave, FiBell, FiLock, FiGlobe, FiMail } from "react-icons/fi";
 
 export default function SettingsPage() {
+  const dispatch = useDispatch();
   const [settings, setSettings] = useState({
     appName: "GearXpert",
     appEmail: "support@gearxpert.com",
@@ -13,6 +16,15 @@ export default function SettingsPage() {
     enableTwoFactor: false,
     maintenanceMode: false,
   });
+
+  // Simulate data loading on mount
+  useEffect(() => {
+    dispatch(showAdminLoading());
+    const timer = setTimeout(() => {
+      dispatch(hideAdminLoading());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [dispatch]);
 
   const handleChange = (key, value) => {
     setSettings({ ...settings, [key]: value });

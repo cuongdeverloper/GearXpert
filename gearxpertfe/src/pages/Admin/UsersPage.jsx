@@ -1,10 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useDispatch } from "react-redux";
 import { mockUsers } from "../../mocks/adminMock";
+import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
 import { FiSearch, FiFilter, FiMoreVertical, FiCheck, FiX, FiEdit2, FiTrash2 } from "react-icons/fi";
 
 export default function UsersPage() {
+  const dispatch = useDispatch();
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
+
+  // Simulate data loading
+  useEffect(() => {
+    dispatch(showAdminLoading());
+    const timer = setTimeout(() => {
+      dispatch(hideAdminLoading());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [dispatch, roleFilter]);
 
   const filteredUsers = mockUsers.filter((user) => {
     const matchesSearch =

@@ -1,11 +1,23 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useDispatch } from "react-redux";
 import { mockDevices } from "../../mocks/adminMock";
+import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
 import { FiSearch, FiFilter, FiStar, FiEdit2, FiTrash2, FiCheckCircle, FiAlertCircle } from "react-icons/fi";
 
 export default function DevicesModerationPage() {
+  const dispatch = useDispatch();
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
+
+  // Simulate data loading
+  useEffect(() => {
+    dispatch(showAdminLoading());
+    const timer = setTimeout(() => {
+      dispatch(hideAdminLoading());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [dispatch, categoryFilter, statusFilter]);
 
   const filteredDevices = mockDevices.filter((device) => {
     const matchesSearch =
