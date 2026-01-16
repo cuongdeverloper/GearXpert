@@ -2,180 +2,260 @@ export const mockSupplierDevices = [
   /* ===== CAMERA ===== */
   {
     _id: "cam_001",
+    supplierId: "sup_001",
     name: "Canon EOS R5",
+    description: "Professional mirrorless camera with 8K video recording.",
     category: "CAMERA",
+
+    isAddon: false,
+    compatibleWith: [],
+    requiredAddons: [],
+
     images: ["https://dslrdanang.vn/wp-content/uploads/2025/05/eos-r50-6.jpg"],
-    rentPrice: { perDay: 120 },
+
+    rentPrice: {
+      perDay: 120,
+      perWeek: 750,
+      perMonth: 2800,
+    },
+
     depositAmount: 500,
+
     status: "AVAILABLE",
-    location: { city: "Ho Chi Minh" },
+
+    location: {
+      warehouse: "WH-HCM-01",
+      city: "Ho Chi Minh",
+    },
+
+    specs: {
+      resolution: "45MP",
+      video: "8K",
+      mount: "RF",
+    },
+
+    maintenanceSummary: {
+      lastMaintenanceAt: new Date("2025-01-10"),
+      nextMaintenanceAt: new Date("2025-04-10"),
+      totalMaintenanceCount: 2,
+    },
+
+    ratingAvg: 4.8,
+    reviewCount: 12,
   },
+
   {
     _id: "cam_002",
+    supplierId: "sup_001",
     name: "Sony A7 IV",
+    description: "Full-frame hybrid camera for photo and video.",
     category: "CAMERA",
+
+    isAddon: false,
+    compatibleWith: [],
+    requiredAddons: [],
+
     images: ["https://dslrdanang.vn/wp-content/uploads/2025/05/eos-r50-6.jpg"],
-    rentPrice: { perDay: 110 },
+
+    rentPrice: {
+      perDay: 110,
+      perWeek: 680,
+      perMonth: 2500,
+    },
+
     depositAmount: 450,
     status: "RENTED",
-    location: { city: "Hanoi" },
-  },
-  {
-    _id: "cam_003",
-    name: "Nikon Z6 II",
-    category: "CAMERA",
-    images: ["https://dslrdanang.vn/wp-content/uploads/2025/05/eos-r50-6.jpg"],
-    rentPrice: { perDay: 95 },
-    depositAmount: 400,
-    status: "AVAILABLE",
-    location: { city: "Da Nang" },
-  },
-  {
-    _id: "cam_004",
-    name: "Fujifilm X-T5",
-    category: "CAMERA",
-    images: ["https://dslrdanang.vn/wp-content/uploads/2025/05/eos-r50-6.jpg"],
-    rentPrice: { perDay: 85 },
-    depositAmount: 380,
-    status: "MAINTENANCE",
-    location: { city: "Ho Chi Minh" },
+
+    location: {
+      warehouse: "WH-HN-01",
+      city: "Hanoi",
+    },
+
+    specs: {
+      resolution: "33MP",
+      video: "4K",
+      mount: "E",
+    },
+
+    maintenanceSummary: {
+      lastMaintenanceAt: new Date("2025-02-01"),
+      nextMaintenanceAt: new Date("2025-05-01"),
+      totalMaintenanceCount: 1,
+    },
+
+    ratingAvg: 4.6,
+    reviewCount: 9,
   },
 
   /* ===== AUDIO ===== */
   {
     _id: "aud_001",
+    supplierId: "sup_001",
     name: "Sony WH-1000XM5",
+    description: "Noise cancelling wireless headphones.",
     category: "AUDIO",
+
+    isAddon: false,
+    compatibleWith: [],
+    requiredAddons: [],
+
     images: ["https://dslrdanang.vn/wp-content/uploads/2025/05/eos-r50-6.jpg"],
-    rentPrice: { perDay: 25 },
+
+    rentPrice: {
+      perDay: 25,
+      perWeek: 150,
+      perMonth: 500,
+    },
+
     depositAmount: 100,
     status: "AVAILABLE",
-    location: { city: "Hanoi" },
-  },
-  {
-    _id: "aud_002",
-    name: "Bose QuietComfort Ultra",
-    category: "AUDIO",
-    images: ["https://dslrdanang.vn/wp-content/uploads/2025/05/eos-r50-6.jpg"],
-    rentPrice: { perDay: 28 },
-    depositAmount: 120,
-    status: "RENTED",
-    location: { city: "Ho Chi Minh" },
-  },
-  {
-    _id: "aud_003",
-    name: "Shure SM7B Microphone",
-    category: "AUDIO",
-    images: ["https://dslrdanang.vn/wp-content/uploads/2025/05/eos-r50-6.jpg"],
-    rentPrice: { perDay: 40 },
-    depositAmount: 150,
-    status: "AVAILABLE",
-    location: { city: "Da Nang" },
-  },
-  {
-    _id: "aud_004",
-    name: "Rode Wireless GO II",
-    category: "AUDIO",
-    images: ["https://dslrdanang.vn/wp-content/uploads/2025/05/eos-r50-6.jpg"],
-    rentPrice: { perDay: 22 },
-    depositAmount: 90,
-    status: "AVAILABLE",
-    location: { city: "Ho Chi Minh" },
+
+    location: {
+      warehouse: "WH-HN-01",
+      city: "Hanoi",
+    },
+
+    specs: {
+      batteryLife: "30h",
+      noiseCanceling: true,
+    },
+
+    maintenanceSummary: {
+      lastMaintenanceAt: new Date("2024-12-20"),
+      nextMaintenanceAt: new Date("2025-03-20"),
+      totalMaintenanceCount: 1,
+    },
+
+    ratingAvg: 4.7,
+    reviewCount: 18,
   },
 
   /* ===== OFFICE ===== */
   {
     _id: "off_001",
+    supplierId: "sup_001",
     name: "Dell UltraSharp U2723QE",
+    description: "27-inch 4K professional monitor.",
     category: "OFFICE",
+
+    isAddon: false,
+    compatibleWith: [],
+    requiredAddons: [],
+
     images: ["https://dslrdanang.vn/wp-content/uploads/2025/05/eos-r50-6.jpg"],
-    rentPrice: { perDay: 35 },
+
+    rentPrice: {
+      perDay: 35,
+      perWeek: 210,
+      perMonth: 720,
+    },
+
     depositAmount: 180,
     status: "AVAILABLE",
-    location: { city: "Hanoi" },
-  },
-  {
-    _id: "off_002",
-    name: "Logitech MX Master 3S",
-    category: "OFFICE",
-    images: ["https://dslrdanang.vn/wp-content/uploads/2025/05/eos-r50-6.jpg"],
-    rentPrice: { perDay: 12 },
-    depositAmount: 60,
-    status: "RENTED",
-    location: { city: "Ho Chi Minh" },
-  },
-  {
-    _id: "off_003",
-    name: "Keychron K Pro Keyboard",
-    category: "OFFICE",
-    images: ["https://dslrdanang.vn/wp-content/uploads/2025/05/eos-r50-6.jpg"],
-    rentPrice: { perDay: 15 },
-    depositAmount: 70,
-    status: "AVAILABLE",
-    location: { city: "Da Nang" },
+
+    location: {
+      warehouse: "WH-HN-02",
+      city: "Hanoi",
+    },
+
+    specs: {
+      size: "27 inch",
+      resolution: "4K",
+      panel: "IPS Black",
+    },
+
+    maintenanceSummary: {
+      lastMaintenanceAt: null,
+      nextMaintenanceAt: null,
+      totalMaintenanceCount: 0,
+    },
+
+    ratingAvg: 4.5,
+    reviewCount: 6,
   },
 
   /* ===== GAMING ===== */
   {
     _id: "gam_001",
+    supplierId: "sup_001",
     name: "PlayStation 5",
+    description: "Next-gen gaming console.",
     category: "GAMING",
+
+    isAddon: false,
+    compatibleWith: [],
+    requiredAddons: ["acc_003"], // tay cầm phụ
+
     images: ["https://dslrdanang.vn/wp-content/uploads/2025/05/eos-r50-6.jpg"],
-    rentPrice: { perDay: 45 },
+
+    rentPrice: {
+      perDay: 45,
+      perWeek: 270,
+      perMonth: 900,
+    },
+
     depositAmount: 250,
     status: "AVAILABLE",
-    location: { city: "Ho Chi Minh" },
-  },
-  {
-    _id: "gam_002",
-    name: "Xbox Series X",
-    category: "GAMING",
-    images: ["https://dslrdanang.vn/wp-content/uploads/2025/05/eos-r50-6.jpg"],
-    rentPrice: { perDay: 40 },
-    depositAmount: 220,
-    status: "RENTED",
-    location: { city: "Hanoi" },
-  },
-  {
-    _id: "gam_003",
-    name: "Nintendo Switch OLED",
-    category: "GAMING",
-    images: ["https://dslrdanang.vn/wp-content/uploads/2025/05/eos-r50-6.jpg"],
-    rentPrice: { perDay: 30 },
-    depositAmount: 180,
-    status: "AVAILABLE",
-    location: { city: "Da Nang" },
+
+    location: {
+      warehouse: "WH-HCM-02",
+      city: "Ho Chi Minh",
+    },
+
+    specs: {
+      storage: "825GB",
+      resolution: "4K",
+    },
+
+    maintenanceSummary: {
+      lastMaintenanceAt: new Date("2025-01-05"),
+      nextMaintenanceAt: new Date("2025-04-05"),
+      totalMaintenanceCount: 2,
+    },
+
+    ratingAvg: 4.9,
+    reviewCount: 25,
   },
 
-  /* ===== ACCESSORY ===== */
-  {
-    _id: "acc_001",
-    name: "DJI RS 3 Gimbal",
-    category: "ACCESSORY",
-    images: ["https://dslrdanang.vn/wp-content/uploads/2025/05/eos-r50-6.jpg"],
-    rentPrice: { perDay: 35 },
-    depositAmount: 200,
-    status: "AVAILABLE",
-    location: { city: "Ho Chi Minh" },
-  },
-  {
-    _id: "acc_002",
-    name: "SanDisk Extreme Pro 1TB",
-    category: "ACCESSORY",
-    images: ["https://dslrdanang.vn/wp-content/uploads/2025/05/eos-r50-6.jpg"],
-    rentPrice: { perDay: 10 },
-    depositAmount: 50,
-    status: "AVAILABLE",
-    location: { city: "Hanoi" },
-  },
+  /* ===== ACCESSORY (ADD-ON) ===== */
   {
     _id: "acc_003",
-    name: "Elgato Stream Deck",
+    supplierId: "sup_001",
+    name: "DualSense Wireless Controller",
+    description: "Extra controller for PlayStation 5.",
     category: "ACCESSORY",
+
+    isAddon: true,
+    compatibleWith: ["gam_001"],
+    requiredAddons: [],
+
     images: ["https://dslrdanang.vn/wp-content/uploads/2025/05/eos-r50-6.jpg"],
-    rentPrice: { perDay: 18 },
-    depositAmount: 80,
-    status: "RENTED",
-    location: { city: "Da Nang" },
+
+    rentPrice: {
+      perDay: 8,
+      perWeek: 45,
+      perMonth: 150,
+    },
+
+    depositAmount: 60,
+    status: "AVAILABLE",
+
+    location: {
+      warehouse: "WH-HCM-02",
+      city: "Ho Chi Minh",
+    },
+
+    specs: {
+      connectivity: "Bluetooth",
+    },
+
+    maintenanceSummary: {
+      lastMaintenanceAt: null,
+      nextMaintenanceAt: null,
+      totalMaintenanceCount: 0,
+    },
+
+    ratingAvg: 4.4,
+    reviewCount: 10,
   },
 ];

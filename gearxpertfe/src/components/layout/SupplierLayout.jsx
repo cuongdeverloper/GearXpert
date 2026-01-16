@@ -12,7 +12,6 @@ function classNames(...xs) {
 export default function SupplierLayout() {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [hidden, setHidden] = useState(false);
 
   // Mock user info (sau này lấy từ auth store)
   const me = { 
@@ -26,24 +25,17 @@ export default function SupplierLayout() {
   return (
     <div className="min-h-screen bg-background-light flex flex-col">
       {/* TOPBAR */}
-      <SupplierTopbar 
-        onMenuOpen={() => setOpen(true)} 
-        hidden={hidden}
-        onToggleHidden={() => setHidden(!hidden)}
-        me={me} 
-      />
+      <SupplierTopbar onMenuOpen={() => setOpen(true)} me={me} />
 
       {/* BODY */}
       <div className={classNames(
         "flex-1 flex lg:grid mx-auto w-full max-w-[1500px] transition-all duration-500",
-        hidden ? "lg:grid-cols-[1fr]" : collapsed ? "lg:grid-cols-[100px_1fr]" : "lg:grid-cols-[320px_1fr]"
+        collapsed ? "lg:grid-cols-[100px_1fr]" : "lg:grid-cols-[320px_1fr]"
       )}>
         {/* SIDEBAR Desktop */}
         <SupplierSidebar 
           collapsed={collapsed} 
-          hidden={hidden}
-          onCollapse={() => setCollapsed(!collapsed)}
-          onToggleHidden={() => setHidden(!hidden)}
+          onCollapse={() => setCollapsed(!collapsed)} 
           me={me} 
         />
 

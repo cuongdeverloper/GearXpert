@@ -16,6 +16,16 @@ import SupplierRentalRequests from "./pages/Supplier/SupplierRentalRequests";
 import SupplierMaintenance from "./pages/Supplier/SupplierMaintenance";
 import SupplierRevenue from "./pages/Supplier/SupplierRevenue";
 
+import AdminLayout from "./components/layout/AdminLayout";
+import DashboardPage from "./pages/Admin/DashboardPage";
+import UsersPage from "./pages/Admin/UsersPage";
+import SuppliersPage from "./pages/Admin/SuppliersPage";
+import DevicesModerationPage from "./pages/Admin/DevicesModerationPage";
+import RentalsPage from "./pages/Admin/RentalsPage";
+import ReportsPage from "./pages/Admin/ReportsPage";
+import SettingsPage from "./pages/Admin/SettingsPage";
+
+
 // pages
 import RentalCheckout from "./pages/Rental/RentalCheckout";
 import ProductDetailPage from "./pages/Device/ProductDetailPage";
@@ -80,7 +90,7 @@ export default function Layout() {
             {/* <Route path="/rental/manage" element={<RentalManagementPage />} /> */}
           </Route>
 
-            {/* Supplier Portal routes */}
+          {/* Supplier Portal routes */}
           <Route path="/supplier" element={<SupplierLayout />}>
             <Route index element={<Navigate to="/supplier/devices" replace />} />
             <Route path="devices" element={<SupplierDevicesList />} />
@@ -88,6 +98,17 @@ export default function Layout() {
             <Route path="maintenance" element={<SupplierMaintenance />} />
             <Route path="revenue" element={<SupplierRevenue />} />
           </Route>
+
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<DashboardPage />} />
+            <Route path="users" element={<UsersPage />} />
+            <Route path="suppliers" element={<SuppliersPage />} />
+            <Route path="devices" element={<DevicesModerationPage />} />
+            <Route path="rentals" element={<RentalsPage />} />
+            <Route path="reports" element={<ReportsPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+          </Route>
+
      
 
 
