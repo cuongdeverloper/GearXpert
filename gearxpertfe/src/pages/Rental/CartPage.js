@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Trash2, ShoppingBag, Calendar, ShieldCheck, ArrowRight, ArrowLeft } from 'lucide-react';
-import { getCart, removeCartItem, clearCart } from '../../service/ApiService/CartApi'; // Đường dẫn service của bạn
+import { getCart, removeCartItem, clearCart } from '../../service/ApiService/CartApi';
 import { useNavigate } from 'react-router-dom';
-import { toast, ToastContainer } from 'react-toastify'; // THÊM: Import Toastify
-import 'react-toastify/dist/ReactToastify.css'; // THÊM: Import CSS của Toastify
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import Header from '../../components/navigation/Header';
 import Footer from '../../components/homepage/Footer';
 
@@ -12,14 +12,13 @@ const CartPage = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  // Hàm xử lý dữ liệu: Chỉ nhóm theo sản phẩm, không tự ý gộp ngày để tránh conflict logistics
   const processCartData = (rawCart) => {
     if (!rawCart?.items) return [];
 
-    // Hàm tính số ngày giữa 2 mốc thời gian (min 1 ngày)
     const calculateDays = (start, end) => {
       const d1 = new Date(start);
       const d2 = new Date(end);
-      // Reset về 0h để tính chính xác số ngày
       d1.setHours(0, 0, 0, 0);
       d2.setHours(0, 0, 0, 0);
       const diffTime = Math.abs(d2 - d1);
@@ -33,70 +32,25 @@ const CartPage = () => {
       if (!acc[dId]) {
         acc[dId] = {
           device: item.deviceId,
-          bookings: []
+          bookings: [] // Danh sách các lịch thuê riêng biệt của cùng 1 thiết bị
         };
       }
-      acc[dId].bookings.push(item);
+
+      acc[dId].bookings.push({
+        id: item._id,
+        startDate: new Date(item.rentalStartDate),
+        endDate: new Date(item.rentalEndDate),
+        quantity: item.quantity,
+        totalDays: calculateDays(item.rentalStartDate, item.rentalEndDate),
+        rentPrice: item.deviceId?.rentPrice?.perDay || 0
+      });
       return acc;
     }, {});
 
-    // 2. Xử lý từng nhóm: Sắp xếp và Gộp ngày
+    // 2. Trả về danh sách đã nhóm và sắp xếp lịch theo thời gian
     return Object.values(groups).map(group => {
-      const sorted = [...group.bookings].sort((a, b) =>
-        new Date(a.rentalStartDate) - new Date(b.rentalStartDate)
-      );
-
-      const mergedBookings = [];
-      if (sorted.length > 0) {
-        let current = {
-          startDate: new Date(sorted[0].rentalStartDate),
-          endDate: new Date(sorted[0].rentalEndDate),
-          quantity: sorted[0].quantity,
-          ids: [sorted[0]._id],
-          rentPrice: sorted[0].deviceId?.rentPrice?.perDay || 0
-        };
-
-        for (let i = 1; i < sorted.length; i++) {
-          const next = sorted[i];
-          const nextStart = new Date(next.rentalStartDate);
-          const nextEnd = new Date(next.rentalEndDate);
-
-          // CHỈ GỘP NẾU: Chồng lấn (Overlap) hoặc Chạm ngày cuối (Boundary)
-          // 16-20 và 20-21 -> GỘP (Chạm ngày 20)
-          // 16-20 và 21-22 -> KHÔNG GỘP (Cách 1 ngày)
-          if (nextStart.getTime() <= current.endDate.getTime()) {
-            // Cập nhật ngày kết thúc là ngày xa nhất trong 2 đơn
-            const nextEnd = new Date(next.rentalEndDate);
-            if (nextEnd > current.endDate) {
-              current.endDate = nextEnd;
-            }
-            // CỘNG DỒN SỐ LƯỢNG khi gộp
-            current.quantity += next.quantity;
-            current.ids.push(next._id);
-          } else {
-            mergedBookings.push({
-              ...current,
-              totalDays: calculateDays(current.startDate, current.endDate)
-            });
-            current = {
-              startDate: nextStart,
-              endDate: nextEnd,
-              quantity: next.quantity,
-              ids: [next._id],
-              rentPrice: next.deviceId?.rentPrice?.perDay || 0
-            };
-          }
-        }
-        mergedBookings.push({
-          ...current,
-          totalDays: calculateDays(current.startDate, current.endDate)
-        });
-      }
-
-      return {
-        ...group,
-        mergedBookings
-      };
+      group.bookings.sort((a, b) => a.startDate - b.startDate);
+      return group;
     });
   };
 
@@ -116,50 +70,45 @@ const CartPage = () => {
     fetchCartData();
   }, []);
 
-  const handleRemove = async (ids, itemName) => {
+  const handleRemove = async (itemId, itemName) => {
     try {
-      // Xóa tất cả IDs liên quan (nếu là booking đã gộp)
-      await Promise.all(ids.map(id => removeCartItem(id)));
-      toast.success(`Đã xóa ${itemName || 'sản phẩm'} khỏi giỏ hàng!`, {
+      await removeCartItem(itemId);
+      toast.success(`Đã xóa 1 lịch thuê của ${itemName}!`, {
         position: "top-right",
         autoClose: 2000,
         theme: "colored",
       });
       fetchCartData();
     } catch (err) {
-      toast.error("Không thể xóa sản phẩm. Vui lòng thử lại!", {
-        position: "top-right",
-        theme: "colored",
-      });
+      toast.error("Không thể xóa sản phẩm. Vui lòng thử lại!");
     }
   };
 
   const handleCheckout = () => {
     if (!groupedCart || groupedCart.length === 0) {
-      toast.warn("Giỏ hàng của bạn đang trống!", {
-        position: "top-right",
-        theme: "colored",
-      });
+      toast.warn("Giỏ hàng của bạn đang trống!");
       return;
     }
-    toast.info("Đang chuyển đến trang thanh toán...", {
-      position: "top-right",
-      theme: "colored",
-    });
+    toast.info("Đang chuyển đến trang thanh toán...");
     setTimeout(() => {
-        navigate('/rental/checkout'); 
+      navigate('/rental/checkout');
     }, 1500);
   };
 
+  // HÀM SỬA LỖI: Cập nhật tên biến từ mergedBookings sang bookings
   const calculateTotal = () => {
+    if (!groupedCart || groupedCart.length === 0) return { rent: 0, deposit: 0 };
+
     return groupedCart.reduce((acc, group) => {
-      // Tiền thuê = Tổng của các dòng booking (đã gộp)
-      const groupRent = group.mergedBookings.reduce((sum, b) =>
+      // Tiền thuê = Tổng của các đợt lẻ
+      const groupRent = group.bookings.reduce((sum, b) =>
         sum + (b.rentPrice * b.totalDays * b.quantity), 0
       );
 
-      // Tiền cọc = Một lần duy nhất cho mỗi thiết bị (lấy số lượng lớn nhất)
-      const maxQty = Math.max(...group.mergedBookings.map(b => b.quantity));
+      // Tiền cọc = Số lượng máy lớn nhất trong các đợt x đơn giá cọc
+      const maxQty = group.bookings.length > 0 
+        ? Math.max(...group.bookings.map(b => b.quantity)) 
+        : 0;
       const groupDeposit = (group.device?.depositAmount || 0) * maxQty;
 
       return {
@@ -177,18 +126,7 @@ const CartPage = () => {
     <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans">
       <Header />
       <div className="flex-1 pb-20">
-        <ToastContainer
-          position="top-right"
-          autoClose={2000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="colored"
-        />
+        <ToastContainer position="top-right" autoClose={2000} theme="colored" />
 
         {/* HEADER NAV */}
         <div className="sticky top-[84px] z-40 mx-6 bg-white/80 backdrop-blur-md border border-slate-200 rounded-[24px] shadow-lg mt-4 mb-8">
@@ -209,16 +147,15 @@ const CartPage = () => {
         </div>
 
         <div className="max-w-[1440px] mx-auto px-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* DANH SÁCH ITEM (LEFT - 8 cols) */}
+          {/* DANH SÁCH ITEM (LEFT) */}
           <div className="lg:col-span-8 space-y-6">
             {groupedCart.length > 0 ? (
               groupedCart.map((group) => (
                 <div key={group.device._id} className="bg-white rounded-[40px] p-8 border border-slate-100 shadow-xl hover:shadow-2xl transition-all duration-500 relative group overflow-hidden">
-                  {/* Gradient Background Light */}
                   <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/30 rounded-full -mr-32 -mt-32 blur-3xl group-hover:bg-indigo-100/40 transition-colors"></div>
 
                   <div className="relative flex flex-col md:flex-row gap-8">
-                    {/* THUMBNAIL AREA */}
+                    {/* THUMBNAIL */}
                     <div className="w-full md:w-48 h-48 bg-slate-50 rounded-[32px] overflow-hidden border border-slate-100 flex-shrink-0 relative">
                       <img
                         src={group.device?.images?.[0] || 'https://via.placeholder.com/150'}
@@ -232,7 +169,7 @@ const CartPage = () => {
                       </div>
                     </div>
 
-                    {/* CONTENT AREA */}
+                    {/* CONTENT */}
                     <div className="flex-1 flex flex-col">
                       <div className="flex justify-between items-start mb-6">
                         <div>
@@ -245,16 +182,17 @@ const CartPage = () => {
                         <div className="text-right">
                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Tiền cọc thiết bị</p>
                           <p className="text-lg font-black text-slate-900 leading-none">
-                            {(group.device?.depositAmount * Math.max(...group.mergedBookings.map(b => b.quantity))).toLocaleString()}đ
+                            {/* CẬP NHẬT: Tính tiền cọc dựa trên max quantity trong mảng bookings */}
+                            {(group.device?.depositAmount * Math.max(...group.bookings.map(b => b.quantity))).toLocaleString()}đ
                           </p>
                         </div>
                       </div>
 
-                      {/* BOOKING ROWS */}
+                      {/* BOOKING ROWS - HIỂN THỊ TỪNG LỊCH THUÊ */}
                       <div className="space-y-3 bg-slate-50/50 p-4 rounded-[24px] border border-slate-100">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 mb-2">Lịch thuê của bạn</p>
-                        {group.mergedBookings.map((booking, idx) => (
-                          <div key={idx} className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:border-indigo-200 transition-colors">
+                        {group.bookings.map((booking) => (
+                          <div key={booking.id} className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:border-indigo-200 transition-colors">
                             <div className="flex items-center gap-3">
                               <div className="p-2 bg-indigo-50 rounded-xl">
                                 <Calendar size={16} className="text-indigo-600" />
@@ -274,9 +212,9 @@ const CartPage = () => {
                                 </p>
                               </div>
                               <button
-                                onClick={() => handleRemove(booking.ids, group.device?.name)}
+                                onClick={() => handleRemove(booking.id, group.device?.name)}
                                 className="text-slate-300 hover:text-red-500 transition-colors p-2 hover:bg-red-50 rounded-xl"
-                                title="Xóa kỳ hạn này"
+                                title="Xóa lịch thuê này"
                               >
                                 <Trash2 size={18} />
                               </button>
@@ -305,7 +243,7 @@ const CartPage = () => {
             )}
           </div>
 
-          {/* SUMMARY (RIGHT - 4 cols) */}
+          {/* SUMMARY (RIGHT) */}
           <div className="lg:col-span-4">
             <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-xl sticky top-28">
               <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter mb-6">Chi tiết thanh toán</h2>
