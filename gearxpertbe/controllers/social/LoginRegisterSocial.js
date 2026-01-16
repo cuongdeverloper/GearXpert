@@ -1,4 +1,5 @@
 const User = require("../../models/User");
+const { ensureUserWallet } = require("../../services/WalletService");
 
 const upsertSocialMedia = async (typeAcc, dataRaw) => {
     try {
@@ -9,23 +10,25 @@ const upsertSocialMedia = async (typeAcc, dataRaw) => {
             dataUser.avatar = dataRaw.photo || dataUser.avatar;
             dataUser.socialLogin = true;
             if (dataRaw.googleId) dataUser.googleId = dataRaw.googleId;
-            
+
             await dataUser.save();
         } else {
             dataUser = new User({
-                fullName: dataRaw.name,    
+                fullName: dataRaw.name,
                 email: dataRaw.email,
-                type: typeAcc,            
-                avatar: dataRaw.photo,       
-                socialLogin: true,          
+                type: typeAcc,
+                avatar: dataRaw.photo,
+                socialLogin: true,
                 googleId: dataRaw.googleId,
-                isVerified: true,            
-                phone: "0000000000",         
-                role: 'CUSTOMER'             
+                isVerified: true,
+                role: 'CUSTOMER'
             });
-            
+
             await dataUser.save();
         }
+
+        // Đảm bảo người dùng có ví (tạo mới nếu chưa có)
+        await ensureUserWallet(dataUser._id);
 
         return dataUser;
     } catch (error) {

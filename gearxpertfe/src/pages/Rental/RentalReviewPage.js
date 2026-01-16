@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { 
-  CheckCircle2, 
-  MapPin, 
-  Phone, 
-  CreditCard, 
-  ArrowLeft, 
-  ShieldCheck, 
+import {
+  CheckCircle2,
+  MapPin,
+  Phone,
+  CreditCard,
+  ArrowLeft,
+  ShieldCheck,
   FileText,
   Package,
   Calendar,
-  AlertCircle,Wallet
+  AlertCircle, Wallet
 } from "lucide-react";
 
 export default function OrderReviewPage() {
@@ -78,18 +78,18 @@ export default function OrderReviewPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
       <div className="max-w-5xl mx-auto p-4 md:p-6">
-        
+
         {/* Nút quay lại */}
-        <button 
-          onClick={() => navigate(-1)} 
+        <button
+          onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-gray-500 hover:text-black mb-6 transition-colors group"
         >
-          <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> 
+          <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
           Chỉnh sửa thông tin thanh toán
         </button>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
+
           {/* CỘT TRÁI: CHI TIẾT ĐƠN HÀNG */}
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -107,15 +107,15 @@ export default function OrderReviewPage() {
                 <div className="space-y-4">
                   {orderData.items.map((item) => (
                     <div key={item._id} className="flex gap-4 p-3 rounded-xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100">
-                      <img 
-                        src={item.deviceId.images[0]} 
-                        className="w-20 h-20 object-cover rounded-lg shadow-sm" 
-                        alt={item.deviceId.name} 
+                      <img
+                        src={item.deviceId.images[0]}
+                        className="w-20 h-20 object-cover rounded-lg shadow-sm"
+                        alt={item.deviceId.name}
                       />
                       <div className="flex-1">
                         <h4 className="font-semibold text-gray-800 leading-tight">{item.deviceId.name}</h4>
                         <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                          <span className="flex items-center gap-1"><Calendar size={14}/> {item.totalDays} ngày</span>
+                          <span className="flex items-center gap-1"><Calendar size={14} /> {item.totalDays} ngày</span>
                           <span>SL: {item.quantity}</span>
                         </div>
                       </div>
@@ -175,7 +175,7 @@ export default function OrderReviewPage() {
                 <h2 className="font-bold text-lg mb-4 flex items-center gap-2">
                   <CreditCard size={20} className="text-blue-400" /> Thanh toán
                 </h2>
-                
+
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between opacity-70">
                     <span>Tổng tiền máy</span>

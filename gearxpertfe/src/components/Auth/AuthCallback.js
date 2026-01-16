@@ -16,7 +16,7 @@ const AuthCallback = () => {
             const accessToken = urlParams.get('accessToken');
             const refreshToken = urlParams.get('refreshToken');
             const user = urlParams.get('user');
-            
+
             const isTokenExpired = (token) => {
                 try {
                     const decodedToken = jwtDecode(token);
@@ -31,22 +31,26 @@ const AuthCallback = () => {
                 // Set tokens in cookies with correct `expires` format
                 Cookies.set('accessToken', accessToken, { expires: 1 }); // 1 day
                 Cookies.set('refreshToken', refreshToken, { expires: 7 }); // 7 days
-                if(!accessToken || isTokenExpired(accessToken)){
+                if (!accessToken || isTokenExpired(accessToken)) {
                     dispatch(doLogout());
                 }
-                if(user){
+                if (user) {
                     const userData = JSON.parse(decodeURIComponent(user));
                     dispatch(doLoginWGoogle(userData, accessToken, refreshToken));
-                    
+
                     // Redirect based on role
-                    const userRole = userData?.role;
-                    if (userRole === "ADMIN") {
-                        navigate("/admin");
-                    } else if (userRole === "SUPPLIER") {
-                        navigate("/supplier-dashboard");
+                    if (!userData.phone && !userData.phoneNumber) {
+                        navigate("/profile");
                     } else {
-                        // CUSTOMER or other roles -> redirect to homepage
-                        navigate("/");
+                        const userRole = userData?.role;
+                        if (userRole === "ADMIN") {
+                            navigate("/admin");
+                        } else if (userRole === "SUPPLIER") {
+                            navigate("/supplier-dashboard");
+                        } else {
+                            // CUSTOMER or other roles -> redirect to homepage
+                            navigate("/");
+                        }
                     }
                 } else {
                     // If no user data, redirect to homepage
@@ -59,10 +63,10 @@ const AuthCallback = () => {
                 navigate('/signin');
             }
         };
-    
+
         handleGoogleRedirect();
     }, [dispatch, navigate]);
-    
+
 
     return (
         <div>
@@ -70,7 +74,7 @@ const AuthCallback = () => {
             <p>If you see this, the component is rendering!</p>
         </div>
     );
-    
+
 };
 
 export default AuthCallback;

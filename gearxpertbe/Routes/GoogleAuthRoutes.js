@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const passport = require('passport');
-const {createRefreshToken, createJWT } = require('../middleware/JWTAction');
+const { createRefreshToken, createJWT } = require('../middleware/JWTAction');
 
 router.get('/auth/google',
     passport.authenticate('google', { scope: ['profile', 'email'] }));
