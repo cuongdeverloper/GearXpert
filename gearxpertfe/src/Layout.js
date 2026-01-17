@@ -66,9 +66,6 @@ export default function Layout() {
         />
 
         <Routes>
-          <Route element={<DashboardLayout />}>
-            <Route path="/" element={<Homepage />} />
-             <Route path="/device/:id" element={<ProductDetailPage />} />
           {/* Homepage has its own Header and Footer */}
           <Route path="/" element={<Homepage />} />
 
@@ -87,8 +84,7 @@ export default function Layout() {
             <Route path="/device/" element={<ProductDetailPage />} />
             <Route path="/rental/checkout/review" element={<RentalReviewPage />} />
             <Route path="/user/cart" element={<CartPage />} />
-            {/* <Route path="/rental/manage" element={<RentalManagementPage />} /> */}
-          </Route>
+            {/* <Route path="/rental/manage" element={<RentalManagementPage />} /> */} 
 
           {/* Supplier Portal routes */}
           <Route path="/supplier" element={<SupplierLayout />}>
