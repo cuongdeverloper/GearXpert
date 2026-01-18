@@ -2,6 +2,7 @@ const { createJWT, createRefreshToken, verifyAccessToken, createJWTResetPassword
 const bcrypt = require('bcryptjs');
 const uploadCloud = require('../../configs/cloudinaryConfig');
 const { sendMail } = require('../../configs/sendMail');
+const { registrationTemplate, passwordResetTemplate, otpPasswordChangeTemplate } = require('../../utils/EmailTemplates');
 
 const User = require('../../models/User');
 const Wallet = require('../../models/Wallet');
@@ -14,6 +15,13 @@ const apiLogin = async (req, res) => {
 
         const userRecord = await User.findOne({ email });
         if (!userRecord) return res.status(200).json({ errorCode: 2, message: 'Email does not exist' });
+
+        if (userRecord.status === 'BLOCKED') {
+            return res.status(200).json({
+                errorCode: 4,
+                message: 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ hỗ trợ.'
+            });
+        }
 
         const isPasswordValid = await userRecord.comparePassword(password);
         if (!isPasswordValid) return res.status(200).json({ errorCode: 3, message: 'Invalid password' });
@@ -88,20 +96,7 @@ const apiRegister = async (req, res) => {
             const verifyToken = createJWTVerifyEmail({ id: newUser._id, email: newUser.email });
             const verifyLink = `${process.env.FRONTEND_URL}/verify-account?token=${verifyToken}`;
 
-            const emailContent = `
-                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 10px;">
-                    <div style="background: #1a1a1a; color: #fff; padding: 20px; text-align: center;"><h2>GearXpert</h2></div>
-                    <div style="padding: 30px;">
-                        <p>Xin chào <strong>${fullName}</strong>,</p>
-                        <p>Vui lòng nhấn vào nút bên dưới để xác thực tài khoản của bạn:</p>
-                        <div style="text-align: center; margin: 30px 0;">
-                            <a href="${verifyLink}" style="background: #e67e22; color: #fff; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Xác thực ngay</a>
-                        </div>
-                        <p style="font-size: 12px; color: #888;">Lưu ý: Liên kết hết hạn trong 5 phút.</p>
-                    </div>
-                </div>`;
-
-            // Gửi mail
+            const emailContent = registrationTemplate(fullName, verifyLink);
             await sendMail(email, 'Xác thực tài khoản GearXpert', emailContent);
 
             // Tự động xóa nếu không verify sau 5p
@@ -134,10 +129,8 @@ const requestPasswordReset = async (req, res) => {
         const resetToken = createJWTResetPassword({ id: userRecord._id, email: userRecord.email });
         const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
-        const html = `<p>Bạn nhận được email này vì đã yêu cầu đặt lại mật khẩu.</p>
-                      <p>Nhấn vào đây để tiếp tục: <a href="${resetLink}">Đặt lại mật khẩu</a></p>`;
-
-        await sendMail(email, 'Đặt lại mật khẩu GearXpert', html);
+        const emailContent = passwordResetTemplate(userRecord.fullName, resetLink);
+        await sendMail(email, 'Đặt lại mật khẩu GearXpert', emailContent);
 
         return res.status(200).json({ errorCode: 0, message: 'Reset email sent' });
     } catch (error) {
@@ -181,21 +174,7 @@ const sendOTPForPasswordChange = async (req, res) => {
         });
 
         // Send OTP via email
-        const emailContent = `
-            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 10px;">
-                <div style="background: #1a1a1a; color: #fff; padding: 20px; text-align: center;"><h2>GearXpert</h2></div>
-                <div style="padding: 30px;">
-                    <p>Xin chào <strong>${userRecord.fullName}</strong>,</p>
-                    <p>Bạn đã yêu cầu đổi mật khẩu. Mã OTP xác thực của bạn là:</p>
-                    <div style="text-align: center; margin: 30px 0;">
-                        <div style="background: #f0f0f0; color: #333; padding: 15px 30px; font-size: 32px; font-weight: bold; letter-spacing: 8px; border-radius: 8px; display: inline-block;">${otp}</div>
-                    </div>
-                    <p style="color: #e74c3c; font-weight: bold;">⚠️ Mã OTP này sẽ hết hạn sau 5 phút.</p>
-                    <p style="font-size: 12px; color: #888;">Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này.</p>
-                </div>
-            </div>
-        `;
-
+        const emailContent = otpPasswordChangeTemplate(userRecord.fullName, otp);
         await sendMail(userRecord.email, 'Mã OTP Đổi Mật Khẩu - GearXpert', emailContent);
 
         return res.status(200).json({

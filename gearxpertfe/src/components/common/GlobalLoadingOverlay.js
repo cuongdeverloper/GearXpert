@@ -4,8 +4,12 @@ import { ImSpinner9 } from "react-icons/im";
 
 const GlobalLoadingOverlay = () => {
     const isLoadingHome = useSelector((state) => state.app.isLoadingHome);
+    const isLoadingAdmin = useSelector((state) => state.app.isLoadingAdmin);
+    const isLoading = isLoadingHome || isLoadingAdmin;
 
-    if (!isLoadingHome) return null;
+    if (!isLoading) return null;
+
+    const loadingText = isLoadingAdmin ? "Đang tải dữ liệu..." : "Đang tải trang chủ...";
 
     return (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/60 backdrop-blur-md animate-fade-in">
@@ -14,7 +18,7 @@ const GlobalLoadingOverlay = () => {
                     <ImSpinner9 className="text-3xl text-white animate-spin" />
                 </div>
                 <h3 className="text-xl font-bold text-white font-display tracking-wide drop-shadow-md">
-                    Đang tải trang chủ...
+                    {loadingText}
                 </h3>
             </div>
         </div>

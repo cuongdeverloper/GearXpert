@@ -42,6 +42,10 @@ instance.interceptors.response.use(
             if (errorCode === -999) {
                 const currentPath = window.location.pathname;
                 if (currentPath !== '/signin') {
+                    // Check if the error message indicates a blocked account
+                    const serverMessage = error.response.data?.message || "";
+                    const isBlocked = serverMessage.toLowerCase().includes("khóa");
+
                     // Get socket connection before clearing state
                     const state = store.getState();
                     const socketConnection = state.user.account.socketConnection;
@@ -62,7 +66,11 @@ instance.interceptors.response.use(
                     persistor.purge();
 
                     // Navigate to login page
-                    window.location.href = '/signin';
+                    if (isBlocked) {
+                        window.location.href = `/signin?error=${encodeURIComponent(serverMessage)}`;
+                    } else {
+                        window.location.href = '/signin';
+                    }
                 }
             }
         }

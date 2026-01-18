@@ -1,5 +1,5 @@
 import { Suspense, useEffect } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import Aos from "aos";
 
@@ -8,6 +8,23 @@ import Chatbot from "./components/chatbot/Chatbot"; // Giữ Chatbot của bạn
 import DashboardLayout from "./components/layout/DashboardLayout"; // Giữ Layout từ main
 import GlobalLoadingOverlay from "./components/common/GlobalLoadingOverlay";
 import RouteHandler from "./components/common/RouteHandler";
+
+// Supplier layout + pages
+import SupplierLayout from "./components/layout/SupplierLayout";
+import SupplierDevicesList from "./pages/Supplier/SupplierDevicesList";
+import SupplierRentalRequests from "./pages/Supplier/SupplierRentalRequests";
+import SupplierMaintenance from "./pages/Supplier/SupplierMaintenance";
+import SupplierRevenue from "./pages/Supplier/SupplierRevenue";
+
+import AdminLayout from "./components/layout/AdminLayout";
+import DashboardPage from "./pages/Admin/DashboardPage";
+import UsersPage from "./pages/Admin/UsersPage";
+import SuppliersPage from "./pages/Admin/SuppliersPage";
+import DevicesModerationPage from "./pages/Admin/DevicesModerationPage";
+import RentalsPage from "./pages/Admin/RentalsPage";
+import ReportsPage from "./pages/Admin/ReportsPage";
+import SettingsPage from "./pages/Admin/SettingsPage";
+import AdminVouchersPage from "./pages/Admin/AdminVouchersPage";
 
 // pages
 import RentalCheckout from "./pages/Rental/RentalCheckout";
@@ -24,6 +41,8 @@ import CartPage from "./pages/Rental/CartPage";
 import FavoritesPage from "./pages/Favorites/FavoritesPage";
 import ProductsPage from "./pages/Products/ProductsPage";
 import VouchersPage from "./pages/Voucher/VouchersPage";
+import PaymentSuccess from "./pages/Rental/status/PaymentSuccess";
+import PaymentCancel from "./pages/Rental/status/PaymentCancel";
 
 export default function Layout() {
   useEffect(() => {
@@ -60,16 +79,44 @@ export default function Layout() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-account" element={<VerifyAccount />} />
 
-  
-            <Route path="/device/:id" element={<ProductDetailPage />} />
-            <Route path="/wallet" element={<WalletPage />} />
-            <Route path="/rental/checkout" element={<RentalCheckout />} />
-            <Route path="/device/" element={<ProductDetailPage />} />
-            <Route path="/rental/checkout/review" element={<RentalReviewPage />} />
-            <Route path="/user/cart" element={<CartPage />} />
-            {/* <Route path="/rental/manage" element={<RentalManagementPage />} /> */}
-     
+          <Route path="/device/:id" element={<ProductDetailPage />} />
+          <Route path="/wallet" element={<WalletPage />} />
+          <Route path="/rental/checkout" element={<RentalCheckout />} />
+          <Route path="/device/" element={<ProductDetailPage />} />
+          <Route
+            path="/rental/checkout/review"
+            element={<RentalReviewPage />}
+          />
+          <Route path="/user/cart" element={<CartPage />} />
+          <Route path="/payment/success" element={<PaymentSuccess />} />
+          <Route path="/payment/cancel" element={<PaymentCancel />} />
+          {/* <Route path="/rental/manage" element={<RentalManagementPage />} /> */}
 
+          {/* Supplier Portal routes */}
+          <Route path="/supplier" element={<SupplierLayout />}>
+            <Route
+              index
+              element={<Navigate to="/supplier/devices" replace />}
+            />
+            <Route path="devices" element={<SupplierDevicesList />} />
+            <Route
+              path="rental-requests"
+              element={<SupplierRentalRequests />}
+            />
+            <Route path="maintenance" element={<SupplierMaintenance />} />
+            <Route path="revenue" element={<SupplierRevenue />} />
+          </Route>
+
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<DashboardPage />} />
+            <Route path="users" element={<UsersPage />} />
+            <Route path="suppliers" element={<SuppliersPage />} />
+            <Route path="devices" element={<DevicesModerationPage />} />
+            <Route path="rentals" element={<RentalsPage />} />
+            <Route path="reports" element={<ReportsPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="vouchers" element={<AdminVouchersPage />} />
+          </Route>
 
           {/* Favorites page */}
           <Route path="/favorites" element={<FavoritesPage />} />
@@ -82,5 +129,4 @@ export default function Layout() {
       </Suspense>
     </BrowserRouter>
   );
-
 }

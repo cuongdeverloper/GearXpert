@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 import {
   ArrowLeft,
   Star,
@@ -10,15 +11,16 @@ import {
   Cpu,
   ShoppingCart,
   Zap,
-  Calendar,
+  Calendar as CalendarIcon,
   PlusCircle,
   Minus,
   Plus,
 } from "lucide-react";
-import { toast, Toaster } from "sonner"; // CẬP NHẬT: Thêm Toaster để hiển thị
+import { toast, Toaster } from "sonner";
 import { useParams, useNavigate } from "react-router-dom";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
+import AuthRequirementModal from "../../components/common/AuthRequirementModal";
 
 /* ===== API ===== */
 import {
@@ -34,6 +36,7 @@ export default function ProductDetailPage() {
   const navigate = useNavigate();
 
   const today = new Date().toISOString().split("T")[0];
+  const isAuthenticated = useSelector((state) => state.user?.isAuthenticated || false);
   const [device, setDevice] = useState(null);
   const [addonsList, setAddonsList] = useState([]);
   const [relatedDevices, setRelatedDevices] = useState([]);
@@ -46,28 +49,67 @@ export default function ProductDetailPage() {
   const [endDate, setEndDate] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [addons, setAddons] = useState([]);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  // --- THÊM MỚI: Quản lý lịch bận và stock theo ngày ---
+  const [busyDates, setBusyDates] = useState([]); // Danh sách các ngày đã hết hàng hoặc bận
+  const [currentAvailableStock, setCurrentAvailableStock] = useState(0);
 
   useEffect(() => {
     fetchData();
     window.scrollTo(0, 0);
   }, [id]);
 
+  // Cập nhật stock khả dụng khi ngày thay đổi
+  useEffect(() => {
+    if (device) {
+      updateAvailableStock();
+    }
+  }, [startDate, endDate, device]);
+
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [d, a, r, rented] = await Promise.all([
+
+      const promises = [
         getDeviceDetail(id),
         getDeviceAddons(id),
         getRelatedDevices(id),
-        hasRentedDevice(id),
-      ]);
+      ];
+
+      // Only call hasRentedDevice if user is authenticated
+      if (isAuthenticated) {
+        promises.push(hasRentedDevice(id));
+      }
+
+      const results = await Promise.all(promises);
+
+      // Destructure results based on whether hasRentedDevice was called
+      const [d, a, r, ...rest] = results;
+      const rented = isAuthenticated ? rest[0] : undefined; // rented will be undefined if not authenticated
 
       setDevice(d);
       setAddonsList(a || []);
       setRelatedDevices(r || []);
       setHasRented(rented?.hasRented || false);
       setReviews(d.reviews || []);
+
+      // SỬA TẠI ĐÂY: Đổi d.busyDates thành d.occupiedDates
+      const busyData = d.occupiedDates || [];
+      setBusyDates(busyData);
+
+      // Cập nhật lại device để hàm logic updateAvailableStock chạy đúng
+      setDevice({
+        ...d,
+        occupiedDates: d.occupiedDates || []
+      });
+      setAddonsList(a || []);
+      setRelatedDevices(r || []);
+      setHasRented(rented?.hasRented || false);
+      setBusyDates(d.occupiedDates || []);
+      setCurrentAvailableStock(d.stockQuantity || 0);
     } catch (err) {
+      console.error("Fetch device detail error:", err);
       toast.error("Không thể tải dữ liệu thiết bị", {
         position: "top-right",
       });
@@ -76,6 +118,46 @@ export default function ProductDetailPage() {
     }
   };
 
+  // Hàm tính toán số lượng tồn kho thực tế trong khoảng ngày đã chọn
+  const updateAvailableStock = () => {
+    if (!startDate || !endDate || !device) {
+      setCurrentAvailableStock(device?.stockQuantity || 0);
+      return;
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    let maxOccupiedInPeriod = 0;
+
+    // Lặp qua từng ngày trong khoảng người dùng chọn
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const currentDate = d.getTime();
+
+      // Tính tổng số lượng máy đã bị thuê trong ngày này dựa trên busyDates từ API
+      const occupiedOnThisDay = (device.busyDates || []).reduce(
+        (sum, booking) => {
+          const bStart = new Date(booking.start).getTime();
+          const bEnd = new Date(booking.end).getTime();
+
+          // Nếu ngày đang xét nằm trong khoảng mượn của booking này
+          if (currentDate >= bStart && currentDate <= bEnd) {
+            return sum + (booking.quantity || 1);
+          }
+          return sum;
+        },
+        0
+      );
+
+      maxOccupiedInPeriod = Math.max(maxOccupiedInPeriod, occupiedOnThisDay);
+    }
+
+    const available = Math.max(0, device.stockQuantity - maxOccupiedInPeriod);
+    setCurrentAvailableStock(available);
+
+    if (quantity > available) {
+      setQuantity(available > 0 ? 1 : 0);
+    }
+  };
   const validateRental = () => {
     if (!startDate || !endDate) {
       toast.warning("Vui lòng chọn ngày bắt đầu và ngày kết thúc thuê!", {
@@ -90,9 +172,32 @@ export default function ProductDetailPage() {
       });
       return false;
     }
+    const isOverlap = busyDates.some((booking) =>
+      isDateOverlap(
+        startDate,
+        endDate,
+        booking.start,
+        booking.end
+      )
+    );
+    if (isOverlap) {
+      toast.error(
+        "Khoảng thời gian bạn chọn trùng với lịch đã được đặt. Vui lòng chọn ngày khác!"
+      );
+      return false;
+    }
+    if (currentAvailableStock <= 0) {
+      toast.error("Thiết bị đã hết hàng trong khoảng thời gian này!");
+      return false;
+    }
     return true;
   };
-
+  const isDateOverlap = (startA, endA, startB, endB) => {
+    return (
+      new Date(startA) <= new Date(endB) &&
+      new Date(endA) >= new Date(startB)
+    );
+  };
   const toggleAddon = (addon) => {
     const isSelected = addons.find((a) => a._id === addon._id);
     setAddons((prev) =>
@@ -108,6 +213,10 @@ export default function ProductDetailPage() {
   };
 
   const handleAddToCart = async () => {
+    if (!isAuthenticated) {
+      setIsAuthModalOpen(true);
+      return;
+    }
     if (!validateRental()) return;
     try {
       await addToCart({
@@ -131,6 +240,10 @@ export default function ProductDetailPage() {
   };
 
   const handleBuyNow = async () => {
+    if (!isAuthenticated) {
+      setIsAuthModalOpen(true);
+      return;
+    }
     if (!validateRental()) return;
     const toastId = toast.loading("Đang xử lý yêu cầu thuê ngay...");
     try {
@@ -153,16 +266,16 @@ export default function ProductDetailPage() {
   const days =
     startDate && endDate
       ? Math.max(
-          1,
-          Math.ceil((new Date(endDate) - new Date(startDate)) / 86400000)
-        )
+        1,
+        Math.ceil((new Date(endDate) - new Date(startDate)) / 86400000)
+      )
       : 0;
 
   const totalPrice = device
     ? days *
-      (device.rentPrice.perDay +
-        addons.reduce((s, a) => s + a.rentPrice.perDay, 0)) *
-      quantity
+    (device.rentPrice.perDay +
+      addons.reduce((s, a) => s + a.rentPrice.perDay, 0)) *
+    quantity
     : 0;
 
   if (loading) {
@@ -178,7 +291,6 @@ export default function ProductDetailPage() {
   return (
     <div className="min-h-screen bg-background-light flex flex-col font-sans">
       <Header />
-      {/* Cấu hình Sonner Toaster */}
       <Toaster richColors closeButton expand={true} />
 
       <main className="flex-1">
@@ -202,7 +314,7 @@ export default function ProductDetailPage() {
 
         <div className="max-w-[1440px] mx-auto px-6 py-10">
           <div className="grid lg:grid-cols-12 gap-12">
-            {/* LEFT: IMAGES (Col 7) */}
+            {/* LEFT: IMAGES */}
             <div className="lg:col-span-7 space-y-6">
               <div className="relative rounded-[32px] overflow-hidden bg-white shadow-2xl shadow-indigo-100/50 border border-slate-100 group">
                 <img
@@ -211,8 +323,13 @@ export default function ProductDetailPage() {
                   alt={device.name}
                 />
                 <div className="absolute top-6 left-6">
-                  <span className="bg-indigo-600 text-white text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest shadow-lg">
-                    {device.status}
+                  <span
+                    className={`text-white text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest shadow-lg ${currentAvailableStock > 0
+                      ? "bg-indigo-600"
+                      : "bg-rose-500"
+                      }`}
+                  >
+                    {currentAvailableStock > 0 ? device.status : "Out of Stock"}
                   </span>
                 </div>
               </div>
@@ -222,11 +339,10 @@ export default function ProductDetailPage() {
                   <button
                     key={i}
                     onClick={() => setSelectedImage(i)}
-                    className={`relative min-w-[120px] h-24 rounded-2xl overflow-hidden border-2 transition-all ${
-                      selectedImage === i
-                        ? "border-indigo-600 scale-95 shadow-lg"
-                        : "border-transparent opacity-60 hover:opacity-100"
-                    }`}
+                    className={`relative min-w-[120px] h-24 rounded-2xl overflow-hidden border-2 transition-all ${selectedImage === i
+                      ? "border-indigo-600 scale-95 shadow-lg"
+                      : "border-transparent opacity-60 hover:opacity-100"
+                      }`}
                   >
                     <img
                       src={img}
@@ -238,7 +354,7 @@ export default function ProductDetailPage() {
               </div>
             </div>
 
-            {/* RIGHT: CONFIG & RENTAL (Col 5) */}
+            {/* RIGHT: CONFIG & RENTAL */}
             <div className="lg:col-span-5 space-y-8">
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-indigo-600 font-bold text-sm uppercase tracking-wider">
@@ -296,10 +412,46 @@ export default function ProductDetailPage() {
               {/* RENTAL FORM */}
               <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm space-y-6">
                 <div className="space-y-4">
-                  <label className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wider">
-                    <Calendar className="w-4 h-4 text-indigo-600" />
-                    Select Rental Period
-                  </label>
+                  <div className="flex justify-between items-center">
+                    <label className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wider">
+                      <CalendarIcon className="w-4 h-4 text-indigo-600" />
+                      Select Rental Period
+                    </label>
+
+                    {/* HIỂN THỊ CHI TIẾT LỊCH BẬN */}
+                    {busyDates.length > 0 && (
+                      <div className="mb-4 p-4 bg-rose-50 rounded-2xl border border-rose-100">
+                        <p className="text-xs font-bold text-rose-600 uppercase mb-2 flex items-center gap-2">
+                          <AlertCircle size={14} /> Lịch đã được đặt (Hết hàng):
+                        </p>
+                        <div className="space-y-1">
+                          {busyDates.map((period, index) => (
+                            <div
+                              key={index}
+                              className="flex justify-between text-[11px] font-medium text-rose-500 bg-white/50 px-2 py-1 rounded-md"
+                            >
+                              <span>
+                                {new Date(period.start).toLocaleDateString(
+                                  "vi-VN"
+                                )}{" "}
+                                -{" "}
+                                {new Date(period.end).toLocaleDateString(
+                                  "vi-VN"
+                                )}
+                              </span>
+                              <span className="font-bold">
+                                SL: {period.quantity}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-rose-400 mt-2 italic">
+                          * Vui lòng chọn khoảng ngày tránh các lịch trên nếu
+                          bạn thuê số lượng lớn.
+                        </p>
+                      </div>
+                    )}
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <p className="text-[10px] font-bold text-slate-400 uppercase ml-2">
@@ -307,11 +459,10 @@ export default function ProductDetailPage() {
                       </p>
                       <input
                         type="date"
-                        min={today} // Chặn chọn ngày trước hôm nay
+                        min={today}
                         value={startDate}
                         onChange={(e) => {
                           setStartDate(e.target.value);
-                          // Nếu ngày kết thúc cũ nhỏ hơn ngày bắt đầu mới, hãy xóa ngày kết thúc
                           if (endDate && e.target.value > endDate)
                             setEndDate("");
                         }}
@@ -324,7 +475,7 @@ export default function ProductDetailPage() {
                       </p>
                       <input
                         type="date"
-                        min={startDate || today} // Ngày kết thúc tối thiểu phải là ngày bắt đầu
+                        min={startDate || today}
                         value={endDate}
                         onChange={(e) => setEndDate(e.target.value)}
                         className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
@@ -333,15 +484,22 @@ export default function ProductDetailPage() {
                   </div>
                 </div>
 
-                {/* QUANTITY SELECTOR */}
+                {/* QUANTITY SELECTOR - CẬP NHẬT STOCK THEO NGÀY */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <label className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wider">
                       <Package className="w-4 h-4 text-indigo-600" />
                       Rent Quantity
                     </label>
-                    <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full uppercase tracking-widest border border-indigo-100">
-                      Stock: {device?.stockQuantity || 1} available
+                    <span
+                      className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest border ${currentAvailableStock > 0
+                        ? "text-indigo-600 bg-indigo-50 border-indigo-100"
+                        : "text-rose-600 bg-rose-50 border-rose-100"
+                        }`}
+                    >
+                      {startDate && endDate
+                        ? `Available: ${currentAvailableStock}`
+                        : `Total Stock: ${device?.stockQuantity}`}
                     </span>
                   </div>
                   <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-2xl border border-slate-100 w-fit">
@@ -359,10 +517,7 @@ export default function ProductDetailPage() {
                         const val = parseInt(e.target.value);
                         if (!isNaN(val)) {
                           setQuantity(
-                            Math.min(
-                              Math.max(1, val),
-                              device?.stockQuantity || 1
-                            )
+                            Math.min(Math.max(1, val), currentAvailableStock)
                           );
                         }
                       }}
@@ -371,15 +526,23 @@ export default function ProductDetailPage() {
                     <button
                       onClick={() =>
                         setQuantity(
-                          Math.min(device?.stockQuantity || 1, quantity + 1)
+                          Math.min(currentAvailableStock, quantity + 1)
                         )
                       }
                       className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-900 flex items-center justify-center text-white hover:bg-indigo-600 hover:border-indigo-600 transition-all active:scale-90 disabled:opacity-50 disabled:bg-slate-300 disabled:border-slate-300"
-                      disabled={quantity >= (device?.stockQuantity || 1)}
+                      disabled={
+                        quantity >= currentAvailableStock ||
+                        currentAvailableStock === 0
+                      }
                     >
                       <Plus size={16} strokeWidth={3} />
                     </button>
                   </div>
+                  {currentAvailableStock === 0 && startDate && endDate && (
+                    <p className="text-xs text-rose-500 font-bold flex items-center gap-1">
+                      <AlertCircle size={12} /> Sold out for selected dates
+                    </p>
+                  )}
                 </div>
 
                 {/* ADDONS */}
@@ -397,19 +560,17 @@ export default function ProductDetailPage() {
                         <button
                           key={a._id}
                           onClick={() => toggleAddon(a)}
-                          className={`w-full flex justify-between items-center p-4 rounded-2xl border-2 transition-all ${
-                            isSelected
-                              ? "border-indigo-600 bg-indigo-50 shadow-sm"
-                              : "border-slate-100 hover:border-slate-200 bg-white"
-                          }`}
+                          className={`w-full flex justify-between items-center p-4 rounded-2xl border-2 transition-all ${isSelected
+                            ? "border-indigo-600 bg-indigo-50 shadow-sm"
+                            : "border-slate-100 hover:border-slate-200 bg-white"
+                            }`}
                         >
                           <div className="text-left">
                             <p
-                              className={`font-bold text-sm ${
-                                isSelected
-                                  ? "text-indigo-700"
-                                  : "text-slate-700"
-                              }`}
+                              className={`font-bold text-sm ${isSelected
+                                ? "text-indigo-700"
+                                : "text-slate-700"
+                                }`}
                             >
                               {a.name}
                             </p>
@@ -444,14 +605,16 @@ export default function ProductDetailPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <button
                     onClick={handleAddToCart}
-                    className="flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-slate-200 text-slate-700 font-bold hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95"
+                    disabled={currentAvailableStock === 0}
+                    className="flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-slate-200 text-slate-700 font-bold hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <ShoppingCart className="w-5 h-5" />
                     Add to Cart
                   </button>
                   <button
                     onClick={handleBuyNow}
-                    className="flex items-center justify-center gap-2 py-4 rounded-2xl bg-slate-900 text-white font-bold hover:bg-black shadow-lg shadow-slate-200 transition-all active:scale-95"
+                    disabled={currentAvailableStock === 0}
+                    className="flex items-center justify-center gap-2 py-4 rounded-2xl bg-slate-900 text-white font-bold hover:bg-black shadow-lg shadow-slate-200 transition-all active:scale-95 disabled:bg-slate-400 disabled:shadow-none disabled:cursor-not-allowed"
                   >
                     <Zap className="w-5 h-5 fill-current" />
                     Rent Now
@@ -519,11 +682,10 @@ export default function ProductDetailPage() {
                                 {Array.from({ length: 5 }).map((_, i) => (
                                   <Star
                                     key={i}
-                                    className={`w-3.5 h-3.5 ${
-                                      i < r.rating
-                                        ? "fill-amber-400 text-amber-400"
-                                        : "text-slate-200"
-                                    }`}
+                                    className={`w-3.5 h-3.5 ${i < r.rating
+                                      ? "fill-amber-400 text-amber-400"
+                                      : "text-slate-200"
+                                      }`}
                                   />
                                 ))}
                               </div>
@@ -557,7 +719,7 @@ export default function ProductDetailPage() {
               </div>
             </div>
 
-            {/* SPECS (Col 5) */}
+            {/* SPECS */}
             <div className="lg:col-span-5">
               <div className="sticky top-28 bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm space-y-6">
                 <h3 className="text-2xl font-bold text-slate-900 font-display">
@@ -613,7 +775,7 @@ export default function ProductDetailPage() {
                 >
                   <div className="relative h-64 overflow-hidden">
                     <img
-                      src={d.images?.[0] || d.image} // Ưu tiên mảng images
+                      src={d.images?.[0] || d.image}
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                       alt={d.name}
                     />
@@ -652,6 +814,10 @@ export default function ProductDetailPage() {
         </div>
       </main>
       <Footer />
+      <AuthRequirementModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
     </div>
   );
 }

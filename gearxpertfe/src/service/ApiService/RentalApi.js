@@ -9,4 +9,7 @@ const checkout = (data) => {
 };
 const hasRentedDevice = (deviceId) =>
   axios.get(`/api/rentals/has-rented/${deviceId}`);
-export { checkout,hasRentedDevice };
+  const verifyPayment = (rentalId) => {
+    return axios.post("/api/rentals/verify-payment", { rentalId });
+  };
+export { checkout,hasRentedDevice ,verifyPayment};
