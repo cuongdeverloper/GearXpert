@@ -1,22 +1,28 @@
 const mongoose = require('mongoose');
 
 const deviceSchema = new mongoose.Schema({
-  supplierId: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User', 
+  supplierId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
     required: true,
     index: true
   },
 
   name: { type: String, required: true, index: true },
-  
+
   description: String,
 
-  category: { 
+  category: {
     type: String,
     enum: ['CAMERA', 'AUDIO', 'OFFICE', 'GAMING', 'ACCESSORY'],
     required: true,
     index: true
+  },
+
+  stockQuantity: {
+    type: Number,
+    default: 1,
+    min: 0
   },
 
   /* ===== ADD-ON ===== */

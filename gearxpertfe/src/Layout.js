@@ -3,11 +3,12 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import Aos from "aos";
 
+// Components
 import Homepage from "./pages/Homepage/Homepage";
-import Chatbot from "./components/chatbot/Chatbot"; // Giữ Chatbot của bạn
-import DashboardLayout from "./components/layout/DashboardLayout"; // Giữ Layout từ main
+import Chatbot from "./components/chatbot/Chatbot"; 
+import DashboardLayout from "./components/layout/DashboardLayout"; 
 
-// pages
+// Pages
 import RentalCheckout from "./pages/Rental/RentalCheckout";
 import ProductDetailPage from "./pages/Device/ProductDetailPage";
 import RentalReviewPage from "./pages/Rental/RentalReviewPage";
@@ -35,17 +36,23 @@ export default function Layout() {
           theme="light"
         />
 
-        <Routes>
+        {/* Đã thêm Chatbot vào đây (vì bạn đã import ở trên) */}
+        <Chatbot />
 
+        <Routes>
+          {/* Nhóm các trang dùng chung Layout (Header/Footer) */}
           <Route element={<DashboardLayout />}>
             <Route path="/" element={<Homepage />} />
-            <Route path="/device/" element={<ProductDetailPage />} />
-             <Route path="/device/:id" element={<ProductDetailPage />} />
+            
+            {/* Xử lý route chi tiết sản phẩm */}
+            <Route path="/device" element={<ProductDetailPage />} />
+            <Route path="/device/:id" element={<ProductDetailPage />} />
 
             <Route path="/rental/checkout" element={<RentalCheckout />} />
             <Route path="/rental/checkout/review" element={<RentalReviewPage />} />
-            {/* <Route path="/rental/manage" element={<RentalManagementPage />} /> */}
           </Route>
+
+          {/* Nhóm các trang riêng biệt (Full màn hình, không dính Layout chính) */}
           <Route path="/messenger" element={<Messenger />} />
           <Route path="/messenger/:conversationId" element={<Messenger />} />
           <Route path="/ekyc" element={<EkycVerification />} />
@@ -53,5 +60,4 @@ export default function Layout() {
       </Suspense>
     </BrowserRouter>
   );
-
 }
