@@ -178,7 +178,7 @@ export default function CheckoutPage() {
       sum + item.deviceId?.rentPrice?.perDay * item.totalDays * item.quantity,
     0
   );
-  const deliveryFee = 50000;
+  const deliveryFee = 10000;
   const insuranceFee = useInsurance ? Math.round(subtotal * 0.05) : 0;
   const total =
     subtotal + deliveryFee + insuranceFee - (appliedVoucher?.discount || 0);
@@ -203,7 +203,7 @@ export default function CheckoutPage() {
 
     try {
       setIsProcessing(true);
-      await checkout({
+      const res = await checkout({
         cartType: CART_TYPE,
         deliveryAddress: address,
         phoneNumber,
@@ -212,8 +212,15 @@ export default function CheckoutPage() {
         notes,
         voucherCode: appliedVoucher?.code,
       });
-      toast.success("Đặt thuê thành công!");
-      setTimeout(() => navigate("/profile/rentals"), 2000);
+
+      // ✅ LOGIC THANH TOÁN THẬT QUA PAYOS
+      if (selectedPayment === "BANK" && res.paymentLink) {
+        toast.info("Đang chuyển hướng đến trang thanh toán...");
+        window.location.href = res.paymentLink.checkoutUrl;
+      } else {
+        toast.success("Đặt thuê thành công!");
+        setTimeout(() => navigate("/profile/rentals"), 2000);
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || "Thanh toán thất bại");
     } finally {
@@ -476,16 +483,14 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex-1 text-center md:text-left">
                   <span className="inline-block bg-indigo-500/20 text-indigo-400 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter mb-3">
-                    Tự động xác nhận
+                    Thanh toán an toàn qua PayOS
                   </span>
                   <p className="text-sm text-slate-300 leading-relaxed font-medium">
-                    Vui lòng quét mã QR để thanh toán. <br /> Nội dung:{" "}
-                    <span className="text-white font-black underline decoration-indigo-500 underline-offset-4">
-                      GEARXPERT {phoneNumber}
-                    </span>
+                    Bạn sẽ được chuyển hướng đến cổng thanh toán PayOS để thực hiện quét mã VietQR. <br />
+                    Đơn hàng sẽ được xác nhận tự động ngay sau khi bạn hoàn tất chuyển khoản.
                   </p>
                   <p className="text-[10px] text-slate-500 mt-4 italic">
-                    * Đơn hàng sẽ được duyệt ngay sau khi giao dịch thành công.
+                    * GearXpert không lưu trữ thông tin thẻ hay tài khoản ngân hàng của bạn.
                   </p>
                 </div>
               </div>
@@ -664,7 +669,7 @@ export default function CheckoutPage() {
               {isProcessing ? (
                 <>
                   <div className="w-5 h-5 border-4 border-white/30 border-t-white rounded-full animate-spin" />{" "}
-                  Xử lý...
+                  Đang tạo đơn...
                 </>
               ) : (
                 <>

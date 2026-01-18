@@ -26,6 +26,7 @@ const doLoginWGoogle = require("./controllers/social/GoogleController");
 const voucherRouter = require('./Routes/VoucherRoutes');
 const favoriteRouter = require('./Routes/FavoriteRoutes');
 const walletRouter = require("./Routes/WalletRoutes");
+const payosRouter = require("./Routes/PayOsRoutes");
 
 const io = socketIo(server, {
     cors: {
@@ -66,6 +67,7 @@ app.use(passport.session()); // Enable passport session support
 configViewEngine(app);
 
 // Routes
+app.use('/api/payos', payosRouter);
 app.use('/api/wallets', walletRouter);
 app.use('/api/rentals', rentalRouter);
 app.use('/api/carts', cartRouter);

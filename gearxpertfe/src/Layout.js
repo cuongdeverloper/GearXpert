@@ -25,7 +25,6 @@ import RentalsPage from "./pages/Admin/RentalsPage";
 import ReportsPage from "./pages/Admin/ReportsPage";
 import SettingsPage from "./pages/Admin/SettingsPage";
 
-
 // pages
 import RentalCheckout from "./pages/Rental/RentalCheckout";
 import ProductDetailPage from "./pages/Device/ProductDetailPage";
@@ -41,6 +40,8 @@ import CartPage from "./pages/Rental/CartPage";
 import FavoritesPage from "./pages/Favorites/FavoritesPage";
 import ProductsPage from "./pages/Products/ProductsPage";
 import VouchersPage from "./pages/Voucher/VouchersPage";
+import PaymentSuccess from "./pages/Rental/status/PaymentSuccess";
+import PaymentCancel from "./pages/Rental/status/PaymentCancel";
 
 export default function Layout() {
   useEffect(() => {
@@ -77,20 +78,30 @@ export default function Layout() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-account" element={<VerifyAccount />} />
 
-  
-            <Route path="/device/:id" element={<ProductDetailPage />} />
-            <Route path="/wallet" element={<WalletPage />} />
-            <Route path="/rental/checkout" element={<RentalCheckout />} />
-            <Route path="/device/" element={<ProductDetailPage />} />
-            <Route path="/rental/checkout/review" element={<RentalReviewPage />} />
-            <Route path="/user/cart" element={<CartPage />} />
-            {/* <Route path="/rental/manage" element={<RentalManagementPage />} /> */} 
+          <Route path="/device/:id" element={<ProductDetailPage />} />
+          <Route path="/wallet" element={<WalletPage />} />
+          <Route path="/rental/checkout" element={<RentalCheckout />} />
+          <Route path="/device/" element={<ProductDetailPage />} />
+          <Route
+            path="/rental/checkout/review"
+            element={<RentalReviewPage />}
+          />
+          <Route path="/user/cart" element={<CartPage />} />
+          <Route path="/payment/success" element={<PaymentSuccess />} />
+          <Route path="/payment/cancel" element={<PaymentCancel />} />
+          {/* <Route path="/rental/manage" element={<RentalManagementPage />} /> */}
 
           {/* Supplier Portal routes */}
           <Route path="/supplier" element={<SupplierLayout />}>
-            <Route index element={<Navigate to="/supplier/devices" replace />} />
+            <Route
+              index
+              element={<Navigate to="/supplier/devices" replace />}
+            />
             <Route path="devices" element={<SupplierDevicesList />} />
-            <Route path="rental-requests" element={<SupplierRentalRequests />} />
+            <Route
+              path="rental-requests"
+              element={<SupplierRentalRequests />}
+            />
             <Route path="maintenance" element={<SupplierMaintenance />} />
             <Route path="revenue" element={<SupplierRevenue />} />
           </Route>
@@ -105,9 +116,6 @@ export default function Layout() {
             <Route path="settings" element={<SettingsPage />} />
           </Route>
 
-     
-
-
           {/* Favorites page */}
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/products" element={<ProductsPage />} />
@@ -119,5 +127,4 @@ export default function Layout() {
       </Suspense>
     </BrowserRouter>
   );
-
 }
