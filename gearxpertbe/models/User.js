@@ -32,6 +32,17 @@ const userSchema = new mongoose.Schema({
   },
 
   isVerified: { type: Boolean, default: false },
+  identityInfo: {
+    cccdNumber: { 
+        type: String, 
+        unique: true, 
+        sparse: true 
+    },
+    cccdFrontImage: { type: String },
+    cccdBackImage: { type: String },  
+    faceMatchScore: { type: Number },
+    verifiedAt: { type: Date }       
+  },
 }, { timestamps: true });
 
 
