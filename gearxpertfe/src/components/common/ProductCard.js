@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import ImageWithFallback from './ImageWithFallback';
 import { toggleFavorite, checkIsFavorite } from '../../service/ApiService/FavoriteApi';
 import { toast } from 'react-toastify';
+import AuthRequirementModal from './AuthRequirementModal';
 
 /**
  * ProductCard Component - Reusable product card for displaying devices/equipment
@@ -26,12 +27,13 @@ export default function ProductCard({
 }) {
   const navigate = useNavigate();
   // const user = useSelector(state => state.user.account); // Removed unnecessary user selector
-  const isAuthenticated = useSelector(state => state.user.isAuthenticated);
+  const isAuthenticated = useSelector(state => state.user?.isAuthenticated || false);
   // const socket = user?.socketConnection; // Removed unused socket variable
 
   // Local state for favorite status with optimistic updates
   const [isFavorited, setIsFavorited] = useState(false);
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // Extract device data
   const deviceId = device?._id || device?.id;
@@ -81,7 +83,7 @@ export default function ProductCard({
     e.stopPropagation();
 
     if (!isAuthenticated) {
-      toast.error('Please login to add favorites');
+      setIsAuthModalOpen(true);
       return;
     }
 
@@ -111,7 +113,7 @@ export default function ProductCard({
       console.error('Toggle favorite error:', error);
 
       if (error.response?.status === 401) {
-        toast.error('Please login to add favorites');
+        setIsAuthModalOpen(true);
       } else {
         toast.error('Failed to update favorite');
       }
@@ -267,6 +269,10 @@ export default function ProductCard({
           </div>
         </div>
       </div>
+      <AuthRequirementModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
     </div>
   );
 }

@@ -24,6 +24,7 @@ import DevicesModerationPage from "./pages/Admin/DevicesModerationPage";
 import RentalsPage from "./pages/Admin/RentalsPage";
 import ReportsPage from "./pages/Admin/ReportsPage";
 import SettingsPage from "./pages/Admin/SettingsPage";
+import AdminVouchersPage from "./pages/Admin/AdminVouchersPage";
 
 // pages
 import RentalCheckout from "./pages/Rental/RentalCheckout";
@@ -114,6 +115,7 @@ export default function Layout() {
             <Route path="rentals" element={<RentalsPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="vouchers" element={<AdminVouchersPage />} />
           </Route>
 
           {/* Favorites page */}

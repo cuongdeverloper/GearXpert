@@ -7,6 +7,7 @@ import {
   FiFileText,
   FiBarChart2,
   FiSettings,
+  FiTag,
   FiChevronLeft,
   FiChevronRight,
 } from "react-icons/fi";
@@ -20,6 +21,7 @@ const navGroups = [
       { to: "/admin/suppliers", label: "Suppliers", icon: FiUserCheck },
       { to: "/admin/devices", label: "Devices", icon: FiBox },
       { to: "/admin/rentals", label: "Rentals", icon: FiFileText },
+      { to: "/admin/vouchers", label: "Vouchers", icon: FiTag },
       { to: "/admin/reports", label: "Reports", icon: FiBarChart2 },
     ],
   },

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 import {
   ArrowLeft,
   Star,
@@ -19,6 +20,7 @@ import { toast, Toaster } from "sonner";
 import { useParams, useNavigate } from "react-router-dom";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
+import AuthRequirementModal from "../../components/common/AuthRequirementModal";
 
 /* ===== API ===== */
 import {
@@ -34,6 +36,7 @@ export default function ProductDetailPage() {
   const navigate = useNavigate();
 
   const today = new Date().toISOString().split("T")[0];
+  const isAuthenticated = useSelector((state) => state.user?.isAuthenticated || false);
   const [device, setDevice] = useState(null);
   const [addonsList, setAddonsList] = useState([]);
   const [relatedDevices, setRelatedDevices] = useState([]);
@@ -46,6 +49,7 @@ export default function ProductDetailPage() {
   const [endDate, setEndDate] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [addons, setAddons] = useState([]);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // --- THÊM MỚI: Quản lý lịch bận và stock theo ngày ---
   const [busyDates, setBusyDates] = useState([]); // Danh sách các ngày đã hết hàng hoặc bận
@@ -66,12 +70,23 @@ export default function ProductDetailPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [d, a, r, rented] = await Promise.all([
+
+      const promises = [
         getDeviceDetail(id),
         getDeviceAddons(id),
         getRelatedDevices(id),
-        hasRentedDevice(id),
-      ]);
+      ];
+
+      // Only call hasRentedDevice if user is authenticated
+      if (isAuthenticated) {
+        promises.push(hasRentedDevice(id));
+      }
+
+      const results = await Promise.all(promises);
+
+      // Destructure results based on whether hasRentedDevice was called
+      const [d, a, r, ...rest] = results;
+      const rented = isAuthenticated ? rest[0] : undefined; // rented will be undefined if not authenticated
 
       setDevice(d);
       setAddonsList(a || []);
@@ -84,10 +99,17 @@ export default function ProductDetailPage() {
       setBusyDates(busyData);
 
       // Cập nhật lại device để hàm logic updateAvailableStock chạy đúng
-      setDevice((prev) => ({ ...prev, occupiedDates: busyData }));
-
+      setDevice({
+        ...d,
+        occupiedDates: d.occupiedDates || []
+      });
+      setAddonsList(a || []);
+      setRelatedDevices(r || []);
+      setHasRented(rented?.hasRented || false);
+      setBusyDates(d.occupiedDates || []);
       setCurrentAvailableStock(d.stockQuantity || 0);
     } catch (err) {
+      console.error("Fetch device detail error:", err);
       toast.error("Không thể tải dữ liệu thiết bị", {
         position: "top-right",
       });
@@ -151,19 +173,19 @@ export default function ProductDetailPage() {
       return false;
     }
     const isOverlap = busyDates.some((booking) =>
-    isDateOverlap(
-      startDate,
-      endDate,
-      booking.start,
-      booking.end
-    )
-  );
-  if (isOverlap) {
-    toast.error(
-      "Khoảng thời gian bạn chọn trùng với lịch đã được đặt. Vui lòng chọn ngày khác!"
+      isDateOverlap(
+        startDate,
+        endDate,
+        booking.start,
+        booking.end
+      )
     );
-    return false;
-  }
+    if (isOverlap) {
+      toast.error(
+        "Khoảng thời gian bạn chọn trùng với lịch đã được đặt. Vui lòng chọn ngày khác!"
+      );
+      return false;
+    }
     if (currentAvailableStock <= 0) {
       toast.error("Thiết bị đã hết hàng trong khoảng thời gian này!");
       return false;
@@ -191,6 +213,10 @@ export default function ProductDetailPage() {
   };
 
   const handleAddToCart = async () => {
+    if (!isAuthenticated) {
+      setIsAuthModalOpen(true);
+      return;
+    }
     if (!validateRental()) return;
     try {
       await addToCart({
@@ -214,6 +240,10 @@ export default function ProductDetailPage() {
   };
 
   const handleBuyNow = async () => {
+    if (!isAuthenticated) {
+      setIsAuthModalOpen(true);
+      return;
+    }
     if (!validateRental()) return;
     const toastId = toast.loading("Đang xử lý yêu cầu thuê ngay...");
     try {
@@ -236,16 +266,16 @@ export default function ProductDetailPage() {
   const days =
     startDate && endDate
       ? Math.max(
-          1,
-          Math.ceil((new Date(endDate) - new Date(startDate)) / 86400000)
-        )
+        1,
+        Math.ceil((new Date(endDate) - new Date(startDate)) / 86400000)
+      )
       : 0;
 
   const totalPrice = device
     ? days *
-      (device.rentPrice.perDay +
-        addons.reduce((s, a) => s + a.rentPrice.perDay, 0)) *
-      quantity
+    (device.rentPrice.perDay +
+      addons.reduce((s, a) => s + a.rentPrice.perDay, 0)) *
+    quantity
     : 0;
 
   if (loading) {
@@ -294,11 +324,10 @@ export default function ProductDetailPage() {
                 />
                 <div className="absolute top-6 left-6">
                   <span
-                    className={`text-white text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest shadow-lg ${
-                      currentAvailableStock > 0
-                        ? "bg-indigo-600"
-                        : "bg-rose-500"
-                    }`}
+                    className={`text-white text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest shadow-lg ${currentAvailableStock > 0
+                      ? "bg-indigo-600"
+                      : "bg-rose-500"
+                      }`}
                   >
                     {currentAvailableStock > 0 ? device.status : "Out of Stock"}
                   </span>
@@ -310,11 +339,10 @@ export default function ProductDetailPage() {
                   <button
                     key={i}
                     onClick={() => setSelectedImage(i)}
-                    className={`relative min-w-[120px] h-24 rounded-2xl overflow-hidden border-2 transition-all ${
-                      selectedImage === i
-                        ? "border-indigo-600 scale-95 shadow-lg"
-                        : "border-transparent opacity-60 hover:opacity-100"
-                    }`}
+                    className={`relative min-w-[120px] h-24 rounded-2xl overflow-hidden border-2 transition-all ${selectedImage === i
+                      ? "border-indigo-600 scale-95 shadow-lg"
+                      : "border-transparent opacity-60 hover:opacity-100"
+                      }`}
                   >
                     <img
                       src={img}
@@ -464,11 +492,10 @@ export default function ProductDetailPage() {
                       Rent Quantity
                     </label>
                     <span
-                      className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest border ${
-                        currentAvailableStock > 0
-                          ? "text-indigo-600 bg-indigo-50 border-indigo-100"
-                          : "text-rose-600 bg-rose-50 border-rose-100"
-                      }`}
+                      className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest border ${currentAvailableStock > 0
+                        ? "text-indigo-600 bg-indigo-50 border-indigo-100"
+                        : "text-rose-600 bg-rose-50 border-rose-100"
+                        }`}
                     >
                       {startDate && endDate
                         ? `Available: ${currentAvailableStock}`
@@ -533,19 +560,17 @@ export default function ProductDetailPage() {
                         <button
                           key={a._id}
                           onClick={() => toggleAddon(a)}
-                          className={`w-full flex justify-between items-center p-4 rounded-2xl border-2 transition-all ${
-                            isSelected
-                              ? "border-indigo-600 bg-indigo-50 shadow-sm"
-                              : "border-slate-100 hover:border-slate-200 bg-white"
-                          }`}
+                          className={`w-full flex justify-between items-center p-4 rounded-2xl border-2 transition-all ${isSelected
+                            ? "border-indigo-600 bg-indigo-50 shadow-sm"
+                            : "border-slate-100 hover:border-slate-200 bg-white"
+                            }`}
                         >
                           <div className="text-left">
                             <p
-                              className={`font-bold text-sm ${
-                                isSelected
-                                  ? "text-indigo-700"
-                                  : "text-slate-700"
-                              }`}
+                              className={`font-bold text-sm ${isSelected
+                                ? "text-indigo-700"
+                                : "text-slate-700"
+                                }`}
                             >
                               {a.name}
                             </p>
@@ -657,11 +682,10 @@ export default function ProductDetailPage() {
                                 {Array.from({ length: 5 }).map((_, i) => (
                                   <Star
                                     key={i}
-                                    className={`w-3.5 h-3.5 ${
-                                      i < r.rating
-                                        ? "fill-amber-400 text-amber-400"
-                                        : "text-slate-200"
-                                    }`}
+                                    className={`w-3.5 h-3.5 ${i < r.rating
+                                      ? "fill-amber-400 text-amber-400"
+                                      : "text-slate-200"
+                                      }`}
                                   />
                                 ))}
                               </div>
@@ -790,6 +814,10 @@ export default function ProductDetailPage() {
         </div>
       </main>
       <Footer />
+      <AuthRequirementModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
     </div>
   );
 }

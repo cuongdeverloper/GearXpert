@@ -6,6 +6,9 @@ const upsertSocialMedia = async (typeAcc, dataRaw) => {
         let dataUser = await User.findOne({ email: dataRaw.email });
 
         if (dataUser) {
+            if (dataUser.status === 'BLOCKED') {
+                throw new Error('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ hỗ trợ.');
+            }
             dataUser.type = typeAcc;
             dataUser.avatar = dataRaw.photo || dataUser.avatar;
             dataUser.socialLogin = true;

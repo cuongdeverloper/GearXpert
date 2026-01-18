@@ -10,6 +10,7 @@ import { ApiLogin, ApiRegister } from "../ApiAuth";
 import Header from "../../navigation/Header";
 import Footer from "../../homepage/Footer";
 import RequestPasswordReset from "../reset password/RequestPasswordReset";
+import BlockedAccountModal from "./BlockedAccountModal";
 
 const SignIn = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -18,6 +19,7 @@ const SignIn = () => {
   const [isLoadingRegister, setIsLoadingRegister] = useState(false);
   const [isFormValid, setIsFormValid] = useState(false);
   const [isFormValidRegister, setIsFormValidRegister] = useState(false);
+  const [isBlockedModalOpen, setIsBlockedModalOpen] = useState(false);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -44,6 +46,14 @@ const SignIn = () => {
     const isPhoneValid = /^\d{10}$/.test(phone);
     setIsFormValidRegister(fullName && emailReg && passwordReg && isPhoneValid);
   }, [fullName, emailReg, passwordReg, phone]);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get("error");
+    if (error && error.includes("khóa")) {
+      setIsBlockedModalOpen(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -97,10 +107,13 @@ const SignIn = () => {
             navigate("/");
           }
         }
+      } else if (response.errorCode === 4) {
+        setIsBlockedModalOpen(true);
       } else {
         toast.error(response.message || "Đăng nhập không thành công.");
       }
-    } catch {
+    } catch (error) {
+      console.error("Login error:", error);
       toast.error("Lỗi kết nối server.");
     } finally {
       setIsLoadingLogin(false);
@@ -409,6 +422,11 @@ const SignIn = () => {
       </main>
 
       <Footer />
+
+      <BlockedAccountModal
+        isOpen={isBlockedModalOpen}
+        onClose={() => setIsBlockedModalOpen(false)}
+      />
     </div>
   );
 };

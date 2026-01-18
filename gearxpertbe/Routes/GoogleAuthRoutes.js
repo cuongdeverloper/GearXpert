@@ -6,24 +6,33 @@ const { createRefreshToken, createJWT } = require('../middleware/JWTAction');
 router.get('/auth/google',
     passport.authenticate('google', { scope: ['profile', 'email'] }));
 
-router.get('/google/redirect',
-    passport.authenticate('google', { failureRedirect: 'http://localhost:2468/signin' }),
-    (req, res) => {
-        // Create a payload for JWT
-        const payload = {
-            email: req.user.email,
-            name: req.user.fullName,
-            role: req.user.role,
-            id: req.user.id
-        };
-        // Generate access and refresh tokens
-        const accessToken = createJWT(payload);
-        const refreshToken = createRefreshToken(payload);
+router.get('/google/redirect', (req, res, next) => {
+    passport.authenticate('google', (err, user, info) => {
+        if (err) {
+            console.error("Google auth error:", err);
+            const errorMessage = encodeURIComponent(err.message || 'Xác thực thất bại');
+            return res.redirect(`http://localhost:2468/signin?error=${errorMessage}`);
+        }
+        if (!user) {
+            return res.redirect('http://localhost:2468/signin');
+        }
 
-        // Construct the redirect URL
-        const redirectUrl = `http://localhost:2468/auth/callback?accessToken=${encodeURIComponent(accessToken)}&refreshToken=${encodeURIComponent(refreshToken)}&user=${encodeURIComponent(JSON.stringify(req.user))}`;
+        // success logic (must manually log in if using custom callback)
+        req.logIn(user, (loginErr) => {
+            if (loginErr) return next(loginErr);
 
-        res.redirect(redirectUrl);
-    }
-);
+            const payload = {
+                email: user.email,
+                name: user.fullName,
+                role: user.role,
+                id: user.id
+            };
+            const accessToken = createJWT(payload);
+            const refreshToken = createRefreshToken(payload);
+
+            const redirectUrl = `http://localhost:2468/auth/callback?accessToken=${encodeURIComponent(accessToken)}&refreshToken=${encodeURIComponent(refreshToken)}&user=${encodeURIComponent(JSON.stringify(user))}`;
+            res.redirect(redirectUrl);
+        });
+    })(req, res, next);
+});
 module.exports = router;
