@@ -12,7 +12,7 @@ const storage = new CloudinaryStorage({
   cloudinary,
   params: {
     folder: 'gearxpert',
-    allowed_formats: ['pdf', 'docx', 'doc', 'jpg', 'png'],
+    allowed_formats: ['pdf', 'docx', 'doc', 'jpg', 'png', 'jpeg', 'webp'],
     public_id: (req, file) => `img-${Date.now()}-${file.originalname}`,
   },
 });

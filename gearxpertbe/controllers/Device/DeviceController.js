@@ -42,6 +42,45 @@ exports.getDevices = async (req, res) => {
 };
 
 /**
+ * GET /devices
+ * Get list of available devices with optional filters
+ */
+exports.getDevices = async (req, res) => {
+  try {
+    const { category, limit = 12, page = 1 } = req.query;
+    
+    const query = { 
+      status: 'AVAILABLE',
+      isAddon: false 
+    };
+    
+    if (category) {
+      query.category = category;
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    const devices = await Device.find(query)
+      .select('name rentPrice ratingAvg reviewCount location images category')
+      .limit(parseInt(limit))
+      .skip(skip)
+      .sort({ ratingAvg: -1, reviewCount: -1 });
+
+    const total = await Device.countDocuments(query);
+
+    res.json({
+      devices,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages: Math.ceil(total / parseInt(limit))
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
  * GET /devices/:id
  */
 exports.getDeviceDetail = async (req, res) => {

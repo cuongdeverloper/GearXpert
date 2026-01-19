@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react"; // 1. Import useCallback
+import { useEffect, useState, useCallback } from "react"; 
 import { getDevices } from "../../service/ApiService/DeviceApi";
 import Header from "../../components/navigation/Header";
 import HeroSection from "../../components/homepage/HeroSection";
@@ -26,9 +26,10 @@ export default function Homepage() {
       };
       const response = await getDevices(params);
       const fetchedDevices = response.devices || [];
-
+      
       setDevices(fetchedDevices);
 
+      // Set trending device (first device)
       if (fetchedDevices.length > 0) {
         setTrendingDevice(fetchedDevices[0]);
       }

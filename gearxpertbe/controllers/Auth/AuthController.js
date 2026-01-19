@@ -54,7 +54,9 @@ const apiLogin = async (req, res) => {
                 type: userRecord.type,
                 rank: userRecord.rank,
                 walletBalance: walletBalance,
-                rewardPoints: userRecord.rewardPoints
+                rewardPoints: userRecord.rewardPoints,
+                isVerified:userRecord.isVerified,
+                isVerifiedEkyc:userRecord.isVerifiedEkyc
             }
         });
     } catch (error) {
