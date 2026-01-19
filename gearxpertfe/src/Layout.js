@@ -43,6 +43,8 @@ import ProductsPage from "./pages/Products/ProductsPage";
 import VouchersPage from "./pages/Voucher/VouchersPage";
 import PaymentSuccess from "./pages/Rental/status/PaymentSuccess";
 import PaymentCancel from "./pages/Rental/status/PaymentCancel";
+import WalletSuccess from "./pages/User/Wallet/WalletSuccess";
+import WalletCancel from "./pages/User/Wallet/WalletCancel";
 
 export default function Layout() {
   useEffect(() => {
@@ -80,7 +82,9 @@ export default function Layout() {
           <Route path="/verify-account" element={<VerifyAccount />} />
 
           <Route path="/device/:id" element={<ProductDetailPage />} />
-          <Route path="/wallet" element={<WalletPage />} />
+          <Route path="/user/wallet" element={<WalletPage />} />
+          <Route path="/wallet/success" element={<WalletSuccess />} />
+          <Route path="/wallet/cancel" element={<WalletCancel />} />
           <Route path="/rental/checkout" element={<RentalCheckout />} />
           <Route path="/device/" element={<ProductDetailPage />} />
           <Route

@@ -15,6 +15,11 @@ const getMyWallet = async () => {
 const getWalletTransactions = async () => {
     return axios.get("/api/wallets/transactions");
 };
+const requestWithdraw = async (data) => {
+    // data bao gồm { amount, bankInfo }
+    return axios.post("/api/wallets/withdraw", data); 
+};
+
 
 /**
  * Tạo link nạp tiền qua PayOS
@@ -28,5 +33,5 @@ const topUpWallet = async (amount) => {
 export {
     getMyWallet,
     getWalletTransactions,
-    topUpWallet
+    topUpWallet,requestWithdraw
 };
