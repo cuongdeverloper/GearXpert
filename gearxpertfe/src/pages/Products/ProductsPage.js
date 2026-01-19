@@ -59,16 +59,23 @@ export default function ProductsPage() {
         // Sorting
         switch (sortBy) {
             case 'price_asc':
-                result.sort((a, b) => (a.price || 0) - (b.price || 0));
+                result.sort((a, b) => {
+                    const priceA = a.price || a.rentPrice?.perDay || 0;
+                    const priceB = b.price || b.rentPrice?.perDay || 0;
+                    return priceA - priceB;
+                });
                 break;
             case 'price_desc':
-                result.sort((a, b) => (b.price || 0) - (a.price || 0));
+                result.sort((a, b) => {
+                    const priceA = a.price || a.rentPrice?.perDay || 0;
+                    const priceB = b.price || b.rentPrice?.perDay || 0;
+                    return priceB - priceA;
+                });
                 break;
             case 'newest':
-                // Assuming createdAt or _id (timestamp) exists
                 result.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
                 break;
-            default: // featured - no specific sort (keep API order or randomized usually)
+            default:
                 break;
         }
 
