@@ -1,15 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const uploadCloud = require('../configs/cloudinaryConfig');
 const { verifyIdentity } = require('../controllers/Ekyc/EkycController');
 const { checkAccessToken } = require('../middleware/JWTAction');
+const uploadCloud = require('../configs/cloudinaryConfig');
 
+const cpUpload = uploadCloud.fields([
+    { name: 'cccdFront', maxCount: 1 },
+    { name: 'cccdBack', maxCount: 1 },  
+    { name: 'selfie', maxCount: 1 }   
+]);
 
-// Định nghĩa route POST /verify
-// Sử dụng uploadCloud để nhận 2 ảnh: 'cccd' và 'selfie'
-router.post('/verify',uploadCloud.fields([
-    { name: 'cccd', maxCount: 1 }, 
-    { name: 'selfie', maxCount: 1 }
-]), verifyIdentity);
+router.post('/verify', checkAccessToken, cpUpload, verifyIdentity);
 
 module.exports = router;

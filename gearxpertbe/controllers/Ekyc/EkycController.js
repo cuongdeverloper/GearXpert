@@ -2,93 +2,91 @@ const axios = require('axios');
 const FormData = require('form-data');
 const User = require('../../models/User');
 
-// --- LẤY KEY TỪ FILE .ENV ---
 const FACEPP_API_KEY = process.env.FACEPP_API_KEY;
 const FACEPP_API_SECRET = process.env.FACEPP_API_SECRET;
 const FACEPP_URL = "https://api-us.faceplusplus.com/facepp/v3/compare";
 
 const verifyIdentity = async (req, res) => {
   try {
+    if (!req.user || !req.user.id) return res.status(401).json({message: "Unauthorized"});
+    if (!FACEPP_API_KEY) return res.status(500).json({message: "Missing API Key"});
 
-    // if (!req.user || !req.user.id) {
-    //     return res.status(401).json({
-    //         success: false,
-    //         message: "Bạn chưa đăng nhập hoặc Token không hợp lệ."
-    //     });
-    // }
-
-    // Kiểm tra Key
-    if (!FACEPP_API_KEY || !FACEPP_API_SECRET) {
-         return res.status(500).json({ 
-            success: false, 
-            message: "Lỗi Server: Chưa cấu hình API Key Face++" 
-         });
+    if (!req.files || !req.files.cccdFront || !req.files.cccdBack || !req.files.selfie) {
+        return res.status(400).json({ success: false, message: "Vui lòng tải lên đủ: Mặt trước, Mặt sau và ảnh Selfie" });
     }
 
-    // 2. Lấy URL ảnh từ Cloudinary (Đã upload qua Middleware Multer)
-    if (!req.files || !req.files.cccd || !req.files.selfie) {
-        return res.status(400).json({ success: false, message: "Thiếu ảnh CCCD hoặc ảnh Selfie" });
-    }
-    const cccdUrl = req.files.cccd[0].path;
-    const selfieUrl = req.files.selfie[0].path;
+    const cccdFrontUrl = req.files.cccdFront[0].path; 
+    const cccdBackUrl = req.files.cccdBack[0].path;   
+    const selfieUrl = req.files.selfie[0].path;       
 
 
-    // 3. Chuẩn bị dữ liệu gửi sang Face++
     const formData = new FormData();
     formData.append('api_key', FACEPP_API_KEY);
     formData.append('api_secret', FACEPP_API_SECRET);
-    formData.append('image_url1', cccdUrl);   
+    
+    formData.append('image_url1', cccdFrontUrl); 
     formData.append('image_url2', selfieUrl); 
 
-    // 4. Gọi API Face++
     const response = await axios.post(FACEPP_URL, formData, {
-        headers: { ...formData.getHeaders() }
+        headers: { ...formData.getHeaders() },
+        timeout: 30000 
     });
 
-    // 5. Xử lý kết quả trả về
     const data = response.data;
     const confidence = data.confidence; 
     
-    // Ngưỡng xác thực: > 70 điểm
-    const isMatch = confidence > 70; 
+    console.log(`🎯 ĐIỂM ĐỘ GIỐNG NHAU: ${confidence}%`);
 
-    // 🔥 [MỚI]: CẬP NHẬT DATABASE NẾU THÀNH CÔNG 🔥
+    const isMatch = confidence >= 60;
+
+    let updatedUser = null;
     if (isMatch) {
-        const userId = req.user.id; // Lấy ID từ Token
-
-        await User.findByIdAndUpdate(userId, {
-            isVerified: true, // Đánh dấu đã xác thực
-            
-            // Cập nhật object identityInfo theo Schema mới
-            identityInfo: {
-                cccdFrontImage: cccdUrl, // Lưu ảnh bằng chứng
-                // cccdNumber: null,     // Chưa có OCR nên để null (Schema có sparse: true nên không lỗi)
-                faceMatchScore: confidence,
-                verifiedAt: new Date()
-            },
-
-            // Bonus: Tăng điểm uy tín hoặc Rank (nếu muốn)
-            // $inc: { rewardPoints: 100 } 
-        });
+        const userId = req.user.id;
+        updatedUser = await User.findByIdAndUpdate(userId, {
+            $set: {
+                isVerified: true,
+                "identityInfo.cccdFrontImage": cccdFrontUrl,
+                "identityInfo.cccdBackImage": cccdBackUrl,
+                "identityInfo.faceMatchScore": confidence,
+                "identityInfo.verifiedAt": new Date()
+            }
+        }, { new: true });
     }
 
     return res.status(200).json({
       success: isMatch,
       confidence: confidence,
+      user: updatedUser,
       message: isMatch 
-        ? "Xác thực thành công! Tài khoản của bạn đã được nâng cấp." 
-        : "Xác thực thất bại! Khuôn mặt không khớp với CCCD."
+        ? "Xác thực thành công!" 
+        : "Khuôn mặt không khớp. Vui lòng thử lại."
     });
 
   } catch (error) {
-    // Log lỗi chi tiết
-    const errorMsg = error.response ? error.response.data.error_message : error.message;
-    console.error("❌ Lỗi eKYC:", errorMsg);
+    const errorMsg = error.response?.data?.error_message || error.message;
+    console.error(errorMsg);
 
-    let vnMessage = "Lỗi Server xử lý AI";
-    if (errorMsg && errorMsg.includes("IMAGE_ERROR")) vnMessage = "Ảnh lỗi hoặc không tải được";
-    if (errorMsg && errorMsg.includes("NO_FACE_FOUND")) vnMessage = "Không tìm thấy khuôn mặt trong ảnh";
-    
+    let vnMessage = "Lỗi hệ thống khi xử lý AI. Vui lòng thử lại.";
+
+    if (errorMsg.includes("CONCURRENCY_LIMIT_EXCEEDED")) {
+        vnMessage = "Hệ thống đang bận (Quá tải yêu cầu). Vui lòng đợi 5 giây rồi thử lại.";
+    } 
+    else if (errorMsg.includes("IMAGE_ERROR")) {
+        vnMessage = "Không tải được ảnh hoặc link ảnh bị lỗi.";
+    }
+    else if (errorMsg.includes("INVALID_IMAGE_SIZE")) {
+        vnMessage = "Kích thước ảnh quá lớn hoặc quá nhỏ.";
+    }
+    else if (errorMsg.includes("NO_FACE_FOUND")) {
+        vnMessage = "Không tìm thấy khuôn mặt trong ảnh. Vui lòng chụp rõ nét hơn.";
+    }
+    else if (errorMsg.includes("AUTHENTICATION_ERROR")) {
+        vnMessage = "Lỗi cấu hình Server (Sai API Key/Secret).";
+    }
+    else if (errorMsg.includes("ECONNRESET") || errorMsg.includes("timeout")) {
+        vnMessage = "Mạng không ổn định hoặc ảnh quá nặng. Vui lòng kiểm tra lại đường truyền.";
+    }
+
     return res.status(500).json({ 
       success: false, 
       message: vnMessage,

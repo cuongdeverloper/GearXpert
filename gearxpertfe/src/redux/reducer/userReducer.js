@@ -15,7 +15,8 @@ const INITIAL_STATE = {
         image: '',
         rank: 'BRONZE',
         walletBalance: 0,
-        rewardPoints: 0
+        rewardPoints: 0,
+        isVerified:false
     },
     isAuthenticated: false
 };
