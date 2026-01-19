@@ -2,6 +2,8 @@ import axios from 'axios';
 import NProgress from 'nprogress';
 import { store } from '../redux/store';
 import { doLogout } from '../redux/action/userAction';
+import Cookies from 'js-cookie';
+import { persistor } from '../redux/store';
 
 const instance = axios.create({
     baseURL: 'http://localhost:1357/',
@@ -40,8 +42,35 @@ instance.interceptors.response.use(
             if (errorCode === -999) {
                 const currentPath = window.location.pathname;
                 if (currentPath !== '/signin') {
+                    // Check if the error message indicates a blocked account
+                    const serverMessage = error.response.data?.message || "";
+                    const isBlocked = serverMessage.toLowerCase().includes("khóa");
+
+                    // Get socket connection before clearing state
+                    const state = store.getState();
+                    const socketConnection = state.user.account.socketConnection;
+
+                    // Disconnect socket if connected
+                    if (socketConnection) {
+                        socketConnection.disconnect();
+                    }
+
+                    // Dispatch logout action
                     store.dispatch(doLogout());
-                    window.location.href = '/signin';
+
+                    // Remove cookies
+                    Cookies.remove('accessToken');
+                    Cookies.remove('refreshToken');
+
+                    // Purge Redux persist storage
+                    persistor.purge();
+
+                    // Navigate to login page
+                    if (isBlocked) {
+                        window.location.href = `/signin?error=${encodeURIComponent(serverMessage)}`;
+                    } else {
+                        window.location.href = '/signin';
+                    }
                 }
             }
         }

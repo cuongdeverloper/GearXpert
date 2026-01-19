@@ -1,7 +1,7 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const { upsertSocialMedia } = require('../controller/social/LoginRegisterSocial');
 const User = require('../models/User');
+const { upsertSocialMedia } = require('../controllers/social/LoginRegisterSocial');
 require('dotenv').config();
 
 // Serialize user ID into the session

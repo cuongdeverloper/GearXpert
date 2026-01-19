@@ -5,9 +5,14 @@ const userSchema = new mongoose.Schema({
   fullName: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: function () { return !this.socialLogin; } },
-  phone: { type: String, required: true },
+  phone: { type: String, required: false },
   avatar: { type: String, default: "" },
-
+  type: {
+    type: String,
+    default: 'Local'
+  },
+  socialLogin: { type: Boolean, default: false },
+  googleId: { type: String },
   role: {
     type: String,
     enum: ['CUSTOMER', 'SUPPLIER', 'ADMIN', 'TECHNICIAN', 'DELIVERY_STAFF'],
@@ -32,6 +37,11 @@ const userSchema = new mongoose.Schema({
   },
 
   isVerified: { type: Boolean, default: false },
+  status: {
+    type: String,
+    enum: ['ACTIVE', 'BLOCKED'],
+    default: 'ACTIVE'
+  },
 }, { timestamps: true });
 
 

@@ -1,51 +1,132 @@
 import { Suspense, useEffect } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import Aos from "aos";
 
-import Hello from "./components/Hello";
+import Homepage from "./pages/Homepage/Homepage";
 import Chatbot from "./components/chatbot/Chatbot"; // Giữ Chatbot của bạn
 import DashboardLayout from "./components/layout/DashboardLayout"; // Giữ Layout từ main
+import GlobalLoadingOverlay from "./components/common/GlobalLoadingOverlay";
+import RouteHandler from "./components/common/RouteHandler";
+
+// Supplier layout + pages
+import SupplierLayout from "./components/layout/SupplierLayout";
+import SupplierDevicesList from "./pages/Supplier/SupplierDevicesList";
+import SupplierRentalRequests from "./pages/Supplier/SupplierRentalRequests";
+import SupplierMaintenance from "./pages/Supplier/SupplierMaintenance";
+import SupplierRevenue from "./pages/Supplier/SupplierRevenue";
+
+import AdminLayout from "./components/layout/AdminLayout";
+import DashboardPage from "./pages/Admin/DashboardPage";
+import UsersPage from "./pages/Admin/UsersPage";
+import SuppliersPage from "./pages/Admin/SuppliersPage";
+import DevicesModerationPage from "./pages/Admin/DevicesModerationPage";
+import RentalsPage from "./pages/Admin/RentalsPage";
+import ReportsPage from "./pages/Admin/ReportsPage";
+import SettingsPage from "./pages/Admin/SettingsPage";
+import AdminVouchersPage from "./pages/Admin/AdminVouchersPage";
 
 // pages
 import RentalCheckout from "./pages/Rental/RentalCheckout";
 import ProductDetailPage from "./pages/Device/ProductDetailPage";
+import WalletPage from "./pages/User/WalletPage";
+import SignIn from "./components/Auth/Sign in/SignIn";
+import EnterOTPRegister from "./components/Auth/OTP/EnterOTPRegister";
+import VerifyAccount from "./components/Auth/VerifyAccount";
+import AuthCallback from "./components/Auth/AuthCallback";
+import ResetPassword from "./components/Auth/reset password/ResetPassword";
 import RentalReviewPage from "./pages/Rental/RentalReviewPage";
+import ProfilePage from "./pages/User/ProfilePage";
+import CartPage from "./pages/Rental/CartPage";
+import FavoritesPage from "./pages/Favorites/FavoritesPage";
+import ProductsPage from "./pages/Products/ProductsPage";
+import VouchersPage from "./pages/Voucher/VouchersPage";
+import PaymentSuccess from "./pages/Rental/status/PaymentSuccess";
+import PaymentCancel from "./pages/Rental/status/PaymentCancel";
 
 export default function Layout() {
-    useEffect(() => {
-        Aos.init({ duration: 1000 });
-    }, []);
+  useEffect(() => {
+    Aos.init({ duration: 1000 });
+  }, []);
 
-    return (
-        <BrowserRouter>
-            <Suspense fallback={<div className="p-6">Loading...</div>}>
-                <ToastContainer 
-                    position="top-right" 
-                    autoClose={3000} 
-                    hideProgressBar={false}
-                    newestOnTop={false}
-                    closeOnClick
-                    rtl={false}
-                    pauseOnFocusLoss
-                    draggable
-                    pauseOnHover
-                    theme="light"
-                />
+  return (
+    <BrowserRouter>
+      <RouteHandler />
+      <GlobalLoadingOverlay />
+      <Suspense fallback={<div className="p-6">Loading...</div>}>
+        <ToastContainer
+          position="top-right"
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="light"
+        />
 
         <Routes>
+          {/* Homepage has its own Header and Footer */}
+          <Route path="/" element={<Homepage />} />
 
-          <Route element={<DashboardLayout />}>
-            <Route path="/" element={<Hello />} />
-             <Route path="/device/" element={<ProductDetailPage />} />
+          {/* Auth pages */}
+          <Route path="/signin" element={<SignIn />} />
+          <Route path="/otp-verify" element={<EnterOTPRegister />} />
+          <Route path="auth/callback" element={<AuthCallback />} />
+          {/* Forgot Password is now a modal on SignIn, route removed */}
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/verify-account" element={<VerifyAccount />} />
 
-            <Route path="/rental/checkout" element={<RentalCheckout />} />
-            <Route path="/rental/checkout/review" element={<RentalReviewPage />} />
-            {/* <Route path="/rental/manage" element={<RentalManagementPage />} /> */}
+          <Route path="/device/:id" element={<ProductDetailPage />} />
+          <Route path="/wallet" element={<WalletPage />} />
+          <Route path="/rental/checkout" element={<RentalCheckout />} />
+          <Route path="/device/" element={<ProductDetailPage />} />
+          <Route
+            path="/rental/checkout/review"
+            element={<RentalReviewPage />}
+          />
+          <Route path="/user/cart" element={<CartPage />} />
+          <Route path="/payment/success" element={<PaymentSuccess />} />
+          <Route path="/payment/cancel" element={<PaymentCancel />} />
+          {/* <Route path="/rental/manage" element={<RentalManagementPage />} /> */}
+
+          {/* Supplier Portal routes */}
+          <Route path="/supplier" element={<SupplierLayout />}>
+            <Route
+              index
+              element={<Navigate to="/supplier/devices" replace />}
+            />
+            <Route path="devices" element={<SupplierDevicesList />} />
+            <Route
+              path="rental-requests"
+              element={<SupplierRentalRequests />}
+            />
+            <Route path="maintenance" element={<SupplierMaintenance />} />
+            <Route path="revenue" element={<SupplierRevenue />} />
           </Route>
+
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<DashboardPage />} />
+            <Route path="users" element={<UsersPage />} />
+            <Route path="suppliers" element={<SuppliersPage />} />
+            <Route path="devices" element={<DevicesModerationPage />} />
+            <Route path="rentals" element={<RentalsPage />} />
+            <Route path="reports" element={<ReportsPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="vouchers" element={<AdminVouchersPage />} />
+          </Route>
+
+          {/* Favorites page */}
+          <Route path="/favorites" element={<FavoritesPage />} />
+          <Route path="/products" element={<ProductsPage />} />
+          <Route path="/vouchers" element={<VouchersPage />} />
+
+          {/* Profile page (has its own Header and Footer) */}
+          <Route path="/profile" element={<ProfilePage />} />
         </Routes>
       </Suspense>
     </BrowserRouter>
   );
-
 }

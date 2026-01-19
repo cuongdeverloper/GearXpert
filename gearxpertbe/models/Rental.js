@@ -16,7 +16,7 @@ const rentalSchema = new mongoose.Schema({
 
   paymentMethod: {
     type: String,
-    enum: ['CARD', 'MOMO', 'BANK'],
+    enum: ['BANK','WALLET'],
     required: true
   },
 
@@ -31,7 +31,6 @@ const rentalSchema = new mongoose.Schema({
     enum: [
       'PENDING',
       'APPROVED',
-      'PAID',
       'DELIVERING',
       'RENTING',
       'RETURNING',
@@ -53,7 +52,14 @@ const rentalSchema = new mongoose.Schema({
     fullAddress: { type: String, required: true }
   },
   phoneNumber: { type: String, required: true },
-  notes: String
+  notes: String,
+
+
+  orderCode: { 
+    type: Number, 
+    unique: true, 
+    sparse: true // Cho phép các đơn cũ không có mã này không bị lỗi
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Rental', rentalSchema);
