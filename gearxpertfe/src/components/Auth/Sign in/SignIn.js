@@ -146,8 +146,9 @@ const SignIn = () => {
   };
 
   const redirectGoogleLogin = () => {
-    window.location.href = "http://localhost:1357/auth/google";
-  };
+    const backendUrl = process.env.REACT_APP_BACKEND_URL;
+    window.location.href = `${backendUrl}/auth/google`;
+};
 
   return (
     <div className="min-h-screen flex flex-col bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-200 via-slate-50 to-cyan-200 relative">

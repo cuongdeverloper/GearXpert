@@ -12,19 +12,18 @@ export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    if (!tutorId) return; 
-
-    const newSocket = io("http://localhost:1357", {
+    if (!tutorId) return;
+    const backendUrl = process.env.REACT_APP_BACKEND_URL
+    const newSocket = io(backendUrl, {
       transports: ["websocket", "polling"],
       withCredentials: true,
     });
-
     newSocket.on("connect", () => {
       newSocket.emit("addUser", tutorId);
     });
 
     newSocket.on("getNotification", (notification) => {
-      toast.info(notification.message); 
+      toast.info(notification.message);
     });
 
     newSocket.on("getMessage", (data) => {

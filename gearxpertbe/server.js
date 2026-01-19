@@ -39,7 +39,7 @@ app.set("io", io);
 
 app.use(
     cors({
-        origin: "http://localhost:2468",
+        origin: process.env.FRONTEND_URL,
         credentials: true,
     })
 );

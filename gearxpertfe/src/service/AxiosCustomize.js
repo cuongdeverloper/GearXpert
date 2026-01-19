@@ -6,7 +6,7 @@ import Cookies from 'js-cookie';
 import { persistor } from '../redux/store';
 
 const instance = axios.create({
-    baseURL: 'http://localhost:1357/',
+    baseURL: process.env.REACT_APP_BACKEND_URL,
     withCredentials: true,
     timeout: 30000,
 });
