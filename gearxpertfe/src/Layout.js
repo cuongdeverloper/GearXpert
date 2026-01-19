@@ -4,8 +4,6 @@ import { ToastContainer } from "react-toastify";
 import Aos from "aos";
 
 import Homepage from "./pages/Homepage/Homepage";
-import Chatbot from "./components/chatbot/Chatbot"; // Giữ Chatbot của bạn
-import DashboardLayout from "./components/layout/DashboardLayout"; // Giữ Layout từ main
 import GlobalLoadingOverlay from "./components/common/GlobalLoadingOverlay";
 import RouteHandler from "./components/common/RouteHandler";
 

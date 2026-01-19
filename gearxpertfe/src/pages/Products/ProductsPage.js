@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getDevices } from "../../service/ApiService/DeviceApi";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
@@ -21,15 +21,7 @@ export default function ProductsPage() {
         { name: 'Aerial / Drones', id: 'DRONE', icon: 'flight' },
     ];
 
-    useEffect(() => {
-        fetchDevices();
-    }, [selectedCategory]);
-
-    useEffect(() => {
-        applyFiltersAndSort();
-    }, [devices, searchQuery, sortBy]);
-
-    const fetchDevices = async () => {
+    const fetchDevices = useCallback(async () => {
         try {
             setLoading(true);
             const params = {
@@ -43,12 +35,11 @@ export default function ProductsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [selectedCategory]); 
 
-    const applyFiltersAndSort = () => {
+    const applyFiltersAndSort = useCallback(() => {
         let result = [...devices];
 
-        // Search Filter
         if (searchQuery) {
             result = result.filter(device =>
                 device.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -56,7 +47,6 @@ export default function ProductsPage() {
             );
         }
 
-        // Sorting
         switch (sortBy) {
             case 'price_asc':
                 result.sort((a, b) => {
@@ -80,7 +70,15 @@ export default function ProductsPage() {
         }
 
         setFilteredDevices(result);
-    };
+    }, [devices, searchQuery, sortBy]);
+
+    useEffect(() => {
+        fetchDevices();
+    }, [fetchDevices]);
+
+    useEffect(() => {
+        applyFiltersAndSort();
+    }, [applyFiltersAndSort]);
 
     return (
         <div className="min-h-screen flex flex-col bg-slate-50">
