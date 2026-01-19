@@ -37,6 +37,7 @@ const userSchema = new mongoose.Schema({
   },
 
   isVerified: { type: Boolean, default: false },
+  isVerifiedEkyc : { type: Boolean, default: false },
   identityInfo: {
     cccdNumber: { 
         type: String, 

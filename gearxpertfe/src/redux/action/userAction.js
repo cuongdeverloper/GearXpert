@@ -23,7 +23,8 @@ const doLogin = (response) => {
             rank: data?.rank || 'BRONZE',
             walletBalance: data?.walletBalance || 0,
             rewardPoints: data?.rewardPoints || 0,
-            isVerified: data?.isVerified || false,
+            isVerified: data?.isVerified || '',
+            isVerifiedEkyc: data?.isVerifiedEkyc || ''
         }
     };
 };
@@ -46,7 +47,8 @@ const doLoginWGoogle = (response, access_token, refresh_token) => {
             rank: response?.rank || 'BRONZE',
             walletBalance: response?.walletBalance || 0,
             rewardPoints: response?.rewardPoints || 0,
-            isVerified: response?.isVerified || false
+            isVerified: response?.isVerified || '',
+            isVerifiedEkyc: response?.isVerifiedEkyc || ''
         }
     };
 };

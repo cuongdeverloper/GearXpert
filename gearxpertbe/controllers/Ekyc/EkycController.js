@@ -44,7 +44,7 @@ const verifyIdentity = async (req, res) => {
         const userId = req.user.id;
         updatedUser = await User.findByIdAndUpdate(userId, {
             $set: {
-                isVerified: true,
+                isVerifiedEkyc: true,
                 "identityInfo.cccdFrontImage": cccdFrontUrl,
                 "identityInfo.cccdBackImage": cccdBackUrl,
                 "identityInfo.faceMatchScore": confidence,

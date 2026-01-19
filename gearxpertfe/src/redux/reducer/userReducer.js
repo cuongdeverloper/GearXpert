@@ -16,7 +16,8 @@ const INITIAL_STATE = {
         rank: 'BRONZE',
         walletBalance: 0,
         rewardPoints: 0,
-        isVerified:false
+        isVerified:'',
+        isVerifiedEkyc:''
     },
     isAuthenticated: false
 };
