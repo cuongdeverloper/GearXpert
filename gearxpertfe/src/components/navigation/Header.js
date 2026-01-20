@@ -258,7 +258,7 @@ export default function Header() {
                       className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                       style={{ backgroundColor: '#D1FAE5' }}
                       onClick={() => {
-                        handleRestrictedNavigation('/wallet');
+                        handleRestrictedNavigation('/user/wallet');
                         setIsDropdownOpen(false);
                       }}
                     >

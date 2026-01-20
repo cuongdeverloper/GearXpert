@@ -160,44 +160,29 @@ export default function ProductDetailPage() {
   };
   const validateRental = () => {
     if (!startDate || !endDate) {
-      toast.warning("Vui lòng chọn ngày bắt đầu và ngày kết thúc thuê!", {
-        position: "top-right",
-        description: "Thời gian thuê là bắt buộc để tính giá.",
-      });
+      toast.warning("Vui lòng chọn ngày bắt đầu và ngày kết thúc thuê!");
       return false;
     }
     if (new Date(startDate) > new Date(endDate)) {
-      toast.error("Ngày kết thúc không được nhỏ hơn ngày bắt đầu!", {
-        position: "top-right",
-      });
+      toast.error("Ngày kết thúc không được nhỏ hơn ngày bắt đầu!");
       return false;
     }
-    const isOverlap = busyDates.some((booking) =>
-      isDateOverlap(
-        startDate,
-        endDate,
-        booking.start,
-        booking.end
-      )
-    );
-    if (isOverlap) {
-      toast.error(
-        "Khoảng thời gian bạn chọn trùng với lịch đã được đặt. Vui lòng chọn ngày khác!"
-      );
-      return false;
-    }
+  
+    // --- THAY ĐỔI TẠI ĐÂY ---
+    // Không check isOverlap nữa, mà check trực tiếp số lượng khả dụng
     if (currentAvailableStock <= 0) {
-      toast.error("Thiết bị đã hết hàng trong khoảng thời gian này!");
+      toast.error("Thiết bị đã hết hàng hoàn toàn trong khoảng thời gian này!");
       return false;
     }
+    
+    if (quantity > currentAvailableStock) {
+      toast.error(`Chỉ còn ${currentAvailableStock} thiết bị khả dụng trong thời gian này.`);
+      return false;
+    }
+  
     return true;
   };
-  const isDateOverlap = (startA, endA, startB, endB) => {
-    return (
-      new Date(startA) <= new Date(endB) &&
-      new Date(endA) >= new Date(startB)
-    );
-  };
+
   const toggleAddon = (addon) => {
     const isSelected = addons.find((a) => a._id === addon._id);
     setAddons((prev) =>
