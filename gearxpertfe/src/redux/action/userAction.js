@@ -15,6 +15,7 @@ const doLogin = (response) => {
             refresh_token: data?.refresh_token || '',
             username: data?.username || data?.fullName || '',
             role: data?.role || '',
+            type: data?.type || 'Local',
             phoneNumber: data?.phoneNumber || data?.phone || '',
             phone: data?.phone || data?.phoneNumber || '',
             gender: data?.gender || '',
@@ -22,7 +23,9 @@ const doLogin = (response) => {
             address: data?.address || {},
             rank: data?.rank || 'BRONZE',
             walletBalance: data?.walletBalance || 0,
-            rewardPoints: data?.rewardPoints || 0
+            rewardPoints: data?.rewardPoints || 0,
+            isVerified: data?.isVerified || '',
+            isVerifiedEkyc: data?.isVerifiedEkyc || ''
         }
     };
 };
@@ -37,6 +40,7 @@ const doLoginWGoogle = (response, access_token, refresh_token) => {
             refresh_token: refresh_token || '',
             username: response?.username || response?.fullName || '',
             role: response?.role || '',
+            type: response?.type || 'GOOGLE',
             phoneNumber: response?.phoneNumber || response?.phone || '',
             phone: response?.phone || response?.phoneNumber || '',
             gender: response?.gender || '',
@@ -44,7 +48,9 @@ const doLoginWGoogle = (response, access_token, refresh_token) => {
             address: response?.address || {},
             rank: response?.rank || 'BRONZE',
             walletBalance: response?.walletBalance || 0,
-            rewardPoints: response?.rewardPoints || 0
+            rewardPoints: response?.rewardPoints || 0,
+            isVerified: response?.isVerified || '',
+            isVerifiedEkyc: response?.isVerifiedEkyc || ''
         }
     };
 };

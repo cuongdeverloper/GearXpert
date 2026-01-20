@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getDevices } from "../../service/ApiService/DeviceApi";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
@@ -21,15 +21,7 @@ export default function ProductsPage() {
         { name: 'Aerial / Drones', id: 'DRONE', icon: 'flight' },
     ];
 
-    useEffect(() => {
-        fetchDevices();
-    }, [selectedCategory]);
-
-    useEffect(() => {
-        applyFiltersAndSort();
-    }, [devices, searchQuery, sortBy]);
-
-    const fetchDevices = async () => {
+    const fetchDevices = useCallback(async () => {
         try {
             setLoading(true);
             const params = {
@@ -43,12 +35,11 @@ export default function ProductsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [selectedCategory]); 
 
-    const applyFiltersAndSort = () => {
+    const applyFiltersAndSort = useCallback(() => {
         let result = [...devices];
 
-        // Search Filter
         if (searchQuery) {
             result = result.filter(device =>
                 device.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -56,24 +47,38 @@ export default function ProductsPage() {
             );
         }
 
-        // Sorting
         switch (sortBy) {
             case 'price_asc':
-                result.sort((a, b) => (a.price || 0) - (b.price || 0));
+                result.sort((a, b) => {
+                    const priceA = a.price || a.rentPrice?.perDay || 0;
+                    const priceB = b.price || b.rentPrice?.perDay || 0;
+                    return priceA - priceB;
+                });
                 break;
             case 'price_desc':
-                result.sort((a, b) => (b.price || 0) - (a.price || 0));
+                result.sort((a, b) => {
+                    const priceA = a.price || a.rentPrice?.perDay || 0;
+                    const priceB = b.price || b.rentPrice?.perDay || 0;
+                    return priceB - priceA;
+                });
                 break;
             case 'newest':
-                // Assuming createdAt or _id (timestamp) exists
                 result.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
                 break;
-            default: // featured - no specific sort (keep API order or randomized usually)
+            default:
                 break;
         }
 
         setFilteredDevices(result);
-    };
+    }, [devices, searchQuery, sortBy]);
+
+    useEffect(() => {
+        fetchDevices();
+    }, [fetchDevices]);
+
+    useEffect(() => {
+        applyFiltersAndSort();
+    }, [applyFiltersAndSort]);
 
     return (
         <div className="min-h-screen flex flex-col bg-slate-50">

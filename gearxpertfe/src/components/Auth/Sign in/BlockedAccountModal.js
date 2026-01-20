@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiLock, FiX, FiPhoneCall } from 'react-icons/fi';
+import { FiLock, FiPhoneCall } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const BlockedAccountModal = ({ isOpen, onClose }) => {

@@ -51,9 +51,12 @@ const apiLogin = async (req, res) => {
                 email: userRecord.email,
                 phone: userRecord.phone,
                 avatar: userRecord.avatar,
+                type: userRecord.type,
                 rank: userRecord.rank,
                 walletBalance: walletBalance,
-                rewardPoints: userRecord.rewardPoints
+                rewardPoints: userRecord.rewardPoints,
+                isVerified:userRecord.isVerified,
+                isVerifiedEkyc:userRecord.isVerifiedEkyc
             }
         });
     } catch (error) {
@@ -286,6 +289,7 @@ const getCurrentUser = async (req, res) => {
                 email: userRecord.email,
                 phone: userRecord.phone,
                 avatar: userRecord.avatar,
+                type: userRecord.type,
                 role: userRecord.role,
                 address: userRecord.address || {},
                 rank: userRecord.rank,
@@ -340,6 +344,7 @@ const updateProfile = async (req, res) => {
                     email: userRecord.email,
                     phone: userRecord.phone,
                     avatar: userRecord.avatar,
+                    type: userRecord.type,
                     role: userRecord.role,
                     address: userRecord.address || {},
                     rank: userRecord.rank,

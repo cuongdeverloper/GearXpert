@@ -26,8 +26,6 @@ const userSchema = new mongoose.Schema({
     fullAddress: String
   },
 
-
-
   /** 🔥 RANKING SYSTEM */
   rewardPoints: { type: Number, default: 0 },   // tổng điểm
   rank: {
@@ -37,14 +35,26 @@ const userSchema = new mongoose.Schema({
   },
 
   isVerified: { type: Boolean, default: false },
+  
   status: {
     type: String,
     enum: ['ACTIVE', 'BLOCKED'],
     default: 'ACTIVE'
   },
+
+  isVerifiedEkyc : { type: Boolean, default: false },
+  identityInfo: {
+    cccdNumber: { 
+        type: String, 
+        unique: true, 
+        sparse: true 
+    },
+    cccdFrontImage: { type: String },
+    cccdBackImage: { type: String },  
+    faceMatchScore: { type: Number },
+    verifiedAt: { type: Date }       
+  },
 }, { timestamps: true });
-
-
 
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();

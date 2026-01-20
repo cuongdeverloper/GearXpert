@@ -4,8 +4,6 @@ import { ToastContainer } from "react-toastify";
 import Aos from "aos";
 
 import Homepage from "./pages/Homepage/Homepage";
-import Chatbot from "./components/chatbot/Chatbot"; // Giữ Chatbot của bạn
-import DashboardLayout from "./components/layout/DashboardLayout"; // Giữ Layout từ main
 import GlobalLoadingOverlay from "./components/common/GlobalLoadingOverlay";
 import RouteHandler from "./components/common/RouteHandler";
 
@@ -43,6 +41,9 @@ import ProductsPage from "./pages/Products/ProductsPage";
 import VouchersPage from "./pages/Voucher/VouchersPage";
 import PaymentSuccess from "./pages/Rental/status/PaymentSuccess";
 import PaymentCancel from "./pages/Rental/status/PaymentCancel";
+import WalletSuccess from "./pages/User/Wallet/WalletSuccess";
+import WalletCancel from "./pages/User/Wallet/WalletCancel";
+import EkycVerification from "./components/EkycVerification";
 
 export default function Layout() {
   useEffect(() => {
@@ -80,7 +81,9 @@ export default function Layout() {
           <Route path="/verify-account" element={<VerifyAccount />} />
 
           <Route path="/device/:id" element={<ProductDetailPage />} />
-          <Route path="/wallet" element={<WalletPage />} />
+          <Route path="/user/wallet" element={<WalletPage />} />
+          <Route path="/wallet/success" element={<WalletSuccess />} />
+          <Route path="/wallet/cancel" element={<WalletCancel />} />
           <Route path="/rental/checkout" element={<RentalCheckout />} />
           <Route path="/device/" element={<ProductDetailPage />} />
           <Route
@@ -125,6 +128,7 @@ export default function Layout() {
 
           {/* Profile page (has its own Header and Footer) */}
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/ekyc" element={<EkycVerification />} />
         </Routes>
       </Suspense>
     </BrowserRouter>
