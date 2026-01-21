@@ -7,9 +7,10 @@ import { useNavigate } from 'react-router-dom';
 import imageCompression from 'browser-image-compression';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
+import { motion, AnimatePresence } from 'framer-motion';
 import Header from './navigation/Header';
 
-const EkycVerification = () => {
+const EkycVerification = ({ isModal = false, onClose, onSuccess }) => {
     const navigate = useNavigate();
     const user = useSelector(state => state.user.account);
     const webcamRef = useRef(null);
@@ -27,10 +28,15 @@ const EkycVerification = () => {
 
     useEffect(() => {
         if (user && user.isVerified && user.isVerifiedEkyc === true) {
-            toast.info("Tài khoản của bạn đã được xác thực rồi! Không cần làm lại.");
-            navigate('/');
+            if (isModal) {
+                if (onSuccess) onSuccess();
+                if (onClose) onClose();
+            } else {
+                toast.info("Tài khoản của bạn đã được xác thực rồi! Không cần làm lại.");
+                navigate('/');
+            }
         }
-    }, [user, navigate]);
+    }, [user, navigate, isModal, onClose, onSuccess]);
 
     const handleFileChange = (e, type) => {
         const file = e.target.files[0];
@@ -136,39 +142,262 @@ const EkycVerification = () => {
     }, [onResults, frontFile, backFile]);
 
     const handleSuccessClick = () => {
-        navigate('/profile');
+        if (isModal) {
+            if (onSuccess) onSuccess();
+            if (onClose) onClose();
+        } else {
+            navigate('/profile');
+        }
     };
 
     const UploadBox = ({ label, preview, onChange, id }) => (
         <div className="flex-1">
-            <h4 className="text-sm font-semibold text-gray-700 mb-2">{label}</h4>
-            <label htmlFor={id} className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 hover:border-indigo-400 transition-colors relative overflow-hidden">
+            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 text-center">{label}</h4>
+            <label htmlFor={id} className={`group relative flex flex-col items-center justify-center h-32 rounded-2xl border-2 border-dashed transition-all duration-300 overflow-hidden cursor-pointer ${preview ? 'border-indigo-400 bg-indigo-50/30' : 'border-slate-200 hover:border-indigo-400 hover:bg-slate-50'}`}>
                 {preview ? (
-                    <img src={preview} alt="Preview" className="w-full h-full object-contain" />
+                    <img src={preview} alt="Preview" className="w-full h-full object-cover" />
                 ) : (
-                    <div className="text-center p-2">
-                        <svg className="w-8 h-8 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                        <span className="text-xs text-gray-500">Chọn ảnh</span>
+                    <div className="text-center p-4">
+                        <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-2 group-hover:bg-indigo-100 transition-colors">
+                            <span className="material-symbols-outlined text-slate-400 group-hover:text-indigo-600">upload_file</span>
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-500 group-hover:text-indigo-600 transition-colors">CHỌN ẢNH</span>
                     </div>
                 )}
                 <input type="file" id={id} className="hidden" accept="image/*" onChange={onChange} />
+                {preview && (
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-white text-[10px] font-bold">THAY ĐỔI</span>
+                    </div>
+                )}
             </label>
         </div>
     );
 
-    if (result?.success) {
+    const MainContent = () => {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-                <div className="bg-white p-8 rounded-2xl shadow-xl text-center animate-fade-in">
-                    <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+            <AnimatePresence mode="wait">
+                {result?.success ? (
+                    <motion.div
+                        key="success"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        className="p-10 text-center"
+                    >
+                        <div className="relative inline-block mb-6">
+                            <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto relative z-10">
+                                <span className="material-symbols-outlined text-5xl">task_alt</span>
+                            </div>
+                            <div className="absolute inset-0 bg-emerald-400 rounded-full blur-2xl opacity-20 animate-pulse"></div>
+                        </div>
+                        <h2 className="text-3xl font-bold text-slate-900 mb-2 font-display">Xác thực thành công!</h2>
+                        <p className="text-slate-600 mb-8 max-w-sm mx-auto">{result.message}</p>
+                        <button
+                            onClick={handleSuccessClick}
+                            className="w-full py-4 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-bold rounded-2xl shadow-lg shadow-indigo-200 hover:shadow-indigo-300 hover:scale-[1.02] transition-all"
+                        >
+                            Hoàn tất & Quay lại
+                        </button>
+                    </motion.div>
+                ) : result?.success === false ? (
+                    <motion.div
+                        key="failure"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        className="p-10 text-center"
+                    >
+                        <div className="relative inline-block mb-6">
+                            <div className="w-24 h-24 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto relative z-10">
+                                <span className="material-symbols-outlined text-5xl">error</span>
+                            </div>
+                            <div className="absolute inset-0 bg-rose-400 rounded-full blur-2xl opacity-20 animate-pulse"></div>
+                        </div>
+                        <h2 className="text-3xl font-bold text-slate-900 mb-2 font-display">Xác thực thất bại</h2>
+                        <p className="text-slate-600 mb-8 max-w-sm mx-auto">{result.message || "Đã có lỗi xảy ra trong quá trình xác thực. Vui lòng thử lại."}</p>
+                        <button
+                            onClick={() => setResult(null)}
+                            className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-lg hover:bg-slate-800 hover:scale-[1.02] transition-all"
+                        >
+                            Thử lại ngay
+                        </button>
+                    </motion.div>
+                ) : (
+                    <motion.div
+                        key="form"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="p-8"
+                    >
+                        {/* Step 1: CCCD Upload */}
+                        <div className={`transition-all duration-700 ease-in-out ${(frontFile && backFile) ? 'opacity-40 grayscale blur-[1px] -translate-y-4 scale-95 origin-top' : 'opacity-100'}`}>
+                            <div className="flex items-center justify-between mb-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-indigo-600 text-white rounded-2xl flex items-center justify-center font-bold shadow-lg shadow-indigo-200 rotate-3">1</div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-slate-900 leading-none">Ảnh CCCD</h3>
+                                        <p className="text-xs text-slate-500 mt-1">Vui lòng tải lên cả hai mặt của CCCD</p>
+                                    </div>
+                                </div>
+                                {frontFile && backFile && (
+                                    <div className="flex items-center gap-1.5 text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full text-xs font-bold ring-1 ring-emerald-100">
+                                        <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                                        ĐÃ CHỌN
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex gap-4">
+                                <UploadBox id="frontCccd" label="Mặt trước" preview={previewFront} onChange={(e) => handleFileChange(e, 'front')} />
+                                <UploadBox id="backCccd" label="Mặt sau" preview={previewBack} onChange={(e) => handleFileChange(e, 'back')} />
+                            </div>
+                        </div>
+
+                        {/* Step 2: Face Scan */}
+                        {frontFile && backFile && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="mt-8 border-t border-slate-100 pt-8"
+                            >
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-10 h-10 bg-indigo-600 text-white rounded-2xl flex items-center justify-center font-bold shadow-lg shadow-indigo-200 -rotate-3">2</div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-slate-900 leading-none">Quét khuôn mặt</h3>
+                                        <p className="text-xs text-slate-500 mt-1">AI sẽ tự động nhận diện khuôn mặt của bạn</p>
+                                    </div>
+                                </div>
+
+                                <div className={`relative p-4 rounded-3xl mb-6 text-center text-sm font-bold border-2 transition-all duration-300 ${isLoading ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-slate-50 text-slate-700 border-slate-100'}`}>
+                                    {isLoading ? (
+                                        <div className="flex items-center justify-center gap-3">
+                                            <div className="flex gap-1">
+                                                <span className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                                                <span className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                                                <span className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce"></span>
+                                            </div>
+                                            ĐANG XỬ LÝ DỮ LIỆU...
+                                        </div>
+                                    ) : (
+                                        <span className="flex items-center justify-center gap-2">
+                                            <span className="material-symbols-outlined animate-pulse text-[18px]">visibility</span>
+                                            {status}
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="relative w-full max-w-sm mx-auto aspect-[4/3] bg-slate-900 rounded-[40px] overflow-hidden shadow-2xl border-4 border-white ring-1 ring-slate-100 transform transition-transform hover:scale-[1.01]">
+                                    {!isCaptured ? (
+                                        <>
+                                            <Webcam
+                                                ref={webcamRef}
+                                                screenshotFormat="image/jpeg"
+                                                className="w-full h-full object-cover transform -scale-x-100"
+                                            />
+                                            {/* AI Scanning Frame */}
+                                            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                                                <div className="w-48 h-64 border-2 border-indigo-400/50 rounded-[50%] shadow-[0_0_0_1000px_rgba(15,23,42,0.6)] z-10 relative">
+                                                    {/* Animated Corners */}
+                                                    <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-indigo-400 rounded-tl-2xl"></div>
+                                                    <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-indigo-400 rounded-tr-2xl"></div>
+                                                    <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-indigo-400 rounded-bl-2xl"></div>
+                                                    <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-indigo-400 rounded-br-2xl"></div>
+
+                                                    {/* Scanning Line */}
+                                                    <div className="absolute w-full h-1 bg-gradient-to-r from-transparent via-indigo-400 to-transparent top-0 animate-scan z-20 shadow-[0_0_15px_rgba(99,102,241,0.5)]"></div>
+
+                                                    {/* Progress Points */}
+                                                    <div className="absolute inset-0 flex items-center justify-center">
+                                                        <div className="relative w-full h-full opacity-20">
+                                                            {[...Array(8)].map((_, i) => (
+                                                                <div
+                                                                    key={i}
+                                                                    className="absolute bg-indigo-400 w-1 h-1 rounded-full"
+                                                                    style={{
+                                                                        top: `${50 + 40 * Math.sin(i * Math.PI / 4)}%`,
+                                                                        left: `${50 + 40 * Math.cos(i * Math.PI / 4)}%`
+                                                                    }}
+                                                                ></div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="absolute bottom-6 left-0 right-0 text-center z-20">
+                                                <div className="bg-slate-900/80 backdrop-blur-md px-4 py-2 rounded-full inline-flex items-center gap-2 border border-white/10">
+                                                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                                                    <span className="text-white text-[10px] font-bold tracking-widest uppercase">AI Nhận Diện Hoạt Động</span>
+                                                </div>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-white gap-4">
+                                            <div className="w-20 h-20 bg-indigo-600 rounded-full flex items-center justify-center animate-bounce shadow-glow-indigo">
+                                                <span className="material-symbols-outlined text-4xl">face</span>
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="font-bold tracking-widest text-indigo-300">DỮ LIỆU ĐÃ CHỤP</p>
+                                                <p className="text-xs text-white/60 mt-1 uppercase">Đang tiến hành đối soát...</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </motion.div>
+                        )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        );
+    };
+
+    if (isModal) {
+        return (
+            <div className="bg-white rounded-[40px] overflow-hidden max-h-[95vh] flex flex-col relative">
+                {/* Decorative Background Blur */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-100 rounded-full blur-[100px] opacity-40 -mr-32 -mt-32"></div>
+
+                <div className="bg-white/80 backdrop-blur-xl p-6 sticky top-0 z-[100] flex justify-between items-center border-b border-slate-100">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 flex-shrink-0 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg ring-4 ring-indigo-50">
+                            <span className="material-symbols-outlined text-white text-[24px]">person_check</span>
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-slate-900 font-display uppercase tracking-tight">Xác thực eKYC</h2>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Hệ thống bảo mật GearXpert</p>
+                        </div>
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-800 mb-2">Xác thực thành công!</h2>
-                    <p className="text-gray-600 mb-6">{result.message}</p>
-                    <button onClick={handleSuccessClick} className="px-8 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-lg hover:bg-indigo-700 transition-all">
-                        Hoàn tất & Về trang cá nhân
-                    </button>
+                    {onClose && (
+                        <button
+                            onClick={onClose}
+                            className="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-900 rounded-full transition-all"
+                        >
+                            <span className="material-symbols-outlined">close</span>
+                        </button>
+                    )}
                 </div>
+
+                <div className="flex-grow overflow-y-auto">
+                    <MainContent />
+                </div>
+
+                <div className="p-4 bg-slate-50/50 border-t border-slate-100 text-center">
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2">
+                        <span className="material-symbols-outlined text-[12px]">security</span>
+                        Mã hóa đầu cuối SSL 256-bit
+                    </p>
+                </div>
+
+                <style jsx>{`
+                    @keyframes scan {
+                        0% { top: 10%; opacity: 0; }
+                        50% { opacity: 1; }
+                        100% { top: 90%; opacity: 0; }
+                    }
+                    .animate-scan { animation: scan 2.5s ease-in-out infinite; }
+                    .shadow-glow-indigo { box-shadow: 0 0 20px rgba(99, 102, 241, 0.4); }
+                `}</style>
             </div>
         );
     }
@@ -176,87 +405,44 @@ const EkycVerification = () => {
     return (
         <>
             <Header />
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans">
-                <div className="w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden">
-                    <div className="bg-indigo-600 p-6 text-center">
-                        <h2 className="text-2xl font-bold text-white uppercase">Xác thực danh tính (eKYC)</h2>
-                        <p className="text-indigo-100 text-sm mt-1">Vui lòng cung cấp CCCD và quét khuôn mặt</p>
-                    </div>
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 relative overflow-hidden">
+                {/* Background Decorations */}
+                <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-indigo-100/50 rounded-full blur-[100px] -translate-x-1/2 -translate-y-1/2"></div>
+                <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-cyan-100/30 rounded-full blur-[100px] translate-x-1/2 translate-y-1/2"></div>
 
-                    <div className="p-8">
-                        <div className={`transition-all duration-500 ${(frontFile && backFile) ? 'mb-8 opacity-50 pointer-events-none' : 'mb-0'}`}>
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-semibold text-gray-700 flex items-center">
-                                    <span className="bg-indigo-600 text-white w-8 h-8 rounded-full flex items-center justify-center mr-2 text-sm">1</span>
-                                    Tải lên ảnh CCCD
-                                </h3>
-                                {frontFile && backFile && <span className="text-green-600 text-sm font-medium">✓ Đã chọn đủ ảnh</span>}
-                            </div>
-                            <div className="flex flex-row gap-4">
-                                <UploadBox id="frontCccd" label="Mặt trước" preview={previewFront} onChange={(e) => handleFileChange(e, 'front')} />
-                                <UploadBox id="backCccd" label="Mặt sau" preview={previewBack} onChange={(e) => handleFileChange(e, 'back')} />
-                            </div>
+                <div className="w-full max-w-xl bg-white/90 backdrop-blur-2xl rounded-[48px] shadow-2xl border border-white relative z-10 overflow-hidden">
+                    <div className="bg-indigo-600 p-10 text-center relative overflow-hidden">
+                        {/* Abstract Shapes */}
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/5 rounded-full -ml-12 -mb-12"></div>
+
+                        <div className="w-16 h-16 flex-shrink-0 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center mb-6 ring-1 ring-white/20 mx-auto">
+                            <span className="material-symbols-outlined text-white text-4xl">verified_user</span>
                         </div>
+                        <h2 className="text-3xl font-bold text-white font-display uppercase tracking-tight">Xác thực danh tính</h2>
+                        <p className="text-indigo-100/80 text-sm mt-2 max-w-xs mx-auto">
+                            Quy trình eKYC chuẩn quốc tế, bảo mật tuyệt đối thông tin cá nhân của bạn.
+                        </p>
+                    </div>
+                    <MainContent />
 
-                        {frontFile && backFile && (
-                            <div className="animate-fade-in-up mt-8 border-t pt-8">
-                                <div className="flex items-center mb-4">
-                                    <h3 className="text-lg font-semibold text-gray-700 flex items-center">
-                                        <span className="bg-indigo-600 text-white w-8 h-8 rounded-full flex items-center justify-center mr-2 text-sm">2</span>
-                                        Xác thực khuôn mặt
-                                    </h3>
-                                </div>
-
-                                <div className={`p-4 rounded-lg mb-4 text-center font-medium border ${isLoading ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-yellow-50 text-yellow-800 border-yellow-200'}`}>
-                                    {isLoading ? (
-                                        <span className="flex items-center justify-center gap-2">
-                                            <svg className="animate-spin h-5 w-5 text-blue-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                            Đang xử lý AI...
-                                        </span>
-                                    ) : status}
-                                </div>
-
-                                <div className="relative w-full max-w-lg mx-auto aspect-[4/3] bg-black rounded-2xl overflow-hidden shadow-2xl border-4 border-gray-800 group">
-                                    {!isCaptured ? (
-                                        <>
-                                            <Webcam ref={webcamRef} screenshotFormat="image/jpeg" className="w-full h-full object-cover transform -scale-x-100" />
-                                            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                                                <div className="w-48 h-64 border-4 border-dashed border-green-400/70 rounded-[50%] shadow-[0_0_1000px_0_rgba(0,0,0,0.5)] z-10 relative">
-                                                    <div className="absolute w-full h-1 bg-green-400/50 top-0 animate-scan"></div>
-                                                </div>
-                                            </div>
-                                            <div className="absolute bottom-4 left-0 right-0 text-center z-20">
-                                                <p className="text-white/80 text-sm bg-black/50 inline-block px-3 py-1 rounded-full backdrop-blur-sm">Giữ khuôn mặt trong khung hình</p>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center bg-gray-900 text-white">
-                                            <div className="text-center">
-                                                <svg className="w-16 h-16 mx-auto mb-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
-                                                <p>Đã chụp xong!</p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {result?.success === false && (
-                            <div className="animate-fade-in text-center py-8">
-                                <h2 className="text-3xl font-bold mb-2 text-red-700">Xác thực thất bại</h2>
-                                <p className="text-gray-600 mb-4">{result?.message}</p>
-                                <button onClick={() => window.location.reload()} className="px-8 py-3 bg-gray-800 text-white font-semibold rounded-lg shadow-lg hover:bg-gray-900 transition-all">Thử lại</button>
-                            </div>
-                        )}
+                    <div className="p-6 bg-slate-50 border-t border-slate-100 text-center">
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">
+                            Powered by GearXpert Security System v2.0
+                        </p>
                     </div>
                 </div>
+
                 <style jsx>{`
-                @keyframes scan { 0% { top: 0%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
-                .animate-scan { animation: scan 2s linear infinite; }
-            `}</style>
+                    @keyframes scan {
+                        0% { top: 10%; opacity: 0; }
+                        50% { opacity: 1; }
+                        100% { top: 90%; opacity: 0; }
+                    }
+                    .animate-scan { animation: scan 2.5s ease-in-out infinite; }
+                `}</style>
             </div>
         </>
-
     );
 };
 
