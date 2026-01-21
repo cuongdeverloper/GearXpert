@@ -34,7 +34,7 @@ export default function TrendingNowSection({ device = null }) {
             onClick={() => trendingDevice._id && navigate(`/device/${trendingDevice._id}`)}
             className="bg-white text-slate-900 font-bold px-8 py-3.5 rounded-2xl hover:bg-slate-100 transition-all flex items-center gap-2"
           >
-            Reserve Camera
+            View Now
             <span className="material-symbols-outlined">schedule</span>
           </button>
         </div>

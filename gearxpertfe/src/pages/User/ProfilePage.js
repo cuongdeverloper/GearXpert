@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiCheckCircle, FiLock } from 'react-icons/fi';
 import Header from '../../components/navigation/Header';
 import Footer from '../../components/homepage/Footer';
+import EkycVerification from '../../components/EkycVerification';
 
 export default function ProfilePage() {
     const navigate = useNavigate();
@@ -19,6 +20,7 @@ export default function ProfilePage() {
     const [changingPassword, setChangingPassword] = useState(false);
     const [avatarPreview, setAvatarPreview] = useState(null);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
+    const [showEkycModal, setShowEkycModal] = useState(false);
     const fileInputRef = useRef(null);
 
     // OTP state
@@ -102,6 +104,8 @@ export default function ProfilePage() {
                         rank: data.rank,
                         walletBalance: data.walletBalance,
                         rewardPoints: data.rewardPoints,
+                        isVerified: data.isVerified,
+                        isVerifiedEkyc: data.isVerifiedEkyc,
                     }
                 }));
             }
@@ -187,6 +191,8 @@ export default function ProfilePage() {
                         rank: data.rank,
                         walletBalance: data.walletBalance,
                         rewardPoints: data.rewardPoints,
+                        isVerified: data.isVerified,
+                        isVerifiedEkyc: data.isVerifiedEkyc,
                     }
                 }));
 
@@ -449,9 +455,9 @@ export default function ProfilePage() {
                                     </div>
                                     <div className="flex justify-between items-center">
                                         <span className="text-slate-600 text-sm">Trạng thái</span>
-                                        <span className="text-green-600 font-semibold text-sm flex items-center gap-1">
-                                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                            Đã xác thực
+                                        <span className={`${userAccount.isVerifiedEkyc ? 'text-green-600' : 'text-amber-600'} font-semibold text-sm flex items-center gap-1`}>
+                                            <span className={`w-2 h-2 ${userAccount.isVerifiedEkyc ? 'bg-green-500' : 'bg-amber-500'} rounded-full`}></span>
+                                            {userAccount.isVerifiedEkyc ? 'Đã xác thực' : 'Chưa xác thực'}
                                         </span>
                                     </div>
                                 </div>
@@ -463,8 +469,8 @@ export default function ProfilePage() {
                             {/* Profile Information Form */}
                             <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-xl hover:shadow-glow-cyan border border-slate-200/50 p-6 md:p-8 transition-all duration-300">
                                 <div className="flex items-center gap-3 mb-6">
-                                    <div className="bg-primary/10 p-2 rounded-xl shadow-sm">
-                                        <span className="material-symbols-outlined text-primary text-2xl">person</span>
+                                    <div className="w-10 h-10 flex-shrink-0 bg-primary/10 rounded-full flex items-center justify-center shadow-sm">
+                                        <span className="material-symbols-outlined text-primary text-xl">person</span>
                                     </div>
                                     <h2 className="text-2xl font-bold text-slate-900 font-display">
                                         Thông tin cá nhân
@@ -549,7 +555,17 @@ export default function ProfilePage() {
                                     </div>
 
                                     {/* Submit Button */}
-                                    <div className="flex justify-end gap-4 pt-4">
+                                    <div className="flex justify-end items-center gap-4 pt-4">
+                                        {!userAccount.isVerifiedEkyc && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowEkycModal(true)}
+                                                className="mr-auto px-6 py-3 bg-gradient-to-r from-indigo-600 via-indigo-500 to-cyan-400 text-white rounded-xl font-bold shadow-[0_0_20px_rgba(79,70,229,0.4)] hover:shadow-[0_0_30px_rgba(79,70,229,0.6)] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2 border border-white/20"
+                                            >
+                                                <span className="material-symbols-outlined text-[20px] animate-pulse">verified_user</span>
+                                                Xác thực người dùng
+                                            </button>
+                                        )}
                                         <button
                                             type="button"
                                             onClick={() => fetchUserData()}
@@ -582,8 +598,8 @@ export default function ProfilePage() {
                             {userAccount?.type !== 'GOOGLE' && (
                                 <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-xl hover:shadow-glow-cyan border border-slate-200/50 p-6 md:p-8 transition-all duration-300">
                                     <div className="flex items-center gap-3 mb-6">
-                                        <div className="bg-accent-cyan/10 p-2 rounded-xl shadow-sm">
-                                            <span className="material-symbols-outlined text-accent-cyan text-2xl">lock</span>
+                                        <div className="w-10 h-10 flex-shrink-0 bg-accent-cyan/10 rounded-full flex items-center justify-center shadow-sm">
+                                            <span className="material-symbols-outlined text-accent-cyan text-xl">lock</span>
                                         </div>
                                         <h2 className="text-2xl font-bold text-slate-900 font-display">
                                             Đổi mật khẩu
@@ -779,6 +795,38 @@ export default function ProfilePage() {
                                     Secure Account Management • GearXpert
                                 </p>
                             </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* eKYC Verification Modal */}
+            <AnimatePresence>
+                {showEkycModal && (
+                    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setShowEkycModal(false)}
+                            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+                        ></motion.div>
+
+                        {/* Modal Content */}
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="relative w-full max-w-2xl bg-white rounded-[32px] shadow-2xl overflow-hidden border border-slate-100"
+                        >
+                            <EkycVerification
+                                isModal={true}
+                                onClose={() => setShowEkycModal(false)}
+                                onSuccess={() => {
+                                    fetchUserData(); // Refresh profile data
+                                }}
+                            />
                         </motion.div>
                     </div>
                 )}

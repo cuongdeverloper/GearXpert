@@ -55,8 +55,8 @@ const apiLogin = async (req, res) => {
                 rank: userRecord.rank,
                 walletBalance: walletBalance,
                 rewardPoints: userRecord.rewardPoints,
-                isVerified:userRecord.isVerified,
-                isVerifiedEkyc:userRecord.isVerifiedEkyc
+                isVerified: userRecord.isVerified,
+                isVerifiedEkyc: userRecord.isVerifiedEkyc
             }
         });
     } catch (error) {
@@ -294,7 +294,9 @@ const getCurrentUser = async (req, res) => {
                 address: userRecord.address || {},
                 rank: userRecord.rank,
                 walletBalance: walletBalance,
-                rewardPoints: userRecord.rewardPoints
+                rewardPoints: userRecord.rewardPoints,
+                isVerified: userRecord.isVerified,
+                isVerifiedEkyc: userRecord.isVerifiedEkyc
             }
         });
     } catch (error) {
@@ -349,7 +351,9 @@ const updateProfile = async (req, res) => {
                     address: userRecord.address || {},
                     rank: userRecord.rank,
                     walletBalance: walletBalance,
-                    rewardPoints: userRecord.rewardPoints
+                    rewardPoints: userRecord.rewardPoints,
+                    isVerified: userRecord.isVerified,
+                    isVerifiedEkyc: userRecord.isVerifiedEkyc
                 }
             });
         });
