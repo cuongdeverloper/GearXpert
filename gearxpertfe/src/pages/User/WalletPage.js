@@ -42,11 +42,8 @@ export default function WalletPage() {
   const [range, setRange] = useState("DAY");
   const [filterType, setFilterType] = useState("ALL");
   const [page, setPage] = useState(1);
-  
-  // State mới cho phân trang biểu đồ (0 là hiện tại, 1 là lùi về 1 đơn vị thời gian)
   const [chartOffset, setChartOffset] = useState(0);
 
-  // States cho Modals
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
   const [isTopUpOpen, setIsTopUpOpen] = useState(false);
   const [amountInput, setAmountInput] = useState("");
@@ -60,7 +57,6 @@ export default function WalletPage() {
     fetchInitialData();
   }, []);
 
-  // Reset offset khi đổi loại biểu đồ
   useEffect(() => {
     setChartOffset(0);
   }, [range]);
@@ -88,6 +84,19 @@ export default function WalletPage() {
     setBankInfo({ bankName: "", accountNumber: "", accountName: "" });
   };
 
+  /* ================= CHẶN CÁC THAO TÁC TĂNG GIẢM SỐ TỰ ĐỘNG ================= */
+  const handleKeyDown = (e) => {
+    // Chặn phím e (khoa học), phím +, -, và quan trọng nhất là ArrowUp, ArrowDown
+    if (["e", "E", "+", "-", "ArrowUp", "ArrowDown"].includes(e.key)) {
+      e.preventDefault();
+    }
+  };
+
+  const handleWheel = (e) => {
+    // Chặn việc cuộn chuột làm thay đổi số
+    e.target.blur();
+  };
+
   /* ================= XỬ LÝ NẠP TIỀN ================= */
   const handleTopUpSubmit = async () => {
     const val = parseInt(amountInput);
@@ -97,30 +106,23 @@ export default function WalletPage() {
     try {
       setBtnLoading(true);
       const res = await topUpWallet(val);
-      
-      // Axios trả về dữ liệu trong res.data
-      // Chúng ta lấy checkoutUrl từ res.data (do Backend của bạn trả về object PayOS)
       const checkoutUrl = res?.data?.checkoutUrl || res?.checkoutUrl;
 
       if (checkoutUrl) {
-        // Hiển thị thông báo đang chuyển hướng
         toast.info("Đang chuyển hướng tới trang thanh toán PayOS...", {
           autoClose: 2000,
           pauseOnHover: false,
         });
-
-        // Đợi một chút để người dùng kịp nhìn thấy Toast rồi mới chuyển trang
         setTimeout(() => {
           window.location.href = checkoutUrl;
         }, 1000);
       } else {
         toast.error("Không tìm thấy link thanh toán. Vui lòng thử lại!");
+        setBtnLoading(false);
       }
     } catch (error) {
-      console.error("Topup error:", error);
       toast.error(error.response?.data?.message || "Lỗi tạo link thanh toán");
-    } finally {
-      // Lưu ý: Không setBtnLoading(false) ngay lập tức nếu muốn giữ trạng thái loading cho đến khi trang web reload
+      setBtnLoading(false);
     }
   };
 
@@ -134,15 +136,8 @@ export default function WalletPage() {
     if (amount > (wallet?.balance || 0)) return toast.error("Số dư ví không đủ");
 
     if (!bankName.trim()) return toast.error("Vui lòng nhập tên ngân hàng");
-    const accountNumberRegex = /^[0-9]{8,15}$/;
-    if (!accountNumber.trim() || !accountNumberRegex.test(accountNumber.trim())) {
-      return toast.error("Số tài khoản không hợp lệ");
-    }
-
-    const accountNameRegex = /^[A-Z ]+$/;
-    if (!accountName.trim() || !accountNameRegex.test(accountName.trim())) {
-      return toast.error("Tên tài khoản phải viết HOA KHÔNG DẤU");
-    }
+    if (!/^[0-9]{8,15}$/.test(accountNumber.trim())) return toast.error("Số tài khoản không hợp lệ");
+    if (!/^[A-Z ]+$/.test(accountName.trim())) return toast.error("Tên tài khoản phải viết HOA KHÔNG DẤU");
 
     try {
       setBtnLoading(true);
@@ -154,7 +149,6 @@ export default function WalletPage() {
           accountName: accountName.trim(),
         },
       });
-
       toast.success("Yêu cầu rút tiền đã được gửi!");
       closeModal();
       fetchInitialData();
@@ -165,7 +159,7 @@ export default function WalletPage() {
     }
   };
 
-  /* ================= LOGIC BIỂU ĐỒ (CÓ PHÂN TRANG) ================= */
+  /* ================= LOGIC BIỂU ĐỒ ================= */
   const chartData = useMemo(() => {
     let labels = [];
     let incomeData = [];
@@ -176,19 +170,14 @@ export default function WalletPage() {
       labels = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
       incomeData = new Array(7).fill(0);
       outcomeData = new Array(7).fill(0);
-
       const currentDay = now.getDay();
       const diffToMonday = currentDay === 0 ? 6 : currentDay - 1;
-      
-      // Tính ngày Thứ 2 của tuần mục tiêu dựa trên chartOffset
       const targetMonday = new Date(now);
       targetMonday.setDate(now.getDate() - diffToMonday - (chartOffset * 7));
       targetMonday.setHours(0, 0, 0, 0);
-
       const targetSunday = new Date(targetMonday);
       targetSunday.setDate(targetMonday.getDate() + 6);
       targetSunday.setHours(23, 59, 59, 999);
-
       transactions.forEach((tx) => {
         const txDate = new Date(tx.createdAt);
         if (txDate >= targetMonday && txDate <= targetSunday) {
@@ -202,9 +191,7 @@ export default function WalletPage() {
       labels = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12"];
       incomeData = new Array(12).fill(0);
       outcomeData = new Array(12).fill(0);
-      
       const targetYear = now.getFullYear() - chartOffset;
-
       transactions.forEach((tx) => {
         const d = new Date(tx.createdAt);
         if (d.getFullYear() === targetYear) {
@@ -214,12 +201,10 @@ export default function WalletPage() {
         }
       });
     } else if (range === "YEAR") {
-      // Logic Year: lùi mỗi trang 3 năm
       const currentYear = now.getFullYear() - (chartOffset * 3);
       labels = [currentYear - 2, currentYear - 1, currentYear];
       incomeData = new Array(3).fill(0);
       outcomeData = new Array(3).fill(0);
-      
       transactions.forEach((tx) => {
         const year = new Date(tx.createdAt).getFullYear();
         const idx = labels.indexOf(year);
@@ -229,7 +214,6 @@ export default function WalletPage() {
         }
       });
     }
-
     return {
       labels,
       datasets: [
@@ -244,6 +228,19 @@ export default function WalletPage() {
     const isTopUp = type === "TOP_UP";
     return (
       <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        {/* CSS INJECTION: Ẩn mũi tên input number trên mọi trình duyệt */}
+        <style>
+          {`
+            input::-webkit-outer-spin-button,
+            input::-webkit-inner-spin-button {
+              -webkit-appearance: none;
+              margin: 0;
+            }
+            input[type=number] {
+              -moz-appearance: textfield;
+            }
+          `}
+        </style>
         <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={closeModal}></div>
         <div className="relative bg-white rounded-[32px] shadow-2xl w-full max-w-md p-8">
           <button onClick={closeModal} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600">
@@ -260,8 +257,16 @@ export default function WalletPage() {
                 {isTopUp ? "Số dư hiện tại: " : "Số dư khả dụng: "} {wallet?.balance?.toLocaleString()} đ
               </label>
               <div className="relative mt-2">
-                <input type="number" value={amountInput} onChange={(e) => setAmountInput(e.target.value)} placeholder={isTopUp ? "10,000" : "50,000"} className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-xl font-bold text-gray-900 focus:bg-white outline-none transition-all" />
-                <span className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 font-bold">VND</span>
+                <input 
+                  type="number" 
+                  value={amountInput} 
+                  onKeyDown={handleKeyDown}
+                  onWheel={handleWheel}
+                  onChange={(e) => setAmountInput(e.target.value)} 
+                  placeholder={isTopUp ? "10,000" : "50,000"} 
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-xl font-bold text-gray-900 focus:bg-white outline-none transition-all" 
+                />
+                <span className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 font-bold uppercase text-xs">VND</span>
               </div>
             </div>
             {!isTopUp && (
@@ -273,7 +278,7 @@ export default function WalletPage() {
             )}
             <div className="flex gap-2">
               {[50000, 100000, 500000].map((val) => (
-                <button key={val} onClick={() => setAmountInput(val.toString())} className="text-[10px] font-bold px-3 py-1 bg-gray-100 rounded-lg hover:bg-gray-200 text-gray-600 transition-all">
+                <button key={val} type="button" onClick={() => setAmountInput(val.toString())} className="text-[10px] font-bold px-3 py-1 bg-gray-100 rounded-lg hover:bg-gray-200 text-gray-600 transition-all">
                   +{val.toLocaleString()}
                 </button>
               ))}
@@ -287,26 +292,24 @@ export default function WalletPage() {
     );
   };
 
-  /* ================= LOGIC HIỂN THỊ & PHÂN TRANG DANH SÁCH ================= */
+  /* ================= PHẦN CÒN LẠI GIỮ NGUYÊN ================= */
   const filteredTransactions = useMemo(() => {
     if (filterType === "ALL") return transactions;
     return transactions.filter((t) => t.type === filterType);
   }, [filterType, transactions]);
 
   const totalPages = Math.ceil(filteredTransactions.length / PAGE_SIZE) || 1;
-
   const paginatedTransactions = useMemo(() => {
     const startIndex = (page - 1) * PAGE_SIZE;
     return filteredTransactions.slice(startIndex, startIndex + PAGE_SIZE);
   }, [filteredTransactions, page]);
 
-  if (loading)
-    return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
-        <Loader2 className="animate-spin text-indigo-600 mb-4" size={40} />
-        <p className="font-bold text-xs uppercase tracking-widest text-gray-400">Đang tải dữ liệu...</p>
-      </div>
-    );
+  if (loading) return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+      <Loader2 className="animate-spin text-indigo-600 mb-4" size={40} />
+      <p className="font-bold text-xs uppercase tracking-widest text-gray-400">Đang tải dữ liệu...</p>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 font-sans pb-20">
@@ -358,25 +361,11 @@ export default function WalletPage() {
                      range === "MONTH" ? `Năm ${new Date().getFullYear() - chartOffset}` : "Lịch sử giao dịch"}
                   </p>
                 </div>
-                
                 <div className="flex items-center gap-3">
-                  {/* Nút điều hướng biểu đồ */}
                   <div className="flex bg-gray-100 p-1 rounded-xl items-center">
-                    <button 
-                      onClick={() => setChartOffset(prev => prev + 1)}
-                      className="p-1.5 hover:bg-white rounded-lg transition-all text-gray-500 hover:text-indigo-600"
-                    >
-                      <ChevronLeft size={16} />
-                    </button>
-                    <button 
-                      disabled={chartOffset === 0}
-                      onClick={() => setChartOffset(prev => Math.max(0, prev - 1))}
-                      className="p-1.5 hover:bg-white rounded-lg transition-all text-gray-500 hover:text-indigo-600 disabled:opacity-20"
-                    >
-                      <ChevronRight size={16} />
-                    </button>
+                    <button onClick={() => setChartOffset(prev => prev + 1)} className="p-1.5 hover:bg-white rounded-lg transition-all text-gray-500 hover:text-indigo-600"><ChevronLeft size={16} /></button>
+                    <button disabled={chartOffset === 0} onClick={() => setChartOffset(prev => Math.max(0, prev - 1))} className="p-1.5 hover:bg-white rounded-lg transition-all text-gray-500 hover:text-indigo-600 disabled:opacity-20"><ChevronRight size={16} /></button>
                   </div>
-
                   <div className="flex bg-gray-50 p-1.5 rounded-2xl border border-gray-100">
                     {["DAY", "MONTH", "YEAR"].map((t) => (
                       <button key={t} onClick={() => setRange(t)} className={`px-5 py-2 text-[10px] font-black rounded-xl transition-all ${range === t ? "bg-white text-indigo-600 shadow-sm" : "text-gray-400 hover:text-gray-600"}`}>
@@ -431,23 +420,9 @@ export default function WalletPage() {
                 )}
               </div>
               <div className="p-6 border-t border-gray-50 flex justify-between items-center mt-auto">
-                <button
-                  disabled={page === 1}
-                  onClick={() => setPage((p) => p - 1)}
-                  className="p-2 border border-gray-100 rounded-xl hover:bg-gray-50 disabled:opacity-20 transition-all active:scale-90"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <span className="text-[10px] font-black text-gray-400">
-                  Trang {page} / {totalPages}
-                </span>
-                <button
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                  className="p-2 border border-gray-100 rounded-xl hover:bg-gray-50 disabled:opacity-20 transition-all active:scale-90"
-                >
-                  <ChevronRight size={16} />
-                </button>
+                <button disabled={page === 1} onClick={() => setPage((p) => p - 1)} className="p-2 border border-gray-100 rounded-xl hover:bg-gray-50 disabled:opacity-20 transition-all active:scale-90"><ChevronLeft size={16} /></button>
+                <span className="text-[10px] font-black text-gray-400">Trang {page} / {totalPages}</span>
+                <button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} className="p-2 border border-gray-100 rounded-xl hover:bg-gray-50 disabled:opacity-20 transition-all active:scale-90"><ChevronRight size={16} /></button>
               </div>
             </div>
           </div>

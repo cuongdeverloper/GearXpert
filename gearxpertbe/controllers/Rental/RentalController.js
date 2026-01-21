@@ -158,7 +158,7 @@ exports.checkoutRental = async (req, res) => {
       );
 
       paymentStatus = "PAID";
-      rentalStatus = "PAID"; // Đơn hàng đã sẵn sàng để xử lý
+      rentalStatus = "PENDING"; // Đơn hàng đã sẵn sàng để xử lý
     }
 
     /* ================= 6. SAVE RENTAL TO DB ================= */

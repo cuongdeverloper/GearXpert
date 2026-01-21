@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Trash2,
   CreditCard,
@@ -20,7 +20,6 @@ import "react-toastify/dist/ReactToastify.css";
 import { getCart, removeCartItem } from "../../service/ApiService/CartApi";
 import { validateVoucher } from "../../service/ApiService/VoucherApi.js";
 import { checkout } from "../../service/ApiService/RentalApi";
-// Giả định bạn đã import API lấy thông tin ví
 import { getMyWallet } from "../../service/ApiService/WalletApi";
 
 // --- MAP IMPORTS ---
@@ -38,6 +37,24 @@ let DefaultIcon = L.icon({
   iconAnchor: [12, 41],
 });
 L.Marker.prototype.options.icon = DefaultIcon;
+
+// --- CONSTANTS ---
+const FPT_COORDS = { lat: 15.9753, lng: 108.2524 };
+const MIN_DELIVERY_FEE = 10000;
+const FEE_PER_KM = 5000;
+
+// Hàm tính khoảng cách đường chim bay
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371; 
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
@@ -62,12 +79,14 @@ export default function CheckoutPage() {
   const [appliedVoucher, setAppliedVoucher] = useState(null);
   const [isApplyingVoucher, setIsApplyingVoucher] = useState(false);
   const [showMapModal, setShowMapModal] = useState(false);
-  const [mapPosition, setMapPosition] = useState([10.8231, 106.6297]);
+  
+  // Mặc định vị trí bản đồ tại FPT Đà Nẵng
+  const [mapPosition, setMapPosition] = useState([FPT_COORDS.lat, FPT_COORDS.lng]);
+  const [deliveryFee, setDeliveryFee] = useState(10000); // Mặc định phí tối thiểu
+  const [distance, setDistance] = useState(0);
 
-  // --- WALLET STATE ---
   const [wallet, setWallet] = useState(null);
 
-  // Tự động cập nhật Full Address
   useEffect(() => {
     const { street, district, city } = address;
     const full = [street, district, city].filter(Boolean).join(", ");
@@ -86,7 +105,6 @@ export default function CheckoutPage() {
     }
   }, [CART_TYPE]);
 
-  // --- FETCH WALLET DATA ---
   const fetchWalletData = useCallback(async () => {
     try {
       const res = await getMyWallet();
@@ -106,40 +124,46 @@ export default function CheckoutPage() {
     useMapEvents({
       click: async (e) => {
         const { lat, lng } = e.latlng;
-        if (lat !== undefined && lng !== undefined) {
-          setMapPosition([lat, lng]);
-          try {
-            const res = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=vi`
-            );
-            const data = await res.json();
-            if (data && data.address) {
-              const addr = data.address;
-              setAddress({
-                city: (addr.city || addr.town || addr.province || "")
-                  .replace("Thành phố ", "")
-                  .replace("Tỉnh ", ""),
-                district:
-                  addr.suburb ||
-                  addr.district ||
-                  addr.county ||
-                  addr.quarter ||
-                  "",
-                street: addr.road || addr.house_number || "",
-                fullAddress: data.display_name,
-              });
-              toast.success("Đã lấy vị trí từ bản đồ!");
-              setTimeout(() => setShowMapModal(false), 800);
+        setMapPosition([lat, lng]);
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=vi`
+          );
+          const data = await res.json();
+          if (data && data.address) {
+            const addr = data.address;
+            const fullAddrText = data.display_name;
+
+            // KIỂM TRA NỘI THÀNH ĐÀ NẴNG
+            const isDaNang = fullAddrText.includes("Đà Nẵng");
+            if (!isDaNang) {
+                toast.error("GearXpert hiện chỉ hỗ trợ giao hàng tại nội thành Đà Nẵng!");
+                return;
             }
-          } catch {
-            toast.error("Lỗi lấy địa chỉ");
+
+            // TÍNH KHOẢNG CÁCH VÀ PHÍ SHIP
+            const dist = calculateDistance(FPT_COORDS.lat, FPT_COORDS.lng, lat, lng);
+            const fee = Math.max(MIN_DELIVERY_FEE, Math.round(dist * FEE_PER_KM));
+            
+            setDistance(dist);
+            setDeliveryFee(fee);
+
+            setAddress({
+              city: "Đà Nẵng",
+              district: addr.suburb || addr.district || addr.county || addr.quarter || "",
+              street: addr.road || addr.house_number || "",
+              fullAddress: fullAddrText,
+            });
+            
+            toast.success(`Khoảng cách: ${dist.toFixed(1)}km. Phí ship: ${fee.toLocaleString()}đ`);
+            setTimeout(() => setShowMapModal(false), 1200);
           }
+        } catch {
+          toast.error("Lỗi lấy địa chỉ");
         }
       },
     });
-    return mapPosition && mapPosition[0] ? (
-      <Marker position={mapPosition} />
-    ) : null;
+    return mapPosition ? <Marker position={mapPosition} /> : null;
   }
 
   // --- HANDLERS ---
@@ -178,7 +202,7 @@ export default function CheckoutPage() {
       sum + item.deviceId?.rentPrice?.perDay * item.totalDays * item.quantity,
     0
   );
-  const deliveryFee = 10000;
+  
   const insuranceFee = useInsurance ? Math.round(subtotal * 0.05) : 0;
   const total =
     subtotal + deliveryFee + insuranceFee - (appliedVoucher?.discount || 0);
@@ -194,7 +218,7 @@ export default function CheckoutPage() {
         "Số điện thoại không hợp lệ (Phải có 10 số, ví dụ: 0912345678)"
       );
     }
-    // KIỂM TRA SỐ DƯ VÍ NẾU CHỌN THANH TOÁN QUA VÍ
+    
     if (selectedPayment === "WALLET") {
       if (!wallet || wallet.balance < total) {
         return toast.error("Số dư ví không đủ để thanh toán đơn hàng này!");
@@ -211,9 +235,9 @@ export default function CheckoutPage() {
         useInsurance,
         notes,
         voucherCode: appliedVoucher?.code,
+        shippingFee: deliveryFee, // Gửi thêm phí ship nếu backend cần
       });
 
-      // ✅ LOGIC THANH TOÁN THẬT QUA PAYOS
       if (selectedPayment === "BANK" && res.paymentLink) {
         toast.info("Đang chuyển hướng đến trang thanh toán...");
         window.location.href = res.paymentLink.checkoutUrl;
@@ -256,7 +280,7 @@ export default function CheckoutPage() {
               Checkout
             </h1>
             <span className="text-[10px] font-bold text-indigo-500 tracking-[0.2em] uppercase mt-1">
-              Hoàn tất đơn hàng
+              Giao hàng từ FPT University Đà Nẵng
             </span>
           </div>
           <div className="w-32 hidden md:block"></div>
@@ -278,23 +302,25 @@ export default function CheckoutPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <button
-                onClick={() =>
+                onClick={() => {
                   setAddress({
-                    street: "Số 1 Võ Văn Ngân",
-                    district: "Thủ Đức",
-                    city: "TP. Hồ Chí Minh",
-                    fullAddress: "Số 1 Võ Văn Ngân, Thủ Đức, TP. Hồ Chí Minh",
-                  })
-                }
+                    street: "FPT University",
+                    district: "Ngũ Hành Sơn",
+                    city: "Đà Nẵng",
+                    fullAddress: "Trường Đại học FPT Đà Nẵng, Ngũ Hành Sơn, Đà Nẵng",
+                  });
+                  setDistance(0);
+                  setDeliveryFee(10000);
+                }}
                 className="flex items-center justify-center gap-3 bg-slate-50 hover:bg-slate-100 py-4 rounded-2xl border border-slate-200 transition-all font-bold text-slate-700"
               >
-                <Home size={18} /> Địa chỉ mặc định
+                <Home size={18} /> Tại trường (FPTU)
               </button>
               <button
                 onClick={() => setShowMapModal(true)}
                 className="flex items-center justify-center gap-3 bg-indigo-50 hover:bg-indigo-100 py-4 rounded-2xl border border-indigo-200 transition-all font-bold text-indigo-700"
               >
-                <MapPin size={18} /> Chọn từ bản đồ
+                <MapPin size={18} /> Chọn từ bản đồ Đà Nẵng
               </button>
             </div>
 
@@ -306,11 +332,9 @@ export default function CheckoutPage() {
                   </span>
                   <input
                     className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-bold focus:ring-2 ring-indigo-500"
-                    placeholder="..."
+                    placeholder="Đà Nẵng"
+                    disabled
                     value={address.city}
-                    onChange={(e) =>
-                      setAddress({ ...address, city: e.target.value })
-                    }
                   />
                 </div>
                 <div className="space-y-1">
@@ -345,12 +369,22 @@ export default function CheckoutPage() {
                 <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform">
                   <MapPin size={80} />
                 </div>
-                <span className="text-[10px] font-black opacity-60 uppercase tracking-widest">
-                  Xem lại địa chỉ
-                </span>
-                <p className="text-sm font-bold mt-1 leading-relaxed z-10 relative">
-                  {address.fullAddress || "Chưa có địa chỉ..."}
-                </p>
+                <div className="flex justify-between items-start z-10 relative">
+                    <div>
+                        <span className="text-[10px] font-black opacity-60 uppercase tracking-widest">
+                        Địa chỉ giao hàng
+                        </span>
+                        <p className="text-sm font-bold mt-1 leading-relaxed">
+                        {address.fullAddress || "Chưa xác định vị trí..."}
+                        </p>
+                    </div>
+                    {distance > 0 && (
+                        <div className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-xl text-right">
+                             <span className="block text-[9px] uppercase font-black">Khoảng cách</span>
+                             <span className="text-xs font-black">{distance.toFixed(1)} km</span>
+                        </div>
+                    )}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -427,7 +461,6 @@ export default function CheckoutPage() {
                 )}
               </label>
 
-              {/* HIỂN THỊ VÍ VỚI SỐ DƯ */}
               <label
                 className={`relative flex items-center gap-4 p-6 rounded-3xl border-2 transition-all cursor-pointer group ${
                   selectedPayment === "WALLET"
@@ -488,9 +521,6 @@ export default function CheckoutPage() {
                   <p className="text-sm text-slate-300 leading-relaxed font-medium">
                     Bạn sẽ được chuyển hướng đến cổng thanh toán PayOS để thực hiện quét mã VietQR. <br />
                     Đơn hàng sẽ được xác nhận tự động ngay sau khi bạn hoàn tất chuyển khoản.
-                  </p>
-                  <p className="text-[10px] text-slate-500 mt-4 italic">
-                    * GearXpert không lưu trữ thông tin thẻ hay tài khoản ngân hàng của bạn.
                   </p>
                 </div>
               </div>
@@ -566,7 +596,10 @@ export default function CheckoutPage() {
                 </span>
               </div>
               <div className="flex justify-between text-sm font-bold text-slate-400 uppercase tracking-tighter">
-                <span className="flex items-center gap-2">Phí vận chuyển</span>
+                <span className="flex flex-col">
+                    Phí vận chuyển
+                    {distance > 0 && <span className="text-[9px] text-indigo-500 lowercase font-medium">({distance.toFixed(1)} km từ trường)</span>}
+                </span>
                 <span className="text-slate-600">
                   {deliveryFee.toLocaleString()}đ
                 </span>
@@ -692,10 +725,10 @@ export default function CheckoutPage() {
                 </div>
                 <div>
                   <h3 className="font-black text-slate-900 uppercase italic tracking-tight text-xl">
-                    Chọn vị trí của bạn
+                    Vị trí của bạn (Đà Nẵng)
                   </h3>
                   <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">
-                    Click vào bản đồ để tự định vị
+                    Vận chuyển từ FPT University Đà Nẵng
                   </p>
                 </div>
               </div>
@@ -709,15 +742,17 @@ export default function CheckoutPage() {
             <div className="h-[550px] w-full relative">
               <MapContainer
                 center={mapPosition}
-                zoom={13}
+                zoom={14}
                 style={{ height: "100%", width: "100%" }}
                 whenCreated={(map) => map.invalidateSize()}
               >
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                 <MapEventsHandler />
+                {/* Marker cố định tại FPT Đà Nẵng để khách dễ nhìn */}
+                <Marker position={[FPT_COORDS.lat, FPT_COORDS.lng]} opacity={0.6} />
               </MapContainer>
               <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[1000] bg-white px-8 py-4 rounded-[24px] shadow-2xl border border-slate-100 font-bold text-sm text-indigo-600 animate-bounce">
-                👆 Click vào vị trí bất kỳ trên bản đồ
+                👆 Chọn vị trí của bạn tại Đà Nẵng
               </div>
             </div>
           </div>
