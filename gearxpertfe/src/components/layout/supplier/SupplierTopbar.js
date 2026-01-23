@@ -1,5 +1,34 @@
 import { FiMenu, FiBell, FiSearch, FiUser } from "react-icons/fi";
 
+// Rank color mapping
+const RANK_STYLES = {
+  BRONZE: {
+    border: "border-[3px] border-[#cd7f32] animate-spin-slow",
+    label: "Bronze",
+    color: "#cd7f32"
+  },
+  SILVER: {
+    border: "border-[3px] border-[#c0c0c0] animate-spin-slow",
+    label: "Silver",
+    color: "#c0c0c0"
+  },
+  GOLD: {
+    border: "border-[3px] border-[#ffd700] animate-spin-slow",
+    label: "Gold",
+    color: "#ffd700"
+  },
+  PLATINUM: {
+    border: "border-[3px] border-[#e5e4e2] animate-spin-slow",
+    label: "Platinum",
+    color: "#e5e4e2"
+  },
+  DIAMOND: {
+    border: "border-[3px] border-[#00bfff] animate-spin-slow",
+    label: "Diamond",
+    color: "#00bfff"
+  }
+};
+
 export default function SupplierTopbar({ onMenuOpen, me }) {
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/70 backdrop-blur-xl">
@@ -45,11 +74,32 @@ export default function SupplierTopbar({ onMenuOpen, me }) {
 
           <div className="w-px h-8 bg-slate-200 hidden lg:block" />
 
-          <button className="flex items-center gap-2 pl-2 pr-4 py-2 bg-white rounded-2xl border border-slate-200 hover:shadow-md transition-all group">
-            <div className="w-9 h-9 bg-gradient-to-br from-primary to-primary-dark rounded-xl flex items-center justify-center text-white">
-              <FiUser size={18} />
+          <button
+            className={`flex items-center gap-2 pl-2 pr-4 py-2 bg-white rounded-2xl border border-slate-200 hover:shadow-md transition-all group relative ${RANK_STYLES[me?.rank]?.border || ''}`}
+            style={{
+              borderColor: RANK_STYLES[me?.rank]?.color || undefined,
+              animationDuration: me?.rank && me.rank !== 'BRONZE' ? '2s' : undefined
+            }}
+          >
+            <div className="relative">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-slate-100 border border-slate-200">
+                {me?.image ? (
+                  <img
+                    src={me.image}
+                    alt={me.username || "avatar"}
+                    className="w-8 h-8 rounded-lg object-cover"
+                  />
+                ) : (
+                  <FiUser size={18} className="text-primary" />
+                )}
+              </div>
+              {/* {me?.rank && (
+                <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-xs font-bold shadow bg-white border border-slate-200" style={{color: RANK_STYLES[me.rank]?.color}}>
+                  {RANK_STYLES[me.rank]?.label || me.rank}
+                </span>
+              )} */}
             </div>
-            <span className="hidden xl:inline text-sm font-semibold text-slate-900">{me?.name || "Supplier"}</span>
+            <span className="hidden xl:inline text-sm font-semibold text-slate-900">{me?.username || "Supplier"}</span>
           </button>
         </div>
       </div>
