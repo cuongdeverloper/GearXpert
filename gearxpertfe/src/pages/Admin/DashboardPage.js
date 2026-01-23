@@ -1,25 +1,38 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
-import { mockDashboard, mockRentals, mockDevices } from "../../mocks/adminMock";
 import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
 import { FiTrendingUp, FiUsers, FiBox, FiDollarSign, FiCalendar, FiStar } from "react-icons/fi";
+import { getAdminDashboard } from "../../service/ApiService/AdminDashboardApi";
 
 export default function AdminDashboard() {
   const dispatch = useDispatch();
+  const [stats, setStats] = useState([]);
+  const [topDevices, setTopDevices] = useState([]);
+  const [recentRentals, setRecentRentals] = useState([]);
 
-  // Simulate data loading on mount
   useEffect(() => {
-    dispatch(showAdminLoading());
-    const timer = setTimeout(() => {
-      dispatch(hideAdminLoading());
-    }, 300);
-    return () => clearTimeout(timer);
+    const fetchDashboard = async () => {
+      dispatch(showAdminLoading());
+      try {
+        const res = await getAdminDashboard();
+        setStats(res?.stats || []);
+        setTopDevices(res?.topDevices || []);
+        setRecentRentals(res?.recentRentals || []);
+      } catch (error) {
+        console.error("Failed to load admin dashboard:", error);
+      } finally {
+        dispatch(hideAdminLoading());
+      }
+    };
+
+    fetchDashboard();
   }, [dispatch]);
+
   return (
     <div className="space-y-8">
       {/* KPI Cards */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {mockDashboard.stats.map((stat, idx) => (
+        {stats.map((stat, idx) => (
           <div key={idx} className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition">
             <div className={`mb-3 inline-block rounded-lg p-3 ${stat.color}`}>
               {stat.icon === "users" && <FiUsers size={24} />}
@@ -67,8 +80,8 @@ export default function AdminDashboard() {
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h3 className="mb-4 text-lg font-semibold text-slate-900">Top Rented Devices</h3>
           <div className="space-y-3">
-            {mockDevices.slice(0, 5).map((device, idx) => (
-              <div key={device.id} className="flex items-center justify-between">
+            {topDevices.map((device, idx) => (
+              <div key={`${device.name}-${idx}`} className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary font-semibold text-sm">
                     {idx + 1}
@@ -94,7 +107,7 @@ export default function AdminDashboard() {
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h3 className="mb-4 text-lg font-semibold text-slate-900">Recent Rentals</h3>
           <div className="space-y-3">
-            {mockRentals.slice(0, 4).map((rental) => (
+            {recentRentals.map((rental) => (
               <div key={rental.id} className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div>
                   <p className="text-sm font-medium text-slate-900">{rental.customerName}</p>
