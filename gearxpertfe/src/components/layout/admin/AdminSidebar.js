@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   FiHome,
@@ -10,14 +11,25 @@ import {
   FiTag,
   FiChevronLeft,
   FiChevronRight,
+  FiChevronDown,
+  FiChevronUp
+  
 } from "react-icons/fi";
+import { HiOutlineSpeakerphone } from "react-icons/hi";
 
 const navGroups = [
   {
     title: "MENU",
     items: [
       { to: "/admin", label: "Dashboards", icon: FiHome },
-      { to: "/admin/users", label: "Users", icon: FiUsers },
+      {
+        to: "/admin/users",
+        label: "Users",
+        icon: FiUsers,
+        subItems: [
+          { to: "/admin/advertisements", label: "Advertisements", icon: HiOutlineSpeakerphone }
+        ]
+      },
       { to: "/admin/suppliers", label: "Suppliers", icon: FiUserCheck },
       { to: "/admin/devices", label: "Devices", icon: FiBox },
       { to: "/admin/rentals", label: "Rentals", icon: FiFileText },
@@ -40,6 +52,14 @@ function isActivePath(pathname, to) {
 
 export default function AdminSidebar({ collapsed, onToggleCollapsed }) {
   const location = useLocation();
+  const [openSubMenus, setOpenSubMenus] = useState({ "/admin/users": true }); // Open by default
+
+  const toggleSubMenu = (to) => {
+    setOpenSubMenus(prev => ({
+      ...prev,
+      [to]: !prev[to]
+    }));
+  };
 
   return (
     <aside
@@ -65,34 +85,86 @@ export default function AdminSidebar({ collapsed, onToggleCollapsed }) {
               {group.items.map((item) => {
                 const Icon = item.icon;
                 const isActive = isActivePath(location.pathname, item.to);
+                const hasSubItems = item.subItems && item.subItems.length > 0;
+                const isSubMenuOpen = openSubMenus[item.to];
+
                 return (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    className={() =>
-                      cx(
-                        "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm transition-all",
-                        isActive
-                          ? "bg-primary/10 text-primary shadow-sm shadow-primary/10"
-                          : "text-slate-600 hover:bg-slate-100"
-                      )
-                    }
-                    end={item.to === "/admin"}
-                  >
-                    <span
-                      className={cx(
-                        "grid h-9 w-9 place-items-center rounded-xl flex-shrink-0",
-                        isActive
-                          ? "bg-white text-primary shadow-sm shadow-primary/10"
-                          : "bg-slate-100 text-slate-600"
-                      )}
-                    >
-                      <Icon size={18} />
-                    </span>
-                    {!collapsed && (
-                      <span className="font-medium whitespace-nowrap">{item.label}</span>
+                  <div key={item.to} className="space-y-1">
+                    <div className="relative group/item">
+                      <NavLink
+                        to={item.to}
+                        onClick={(e) => {
+                          if (hasSubItems && !collapsed) {
+                            // Don't navigate if it's a dropdown, just toggle
+                            // e.preventDefault();
+                            // setOpenSubMenus(prev => ({ ...prev, [item.to]: !prev[item.to] }));
+                          }
+                        }}
+                        className={() =>
+                          cx(
+                            "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm transition-all",
+                            isActive
+                              ? "bg-primary/10 text-primary shadow-sm shadow-primary/10"
+                              : "text-slate-600 hover:bg-slate-100"
+                          )
+                        }
+                        end={item.to === "/admin"}
+                      >
+                        <span
+                          className={cx(
+                            "grid h-9 w-9 place-items-center rounded-xl flex-shrink-0",
+                            isActive
+                              ? "bg-white text-primary shadow-sm shadow-primary/10"
+                              : "bg-slate-100 text-slate-600"
+                          )}
+                        >
+                          <Icon size={18} />
+                        </span>
+                        {!collapsed && (
+                          <span className="font-medium whitespace-nowrap flex-1">{item.label}</span>
+                        )}
+                        {hasSubItems && !collapsed && (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              toggleSubMenu(item.to);
+                            }}
+                            className="p-1 hover:bg-slate-200 rounded-md transition-colors"
+                          >
+                            {isSubMenuOpen ? <FiChevronUp size={14} /> : <FiChevronDown size={14} />}
+                          </button>
+                        )}
+                      </NavLink>
+                    </div>
+
+                    {/* Submenu Items */}
+                    {hasSubItems && isSubMenuOpen && !collapsed && (
+                      <div className="ml-12 space-y-1 animate-fade-in-down">
+                        {item.subItems.map((subItem) => {
+                          const SubIcon = subItem.icon;
+                          const isSubActive = location.pathname === subItem.to;
+                          return (
+                            <NavLink
+                              key={subItem.to}
+                              to={subItem.to}
+                              className={() =>
+                                cx(
+                                  "flex items-center gap-3 rounded-xl px-3 py-2 text-xs transition-all",
+                                  isSubActive
+                                    ? "text-primary font-bold"
+                                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                                )
+                              }
+                            >
+                              <SubIcon size={14} />
+                              <span className="whitespace-nowrap">{subItem.label}</span>
+                            </NavLink>
+                          );
+                        })}
+                      </div>
                     )}
-                  </NavLink>
+                  </div>
                 );
               })}
             </nav>

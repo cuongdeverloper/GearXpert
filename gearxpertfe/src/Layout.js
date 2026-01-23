@@ -23,6 +23,8 @@ import RentalsPage from "./pages/Admin/RentalsPage";
 import ReportsPage from "./pages/Admin/ReportsPage";
 import SettingsPage from "./pages/Admin/SettingsPage";
 import AdminVouchersPage from "./pages/Admin/AdminVouchersPage";
+import AdminAdsPage from "./pages/Admin/AdminAdsPage";
+
 
 // pages
 import RentalCheckout from "./pages/Rental/RentalCheckout";
@@ -119,6 +121,8 @@ export default function Layout() {
             <Route path="reports" element={<ReportsPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="vouchers" element={<AdminVouchersPage />} />
+            <Route path="advertisements" element={<AdminAdsPage />} />
+
           </Route>
 
           {/* Favorites page */}
