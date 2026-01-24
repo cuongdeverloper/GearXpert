@@ -12,6 +12,7 @@ import {
   Truck,
   Phone,
   PackageCheck,
+  Store,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
@@ -66,7 +67,7 @@ export default function CheckoutPage() {
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
   const [address, setAddress] = useState({
-    receiverName: "", // <--- Thêm trường này
+    receiverName: "",
     street: "",
     district: "",
     city: "",
@@ -83,12 +84,11 @@ export default function CheckoutPage() {
   const [isApplyingVoucher, setIsApplyingVoucher] = useState(false);
   const [showMapModal, setShowMapModal] = useState(false);
 
-  // Mặc định vị trí bản đồ tại FPT Đà Nẵng
   const [mapPosition, setMapPosition] = useState([
     FPT_COORDS.lat,
     FPT_COORDS.lng,
   ]);
-  const [deliveryFee, setDeliveryFee] = useState(10000); // Mặc định phí tối thiểu
+  const [deliveryFee, setDeliveryFee] = useState(10000);
   const [distance, setDistance] = useState(0);
 
   const [wallet, setWallet] = useState(null);
@@ -140,7 +140,6 @@ export default function CheckoutPage() {
             const addr = data.address;
             const fullAddrText = data.display_name;
 
-            // KIỂM TRA NỘI THÀNH ĐÀ NẴNG
             const isDaNang = fullAddrText.includes("Đà Nẵng");
             if (!isDaNang) {
               toast.error(
@@ -149,7 +148,6 @@ export default function CheckoutPage() {
               return;
             }
 
-            // TÍNH KHOẢNG CÁCH VÀ PHÍ SHIP
             const dist = calculateDistance(
               FPT_COORDS.lat,
               FPT_COORDS.lng,
@@ -221,6 +219,35 @@ export default function CheckoutPage() {
     }
   };
 
+  // --- GROUP BY SUPPLIER FOR DISPLAY (đẹp hơn) ---
+ // --- GROUP BY SUPPLIER FOR DISPLAY ---
+const groupedBySupplier = useMemo(() => {
+  const map = new Map();
+
+  cart.forEach((item) => {
+    // Lấy supplierId từ object populated (_id là string)
+    const supplierId = item.deviceId?.supplierId?._id;
+    if (!supplierId) return;
+
+    if (!map.has(supplierId)) {
+      map.set(supplierId, {
+        supplierId,
+        // Tên supplier từ fullName (đã populate)
+        supplierName: item.deviceId?.supplierId?.fullName || `Cửa hàng #${supplierId.slice(-6)}`,
+        items: [],
+        subtotal: 0,
+      });
+    }
+
+    const group = map.get(supplierId);
+    group.items.push(item);
+    group.subtotal +=
+      (item.deviceId?.rentPrice?.perDay || 0) * item.totalDays * item.quantity;
+  });
+
+  return Array.from(map.values());
+}, [cart]);
+
   // --- CALCULATION ---
   const subtotal = cart.reduce(
     (sum, item) =>
@@ -229,6 +256,7 @@ export default function CheckoutPage() {
   );
 
   const insuranceFee = useInsurance ? Math.round(subtotal * 0.05) : 0;
+  // Phí ship: nếu nhận tại trường thì 0, nếu không thì theo km
   const total =
     subtotal + deliveryFee + insuranceFee - (appliedVoucher?.discount || 0);
 
@@ -260,7 +288,7 @@ export default function CheckoutPage() {
         useInsurance,
         notes,
         voucherCode: appliedVoucher?.code,
-        shippingFee: deliveryFee, // Gửi thêm phí ship nếu backend cần
+        shippingFee: deliveryFee, // Gửi phí ship (0 nếu tại trường)
       });
 
       if (selectedPayment === "BANK" && res.paymentLink) {
@@ -336,7 +364,8 @@ export default function CheckoutPage() {
                       "Trường Đại học FPT Đà Nẵng, Ngũ Hành Sơn, Đà Nẵng",
                   });
                   setDistance(0);
-                  setDeliveryFee(10000);
+                  setDeliveryFee(0); // ← Fix: phí ship = 0đ khi nhận tại trường
+                  toast.success("Nhận tại trường - Miễn phí ship 0đ!");
                 }}
                 className="flex items-center justify-center gap-3 bg-slate-50 hover:bg-slate-100 py-4 rounded-2xl border border-slate-200 transition-all font-bold text-slate-700"
               >
@@ -598,41 +627,56 @@ export default function CheckoutPage() {
             </h2>
 
             <div className="max-h-[320px] overflow-y-auto pr-2 space-y-6 mb-8 scrollbar-hide">
-              {cart.map((item) => (
-                <div key={item._id} className="flex gap-4 items-start group">
-                  <div className="relative w-20 h-20 shrink-0">
-                    <img
-                      src={item.deviceId?.images?.[0]}
-                      className="w-full h-full rounded-2xl object-cover border border-slate-100 group-hover:scale-105 transition-transform"
-                    />
-                    <button
-                      onClick={() => handleRemoveItem(item._id)}
-                      className="absolute -top-2 -left-2 bg-white text-red-500 p-1.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50"
-                    >
-                      <X size={14} />
-                    </button>
+              {groupedBySupplier.map((group, idx) => (
+                <div key={idx} className="pb-4 border-b last:border-0 last:pb-0">
+                  <div className="flex items-center gap-3 mb-3 bg-indigo-50/50 p-2 rounded-lg">
+                    <Store className="text-indigo-600" size={20} />
+                    <h3 className="font-bold text-base text-indigo-800">
+                      {group.supplierName}
+                    </h3>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-black text-slate-900 text-sm truncate uppercase tracking-tight">
-                      {item.deviceId?.name}
-                    </p>
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tighter flex items-center gap-1">
-                        {item.totalDays} ngày
-                      </span>
-                      <span className="w-1 h-1 bg-slate-200 rounded-full" />
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tighter">
-                        SL: {item.quantity}
-                      </span>
+
+                  {group.items.map((item) => (
+                    <div key={item._id} className="flex gap-4 items-start group mb-3">
+                      <div className="relative w-20 h-20 shrink-0">
+                        <img
+                          src={item.deviceId?.images?.[0]}
+                          className="w-full h-full rounded-2xl object-cover border border-slate-100 group-hover:scale-105 transition-transform"
+                        />
+                        <button
+                          onClick={() => handleRemoveItem(item._id)}
+                          className="absolute -top-2 -left-2 bg-white text-red-500 p-1.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-black text-slate-900 text-sm truncate uppercase tracking-tight">
+                          {item.deviceId?.name}
+                        </p>
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tighter flex items-center gap-1">
+                            {item.totalDays} ngày
+                          </span>
+                          <span className="w-1 h-1 bg-slate-200 rounded-full" />
+                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tighter">
+                            SL: {item.quantity}
+                          </span>
+                        </div>
+                        <p className="font-black text-indigo-600 text-sm mt-1">
+                          {(
+                            item.deviceId?.rentPrice?.perDay *
+                            item.totalDays *
+                            item.quantity
+                          ).toLocaleString()}
+                          đ
+                        </p>
+                      </div>
                     </div>
-                    <p className="font-black text-indigo-600 text-sm mt-1">
-                      {(
-                        item.deviceId?.rentPrice?.perDay *
-                        item.totalDays *
-                        item.quantity
-                      ).toLocaleString()}
-                      đ
-                    </p>
+                  ))}
+
+                  <div className="text-right mt-2 text-sm font-bold text-slate-700">
+                    Tạm tính nhóm: {group.subtotal.toLocaleString()}đ
                   </div>
                 </div>
               ))}
@@ -651,6 +695,11 @@ export default function CheckoutPage() {
                   {distance > 0 && (
                     <span className="text-[9px] text-indigo-500 lowercase font-medium">
                       ({distance.toFixed(1)} km từ trường)
+                    </span>
+                  )}
+                  {deliveryFee === 0 && (
+                    <span className="text-[9px] text-emerald-600 font-medium">
+                      (Miễn phí tại trường)
                     </span>
                   )}
                 </span>
@@ -802,7 +851,6 @@ export default function CheckoutPage() {
               >
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                 <MapEventsHandler />
-                {/* Marker cố định tại FPT Đà Nẵng để khách dễ nhìn */}
                 <Marker
                   position={[FPT_COORDS.lat, FPT_COORDS.lng]}
                   opacity={0.6}

@@ -16,65 +16,67 @@ const payos = new PayOS(
   process.env.PAYOS_CHECKSUM_KEY
 );
 
+
+
 exports.checkoutRental = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
     const customerId = req.user.id;
+
     const {
       cartType = "NORMAL",
       deliveryAddress,
       phoneNumber,
       paymentMethod,
-      useInsurance,
+      useInsurance = false,
       notes,
       voucherCode,
+      shippingFee = 0,
     } = req.body;
 
-    /* ================= 1. LOAD CART & VALIDATE ================= */
+    /* ================= 1. LOAD CART ================= */
     const cart = await Cart.findOne({ customerId, cartType })
-      .populate({ path: "items", populate: { path: "deviceId" } })
+      .populate({
+        path: "items",
+        populate: { path: "deviceId" },
+      })
       .session(session);
 
-    if (!cart || !cart.items.length) {
+    if (!cart || cart.items.length === 0) {
       throw new Error("Giỏ hàng trống");
     }
 
-    /* ================= 2. CALCULATE PRICES & SUPPLIER CHECK ================= */
-    let supplierId = null;
-    let rentPriceTotal = 0;
-    let depositAmount = 0;
-    const rentalItems = [];
+    /* ================= 2. GROUP ITEMS BY SUPPLIER ================= */
+    const supplierGroups = {};
 
     for (const item of cart.items) {
       const device = item.deviceId;
-
-      // Đảm bảo thiết bị còn tồn tại và cùng một nhà cung cấp
       if (!device) throw new Error("Thiết bị không tồn tại");
 
-      const deviceSupplierId = device.supplierId.toString();
-      if (!supplierId) supplierId = deviceSupplierId;
-      else if (supplierId !== deviceSupplierId) {
-        throw new Error(
-          "Chỉ được đặt thiết bị từ cùng một nhà cung cấp trong một đơn hàng"
-        );
-      }
-
-      // Kiểm tra tồn kho trước khi tạo đơn
       if (device.stockQuantity < item.quantity) {
-        throw new Error(
-          `Thiết bị ${device.name} đã hết hàng hoặc không đủ số lượng`
-        );
+        throw new Error(`Thiết bị ${device.name} không đủ số lượng`);
       }
 
-      const rent = device.rentPrice.perDay * item.totalDays * item.quantity;
+      const supplierId = device.supplierId.toString();
+
+      if (!supplierGroups[supplierId]) {
+        supplierGroups[supplierId] = {
+          items: [],
+          rentPriceTotal: 0,
+          depositAmount: 0,
+        };
+      }
+
+      const rent =
+        device.rentPrice.perDay * item.totalDays * item.quantity;
       const deposit = device.depositAmount * item.quantity;
 
-      rentPriceTotal += rent;
-      depositAmount += deposit;
+      supplierGroups[supplierId].rentPriceTotal += rent;
+      supplierGroups[supplierId].depositAmount += deposit;
 
-      rentalItems.push({
+      supplierGroups[supplierId].items.push({
         deviceId: device._id,
         quantity: item.quantity,
         rentalStartDate: item.rentalStartDate,
@@ -85,60 +87,85 @@ exports.checkoutRental = async (req, res) => {
       });
     }
 
-    const insuranceAmount = useInsurance
-      ? Math.round(rentPriceTotal * 0.05)
-      : 0;
-    const deliveryFee = 10000; // Phí ship mẫu
+    const supplierIds = Object.keys(supplierGroups);
 
-    /* ================= 3. VOUCHER LOGIC ================= */
-    let voucherDiscount = 0;
+    /* ================= 3. VOUCHER ================= */
     let appliedVoucher = null;
+
     if (voucherCode) {
       appliedVoucher = await Voucher.findOne({
         code: voucherCode.toUpperCase(),
         status: "ACTIVE",
       }).session(session);
+    }
 
-      if (appliedVoucher) {
-        // Kiểm tra điều kiện voucher (ví dụ: đơn hàng tối thiểu)
+    /* ================= 4. CREATE RENTAL DATA ================= */
+    const rentalCreationData = [];
+    let grandTotalAmount = 0;
+
+    for (let i = 0; i < supplierIds.length; i++) {
+      const supplierId = supplierIds[i];
+      const group = supplierGroups[supplierId];
+
+      const insuranceAmount = useInsurance
+        ? Math.round(group.rentPriceTotal * 0.05)
+        : 0;
+
+      // ✅ Chỉ supplier đầu tiên chịu phí ship
+      const deliveryFee = i === 0 ? shippingFee : 0;
+
+      // ✅ Chỉ supplier đầu tiên được áp voucher
+      let voucherDiscount = 0;
+      if (appliedVoucher && i === 0) {
         if (appliedVoucher.discountType === "PERCENT") {
           voucherDiscount = Math.round(
-            (rentPriceTotal * appliedVoucher.discountValue) / 100
+            (group.rentPriceTotal * appliedVoucher.discountValue) / 100
           );
-          if (appliedVoucher.maxDiscount)
+          if (appliedVoucher.maxDiscount) {
             voucherDiscount = Math.min(
               voucherDiscount,
               appliedVoucher.maxDiscount
             );
+          }
         } else {
           voucherDiscount = appliedVoucher.discountValue;
         }
       }
+
+      const totalAmount =
+        group.rentPriceTotal +
+        group.depositAmount +
+        insuranceAmount +
+        deliveryFee -
+        voucherDiscount;
+
+      rentalCreationData.push({
+        supplierId,
+        rentPriceTotal: group.rentPriceTotal,
+        depositAmount: group.depositAmount,
+        insuranceAmount,
+        deliveryFee,
+        voucherDiscount,
+        totalAmount,
+        items: group.items,
+      });
+
+      grandTotalAmount += totalAmount;
     }
 
-    const totalAmount =
-      rentPriceTotal +
-      depositAmount +
-      insuranceAmount +
-      deliveryFee -
-      voucherDiscount;
-
-    /* ================= 4. INITIALIZE RENTAL STATUS ================= */
+    /* ================= 5. PAYMENT ================= */
     let paymentStatus = "UNPAID";
-    let rentalStatus = "PENDING"; // Chờ thanh toán
+    let rentalStatus = "PENDING";
 
-    /* ================= 5. HANDLE WALLET PAYMENT ================= */
     if (paymentMethod === "WALLET") {
-      const wallet = await Wallet.findOne({ user: customerId }).session(
-        session
-      );
+      const wallet = await Wallet.findOne({ user: customerId }).session(session);
 
-      if (!wallet || wallet.balance < totalAmount) {
+      if (!wallet || wallet.balance < grandTotalAmount) {
         throw new Error("Số dư ví không đủ");
       }
 
       const balanceBefore = wallet.balance;
-      wallet.balance -= totalAmount;
+      wallet.balance -= grandTotalAmount;
       await wallet.save({ session });
 
       await WalletTransaction.create(
@@ -146,84 +173,90 @@ exports.checkoutRental = async (req, res) => {
           {
             wallet: wallet._id,
             type: "PAYMENT",
-            amount: -totalAmount,
+            amount: -grandTotalAmount,
             balanceBefore,
             balanceAfter: wallet.balance,
             referenceType: "RENTAL",
             status: "SUCCESS",
-            description: `Thanh toán đơn thuê thiết bị qua ví`,
+            description: `Thanh toán ${supplierIds.length} đơn thuê thiết bị`,
           },
         ],
         { session }
       );
 
       paymentStatus = "PAID";
-      rentalStatus = "PENDING"; // Đơn hàng đã sẵn sàng để xử lý
     }
 
-    /* ================= 6. SAVE RENTAL TO DB ================= */
-    const rentalArray = await Rental.create(
-      [
-        {
-          customerId,
-          supplierId,
-          rentPriceTotal,
-          depositAmount,
-          insuranceAmount,
-          deliveryFee,
-          totalAmount,
-          paymentMethod,
-          paymentStatus,
-          status: rentalStatus,
-          voucherCode: appliedVoucher?.code,
-          voucherDiscount,
-          deliveryAddress,
-          phoneNumber,
-          notes,
-        },
-      ],
-      { session }
-    );
+    /* ================= 6. FORMAT ADDRESS ================= */
+    const formattedAddress = {
+      receiverName: deliveryAddress.receiverName || "Khách hàng",
+      street: deliveryAddress.street,
+      district: deliveryAddress.district,
+      city: deliveryAddress.city,
+      fullAddress: deliveryAddress.fullAddress,
+    };
 
-    const newRental = rentalArray[0];
+    /* ================= 7. CREATE RENTALS ================= */
+    const createdRentals = [];
 
-    await RentalItem.insertMany(
-      rentalItems.map((item) => ({ ...item, rentalId: newRental._id })),
-      { session }
-    );
-
-    // Link transaction với rental ID nếu dùng ví
-    if (paymentMethod === "WALLET") {
-      await WalletTransaction.findOneAndUpdate(
-        {
-          referenceType: "RENTAL",
-          wallet: (await Wallet.findOne({ user: customerId }))._id,
-        },
-        { referenceId: newRental._id },
-        { sort: { createdAt: -1 }, session }
+    for (const data of rentalCreationData) {
+      const [rental] = await Rental.create(
+        [
+          {
+            customerId,
+            supplierId: data.supplierId,
+            rentPriceTotal: data.rentPriceTotal,
+            depositAmount: data.depositAmount,
+            insuranceAmount: data.insuranceAmount,
+            deliveryFee: data.deliveryFee,
+            voucherDiscount: data.voucherDiscount,
+            totalAmount: data.totalAmount,
+            paymentMethod,
+            paymentStatus,
+            status: rentalStatus,
+            voucherCode: appliedVoucher?.code,
+            deliveryAddress: formattedAddress,
+            phoneNumber,
+            notes,
+          },
+        ],
+        { session }
       );
+
+      await RentalItem.insertMany(
+        data.items.map((item) => ({
+          ...item,
+          rentalId: rental._id,
+        })),
+        { session }
+      );
+
+      createdRentals.push(rental);
     }
 
-    /* ================= 7. UPDATE STOCK & VOUCHER ================= */
-    for (const item of rentalItems) {
-      console.log(
-        `Đang trừ stock cho ${item.deviceId}. Số lượng mua: ${item.quantity}`
-      );
-      const updatedDevice = await Device.findOneAndUpdate(
-        { _id: item.deviceId, stockQuantity: { $gte: item.quantity } },
-        { $inc: { stockQuantity: -item.quantity } },
-        { new: true, session }
-      );
-      console.log(`Stock mới: ${updatedDevice?.stockQuantity}`);
-      if (!updatedDevice)
-        throw new Error(`Lỗi cập nhật tồn kho cho thiết bị ${item.deviceId}`);
-
-      if (updatedDevice.stockQuantity === 0) {
-        await Device.updateOne(
-          { _id: updatedDevice._id },
-          { status: "RENTED" },
-          { session }
+    /* ================= 8. UPDATE STOCK ================= */
+    for (const data of rentalCreationData) {
+      for (const item of data.items) {
+        const updated = await Device.findOneAndUpdate(
+          {
+            _id: item.deviceId,
+            stockQuantity: { $gte: item.quantity },
+          },
+          { $inc: { stockQuantity: -item.quantity } },
+          { new: true, session }
         );
+
+        if (!updated) {
+          throw new Error("Lỗi cập nhật tồn kho");
+        }
+
+        if (updated.stockQuantity === 0) {
+          await Device.updateOne(
+            { _id: updated._id },
+            { status: "RENTED" },
+            { session }
+          );
+        }
       }
     }
 
@@ -235,40 +268,32 @@ exports.checkoutRental = async (req, res) => {
       );
     }
 
-    /* ================= 8. PAYOS INTEGRATION (BANK) ================= */
-    let paymentLinkRes = null;
+    /* ================= 9. PAYOS ================= */
+    let paymentLink = null;
 
     if (paymentMethod === "BANK") {
       const orderCode = Number(String(Date.now()).slice(-9));
 
-      const body = {
+      paymentLink = await payos.paymentRequests.create({
         orderCode,
-        amount: totalAmount,
-        description: `GXP ${newRental._id.toString().slice(-6)}`.toUpperCase(),
-        returnUrl: `${process.env.FRONTEND_URL}/payment/success?rentalId=${newRental._id}`,
-        cancelUrl: `${process.env.FRONTEND_URL}/payment/cancel?rentalId=${newRental._id}`,
-      };
+        amount: grandTotalAmount,
+        description: `GXP ${createdRentals[0]._id.toString().slice(-6)}`,
+        returnUrl: `${process.env.FRONTEND_URL}/payment/success`,
+        cancelUrl: `${process.env.FRONTEND_URL}/payment/cancel`,
+      });
 
-      try {
-        paymentLinkRes = await payos.paymentRequests.create(body);
-
-        // Cập nhật orderCode vào bản ghi vừa tạo
-        await Rental.findByIdAndUpdate(
-          newRental._id,
-          { orderCode },
-          { session }
-        );
-        newRental.orderCode = orderCode; // Cập nhật biến local để dùng tiếp nếu cần
-      } catch (payosErr) {
-        console.error("PayOS Error:", payosErr);
-        throw new Error("Không thể tạo liên kết thanh toán ngân hàng");
-      }
+      await Rental.updateMany(
+        { _id: { $in: createdRentals.map((r) => r._id) } },
+        { orderCode },
+        { session }
+      );
     }
 
-    /* ================= 9. CLEAR CART ================= */
+    /* ================= 10. CLEAR CART ================= */
     await CartItem.deleteMany({
       _id: { $in: cart.items.map((i) => i._id) },
     }).session(session);
+
     cart.items = [];
     await cart.save({ session });
 
@@ -276,18 +301,18 @@ exports.checkoutRental = async (req, res) => {
     session.endSession();
 
     res.status(201).json({
-      message: "Đặt hàng thành công",
-      rentalId: newRental._id,
+      message: "Checkout thành công",
+      rentalIds: createdRentals.map((r) => r._id),
       paymentMethod,
-      paymentLink: paymentLinkRes, // Trả về checkoutUrl cho frontend
+      paymentLink,
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
     console.error("CHECKOUT ERROR:", err);
-    res
-      .status(400)
-      .json({ message: err.message || "Quá trình thanh toán thất bại" });
+    res.status(400).json({
+      message: err.message || "Thanh toán thất bại",
+    });
   }
 };
 

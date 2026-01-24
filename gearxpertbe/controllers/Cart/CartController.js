@@ -7,6 +7,12 @@ const DAY = 1000 * 60 * 60 * 24;
 /**
  * GET /cart?type=NORMAL|INSTANT
  */
+/**
+ * GET /cart?type=NORMAL|INSTANT
+ */
+/**
+ * GET /cart?type=NORMAL|INSTANT
+ */
 exports.getCart = async (req, res) => {
   const customerId = req.user.id;
   const cartType = req.query.type || 'NORMAL';
@@ -16,7 +22,14 @@ exports.getCart = async (req, res) => {
     cartType
   }).populate({
     path: 'items',
-    populate: { path: 'deviceId' }
+    populate: {
+      path: 'deviceId',
+      select: 'supplierId name rentPrice depositAmount stockQuantity images',
+      populate: {
+        path: 'supplierId',           // ← Populate level 2: từ Device → User
+        select: 'fullName avatar'     // lấy fullName + avatar nếu cần
+      }
+    }
   });
 
   res.json(cart || { items: [] });
