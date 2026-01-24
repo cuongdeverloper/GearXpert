@@ -237,34 +237,42 @@ export default function MyRentals() {
     if (reviewModal.rating === 0) {
       return toast.warning("Vui lòng chọn số sao!");
     }
-  
+
     setReviewLoading(true);
-  
+
     try {
-      const itemsToReview = reviewSelectedItems.length > 0 
-        ? reviewSelectedItems 
-        : reviewModal.order?.items?.map(item => item._id) || []; // Nếu không chọn → review hết
-  
+      const itemsToReview =
+        reviewSelectedItems.length > 0
+          ? reviewSelectedItems
+          : reviewModal.order?.items?.map((item) => item._id) || []; // Nếu không chọn → review hết
+
       if (itemsToReview.length === 0) {
         return toast.warning("Không có thiết bị nào để đánh giá");
       }
-  
+
       const formData = new FormData();
       formData.append("rating", reviewModal.rating);
       formData.append("comment", reviewModal.comment.trim());
       formData.append("rentalId", reviewModal.orderId);
-  
+
       // Gửi array rentalItemIds
-      itemsToReview.forEach(id => formData.append("rentalItemIds[]", id));
-  
-      reviewModal.files.forEach(file => formData.append("images", file));
-  
+      itemsToReview.forEach((id) => formData.append("rentalItemIds[]", id));
+
+      reviewModal.files.forEach((file) => formData.append("images", file));
+
       await rentalService.submitReview(reviewModal.orderId, formData);
-  
+
       toast.success(`Đã gửi đánh giá cho ${itemsToReview.length} thiết bị!`);
-  
+
       setHasReviewed(true);
-      setReviewModal({ isOpen: false, orderId: null, rating: 5, comment: "", files: [], order: null });
+      setReviewModal({
+        isOpen: false,
+        orderId: null,
+        rating: 5,
+        comment: "",
+        files: [],
+        order: null,
+      });
       setReviewSelectedItems([]);
       fetchRentals();
     } catch (err) {
@@ -387,18 +395,24 @@ export default function MyRentals() {
   };
   const handleModalConfirm = async () => {
     const { type, selectedId } = modalConfig;
+    console.log("Đang thực hiện action:", type, "cho đơn:", selectedId); // Kiểm tra log này
+  
     try {
       if (type === "CANCEL") {
-        await rentalService.cancelRental(selectedId);
-        toast.success("Đã hủy đơn thành công");
+        const response = await rentalService.cancelRental(selectedId);
+        toast.success("Đã hủy đơn thành công!");
       } else {
         await rentalService.confirmReceived(selectedId);
-        toast.success("Xác nhận đã nhận hàng!");
+        toast.success("Xác nhận đã nhận hàng thành công!");
       }
+      
+      // Đóng modal và load lại data
+      setModalConfig({ ...modalConfig, isOpen: false });
       fetchRentals();
+      
     } catch (error) {
-      toast.error(error.response?.data?.message || "Lỗi thao tác");
-    } finally {
+      const errorMsg = error.response?.data?.message || "Lỗi thao tác, vui lòng thử lại";
+      toast.error(errorMsg);
       setModalConfig({ ...modalConfig, isOpen: false });
     }
   };
@@ -798,6 +812,16 @@ export default function MyRentals() {
                                 <Clock size={14} className="mr-1.5" /> Đang chờ
                                 duyệt gia hạn
                               </span>
+                            )}
+                            {(order.status === "PENDING") && (
+                              <button
+                                onClick={() =>
+                                  handleOpenModal("CANCEL", order._id)
+                                }
+                                className="w-full py-4 rounded-2xl bg-red-600 text-white text-[11px] font-black uppercase italic shadow-lg shadow-red-200 hover:bg-red-700 transition-all flex items-center justify-center gap-2"
+                              >
+                                <XCircle size={16} /> Hủy đơn
+                              </button>
                             )}
                             {order.status === "RENTING" &&
                               order.items?.some(
