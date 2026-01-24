@@ -11,16 +11,14 @@ const NewConversation = async (req, res) => {
             return res.status(400).json({ error: "Missing receiverId" });
         }
 
-        // 1. Check nếu đã tồn tại conversation giữa 2 user
         const existingConversation = await Conversation.findOne({
             members: { $all: [senderId, receiverId] }
         });
 
         if (existingConversation) {
-            return res.status(200).json(existingConversation); // return luôn conversation cũ
+            return res.status(200).json(existingConversation);
         }
 
-        // 2. Nếu chưa có -> tạo mới
         const newConversation = new Conversation({
             members: [senderId, receiverId],
         });
@@ -53,11 +51,11 @@ const GetConversation = async (req, res) => {
 
 const SendMessage = async (req, res) => {
     try {
-        const { receiverId, text, conversationId } = req.body;
+        const { receiverId, text, conversationId, image, type } = req.body;
         const senderId = req.user.id;
 
-        if (!receiverId || !text) {
-            return res.status(400).json({ error: "receiverId and text are required" });
+        if (!receiverId || (!text && !image)) {
+            return res.status(400).json({ error: "ReceiverId and content (text or image) are required" });
         }
 
         const receiver = await User.findById(receiverId);
@@ -68,33 +66,29 @@ const SendMessage = async (req, res) => {
         let conversation;
 
         if (conversationId) {
-            // ✅ Nếu đã có conversationId (frontend gửi)
             conversation = await Conversation.findById(conversationId);
         } else {
-            // ✅ Nếu chưa có, tìm giữa sender và receiver
             conversation = await Conversation.findOne({
                 members: { $all: [senderId, receiverId] },
             });
 
             if (!conversation) {
-                // ✅ Nếu chưa có thật, thì tạo mới
                 conversation = new Conversation({ members: [senderId, receiverId] });
                 await conversation.save();
             }
         }
 
-        // ✅ Tạo và lưu tin nhắn
         const newMessage = new Message({
             conversationId: conversation._id,
             sender: senderId,
-            text,
+            text: text || "",
+            image: image || "",
+            type: type || "text",
             seen: false,
         });
 
         const savedMessage = await newMessage.save();
-
-        // ✅ Populate thêm thông tin sender để frontend render ngay
-        const populatedMessage = await savedMessage.populate("sender", "username image");
+        const populatedMessage = await savedMessage.populate("sender", "username image avatar");
 
         res.status(200).json(populatedMessage);
     } catch (err) {
@@ -107,11 +101,14 @@ const SendMessage = async (req, res) => {
 const GetMessages = async (req, res) => {
     try {
         const { conversationId } = req.params;
+        const userId = req.user.id;
 
         if (!conversationId) {
             return res.status(400).json({ error: "conversationId is required" });
         }
-        const messages = await Message.find({ conversationId })
+        const messages = await Message.find({ 
+            conversationId,
+            deletedBy: { $ne: userId } })
             .sort({ createdAt: 1 })
             .populate("sender", "username image");
 
@@ -120,6 +117,22 @@ const GetMessages = async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 };
+
+const DeleteMessageForUser = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const userId = req.user.id;
+    await Message.findByIdAndUpdate(
+      messageId,
+      { $addToSet: { deletedBy: userId } } 
+    );
+
+    res.status(200).json({ message: "Deleted successfully for user" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 const MarkMessagesAsSeen = async (req, res) => {
     try {
         const { conversationId } = req.params;
@@ -152,5 +165,5 @@ const getUserByUserId = async (req, res) => {
         res.status(500).json({ message: 'Error fetching user', error });
     }
 };
-module.exports = { NewConversation, GetConversation, SendMessage, GetMessages, MarkMessagesAsSeen, getUserByUserId };
+module.exports = { NewConversation, GetConversation, SendMessage, GetMessages, MarkMessagesAsSeen, getUserByUserId,DeleteMessageForUser };
 

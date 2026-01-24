@@ -4,7 +4,6 @@ import "./ChatOnlineUser.scss";
 const ChatOnlineUser =({ onlineUsers, currentId, setCurrentChat }) =>{
   const [friends, setFriends] = useState([]);
   const [onlineFriends, setOnlineFriends] = useState([]);
-  // const PF = process.env.REACT_APP_PUBLIC_FOLDER;
 
   useEffect(() => {
     const getFriends = async () => {

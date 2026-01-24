@@ -28,7 +28,7 @@ const walletRouter = require("./Routes/WalletRoutes");
 const payosRouter = require("./Routes/PayOsRoutes");
 const adminUserRouter = require("./Routes/AdminUserRoutes");
 const advertisementRouter = require("./Routes/AdvertisementRoutes");
-
+const ReportRouter = require("./Routes/ReportRoutes");
 
 const io = socketIo(server, {
     cors: {
@@ -63,7 +63,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 configViewEngine(app);
-
+app.use('/api/reports', ReportRouter);
 app.use('/api/payos', payosRouter);
 app.use('/api/wallets', walletRouter);
 app.use('/api/rentals', rentalRouter);

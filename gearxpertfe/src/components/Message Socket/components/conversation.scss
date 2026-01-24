@@ -1,29 +1,77 @@
 .conversation {
-    display: flex;
-    align-items: center;
-    padding: 10px;
-    cursor: pointer;
-    margin-top: 20px;
+  display: flex;
+  align-items: center;
+  padding: 10px 12px; /* Tăng padding */
+  cursor: pointer;
+  margin: 2px 8px; /* Margin nhẹ 2 bên để tạo cảm giác card */
+  border-radius: 8px; /* Bo góc hiện đại */
+  transition: all 0.2s ease;
+  position: relative;
+
+  &:hover {
+    background-color: #f2f2f2; /* Màu hover nhẹ */
   }
-  
-  .conversation:hover {
-    background-color: rgb(245, 243, 243);
-  }
-  
-  .conversationImg {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    object-fit: cover;
-    margin-right: 20px;
-  }
-  
-  .conversationName {
-    font-weight: 500;
-  }
-  
-  @media screen and (max-width: 768px) {
+
+  &.active {
+    background-color: #ebf5ff; /* Màu xanh nhạt khi đang chọn */
+    
     .conversationName {
-      display: none;
+        color: #0084ff; /* Tên đổi màu xanh */
     }
   }
+}
+
+.conversationImgContainer {
+  position: relative;
+  margin-right: 15px;
+}
+
+.conversationImg {
+  width: 48px; /* Avatar to hơn một chút */
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #eee;
+}
+
+.conversationDetails {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden; /* Ẩn text nếu quá dài */
+}
+
+.conversationName {
+  font-weight: 600;
+  font-size: 15px;
+  color: #050505;
+  margin-bottom: 3px;
+}
+
+.conversationInfo {
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    color: #65676b; /* Màu xám nhạt cho text phụ */
+}
+
+.lastMessage {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+}
+
+/* Ẩn text trên mobile */
+@media screen and (max-width: 768px) {
+  .conversationDetails {
+    display: none;
+  }
+  .conversation {
+      justify-content: center;
+      margin: 2px;
+  }
+  .conversationImgContainer {
+      margin-right: 0;
+  }
+}
