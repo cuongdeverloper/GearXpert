@@ -1,0 +1,282 @@
+.chatBox {
+    flex: 2.5; /* Điều chỉnh tỉ lệ so với sidebar */
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background-color: #fff;
+    position: relative;
+}
+
+/* --- HEADER --- */
+.chatHeader {
+    height: 60px;
+    padding: 0 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #fff;
+    border-bottom: 1px solid #e5e5e5;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    z-index: 10;
+}
+
+.chatHeaderLeft {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.userAvatarContainer {
+    position: relative;
+}
+
+.chatHeaderAvatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid #f0f0f0;
+}
+
+.onlineStatusDot {
+    width: 10px;
+    height: 10px;
+    background-color: #31a24c; /* Xanh lá Messenger */
+    border-radius: 50%;
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    border: 2px solid #fff;
+}
+
+.chatHeaderInfo {
+    display: flex;
+    flex-direction: column;
+}
+
+.chatHeaderName {
+    font-weight: 600;
+    font-size: 16px;
+    color: #050505;
+}
+
+.chatHeaderStatus {
+    font-size: 12px;
+    color: #65676b;
+}
+
+.chatHeaderRight {
+    display: flex;
+    gap: 20px;
+}
+
+.iconAction {
+    font-size: 20px;
+    color: #0084ff; /* Xanh Messenger */
+    cursor: pointer;
+    transition: color 0.2s;
+
+    &:hover {
+        color: #006bbd;
+    }
+    
+    /* Màu khác cho các icon phụ */
+    &.addIcon, &.imageIcon, &.stickerIcon {
+        color: #0084ff;
+    }
+}
+
+/* --- MESSAGES LIST --- */
+.chatBoxTop {
+    flex: 1;
+    overflow-y: scroll;
+    padding: 20px;
+    background-color: #fff;
+    display: flex;
+    flex-direction: column;
+    gap: 2px; /* Khoảng cách giữa các tin nhắn sát nhau */
+
+    &::-webkit-scrollbar {
+        width: 6px;
+    }
+    &::-webkit-scrollbar-thumb {
+        background-color: #bcc0c4;
+        border-radius: 10px;
+    }
+}
+
+.noMessageContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-top: 50px;
+    opacity: 0.7;
+}
+
+.noMessageAvatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    margin-bottom: 10px;
+}
+
+.noMessageName {
+    font-size: 20px;
+    font-weight: bold;
+    margin: 0;
+}
+
+/* Seen Status Styles */
+.seenStatus {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 2px;
+    margin-bottom: 10px;
+}
+
+.seenAvatarTiny {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.seenStatusText {
+    font-size: 11px;
+    color: #65676b;
+    text-align: right;
+    margin-right: 5px;
+}
+
+/* --- INPUT AREA --- */
+.chatBoxBottom {
+    padding: 10px 15px;
+    background-color: #fff;
+}
+
+.chatInputWrapper {
+    display: flex;
+    align-items: flex-end; /* Căn đáy để textarea dãn lên trên */
+    gap: 10px;
+}
+
+.inputBox {
+    flex: 1;
+    background-color: #f0f2f5;
+    border-radius: 20px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+.chatMessageInput {
+    width: 100%;
+    border: none;
+    background: transparent;
+    outline: none;
+    font-size: 15px;
+    resize: none; /* Tắt kéo giãn thủ công */
+    max-height: 100px;
+    font-family: inherit;
+    color: #050505;
+    padding-right: 30px; /* Chừa chỗ cho icon mặt cười */
+    
+    &::placeholder {
+        color: #65676b;
+    }
+}
+
+.iconSmile {
+    color: #0084ff;
+    cursor: pointer;
+    font-size: 20px;
+    position: absolute;
+    right: 12px;
+    bottom: 10px; /* Cố định ở góc dưới */
+}
+
+.sendIcon {
+    font-size: 20px;
+    color: #0084ff;
+    cursor: pointer;
+    padding: 10px;
+    
+    &:hover {
+        background-color: #f0f2f5;
+        border-radius: 50%;
+    }
+}
+
+.likeIcon {
+    font-size: 24px;
+    color: #0084ff;
+    cursor: pointer;
+    padding: 8px;
+}
+
+.emojiPickerContainer {
+    position: absolute;
+    bottom: 50px;
+    right: 0;
+    z-index: 100;
+}
+
+/* No Conversation State */
+.noConversationWrapper {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #65676b;
+    font-size: 18px;
+    background-color: #fff;
+}
+.chatBoxBottom {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding-top: 10px;
+
+    .imagePreviewContainer {
+        padding: 10px 20px;
+        display: flex;
+        align-items: center;
+        width: 100%;
+        background-color: #f0f2f5;
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
+        position: relative;
+        margin-bottom: -5px;
+
+        .imgPreview {
+            height: 80px;
+            width: auto;
+            border-radius: 10px;
+            object-fit: cover;
+            border: 1px solid #ccc;
+        }
+
+        .removeImageBtn {
+            position: absolute;
+            top: 5px;
+            left: 95px;
+            background: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+            font-size: 14px;
+            color: #555;
+            
+            &:hover {
+                background-color: #e4e6eb;
+            }
+        }
+    }
+}

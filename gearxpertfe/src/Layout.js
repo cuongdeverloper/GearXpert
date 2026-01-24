@@ -44,6 +44,7 @@ import PaymentCancel from "./pages/Rental/status/PaymentCancel";
 import WalletSuccess from "./pages/User/Wallet/WalletSuccess";
 import WalletCancel from "./pages/User/Wallet/WalletCancel";
 import EkycVerification from "./components/EkycVerification";
+import Messenger from "./components/Message Socket/Page/Messenger";
 
 export default function Layout() {
   useEffect(() => {
@@ -129,6 +130,10 @@ export default function Layout() {
           {/* Profile page (has its own Header and Footer) */}
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/ekyc" element={<EkycVerification />} />
+
+          <Route path="/messenger" element={<Messenger />} />
+          <Route path="/messenger/:conversationId" element={<Messenger />}
+          />
         </Routes>
       </Suspense>
     </BrowserRouter>
