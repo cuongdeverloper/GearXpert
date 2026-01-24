@@ -206,7 +206,9 @@ exports.checkoutRental = async (req, res) => {
 
     /* ================= 7. UPDATE STOCK & VOUCHER ================= */
     for (const item of rentalItems) {
-      console.log(`Đang trừ stock cho ${item.deviceId}. Số lượng mua: ${item.quantity}`);
+      console.log(
+        `Đang trừ stock cho ${item.deviceId}. Số lượng mua: ${item.quantity}`
+      );
       const updatedDevice = await Device.findOneAndUpdate(
         { _id: item.deviceId, stockQuantity: { $gte: item.quantity } },
         { $inc: { stockQuantity: -item.quantity } },
@@ -232,9 +234,7 @@ exports.checkoutRental = async (req, res) => {
         { session }
       );
     }
-    
 
-   
     /* ================= 8. PAYOS INTEGRATION (BANK) ================= */
     let paymentLinkRes = null;
 
@@ -324,13 +324,13 @@ exports.verifyRentalPayment = async (req, res) => {
     console.log("Trạng thái đơn hàng từ PayOS:", paymentInfo.status);
 
     // QUAN TRỌNG: PayOS trả về trạng thái 'PAID' nếu đã thanh toán
-    if (paymentInfo.status === 'PAID') {
-      rental.paymentStatus = 'PAID';
-      
+    if (paymentInfo.status === "PAID") {
+      rental.paymentStatus = "PAID";
+
       // Sửa dòng này cho khớp với Enum của bạn (thường là APPROVED hoặc PAID)
       // Nếu Model của bạn dùng 'PAID' thì để 'PAID', nếu dùng 'APPROVED' thì để 'APPROVED'
-      rental.status = 'APPROVED'; 
-      
+      rental.status = "APPROVED";
+
       await rental.save();
       return res.status(200).json({ success: true });
     }
@@ -339,5 +339,271 @@ exports.verifyRentalPayment = async (req, res) => {
   } catch (error) {
     console.error("Lỗi Verify:", error.message);
     res.status(500).json({ message: "Lỗi kết nối PayOS" });
+  }
+};
+exports.getMyRentals = async (req, res) => {
+  try {
+    const customerId = req.user.id;
+
+    let rentals = await Rental.find({ customerId })
+      .sort({ createdAt: -1 })
+      .populate({
+        path: "items",
+        populate: {
+          path: "deviceId",
+          select: "name images", // Đảm bảo lấy name và images
+        },
+      })
+      // Trong getMyRentals
+.populate({
+  path: "extensionRequests",
+  match: { status: "PENDING" },
+  select: "requestedEndDate requestedDays proposedExtraAmount status",
+})
+      .lean(); // lean để response nhanh, object plain JS
+
+    // Manual populate virtual nếu cần (nhưng populate field thật deviceId đã đủ)
+    rentals = await Promise.all(
+      rentals.map(async (rental) => {
+        const itemsWithVirtuals = await Promise.all(
+          rental.items.map(async (item) => {
+            // Nếu deviceId chưa là object → populate thủ công (trường hợp hiếm)
+            let deviceInfo = item.deviceId;
+            if (typeof deviceInfo === "string") {
+              deviceInfo = await mongoose
+                .model("Device")
+                .findById(deviceInfo)
+                .select("name images")
+                .lean();
+            }
+
+            const itemObj = await mongoose
+              .model("RentalItem")
+              .findById(item._id)
+              .lean();
+
+            itemObj.deliveryIssues = await mongoose
+              .model("DeliveryIssueReport")
+              .find({ rentalItemIds: item._id })
+              .sort({ createdAt: -1 })
+              .select("issueType description status images resolvedNote createdAt updatedAt")
+              .lean();
+
+            itemObj.damageReports = await mongoose
+              .model("DamageReport")
+              .find({ rentalItemId: item._id })
+              .sort({ createdAt: -1 })
+              .select("description severity status images compensationAmount createdAt updatedAt")
+              .lean();
+
+            return {
+              ...item,
+              ...itemObj,
+              deviceId: deviceInfo || item.deviceId, // fallback
+            };
+          })
+        );
+
+        return {
+          ...rental,
+          items: itemsWithVirtuals,
+        };
+      })
+    );
+
+    res.status(200).json(rentals);
+  } catch (error) {
+    console.error("Lỗi getMyRentals:", error);
+    res.status(500).json({ message: "Lỗi lấy danh sách đơn thuê", error: error.message });
+  }
+};
+// 1. HỦY ĐƠN & HOÀN TIỀN (Chỉ cho PENDING)
+exports.cancelRental = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const { rentalId } = req.params;
+    const rental = await Rental.findOne({
+      _id: rentalId,
+      customerId: req.user.id,
+    }).session(session);
+
+    if (!rental || rental.status !== "PENDING") {
+      throw new Error("Đơn hàng không thể hủy ở trạng thái này");
+    }
+
+    // Nếu đã thanh toán (PAID) thì hoàn tiền về ví
+    if (rental.paymentStatus === "PAID") {
+      const wallet = await Wallet.findOne({ user: rental.customerId }).session(
+        session
+      );
+      const balanceBefore = wallet.balance;
+      wallet.balance += rental.totalAmount;
+      await wallet.save({ session });
+
+      await WalletTransaction.create(
+        [
+          {
+            wallet: wallet._id,
+            type: "REFUND",
+            amount: rental.totalAmount,
+            balanceBefore,
+            balanceAfter: wallet.balance,
+            referenceType: "RENTAL",
+            referenceId: rental._id,
+            description: `Hoàn tiền hủy đơn đơn thuê #${rental._id
+              .toString()
+              .slice(-6)}`,
+          },
+        ],
+        { session }
+      );
+    }
+
+    // Hoàn trả tồn kho (Stock)
+    const items = await RentalItem.find({ rentalId: rental._id }).session(
+      session
+    );
+    for (const item of items) {
+      await Device.findByIdAndUpdate(
+        item.deviceId,
+        { $inc: { stockQuantity: item.quantity } },
+        { session }
+      );
+    }
+
+    rental.status = "CANCELLED";
+    await rental.save({ session });
+
+    await session.commitTransaction();
+    res.json({ message: "Hủy đơn và hoàn tiền thành công" });
+  } catch (err) {
+    await session.abortTransaction();
+    res.status(400).json({ message: err.message });
+  } finally {
+    session.endSession();
+  }
+};
+
+// 2. XÁC NHẬN ĐÃ NHẬN HÀNG & CỘNG TIỀN CHO SUPPLIER
+exports.confirmReceived = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const { rentalId } = req.params;
+    const rental = await Rental.findById(rentalId).session(session);
+
+    if (rental.status !== "DELIVERING")
+      throw new Error("Đơn hàng chưa ở trạng thái giao hàng");
+
+    // Hoàn thành đơn
+    rental.status = "RENTING"; // Hoặc COMPLETED tùy flow của bạn, ở đây chọn RENTING vì khách bắt đầu dùng
+    await rental.save({ session });
+
+    // Cộng tiền cho Supplier (Sau khi trừ phí sàn nếu có)
+    const supplierWallet = await Wallet.findOne({
+      user: rental.supplierId,
+    }).session(session);
+    const amountToSupplier = rental.rentPriceTotal; // Giả sử chỉ cộng tiền thuê, cọc giữ lại hệ thống
+
+    const balanceBefore = supplierWallet.balance;
+    supplierWallet.balance += amountToSupplier;
+    await supplierWallet.save({ session });
+
+    await WalletTransaction.create(
+      [
+        {
+          wallet: supplierWallet._id,
+          type: "PAYMENT", // Hoặc 'REVENUE'
+          amount: amountToSupplier,
+          balanceBefore,
+          balanceAfter: supplierWallet.balance,
+          referenceType: "RENTAL",
+          referenceId: rental._id,
+          description: `Nhận tiền thuê từ đơn #${rental._id
+            .toString()
+            .slice(-6)}`,
+        },
+      ],
+      { session }
+    );
+
+    await session.commitTransaction();
+    res.json({ message: "Xác nhận thành công" });
+  } catch (err) {
+    await session.abortTransaction();
+    res.status(400).json({ message: err.message });
+  } finally {
+    session.endSession();
+  }
+};
+const ExtensionRequest = require("../../models/ExtensionRequest"); // import model mới
+
+exports.extendRental = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { rentalId } = req.params;
+    const { newEndDate, requestedDays, extraAmount, note } = req.body;
+
+    // Tìm rental để lấy thông tin supplierId, customerId, items
+    const rental = await Rental.findById(rentalId)
+      .populate("items")
+      .session(session);
+
+    if (!rental) throw new Error("Không tìm thấy đơn thuê");
+
+    if (rental.status !== "RENTING") {
+      throw new Error("Chỉ được yêu cầu gia hạn khi đang thuê");
+    }
+
+    // Kiểm tra ngày hợp lệ
+    const currentEnd = new Date(rental.items[0]?.rentalEndDate);
+    const proposedEnd = new Date(newEndDate);
+
+    if (proposedEnd <= currentEnd) {
+      throw new Error("Ngày gia hạn phải sau ngày trả hiện tại");
+    }
+
+    const actualRequestedDays = Math.ceil(
+      (proposedEnd - currentEnd) / (1000 * 60 * 60 * 24)
+    );
+
+    if (actualRequestedDays !== requestedDays) {
+      throw new Error("Số ngày gia hạn không khớp, vui lòng thử lại");
+    }
+
+    // Tạo document ExtensionRequest mới
+    const extensionRequest = await ExtensionRequest.create(
+      [{
+        rentalId: rental._id,
+        customerId: rental.customerId,
+        supplierId: rental.supplierId,
+        requestedEndDate: proposedEnd,
+        requestedDays,
+        proposedExtraAmount: extraAmount,
+        note: note || "",
+        status: "PENDING",
+      }],
+      { session }
+    );
+
+    // Optional: Cập nhật Rental để đánh dấu có yêu cầu pending (dễ filter)
+    rental.extensionStatus = "PENDING";
+    await rental.save({ session });
+
+    await session.commitTransaction();
+
+    res.status(201).json({
+      message: "Yêu cầu gia hạn đã được gửi thành công, chờ xác nhận từ bên cho thuê",
+      extensionRequest: extensionRequest[0],
+    });
+  } catch (err) {
+    await session.abortTransaction();
+    console.error("Extend Rental Error:", err);
+    res.status(400).json({ message: err.message || "Gửi yêu cầu gia hạn thất bại" });
+  } finally {
+    session.endSession();
   }
 };

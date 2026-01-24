@@ -64,7 +64,7 @@ export default function Header() {
 
   const menuItems = [
     { label: 'Trang chủ', icon: 'home', path: '/' },
-    { label: 'Đơn thuê của tôi', icon: 'description', path: '/rental/manage' },
+    { label: 'Đơn thuê của tôi', icon: 'description', path: '/user/myrental' },
     { label: 'Vouchers', icon: 'local_activity', path: '/vouchers' },
     { label: 'Yêu thích', icon: 'favorite', path: '/favorites' },
   ];
