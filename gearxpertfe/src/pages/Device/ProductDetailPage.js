@@ -98,10 +98,12 @@ export default function ProductDetailPage() {
       toast.error("Ngày kết thúc không được nhỏ hơn ngày bắt đầu!");
       return false;
     }
+
     if (quantity > (device?.stockQuantity || 0)) {
       toast.error(`Chỉ còn ${device?.stockQuantity || 0} thiết bị khả dụng!`);
       return false;
     }
+
     return true;
   };
 

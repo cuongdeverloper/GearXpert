@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react"; 
+import { useEffect, useState, useCallback } from "react";
 import { getDevices } from "../../service/ApiService/DeviceApi";
 import Header from "../../components/navigation/Header";
 import HeroSection from "../../components/homepage/HeroSection";
@@ -8,6 +8,8 @@ import FeaturedProductsSection from "../../components/homepage/FeaturedProductsS
 import AISuggestedSection from "../../components/homepage/AISuggestedSection";
 import TrendingNowSection from "../../components/homepage/TrendingNowSection";
 import NewArrivalsSection from "../../components/homepage/NewArrivalsSection";
+import TopBannerAds from "../../components/homepage/TopBannerAds";
+import PopupAds from "../../components/homepage/PopupAds";
 import Footer from "../../components/homepage/Footer";
 
 export default function Homepage() {
@@ -26,7 +28,7 @@ export default function Homepage() {
       };
       const response = await getDevices(params);
       const fetchedDevices = response.devices || [];
-      
+
       setDevices(fetchedDevices);
 
       // Set trending device (first device)
@@ -42,7 +44,7 @@ export default function Homepage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory]); 
+  }, [selectedCategory]);
 
   useEffect(() => {
     fetchDevices();
@@ -91,6 +93,10 @@ export default function Homepage() {
           <FeaturedProductsSection devices={devices.slice(0, 6)} />
         </ScrollAnimation>
 
+        <ScrollAnimation direction="up" delay={0.1} className="px-6 lg:px-10">
+          <TopBannerAds />
+        </ScrollAnimation>
+
         <ScrollAnimation effect="scale" viewportAmount={0.4}>
           <AISuggestedSection devices={devices.slice(6, 9)} />
         </ScrollAnimation>
@@ -109,6 +115,7 @@ export default function Homepage() {
       </main>
 
       <Footer />
+      <PopupAds />
     </div>
   );
 }
