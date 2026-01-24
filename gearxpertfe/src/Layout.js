@@ -44,6 +44,7 @@ import PaymentCancel from "./pages/Rental/status/PaymentCancel";
 import WalletSuccess from "./pages/User/Wallet/WalletSuccess";
 import WalletCancel from "./pages/User/Wallet/WalletCancel";
 import EkycVerification from "./components/EkycVerification";
+import MyRentals from "./pages/User/MyRentals";
 
 export default function Layout() {
   useEffect(() => {
@@ -90,6 +91,7 @@ export default function Layout() {
             path="/rental/checkout/review"
             element={<RentalReviewPage />}
           />
+          <Route path="/user/myrental" element={<MyRentals />} />
           <Route path="/user/cart" element={<CartPage />} />
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/cancel" element={<PaymentCancel />} />
