@@ -167,19 +167,19 @@ export default function ProductDetailPage() {
       toast.error("Ngày kết thúc không được nhỏ hơn ngày bắt đầu!");
       return false;
     }
-  
+
     // --- THAY ĐỔI TẠI ĐÂY ---
     // Không check isOverlap nữa, mà check trực tiếp số lượng khả dụng
     if (currentAvailableStock <= 0) {
       toast.error("Thiết bị đã hết hàng hoàn toàn trong khoảng thời gian này!");
       return false;
     }
-    
+
     if (quantity > currentAvailableStock) {
       toast.error(`Chỉ còn ${currentAvailableStock} thiết bị khả dụng trong thời gian này.`);
       return false;
     }
-  
+    
     return true;
   };
 

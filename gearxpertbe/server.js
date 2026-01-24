@@ -27,6 +27,7 @@ const favoriteRouter = require('./Routes/FavoriteRoutes');
 const walletRouter = require("./Routes/WalletRoutes");
 const payosRouter = require("./Routes/PayOsRoutes");
 const adminUserRouter = require("./Routes/AdminUserRoutes");
+const advertisementRouter = require("./Routes/AdvertisementRoutes");
 const ReportRouter = require("./Routes/ReportRoutes");
 
 const io = socketIo(server, {
@@ -74,6 +75,7 @@ app.use('/api/auths', authRouter);
 app.use('/api/admin', adminUserRouter);
 app.use('/api/message', routerMessage);
 app.use('/api/ekyc', routerEkyce);
+app.use('/api/advertisements', advertisementRouter);
 app.use('/', googleAuthRouter);
 
 app.post("/api/ai-chat", handleAIChat);

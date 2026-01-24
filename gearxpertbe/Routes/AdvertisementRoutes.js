@@ -1,0 +1,51 @@
+const express = require("express");
+const router = express.Router();
+const advertisementController = require("../controllers/Advertisement/AdvertisementController");
+const { checkAccessToken, checkAdmin } = require("../middleware/JWTAction");
+const uploadCloud = require("../configs/cloudinaryConfig");
+
+router.get(
+    "/public/banners",
+    advertisementController.getApprovedBanners
+);
+
+router.get(
+    "/public/popups",
+    advertisementController.getApprovedPopups
+);
+
+router.post(
+    "/",
+    checkAccessToken,
+    uploadCloud.single("image"),
+    advertisementController.createAdvertisement
+);
+
+router.get(
+    "/my-ads",
+    checkAccessToken,
+    advertisementController.getMyAdvertisements
+);
+
+router.delete(
+    "/:id",
+    checkAccessToken,
+    advertisementController.deleteAdvertisement
+);
+
+// Admin routes
+router.get(
+    "/",
+    checkAccessToken,
+    checkAdmin,
+    advertisementController.getAllAdvertisementsForAdmin
+);
+
+router.patch(
+    "/:id/status",
+    checkAccessToken,
+    checkAdmin,
+    advertisementController.updateAdvertisementStatus
+);
+
+module.exports = router;
