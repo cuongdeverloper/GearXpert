@@ -1,6 +1,6 @@
 const express = require('express');
 const routerMessage = express.Router();
-const { NewConversation, GetConversation,SendMessage, GetMessages, MarkMessagesAsSeen, getUserByUserId } = require('../controllers/Message/MessageController');
+const { NewConversation, GetConversation,SendMessage, GetMessages, MarkMessagesAsSeen, getUserByUserId, DeleteMessageForUser } = require('../controllers/Message/MessageController');
 const { checkAccessToken } = require('../middleware/JWTAction');
 
 
@@ -10,5 +10,5 @@ routerMessage.get('/conversation',checkAccessToken,GetConversation);
 routerMessage.post('/message',checkAccessToken,SendMessage);
 routerMessage.get('/messages/:conversationId',checkAccessToken,GetMessages);
 routerMessage.put('/seenmessage/:conversationId',checkAccessToken,MarkMessagesAsSeen);
-
+routerMessage.put('/delete/:messageId', checkAccessToken, DeleteMessageForUser);
 module.exports = routerMessage;

@@ -1,5 +1,6 @@
 import axios from '../../service/AxiosCustomize';
 import Cookies from 'js-cookie';
+
 export const ApiMarkMessagesAsSeen = async (conversationId) => {
   try {
     const token = Cookies.get("accessToken");
@@ -22,7 +23,7 @@ export const ApiMarkMessagesAsSeen = async (conversationId) => {
   }
 };
 
-export const ApiSendMessage = async (receiverId, text, conversationId = null) => {
+export const ApiSendMessage = async (receiverId, text, conversationId = null, image = "", type = "text") => {
   try {
     const token = Cookies.get("accessToken");
 
@@ -33,7 +34,13 @@ export const ApiSendMessage = async (receiverId, text, conversationId = null) =>
 
     const response = await axios.post(
       "/api/message/message",
-      { receiverId, text, conversationId },
+      { 
+          receiverId, 
+          text, 
+          conversationId, 
+          image,
+          type
+      }, 
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -42,13 +49,12 @@ export const ApiSendMessage = async (receiverId, text, conversationId = null) =>
       }
     );
 
-    return response
+    return response;
   } catch (error) {
     console.error("Error sending message:", error);
     return null;
   }
 };
-
 
 export const getConversationApi = async () => {
   try {
@@ -71,6 +77,7 @@ export const getConversationApi = async () => {
     return null;
   }
 };
+
 export const ApiGetMessageByConversationId = async (conversationId) => {
   try {
     const token = Cookies.get("accessToken");
@@ -117,5 +124,19 @@ export const ApiGetUserByUserId = async (userId) => {
   } catch (error) {
     console.error("Error get user:", error);
     return null;
+  }
+};
+export const ApiDeleteMessage = async (messageId) => {
+  try {
+    const token = Cookies.get("accessToken");
+    if (!token) return false;
+
+    await axios.put(`/api/message/delete/${messageId}`, {}, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return true;
+  } catch (error) {
+    console.error("Error deleting message:", error);
+    return false;
   }
 };

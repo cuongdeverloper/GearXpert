@@ -44,7 +44,9 @@ import PaymentCancel from "./pages/Rental/status/PaymentCancel";
 import WalletSuccess from "./pages/User/Wallet/WalletSuccess";
 import WalletCancel from "./pages/User/Wallet/WalletCancel";
 import EkycVerification from "./components/EkycVerification";
+
 import MyRentals from "./pages/User/MyRentals";
+import Messenger from "./components/Message Socket/Page/Messenger";
 
 export default function Layout() {
   useEffect(() => {
@@ -70,10 +72,8 @@ export default function Layout() {
         />
 
         <Routes>
-          {/* Homepage has its own Header and Footer */}
           <Route path="/" element={<Homepage />} />
 
-          {/* Auth pages */}
           <Route path="/signin" element={<SignIn />} />
           <Route path="/otp-verify" element={<EnterOTPRegister />} />
           <Route path="auth/callback" element={<AuthCallback />} />
@@ -95,9 +95,7 @@ export default function Layout() {
           <Route path="/user/cart" element={<CartPage />} />
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/cancel" element={<PaymentCancel />} />
-          {/* <Route path="/rental/manage" element={<RentalManagementPage />} /> */}
 
-          {/* Supplier Portal routes */}
           <Route path="/supplier" element={<SupplierLayout />}>
             <Route
               index
@@ -123,14 +121,16 @@ export default function Layout() {
             <Route path="vouchers" element={<AdminVouchersPage />} />
           </Route>
 
-          {/* Favorites page */}
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/vouchers" element={<VouchersPage />} />
 
-          {/* Profile page (has its own Header and Footer) */}
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/ekyc" element={<EkycVerification />} />
+
+          <Route path="/messenger" element={<Messenger />} />
+          <Route path="/messenger/:conversationId" element={<Messenger />}
+          />
         </Routes>
       </Suspense>
     </BrowserRouter>
