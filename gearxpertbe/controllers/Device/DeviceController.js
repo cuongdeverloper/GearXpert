@@ -104,7 +104,7 @@ exports.getDevices = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const devices = await Device.find(query)
-      .select("name rentPrice ratingAvg reviewCount location images category status stockQuantity depositAmount")
+      .select("name description rentPrice ratingAvg reviewCount location images category status stockQuantity depositAmount")
       .limit(parseInt(limit))
       .skip(skip)
       .sort({ ratingAvg: -1, reviewCount: -1 });
@@ -407,7 +407,7 @@ exports.getSupplierDevices = async (req, res) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const devices = await Device.find(query)
-      .select("name rentPrice ratingAvg reviewCount location images category status stockQuantity depositAmount")
+      .select("name description rentPrice ratingAvg reviewCount location images category status stockQuantity depositAmount")
       .limit(parseInt(limit))
       .skip(skip)
       .sort({ ratingAvg: -1, reviewCount: -1 });

@@ -39,12 +39,12 @@ export default function RentalDetail({ open, onClose, rental }) {
           exit={{ opacity: 0 }}
         >
           <motion.div
-            className="relative max-w-2xl w-full p-0"
+            className="relative max-w-2xl w-full p-0 max-h-[85vh]"
             initial={{ scale: 0.95, y: 40, opacity: 0 }}
             animate={{ scale: 1, y: 0, opacity: 1, transition: { type: 'spring', stiffness: 300, damping: 24 } }}
             exit={{ scale: 0.95, y: 40, opacity: 0, transition: { duration: 0.15 } }}
           >
-            <div className="bg-white/80 dark:bg-slate-900/80 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 p-8 relative overflow-hidden backdrop-blur-xl">
+            <div className="bg-white/80 dark:bg-slate-900/80 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 p-8 relative overflow-hidden backdrop-blur-xl max-h-[85vh] overflow-y-auto">
               <button
                 className="absolute top-4 right-4 text-slate-400 hover:text-primary text-2xl font-bold transition-colors duration-150 rounded-full w-10 h-10 flex items-center justify-center hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 onClick={handleClose}
