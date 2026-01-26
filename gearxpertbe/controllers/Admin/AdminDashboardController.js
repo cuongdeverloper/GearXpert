@@ -146,6 +146,7 @@ exports.getAdminRentals = async (req, res) => {
   try {
     const rentals = await Rental.find()
       .populate("customerId", "fullName")
+      .populate("supplierId", "fullName")
       .sort({ createdAt: -1 });
 
     const rentalItems = await Promise.all(
@@ -155,6 +156,7 @@ exports.getAdminRentals = async (req, res) => {
         return {
           id: rental._id,
           customerName: rental.customerId?.fullName || "Unknown",
+          supplierName: rental.supplierId?.fullName || "Unknown",
           deviceName: rentalItem?.deviceId?.name || "Device",
           rentalStartDate: rental.rentalStartDate,
           rentalEndDate: rental.rentalEndDate,
@@ -277,5 +279,52 @@ exports.getAdminSuppliers = async (req, res) => {
   } catch (error) {
     console.error("Admin suppliers error:", error);
     res.status(500).json({ message: "Failed to load suppliers" });
+  }
+};
+
+const formatMonthLabel = (date) =>
+  `${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
+
+exports.getAdminDashboardCharts = async (req, res) => {
+  try {
+    const now = new Date();
+    const months = Array.from({ length: 6 }, (_, idx) => {
+      const date = new Date(now.getFullYear(), now.getMonth() - (5 - idx), 1);
+      return {
+        label: formatMonthLabel(date),
+        start: new Date(date.getFullYear(), date.getMonth(), 1),
+        end: new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999),
+      };
+    });
+
+    const paidRentals = await Rental.find({
+      paymentStatus: "PAID",
+      createdAt: { $gte: months[0].start, $lte: months[months.length - 1].end },
+    }).select("totalAmount createdAt");
+
+    const revenueSeries = months.map((bucket) => {
+      const total = paidRentals.reduce((sum, rental) => {
+        if (rental.createdAt >= bucket.start && rental.createdAt <= bucket.end) {
+          return sum + rental.totalAmount;
+        }
+        return sum;
+      }, 0);
+      return { label: bucket.label, total };
+    });
+
+    const statusAgg = await Rental.aggregate([
+      { $group: { _id: "$status", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+    ]);
+
+    const statusBreakdown = statusAgg.map((item) => ({
+      status: item._id,
+      count: item.count,
+    }));
+
+    res.json({ revenueSeries, statusBreakdown });
+  } catch (error) {
+    console.error("Admin charts error:", error);
+    res.status(500).json({ message: "Failed to load dashboard charts" });
   }
 };

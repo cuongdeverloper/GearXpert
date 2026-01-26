@@ -75,7 +75,6 @@ exports.createDevice = async (req, res) => {
       device: newDevice,
     });
   } catch (error) {
-    console.error("Error creating device:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -103,14 +102,19 @@ exports.getDevices = async (req, res) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const devices = await Device.find(query)
-      .select("name description rentPrice ratingAvg reviewCount location images category status stockQuantity depositAmount")
+    const devicesRaw = await Device.find(query)
+      .select("name description rentPrice ratingAvg reviewCount location images category status stockQuantity depositAmount supplierId")
+      .populate("supplierId", "fullName")
       .limit(parseInt(limit))
       .skip(skip)
       .sort({ ratingAvg: -1, reviewCount: -1 });
 
+    const devices = devicesRaw.map((device) => ({
+      ...device.toObject(),
+      supplierName: device.supplierId?.fullName || "Unknown",
+    }));
+
     const total = await Device.countDocuments(query);
-    console.log(devices);
 
     res.json({
       devices,
@@ -189,7 +193,6 @@ exports.getDeviceDetail = async (req, res) => {
           : deviceData.specs || {},
     });
   } catch (error) {
-    console.error("Error Detail Device API:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -230,18 +233,10 @@ exports.getRelatedDevices = async (req, res) => {
  * Update device information
  */
 exports.updateDevice = async (req, res) => {
-    // Debug đầu vào
-    console.log('[BE] updateDevice req.headers:', req.headers);
-    console.log('[BE] updateDevice req.body:', req.body);
-    console.log('[BE] updateDevice req.files:', req.files);
 
   try {
     const { id } = req.params;
     let { name, description, category, rentPrice, depositAmount, location, stockQuantity, oldImages } = req.body;
-
-    // Debug: log raw body and files
-    console.log('[BE] updateDevice req.body:', req.body);
-    console.log('[BE] updateDevice req.files:', req.files);
 
     // Parse rentPrice if string
     if (typeof rentPrice === 'string') {
@@ -292,7 +287,6 @@ exports.updateDevice = async (req, res) => {
         images = images.concat(req.files.map(file => file.path));
       }
     }
-    console.log('[BE] updateDevice images after merge:', images);
 
     // Validate required fields
     if (!name || !description || !category || !rentPrice || !depositAmount) {
@@ -384,7 +378,6 @@ exports.deleteDevice = async (req, res) => {
     }
     res.json({ message: "Device deleted successfully", device });
   } catch (error) {
-    console.error("Error getting supplier devices:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -422,7 +415,6 @@ exports.getSupplierDevices = async (req, res) => {
       totalPages: Math.ceil(total / parseInt(limit)),
     });
   } catch (error) {
-    console.error("Error getSupplierDevices:", error);
     res.status(500).json({ message: error.message });
   }
 };

@@ -4,6 +4,10 @@ export const getAdminDashboard = () => {
   return axios.get("/api/admin/dashboard");
 };
 
+export const getAdminDashboardCharts = () => {
+  return axios.get("/api/admin/dashboard/charts");
+};
+
 export const getAdminRentals = () => {
   return axios.get("/api/admin/rentals");
 };

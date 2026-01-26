@@ -1,23 +1,71 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDispatch } from "react-redux";
 import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
-import { FiTrendingUp, FiUsers, FiBox, FiDollarSign, FiCalendar, FiStar } from "react-icons/fi";
-import { getAdminDashboard } from "../../service/ApiService/AdminDashboardApi";
+import { FiTrendingUp, FiUsers, FiBox, FiDollarSign, FiStar } from "react-icons/fi";
+import { Bar } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import { getAdminDashboard, getAdminDashboardCharts } from "../../service/ApiService/AdminDashboardApi";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Tooltip,
+  Legend
+);
 
 export default function AdminDashboard() {
   const dispatch = useDispatch();
   const [stats, setStats] = useState([]);
   const [topDevices, setTopDevices] = useState([]);
   const [recentRentals, setRecentRentals] = useState([]);
+  const [revenueSeries, setRevenueSeries] = useState([]);
+
+  const withTimeout = (promise, ms, label) =>
+    new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error(`${label} timeout after ${ms}ms`));
+      }, ms);
+      promise
+        .then((res) => {
+          clearTimeout(timer);
+          resolve(res);
+        })
+        .catch((err) => {
+          clearTimeout(timer);
+          reject(err);
+        });
+    });
 
   useEffect(() => {
     const fetchDashboard = async () => {
       dispatch(showAdminLoading());
       try {
-        const res = await getAdminDashboard();
-        setStats(res?.stats || []);
-        setTopDevices(res?.topDevices || []);
-        setRecentRentals(res?.recentRentals || []);
+        const [dashboardRes, chartsRes] = await Promise.allSettled([
+          withTimeout(getAdminDashboard(), 12000, "admin dashboard"),
+          withTimeout(getAdminDashboardCharts(), 12000, "admin charts"),
+        ]);
+
+        if (dashboardRes.status === "fulfilled") {
+          setStats(dashboardRes.value?.stats || []);
+          setTopDevices(dashboardRes.value?.topDevices || []);
+          setRecentRentals(dashboardRes.value?.recentRentals || []);
+        } else {
+          console.error("Failed to load admin dashboard:", dashboardRes.reason);
+        }
+
+        if (chartsRes.status === "fulfilled") {
+          setRevenueSeries(chartsRes.value?.revenueSeries || []);
+        } else {
+          console.error("Failed to load admin charts:", chartsRes.reason);
+        }
       } catch (error) {
         console.error("Failed to load admin dashboard:", error);
       } finally {
@@ -27,6 +75,42 @@ export default function AdminDashboard() {
 
     fetchDashboard();
   }, [dispatch]);
+
+  const revenueChartData = useMemo(() => ({
+    labels: revenueSeries.map((item) => item.label),
+    datasets: [
+      {
+        label: "Revenue",
+        data: revenueSeries.map((item) => item.total),
+        backgroundColor: "#6366f1",
+        borderRadius: 8,
+        barThickness: 22,
+      },
+    ],
+  }), [revenueSeries]);
+
+  const revenueChartOptions = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: "bottom",
+      },
+      tooltip: {
+        callbacks: {
+          label: (ctx) => `$${ctx.raw.toLocaleString("en-US")}`,
+        },
+      },
+    },
+    scales: {
+      x: { grid: { display: false } },
+      y: {
+        ticks: {
+          callback: (v) => `$${Number(v).toLocaleString("en-US")}`,
+        },
+      },
+    },
+  }), []);
 
   return (
     <div className="space-y-8">
@@ -52,27 +136,8 @@ export default function AdminDashboard() {
         {/* Revenue Chart */}
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h3 className="mb-4 text-lg font-semibold text-slate-900">Revenue Trend</h3>
-          <div className="space-y-3">
-            {[
-              { month: "Jan", revenue: "$8,240", bar: 65 },
-              { month: "Feb", revenue: "$6,810", bar: 52 },
-              { month: "Mar", revenue: "$9,530", bar: 75 },
-              { month: "Apr", revenue: "$7,200", bar: 56 },
-              { month: "May", revenue: "$8,900", bar: 70 },
-            ].map((item) => (
-              <div key={item.month} className="flex items-center gap-3">
-                <div className="w-10 text-sm font-medium text-slate-600">{item.month}</div>
-                <div className="flex-1">
-                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-primary to-primary-dark rounded-full"
-                      style={{ width: `${item.bar}%` }}
-                    />
-                  </div>
-                </div>
-                <div className="w-16 text-right text-sm font-medium text-slate-900">{item.revenue}</div>
-              </div>
-            ))}
+          <div className="relative h-[220px]">
+            <Bar data={revenueChartData} options={revenueChartOptions} />
           </div>
         </div>
 
