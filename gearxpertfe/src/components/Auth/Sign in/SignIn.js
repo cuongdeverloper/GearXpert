@@ -74,7 +74,7 @@ const SignIn = () => {
       if (currentRole === "ADMIN") {
         navigate("/admin");
       } else if (currentRole === "SUPPLIER") {
-        navigate("/supplier-dashboard");
+        navigate("/supplier/dashboard");
       } else {
         navigate("/");
       }
@@ -109,7 +109,7 @@ const SignIn = () => {
           if (userRole === "ADMIN") {
             navigate("/admin");
           } else if (userRole === "SUPPLIER") {
-            navigate("/supplier-dashboard");
+            navigate("/supplier/dashboard");
           } else {
             navigate("/");
           }

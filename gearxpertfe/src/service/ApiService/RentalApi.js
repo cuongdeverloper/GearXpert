@@ -17,6 +17,12 @@ const getMyRentals = () => {
 const hasRentedDevice = (deviceId) =>
   axios.get(`/api/rentals/has-rented/${deviceId}`);
 
+// Lấy danh sách rental requests của supplier (pending, approved)
+const getSupplierRentalRequests = (supplierId, params = {}) => {
+  // params: { status: 'PENDING,APPROVED', ... }
+  return axios.get(`/api/rentals/supplier/${supplierId}`, { params });
+};
+
 // 3. Thao tác trạng thái đơn hàng
 const cancelRental = (rentalId) => {
   return axios.post(`/api/rentals/${rentalId}/cancel`);
@@ -76,11 +82,16 @@ export {
   checkout, 
   hasRentedDevice, 
   verifyPayment, 
+  getSupplierRentalRequests,
   getMyRentals, 
   cancelRental, 
   confirmReceived,
   reportDeliveryIssue,
   getReportDetail,
   submitReview,
-  getShippingInfo,reportDamage,extendRental,hasReviewedRental,getDeviceReviews
+  getShippingInfo,
+  reportDamage,
+  extendRental,
+  hasReviewedRental,
+  getDeviceReviews
 };

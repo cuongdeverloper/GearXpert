@@ -108,6 +108,18 @@ const checkAdmin = (req, res, next) => {
     }
 };
 
+const checkSupplier = (req, res, next) => {
+    if (req.user && req.user.role === 'SUPPLIER') {
+        next();
+    } else {
+        return res.status(403).json({
+            EC: -1,
+            data: '',
+            EM: 'Only suppliers can perform this action'
+        });
+    }
+};
+
 module.exports = {
     createJWT,
     createRefreshToken,
@@ -115,6 +127,7 @@ module.exports = {
     verifyRefreshToken,
     checkAccessToken,
     checkAdmin,
+    checkSupplier,
     decodeToken,
     createJWTResetPassword,
     createJWTVerifyEmail,

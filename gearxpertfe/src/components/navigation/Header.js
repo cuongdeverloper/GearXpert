@@ -1,10 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { doLogout } from '../../redux/action/userAction';
-import { persistor } from '../../redux/store';
-import Cookies from 'js-cookie';
 import { toast } from 'react-toastify';
+import { performLogout } from '../../utils/logout';
 
 export default function Header() {
   const navigate = useNavigate();
@@ -32,34 +30,13 @@ export default function Header() {
   }, []);
 
   const handleLogout = async () => {
-    try {
-      // Disconnect socket if connected
-      if (socketConnection) {
-        socketConnection.disconnect();
-      }
-
-      // Dispatch logout action to clear Redux state
-      dispatch(doLogout());
-
-      // Remove cookies
-      Cookies.remove('accessToken');
-      Cookies.remove('refreshToken');
-
-      // Purge Redux persist storage
-      await persistor.purge();
-
-      // Show success message
-      toast.success('Đăng xuất thành công');
-
-      // Close dropdown
-      setIsDropdownOpen(false);
-
-      // Navigate to login page
-      navigate('/signin');
-    } catch (error) {
-      console.error('Logout error:', error);
-      toast.error('Có lỗi xảy ra khi đăng xuất');
-    }
+    await performLogout({
+      dispatch,
+      navigate,
+      socketConnection,
+      toast,
+      onDone: () => setIsDropdownOpen(false),
+    });
   };
 
   const menuItems = [

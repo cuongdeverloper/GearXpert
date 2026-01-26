@@ -9,6 +9,7 @@ import RouteHandler from "./components/common/RouteHandler";
 
 // Supplier layout + pages
 import SupplierLayout from "./components/layout/SupplierLayout";
+import SupplierDashboard from "./pages/Supplier/SupplierDashboard";
 import SupplierDevicesList from "./pages/Supplier/SupplierDevicesList";
 import SupplierRentalRequests from "./pages/Supplier/SupplierRentalRequests";
 import SupplierMaintenance from "./pages/Supplier/SupplierMaintenance";
@@ -101,8 +102,9 @@ export default function Layout() {
           <Route path="/supplier" element={<SupplierLayout />}>
             <Route
               index
-              element={<Navigate to="/supplier/devices" replace />}
+              element={<Navigate to="/supplier/dashboard" replace />}
             />
+            <Route path="dashboard" element={<SupplierDashboard />} />
             <Route path="devices" element={<SupplierDevicesList />} />
             <Route
               path="rental-requests"

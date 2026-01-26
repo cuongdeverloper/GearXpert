@@ -46,7 +46,7 @@ const AuthCallback = () => {
                         if (userRole === "ADMIN") {
                             navigate("/admin");
                         } else if (userRole === "SUPPLIER") {
-                            navigate("/supplier-dashboard");
+                        navigate("/supplier/dashboard");
                         } else {
                             // CUSTOMER or other roles -> redirect to homepage
                             navigate("/");
