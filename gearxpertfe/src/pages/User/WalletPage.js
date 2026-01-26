@@ -1,10 +1,16 @@
-import { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Wallet,
+  Plus,
   ArrowDownCircle,
   ArrowUpCircle,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Loader2,
+  RefreshCw,
+  Banknote,
+  X,
+  AlertCircle,
 } from "lucide-react";
 import {
   Chart as ChartJS,
@@ -12,266 +18,418 @@ import {
   LinearScale,
   BarElement,
   Tooltip,
-  Legend
+  Legend,
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
+import {
+  getMyWallet,
+  getWalletTransactions,
+  topUpWallet,
+  requestWithdraw,
+} from "../../service/ApiService/WalletApi";
+import { toast } from "react-toastify";
+import Header from "../../components/navigation/Header";
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Tooltip,
-  Legend
-);
+ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
-/* ================= MOCK WALLET ================= */
-const mockWallet = {
-  balance: 2350000,
-  currency: "VND",
-  updatedAt: "2025-12-20"
-};
-
-/* ================= MOCK TRANSACTIONS ================= */
-const mockTransactions = [
-  {
-    id: "tx-001",
-    type: "TOP_UP",
-    amount: 1000000,
-    description: "Nạp tiền qua MoMo",
-    createdAt: "2025-12-18 10:12",
-    status: "SUCCESS"
-  },
-  {
-    id: "tx-002",
-    type: "PAYMENT",
-    amount: -850000,
-    description: "Thanh toán đơn thuê Canon EOS R5",
-    createdAt: "2025-12-19 14:30",
-    status: "SUCCESS"
-  },
-  {
-    id: "tx-003",
-    type: "REFUND",
-    amount: 200000,
-    description: "Hoàn tiền trả sớm DJI Mini 3",
-    createdAt: "2025-12-20 09:15",
-    status: "SUCCESS"
-  },
-  {
-    id: "tx-004",
-    type: "PAYMENT",
-    amount: -420000,
-    description: "Thanh toán đơn thuê Bosch GSB 13 RE",
-    createdAt: "2025-12-20 15:40",
-    status: "SUCCESS"
-  }
-];
-
-/* ================= CASH FLOW ================= */
-const cashFlowData = {
-  DAY: [
-    { label: "18/12", in: 1000000, out: 0 },
-    { label: "19/12", in: 0, out: 850000 },
-    { label: "20/12", in: 200000, out: 420000 }
-  ],
-  MONTH: [
-    { label: "10/2025", in: 3200000, out: 2100000 },
-    { label: "11/2025", in: 4500000, out: 3800000 },
-    { label: "12/2025", in: 5200000, out: 2850000 }
-  ],
-  YEAR: [
-    { label: "2023", in: 18000000, out: 14200000 },
-    { label: "2024", in: 24500000, out: 19800000 },
-    { label: "2025", in: 31200000, out: 22100000 }
-  ]
-};
-
-const PAGE_SIZE = 3;
+const PAGE_SIZE = 5;
 
 export default function WalletPage() {
+  const [wallet, setWallet] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [btnLoading, setBtnLoading] = useState(false);
   const [range, setRange] = useState("DAY");
   const [filterType, setFilterType] = useState("ALL");
   const [page, setPage] = useState(1);
+  const [chartOffset, setChartOffset] = useState(0);
 
-  /* ================= FILTER ================= */
-  const filteredTransactions = useMemo(() => {
-    return filterType === "ALL"
-      ? mockTransactions
-      : mockTransactions.filter((t) => t.type === filterType);
-  }, [filterType]);
+  const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+  const [isTopUpOpen, setIsTopUpOpen] = useState(false);
+  const [amountInput, setAmountInput] = useState("");
+  const [bankInfo, setBankInfo] = useState({
+    bankName: "",
+    accountNumber: "",
+    accountName: "",
+  });
 
-  /* ================= PAGINATION ================= */
-  const totalPages = Math.ceil(filteredTransactions.length / PAGE_SIZE);
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
 
-  const paginatedTransactions = filteredTransactions.slice(
-    (page - 1) * PAGE_SIZE,
-    page * PAGE_SIZE
-  );
+  useEffect(() => {
+    setChartOffset(0);
+  }, [range]);
 
-  /* ================= CHART DATA (FIX) ================= */
-  const chartData = useMemo(() => ({
-    labels: cashFlowData[range].map((i) => i.label),
-    datasets: [
-      {
-        label: "Tiền vào",
-        data: cashFlowData[range].map((i) => i.in),
-        backgroundColor: "#22c55e",
-        borderRadius: 8,
-        barThickness: 22
-      },
-      {
-        label: "Tiền ra",
-        data: cashFlowData[range].map((i) => i.out),
-        backgroundColor: "#ef4444",
-        borderRadius: 8,
-        barThickness: 22
-      }
-    ]
-  }), [range]);
-
-  const chartOptions = useMemo(() => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: "bottom",
-        labels: {
-          usePointStyle: true,
-          padding: 20
-        }
-      },
-      tooltip: {
-        callbacks: {
-          label: (ctx) =>
-            `${ctx.dataset.label}: ${ctx.raw.toLocaleString("vi-VN")} ₫`
-        }
-      }
-    },
-    scales: {
-      x: { grid: { display: false } },
-      y: {
-        ticks: {
-          callback: (v) => v.toLocaleString("vi-VN") + " ₫"
-        }
-      }
+  const fetchInitialData = async () => {
+    try {
+      setLoading(true);
+      const [walletRes, transRes] = await Promise.all([
+        getMyWallet(),
+        getWalletTransactions(),
+      ]);
+      setWallet(walletRes?.data || walletRes);
+      setTransactions(transRes?.data || transRes);
+    } catch (error) {
+      toast.error("Không thể lấy thông tin ví");
+    } finally {
+      setLoading(false);
     }
-  }), []);
+  };
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-8 py-8">
-        <h1 className="text-2xl font-semibold mb-6">Ví của tôi</h1>
+  const closeModal = () => {
+    setIsTopUpOpen(false);
+    setIsWithdrawOpen(false);
+    setAmountInput("");
+    setBankInfo({ bankName: "", accountNumber: "", accountName: "" });
+  };
 
-        {/* BALANCE */}
-        <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl p-6 mb-8 flex justify-between items-center">
-          <div>
-            <p className="text-sm opacity-80">Số dư hiện tại</p>
-            <h2 className="text-3xl font-bold mt-1">
-              {mockWallet.balance.toLocaleString("vi-VN")} ₫
-            </h2>
-            <p className="text-xs opacity-70 mt-1">
-              Cập nhật: {mockWallet.updatedAt}
-            </p>
+  /* ================= CHẶN CÁC THAO TÁC TĂNG GIẢM SỐ TỰ ĐỘNG ================= */
+  const handleKeyDown = (e) => {
+    // Chặn phím e (khoa học), phím +, -, và quan trọng nhất là ArrowUp, ArrowDown
+    if (["e", "E", "+", "-", "ArrowUp", "ArrowDown"].includes(e.key)) {
+      e.preventDefault();
+    }
+  };
+
+  const handleWheel = (e) => {
+    // Chặn việc cuộn chuột làm thay đổi số
+    e.target.blur();
+  };
+
+  /* ================= XỬ LÝ NẠP TIỀN ================= */
+  const handleTopUpSubmit = async () => {
+    const val = parseInt(amountInput);
+    if (!val || val < 10000)
+      return toast.warning("Số tiền nạp tối thiểu là 10,000đ");
+
+    try {
+      setBtnLoading(true);
+      const res = await topUpWallet(val);
+      const checkoutUrl = res?.data?.checkoutUrl || res?.checkoutUrl;
+
+      if (checkoutUrl) {
+        toast.info("Đang chuyển hướng tới trang thanh toán PayOS...", {
+          autoClose: 2000,
+          pauseOnHover: false,
+        });
+        setTimeout(() => {
+          window.location.href = checkoutUrl;
+        }, 1000);
+      } else {
+        toast.error("Không tìm thấy link thanh toán. Vui lòng thử lại!");
+        setBtnLoading(false);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Lỗi tạo link thanh toán");
+      setBtnLoading(false);
+    }
+  };
+
+  /* ================= XỬ LÝ RÚT TIỀN ================= */
+  const handleWithdrawSubmit = async () => {
+    const amount = parseInt(amountInput);
+    const { bankName, accountNumber, accountName } = bankInfo;
+
+    if (!amount || isNaN(amount)) return toast.error("Vui lòng nhập số tiền hợp lệ");
+    if (amount < 50000) return toast.error("Số tiền rút tối thiểu là 50,000đ");
+    if (amount > (wallet?.balance || 0)) return toast.error("Số dư ví không đủ");
+
+    if (!bankName.trim()) return toast.error("Vui lòng nhập tên ngân hàng");
+    if (!/^[0-9]{8,15}$/.test(accountNumber.trim())) return toast.error("Số tài khoản không hợp lệ");
+    if (!/^[A-Z ]+$/.test(accountName.trim())) return toast.error("Tên tài khoản phải viết HOA KHÔNG DẤU");
+
+    try {
+      setBtnLoading(true);
+      await requestWithdraw({
+        amount,
+        bankInfo: {
+          bankName: bankName.trim(),
+          accountNumber: accountNumber.trim(),
+          accountName: accountName.trim(),
+        },
+      });
+      toast.success("Yêu cầu rút tiền đã được gửi!");
+      closeModal();
+      fetchInitialData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Lỗi hệ thống");
+    } finally {
+      setBtnLoading(false);
+    }
+  };
+
+  /* ================= LOGIC BIỂU ĐỒ ================= */
+  const chartData = useMemo(() => {
+    let labels = [];
+    let incomeData = [];
+    let outcomeData = [];
+    const now = new Date();
+
+    if (range === "DAY") {
+      labels = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+      incomeData = new Array(7).fill(0);
+      outcomeData = new Array(7).fill(0);
+      const currentDay = now.getDay();
+      const diffToMonday = currentDay === 0 ? 6 : currentDay - 1;
+      const targetMonday = new Date(now);
+      targetMonday.setDate(now.getDate() - diffToMonday - (chartOffset * 7));
+      targetMonday.setHours(0, 0, 0, 0);
+      const targetSunday = new Date(targetMonday);
+      targetSunday.setDate(targetMonday.getDate() + 6);
+      targetSunday.setHours(23, 59, 59, 999);
+      transactions.forEach((tx) => {
+        const txDate = new Date(tx.createdAt);
+        if (txDate >= targetMonday && txDate <= targetSunday) {
+          const day = txDate.getDay();
+          const index = day === 0 ? 6 : day - 1;
+          if (tx.amount > 0) incomeData[index] += tx.amount;
+          else outcomeData[index] += Math.abs(tx.amount);
+        }
+      });
+    } else if (range === "MONTH") {
+      labels = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12"];
+      incomeData = new Array(12).fill(0);
+      outcomeData = new Array(12).fill(0);
+      const targetYear = now.getFullYear() - chartOffset;
+      transactions.forEach((tx) => {
+        const d = new Date(tx.createdAt);
+        if (d.getFullYear() === targetYear) {
+          const month = d.getMonth();
+          if (tx.amount > 0) incomeData[month] += tx.amount;
+          else outcomeData[month] += Math.abs(tx.amount);
+        }
+      });
+    } else if (range === "YEAR") {
+      const currentYear = now.getFullYear() - (chartOffset * 3);
+      labels = [currentYear - 2, currentYear - 1, currentYear];
+      incomeData = new Array(3).fill(0);
+      outcomeData = new Array(3).fill(0);
+      transactions.forEach((tx) => {
+        const year = new Date(tx.createdAt).getFullYear();
+        const idx = labels.indexOf(year);
+        if (idx !== -1) {
+          if (tx.amount > 0) incomeData[idx] += tx.amount;
+          else outcomeData[idx] += Math.abs(tx.amount);
+        }
+      });
+    }
+    return {
+      labels,
+      datasets: [
+        { label: "Tiền vào", data: incomeData, backgroundColor: "#10b981", borderRadius: 6 },
+        { label: "Tiền ra", data: outcomeData, backgroundColor: "#ef4444", borderRadius: 6 },
+      ],
+    };
+  }, [transactions, range, chartOffset]);
+
+  /* ================= RENDER MODAL ================= */
+  const renderModal = (type) => {
+    const isTopUp = type === "TOP_UP";
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        {/* CSS INJECTION: Ẩn mũi tên input number trên mọi trình duyệt */}
+        <style>
+          {`
+            input::-webkit-outer-spin-button,
+            input::-webkit-inner-spin-button {
+              -webkit-appearance: none;
+              margin: 0;
+            }
+            input[type=number] {
+              -moz-appearance: textfield;
+            }
+          `}
+        </style>
+        <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={closeModal}></div>
+        <div className="relative bg-white rounded-[32px] shadow-2xl w-full max-w-md p-8">
+          <button onClick={closeModal} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600">
+            <X size={20} />
+          </button>
+          <div className={`w-14 h-14 rounded-2xl mb-6 flex items-center justify-center ${isTopUp ? "bg-emerald-50 text-emerald-600" : "bg-indigo-50 text-indigo-600"}`}>
+            {isTopUp ? <Plus size={28} /> : <Banknote size={28} />}
           </div>
-          <Wallet size={48} />
-        </div>
-
-        {/* CASH FLOW */}
-        <div className="bg-white rounded-2xl p-6 mb-10">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-semibold">Dòng tiền</h2>
-            <div className="flex bg-gray-100 rounded-full p-1">
-              {["DAY", "MONTH", "YEAR"].map((k) => (
-                <button
-                  key={k}
-                  onClick={() => setRange(k)}
-                  className={`px-4 py-1.5 text-sm rounded-full ${
-                    range === k ? "bg-black text-white" : "hover:bg-gray-200"
-                  }`}
-                >
-                  {k === "DAY" ? "Ngày" : k === "MONTH" ? "Tháng" : "Năm"}
+          <h3 className="text-xl font-bold text-gray-900 mb-1">{isTopUp ? "Nạp tiền vào ví" : "Rút tiền về ngân hàng"}</h3>
+          <p className="text-sm text-gray-500 mb-6 font-medium">{isTopUp ? "Nhập số tiền nạp." : "Tiền sẽ được duyệt và chuyển về."}</p>
+          <div className="space-y-4">
+            <div>
+              <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">
+                {isTopUp ? "Số dư hiện tại: " : "Số dư khả dụng: "} {wallet?.balance?.toLocaleString()} đ
+              </label>
+              <div className="relative mt-2">
+                <input 
+                  type="number" 
+                  value={amountInput} 
+                  onKeyDown={handleKeyDown}
+                  onWheel={handleWheel}
+                  onChange={(e) => setAmountInput(e.target.value)} 
+                  placeholder={isTopUp ? "10,000" : "50,000"} 
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-xl font-bold text-gray-900 focus:bg-white outline-none transition-all" 
+                />
+                <span className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 font-bold uppercase text-xs">VND</span>
+              </div>
+            </div>
+            {!isTopUp && (
+              <div className="space-y-3">
+                <input type="text" placeholder="Tên ngân hàng" className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-sm" value={bankInfo.bankName} onChange={(e) => setBankInfo({ ...bankInfo, bankName: e.target.value })} />
+                <input type="text" placeholder="Số tài khoản" className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-sm" value={bankInfo.accountNumber} onChange={(e) => setBankInfo({ ...bankInfo, accountNumber: e.target.value })} />
+                <input type="text" placeholder="Tên chủ tài khoản (VIET HOA)" className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-sm" value={bankInfo.accountName} onChange={(e) => setBankInfo({ ...bankInfo, accountName: e.target.value.toUpperCase() })} />
+              </div>
+            )}
+            <div className="flex gap-2">
+              {[50000, 100000, 500000].map((val) => (
+                <button key={val} type="button" onClick={() => setAmountInput(val.toString())} className="text-[10px] font-bold px-3 py-1 bg-gray-100 rounded-lg hover:bg-gray-200 text-gray-600 transition-all">
+                  +{val.toLocaleString()}
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* FIXED CHART */}
-          <div className="relative h-[260px]">
-            <Bar data={chartData} options={chartOptions} />
-          </div>
-        </div>
-
-        {/* TRANSACTIONS */}
-        <div className="bg-white rounded-2xl p-6">
-          <h2 className="text-lg font-semibold mb-4">Lịch sử giao dịch</h2>
-
-          <div className="flex gap-2 mb-4">
-            <FilterButton label="Tất cả" value="ALL" active={filterType} onClick={setFilterType} />
-            <FilterButton label="Nạp tiền" value="TOP_UP" active={filterType} onClick={setFilterType} />
-            <FilterButton label="Thanh toán" value="PAYMENT" active={filterType} onClick={setFilterType} />
-            <FilterButton label="Hoàn tiền" value="REFUND" active={filterType} onClick={setFilterType} />
-          </div>
-
-          <div className="space-y-4">
-            {paginatedTransactions.map((tx) => (
-              <div key={tx.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
-                <div className="flex gap-4 items-center">
-                  {tx.amount > 0 ? (
-                    <ArrowDownCircle className="text-green-600" />
-                  ) : (
-                    <ArrowUpCircle className="text-red-600" />
-                  )}
-                  <div>
-                    <p className="font-medium">{tx.description}</p>
-                    <p className="text-xs text-gray-500">{tx.createdAt}</p>
-                  </div>
-                </div>
-                <p className={`font-semibold ${tx.amount > 0 ? "text-green-600" : "text-red-600"}`}>
-                  {tx.amount > 0 ? "+" : ""}
-                  {tx.amount.toLocaleString("vi-VN")} ₫
-                </p>
-              </div>
-            ))}
-          </div>
-
-          {/* PAGINATION */}
-          <div className="flex justify-end gap-3 mt-6">
-            <button
-              disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}
-              className="p-2 border rounded disabled:opacity-40"
-            >
-              <ChevronLeft size={16} />
-            </button>
-
-            <span className="text-sm text-gray-500 flex items-center">
-              {page} / {totalPages}
-            </span>
-
-            <button
-              disabled={page === totalPages}
-              onClick={() => setPage((p) => p + 1)}
-              className="p-2 border rounded disabled:opacity-40"
-            >
-              <ChevronRight size={16} />
+            <button onClick={isTopUp ? handleTopUpSubmit : handleWithdrawSubmit} disabled={btnLoading} className={`w-full py-4 rounded-2xl font-bold text-sm text-white transition-all ${isTopUp ? "bg-emerald-600 hover:bg-emerald-700" : "bg-indigo-600 hover:bg-indigo-700"}`}>
+              {btnLoading ? <Loader2 className="animate-spin mx-auto" /> : isTopUp ? "Tiếp tục thanh toán" : "Xác nhận yêu cầu"}
             </button>
           </div>
         </div>
       </div>
+    );
+  };
+
+  /* ================= PHẦN CÒN LẠI GIỮ NGUYÊN ================= */
+  const filteredTransactions = useMemo(() => {
+    if (filterType === "ALL") return transactions;
+    return transactions.filter((t) => t.type === filterType);
+  }, [filterType, transactions]);
+
+  const totalPages = Math.ceil(filteredTransactions.length / PAGE_SIZE) || 1;
+  const paginatedTransactions = useMemo(() => {
+    const startIndex = (page - 1) * PAGE_SIZE;
+    return filteredTransactions.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredTransactions, page]);
+
+  if (loading) return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+      <Loader2 className="animate-spin text-indigo-600 mb-4" size={40} />
+      <p className="font-bold text-xs uppercase tracking-widest text-gray-400">Đang tải dữ liệu...</p>
     </div>
   );
-}
 
-/* ================= COMPONENT ================= */
-function FilterButton({ label, value, active, onClick }) {
   return (
-    <button
-      onClick={() => onClick(value)}
-      className={`px-4 py-2 rounded-lg text-sm border ${
-        active === value ? "bg-black text-white" : "hover:bg-gray-100"
-      }`}
-    >
-      {label}
-    </button>
+    <div className="min-h-screen bg-gray-50 text-gray-800 font-sans pb-20">
+      <Header />
+      <div className="max-w-6xl mx-auto px-6 pt-10">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-6">
+          <div>
+            <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase italic">
+              Wallet <span className="text-indigo-600 not-italic">Pro</span>
+            </h1>
+            <p className="text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] mt-1">GearXpert Financial Management</p>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={fetchInitialData} className="p-3 bg-white border border-gray-100 rounded-2xl hover:shadow-md transition-all">
+              <RefreshCw size={20} className="text-gray-400" />
+            </button>
+            <button onClick={() => setIsWithdrawOpen(true)} className="bg-white border border-gray-100 text-gray-700 px-6 py-4 rounded-2xl font-bold text-xs uppercase shadow-sm hover:bg-gray-50 transition-all italic">Rút tiền</button>
+            <button onClick={() => setIsTopUpOpen(true)} className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase shadow-xl hover:bg-indigo-700 transition-all flex items-center gap-2 italic">
+              <Plus size={18} strokeWidth={3} /> Nạp tiền
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="lg:col-span-8 space-y-8">
+            <div className="relative bg-indigo-600 rounded-[2.5rem] p-10 overflow-hidden shadow-2xl shadow-indigo-200">
+              <div className="relative z-10">
+                <p className="text-white/60 text-[10px] font-black uppercase tracking-widest">Available Balance</p>
+                <div className="flex items-baseline gap-3 mt-2">
+                  <h2 className="text-6xl font-black text-white tracking-tighter">{wallet?.balance?.toLocaleString("vi-VN")}</h2>
+                  <span className="text-xl font-bold text-white/40 italic uppercase">VND</span>
+                </div>
+                <div className="mt-12 flex items-center justify-between">
+                  <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl">
+                    <p className="text-[10px] font-mono text-white/80">{wallet?.user?.slice(-12).toUpperCase() || "USER_WALLET"}</p>
+                  </div>
+                  <Wallet size={40} className="text-white/20" />
+                </div>
+              </div>
+              <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+            </div>
+
+            <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-4">
+                <div>
+                  <h3 className="text-[10px] font-black uppercase text-gray-400 tracking-widest italic">Cash Flow Analytics</h3>
+                  <p className="text-[11px] font-bold text-indigo-600 mt-1 uppercase">
+                    {range === "DAY" ? (chartOffset === 0 ? "Tuần này" : `Cách đây ${chartOffset} tuần`) : 
+                     range === "MONTH" ? `Năm ${new Date().getFullYear() - chartOffset}` : "Lịch sử giao dịch"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex bg-gray-100 p-1 rounded-xl items-center">
+                    <button onClick={() => setChartOffset(prev => prev + 1)} className="p-1.5 hover:bg-white rounded-lg transition-all text-gray-500 hover:text-indigo-600"><ChevronLeft size={16} /></button>
+                    <button disabled={chartOffset === 0} onClick={() => setChartOffset(prev => Math.max(0, prev - 1))} className="p-1.5 hover:bg-white rounded-lg transition-all text-gray-500 hover:text-indigo-600 disabled:opacity-20"><ChevronRight size={16} /></button>
+                  </div>
+                  <div className="flex bg-gray-50 p-1.5 rounded-2xl border border-gray-100">
+                    {["DAY", "MONTH", "YEAR"].map((t) => (
+                      <button key={t} onClick={() => setRange(t)} className={`px-5 py-2 text-[10px] font-black rounded-xl transition-all ${range === t ? "bg-white text-indigo-600 shadow-sm" : "text-gray-400 hover:text-gray-600"}`}>
+                        {t === "DAY" ? "Tuần" : t === "MONTH" ? "Năm" : "Lịch sử"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="h-[320px]">
+                <Bar data={chartData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { border: { display: false }, grid: { color: "#f8fafc" }, ticks: { font: { size: 9, weight: "bold" }, color: "#94a3b8" } }, x: { border: { display: false }, grid: { display: false }, ticks: { font: { size: 9, weight: "bold" }, color: "#94a3b8" } } } }} />
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-4">
+            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden flex flex-col h-full">
+              <div className="p-8 border-b border-gray-50">
+                <h3 className="text-[10px] font-black uppercase text-gray-400 tracking-widest italic mb-6">Activity</h3>
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                  {["ALL", "TOP_UP", "WITHDRAW", "PAYMENT"].map((f) => (
+                    <button key={f} onClick={() => { setFilterType(f); setPage(1); }} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase border transition-all ${filterType === f ? "bg-gray-900 text-white border-gray-900" : "border-gray-100 text-gray-400 hover:bg-gray-50"}`}>
+                      {f === "ALL" ? "Tất cả" : f === "TOP_UP" ? "Nạp" : f === "WITHDRAW" ? "Rút" : "Chi"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex-grow p-4 space-y-3 min-h-[400px]">
+                {paginatedTransactions.length > 0 ? (
+                  paginatedTransactions.map((tx) => (
+                    <div key={tx._id} className="p-4 hover:bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className={`p-2 rounded-xl ${tx.amount > 0 ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"}`}>
+                          {tx.amount > 0 ? <ArrowDownCircle size={18} /> : <ArrowUpCircle size={18} />}
+                        </div>
+                        <div className="text-right">
+                          <p className={`font-black text-sm ${tx.amount > 0 ? "text-emerald-600" : "text-red-600"}`}>
+                            {tx.amount > 0 ? "+" : ""}{tx.amount.toLocaleString()} ₫
+                          </p>
+                          <span className={`text-[9px] font-bold uppercase tracking-tighter ${tx.status === "COMPLETED" ? "text-emerald-400" : "text-amber-400"}`}>{tx.status}</span>
+                        </div>
+                      </div>
+                      <p className="text-[11px] font-bold text-gray-500 line-clamp-1 italic">{tx.description || "Giao dịch ví"}</p>
+                      <p className="text-[9px] text-gray-300 mt-1 font-mono">{new Date(tx.createdAt).toLocaleString()}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-300 py-20">
+                    <AlertCircle size={40} strokeWidth={1} className="mb-2" />
+                    <p className="text-[10px] font-bold uppercase">Không có dữ liệu</p>
+                  </div>
+                )}
+              </div>
+              <div className="p-6 border-t border-gray-50 flex justify-between items-center mt-auto">
+                <button disabled={page === 1} onClick={() => setPage((p) => p - 1)} className="p-2 border border-gray-100 rounded-xl hover:bg-gray-50 disabled:opacity-20 transition-all active:scale-90"><ChevronLeft size={16} /></button>
+                <span className="text-[10px] font-black text-gray-400">Trang {page} / {totalPages}</span>
+                <button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} className="p-2 border border-gray-100 rounded-xl hover:bg-gray-50 disabled:opacity-20 transition-all active:scale-90"><ChevronRight size={16} /></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {isTopUpOpen && renderModal("TOP_UP")}
+      {isWithdrawOpen && renderModal("WITHDRAW")}
+    </div>
   );
 }

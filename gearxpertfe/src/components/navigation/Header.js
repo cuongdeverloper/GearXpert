@@ -1,10 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { doLogout } from '../../redux/action/userAction';
-import { persistor } from '../../redux/store';
-import Cookies from 'js-cookie';
 import { toast } from 'react-toastify';
+import { performLogout } from '../../utils/logout';
 
 export default function Header() {
   const navigate = useNavigate();
@@ -32,39 +30,18 @@ export default function Header() {
   }, []);
 
   const handleLogout = async () => {
-    try {
-      // Disconnect socket if connected
-      if (socketConnection) {
-        socketConnection.disconnect();
-      }
-
-      // Dispatch logout action to clear Redux state
-      dispatch(doLogout());
-
-      // Remove cookies
-      Cookies.remove('accessToken');
-      Cookies.remove('refreshToken');
-
-      // Purge Redux persist storage
-      await persistor.purge();
-
-      // Show success message
-      toast.success('Đăng xuất thành công');
-
-      // Close dropdown
-      setIsDropdownOpen(false);
-
-      // Navigate to login page
-      navigate('/signin');
-    } catch (error) {
-      console.error('Logout error:', error);
-      toast.error('Có lỗi xảy ra khi đăng xuất');
-    }
+    await performLogout({
+      dispatch,
+      navigate,
+      socketConnection,
+      toast,
+      onDone: () => setIsDropdownOpen(false),
+    });
   };
 
   const menuItems = [
     { label: 'Trang chủ', icon: 'home', path: '/' },
-    { label: 'Đơn thuê của tôi', icon: 'description', path: '/rental/manage' },
+    { label: 'Đơn thuê của tôi', icon: 'description', path: '/user/myrental' },
     { label: 'Vouchers', icon: 'local_activity', path: '/vouchers' },
     { label: 'Yêu thích', icon: 'favorite', path: '/favorites' },
   ];
@@ -161,17 +138,21 @@ export default function Header() {
         </nav>
 
         {/* Actions */}
-        <div className="flex items-center gap-4">
-          <button className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors">
-            <span className="material-symbols-outlined text-[20px]">notifications</span>
-          </button>
+        <div className="flex items-center gap-3 md:gap-4">
+          {isAuthenticated && (
+            <>
+              <button className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors">
+                <span className="material-symbols-outlined text-[20px]">notifications</span>
+              </button>
 
-          <button
-            onClick={() => handleRestrictedNavigation('/user/cart')}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors"
-          >
-            <span className="material-symbols-outlined text-[20px]">shopping_bag</span>
-          </button>
+              <button
+                onClick={() => handleRestrictedNavigation('/user/cart')}
+                className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                <span className="material-symbols-outlined text-[20px]">shopping_bag</span>
+              </button>
+            </>
+          )}
 
           {isAuthenticated ? (
             <div className="relative" ref={dropdownRef}>
@@ -254,7 +235,7 @@ export default function Header() {
                       className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                       style={{ backgroundColor: '#D1FAE5' }}
                       onClick={() => {
-                        handleRestrictedNavigation('/wallet');
+                        handleRestrictedNavigation('/user/wallet');
                         setIsDropdownOpen(false);
                       }}
                     >
@@ -318,12 +299,20 @@ export default function Header() {
               )}
             </div>
           ) : (
-            <button
-              onClick={() => handleRestrictedNavigation('/signin')}
-              className="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-accent-cyan flex items-center justify-center text-white shadow-md cursor-pointer hover:shadow-lg transition-all"
-            >
-              <span className="material-symbols-outlined text-[20px]">person</span>
-            </button>
+            <div className="flex items-center gap-2 md:gap-3">
+              <button
+                onClick={() => navigate('/signin', { state: { isSignUp: true } })}
+                className="text-sm font-bold text-slate-600 hover:text-primary px-3 py-2 transition-colors cursor-pointer"
+              >
+                Đăng ký
+              </button>
+              <button
+                onClick={() => navigate('/signin', { state: { isSignUp: false } })}
+                className="bg-gradient-to-r from-primary to-accent-cyan text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
+              >
+                Đăng nhập
+              </button>
+            </div>
           )}
         </div>
       </div>

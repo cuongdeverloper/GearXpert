@@ -25,6 +25,7 @@ export default function DevicesModerationPage() {
       dispatch(showAdminLoading());
       const params = {
         limit: 100,
+        includeAll: true,
         ...(categoryFilter !== "ALL" && { category: categoryFilter }),
       };
       const response = await getDevices(params);

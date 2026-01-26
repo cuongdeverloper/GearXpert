@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import {
   ArrowLeft,
@@ -15,6 +15,7 @@ import {
   PlusCircle,
   Minus,
   Plus,
+  User,
 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import { useParams, useNavigate } from "react-router-dom";
@@ -37,6 +38,7 @@ export default function ProductDetailPage() {
 
   const today = new Date().toISOString().split("T")[0];
   const isAuthenticated = useSelector((state) => state.user?.isAuthenticated || false);
+
   const [device, setDevice] = useState(null);
   const [addonsList, setAddonsList] = useState([]);
   const [relatedDevices, setRelatedDevices] = useState([]);
@@ -51,21 +53,10 @@ export default function ProductDetailPage() {
   const [addons, setAddons] = useState([]);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
-  // --- THÊM MỚI: Quản lý lịch bận và stock theo ngày ---
-  const [busyDates, setBusyDates] = useState([]); // Danh sách các ngày đã hết hàng hoặc bận
-  const [currentAvailableStock, setCurrentAvailableStock] = useState(0);
-
   useEffect(() => {
     fetchData();
     window.scrollTo(0, 0);
   }, [id]);
-
-  // Cập nhật stock khả dụng khi ngày thay đổi
-  useEffect(() => {
-    if (device) {
-      updateAvailableStock();
-    }
-  }, [startDate, endDate, device]);
 
   const fetchData = async () => {
     try {
@@ -77,127 +68,45 @@ export default function ProductDetailPage() {
         getRelatedDevices(id),
       ];
 
-      // Only call hasRentedDevice if user is authenticated
       if (isAuthenticated) {
         promises.push(hasRentedDevice(id));
       }
 
       const results = await Promise.all(promises);
-
-      // Destructure results based on whether hasRentedDevice was called
       const [d, a, r, ...rest] = results;
-      const rented = isAuthenticated ? rest[0] : undefined; // rented will be undefined if not authenticated
+      const rented = isAuthenticated ? rest[0] : undefined;
 
       setDevice(d);
       setAddonsList(a || []);
       setRelatedDevices(r || []);
       setHasRented(rented?.hasRented || false);
       setReviews(d.reviews || []);
-
-      // SỬA TẠI ĐÂY: Đổi d.busyDates thành d.occupiedDates
-      const busyData = d.occupiedDates || [];
-      setBusyDates(busyData);
-
-      // Cập nhật lại device để hàm logic updateAvailableStock chạy đúng
-      setDevice({
-        ...d,
-        occupiedDates: d.occupiedDates || []
-      });
-      setAddonsList(a || []);
-      setRelatedDevices(r || []);
-      setHasRented(rented?.hasRented || false);
-      setBusyDates(d.occupiedDates || []);
-      setCurrentAvailableStock(d.stockQuantity || 0);
     } catch (err) {
       console.error("Fetch device detail error:", err);
-      toast.error("Không thể tải dữ liệu thiết bị", {
-        position: "top-right",
-      });
+      toast.error("Không thể tải dữ liệu thiết bị");
     } finally {
       setLoading(false);
     }
   };
 
-  // Hàm tính toán số lượng tồn kho thực tế trong khoảng ngày đã chọn
-  const updateAvailableStock = () => {
-    if (!startDate || !endDate || !device) {
-      setCurrentAvailableStock(device?.stockQuantity || 0);
-      return;
-    }
-
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    let maxOccupiedInPeriod = 0;
-
-    // Lặp qua từng ngày trong khoảng người dùng chọn
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const currentDate = d.getTime();
-
-      // Tính tổng số lượng máy đã bị thuê trong ngày này dựa trên busyDates từ API
-      const occupiedOnThisDay = (device.busyDates || []).reduce(
-        (sum, booking) => {
-          const bStart = new Date(booking.start).getTime();
-          const bEnd = new Date(booking.end).getTime();
-
-          // Nếu ngày đang xét nằm trong khoảng mượn của booking này
-          if (currentDate >= bStart && currentDate <= bEnd) {
-            return sum + (booking.quantity || 1);
-          }
-          return sum;
-        },
-        0
-      );
-
-      maxOccupiedInPeriod = Math.max(maxOccupiedInPeriod, occupiedOnThisDay);
-    }
-
-    const available = Math.max(0, device.stockQuantity - maxOccupiedInPeriod);
-    setCurrentAvailableStock(available);
-
-    if (quantity > available) {
-      setQuantity(available > 0 ? 1 : 0);
-    }
-  };
   const validateRental = () => {
     if (!startDate || !endDate) {
-      toast.warning("Vui lòng chọn ngày bắt đầu và ngày kết thúc thuê!", {
-        position: "top-right",
-        description: "Thời gian thuê là bắt buộc để tính giá.",
-      });
+      toast.warning("Vui lòng chọn ngày bắt đầu và ngày kết thúc thuê!");
       return false;
     }
     if (new Date(startDate) > new Date(endDate)) {
-      toast.error("Ngày kết thúc không được nhỏ hơn ngày bắt đầu!", {
-        position: "top-right",
-      });
+      toast.error("Ngày kết thúc không được nhỏ hơn ngày bắt đầu!");
       return false;
     }
-    const isOverlap = busyDates.some((booking) =>
-      isDateOverlap(
-        startDate,
-        endDate,
-        booking.start,
-        booking.end
-      )
-    );
-    if (isOverlap) {
-      toast.error(
-        "Khoảng thời gian bạn chọn trùng với lịch đã được đặt. Vui lòng chọn ngày khác!"
-      );
+
+    if (quantity > (device?.stockQuantity || 0)) {
+      toast.error(`Chỉ còn ${device?.stockQuantity || 0} thiết bị khả dụng!`);
       return false;
     }
-    if (currentAvailableStock <= 0) {
-      toast.error("Thiết bị đã hết hàng trong khoảng thời gian này!");
-      return false;
-    }
+
     return true;
   };
-  const isDateOverlap = (startA, endA, startB, endB) => {
-    return (
-      new Date(startA) <= new Date(endB) &&
-      new Date(endA) >= new Date(startB)
-    );
-  };
+
   const toggleAddon = (addon) => {
     const isSelected = addons.find((a) => a._id === addon._id);
     setAddons((prev) =>
@@ -205,10 +114,7 @@ export default function ProductDetailPage() {
     );
 
     if (!isSelected) {
-      toast.info(`Đã thêm phụ kiện: ${addon.name}`, {
-        position: "bottom-center",
-        duration: 1500,
-      });
+      toast.info(`Đã thêm phụ kiện: ${addon.name}`);
     }
   };
 
@@ -221,13 +127,12 @@ export default function ProductDetailPage() {
     try {
       await addToCart({
         deviceId: device._id,
-        quantity: quantity,
+        quantity,
         rentalStartDate: startDate,
         rentalEndDate: endDate,
         addons: addons.map((a) => a._id),
       });
       toast.success("Đã thêm vào giỏ hàng thành công!", {
-        position: "top-right",
         description: `${device.name} đã sẵn sàng trong giỏ của bạn.`,
         action: {
           label: "Đến giỏ hàng",
@@ -249,7 +154,7 @@ export default function ProductDetailPage() {
     try {
       await addInstantToCart({
         deviceId: device._id,
-        quantity: quantity,
+        quantity,
         rentalStartDate: startDate,
         rentalEndDate: endDate,
         addons: addons.map((a) => a._id),
@@ -266,16 +171,16 @@ export default function ProductDetailPage() {
   const days =
     startDate && endDate
       ? Math.max(
-        1,
-        Math.ceil((new Date(endDate) - new Date(startDate)) / 86400000)
-      )
+          1,
+          Math.ceil((new Date(endDate) - new Date(startDate)) / 86400000)
+        )
       : 0;
 
   const totalPrice = device
     ? days *
-    (device.rentPrice.perDay +
-      addons.reduce((s, a) => s + a.rentPrice.perDay, 0)) *
-    quantity
+      (device.rentPrice.perDay +
+        addons.reduce((s, a) => s + a.rentPrice.perDay, 0)) *
+      quantity
     : 0;
 
   if (loading) {
@@ -288,13 +193,15 @@ export default function ProductDetailPage() {
 
   if (!device) return null;
 
+  const supplier = device.supplierId || {};
+
   return (
     <div className="min-h-screen bg-background-light flex flex-col font-sans">
       <Header />
       <Toaster richColors closeButton expand={true} />
 
       <main className="flex-1">
-        {/* HEADER NAV */}
+        {/* HEADER NAV STICKY */}
         <div className="sticky top-[84px] z-40 mx-6 bg-white/80 backdrop-blur-md border border-slate-200 rounded-[24px] shadow-lg mt-4">
           <div className="max-w-[1440px] mx-auto px-6 py-3 flex items-center justify-between">
             <button
@@ -312,50 +219,124 @@ export default function ProductDetailPage() {
           </div>
         </div>
 
+        {/* MAIN CONTENT */}
         <div className="max-w-[1440px] mx-auto px-6 py-10">
           <div className="grid lg:grid-cols-12 gap-12">
-            {/* LEFT: IMAGES */}
-            <div className="lg:col-span-7 space-y-6">
-              <div className="relative rounded-[32px] overflow-hidden bg-white shadow-2xl shadow-indigo-100/50 border border-slate-100 group">
-                <img
-                  src={device.images?.[selectedImage]}
-                  className="w-full h-[600px] object-cover transition-transform duration-700 group-hover:scale-105"
-                  alt={device.name}
-                />
-                <div className="absolute top-6 left-6">
-                  <span
-                    className={`text-white text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest shadow-lg ${currentAvailableStock > 0
-                      ? "bg-indigo-600"
-                      : "bg-rose-500"
+            {/* LEFT: IMAGES & DETAILS */}
+            <div className="lg:col-span-7 space-y-10">
+              {/* IMAGES */}
+              <div className="space-y-6">
+                <div className="relative rounded-[32px] overflow-hidden bg-white shadow-2xl shadow-indigo-100/50 border border-slate-100 group">
+                  <img
+                    src={device.images?.[selectedImage]}
+                    className="w-full h-[600px] object-cover transition-transform duration-700 group-hover:scale-105"
+                    alt={device.name}
+                  />
+                  <div className="absolute top-6 left-6">
+                    <span
+                      className={`text-white text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest shadow-lg ${
+                        device.stockQuantity > 0 ? "bg-indigo-600" : "bg-rose-500"
                       }`}
-                  >
-                    {currentAvailableStock > 0 ? device.status : "Out of Stock"}
-                  </span>
+                    >
+                      {device.stockQuantity > 0 ? device.status : "Out of Stock"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex gap-4 overflow-x-auto pb-2 hide-scroll">
+                  {device.images?.map((img, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setSelectedImage(i)}
+                      className={`relative min-w-[120px] h-24 rounded-2xl overflow-hidden border-2 transition-all ${
+                        selectedImage === i
+                          ? "border-indigo-600 scale-95 shadow-lg"
+                          : "border-transparent opacity-60 hover:opacity-100"
+                      }`}
+                    >
+                      <img src={img} className="w-full h-full object-cover" alt="thumb" />
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <div className="flex gap-4 overflow-x-auto pb-2 hide-scroll">
-                {device.images?.map((img, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setSelectedImage(i)}
-                    className={`relative min-w-[120px] h-24 rounded-2xl overflow-hidden border-2 transition-all ${selectedImage === i
-                      ? "border-indigo-600 scale-95 shadow-lg"
-                      : "border-transparent opacity-60 hover:opacity-100"
-                      }`}
-                  >
-                    <img
-                      src={img}
-                      className="w-full h-full object-cover"
-                      alt="thumb"
-                    />
-                  </button>
-                ))}
+              {/* OVERVIEW */}
+              <div className="space-y-6">
+                <h2 className="text-3xl font-bold text-slate-900 font-display flex items-center gap-3">
+                  Overview
+                  <div className="h-1 flex-1 bg-slate-100 rounded-full"></div>
+                </h2>
+                <p className="text-lg text-slate-600 leading-relaxed whitespace-pre-line font-medium">
+                  {device.description}
+                </p>
+              </div>
+
+              {/* REVIEWS */}
+              <div className="space-y-8">
+                <h2 className="text-3xl font-bold text-slate-900 font-display flex items-center gap-3">
+                  Production Reviews
+                  <div className="h-1 flex-1 bg-slate-100 rounded-full"></div>
+                </h2>
+
+                <div className="space-y-6">
+                  {reviews.length > 0 ? (
+                    reviews.map((r) => (
+                      <div
+                        key={r._id}
+                        className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex gap-6"
+                      >
+                        <img
+                          src={r.userId?.avatar}
+                          className="w-14 h-14 rounded-2xl object-cover ring-4 ring-slate-50"
+                          alt="avatar"
+                        />
+                        <div className="flex-1 space-y-2">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="font-bold text-slate-900">
+                                {r.userId?.fullName}
+                              </h4>
+                              <div className="flex gap-0.5 mt-1">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    className={`w-3.5 h-3.5 ${i < r.rating ? "fill-amber-400 text-amber-400" : "text-slate-200"}`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter">
+                              {new Date(r.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <p className="text-slate-600 font-medium leading-relaxed italic">
+                            "{r.comment}"
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-12 bg-slate-50 rounded-[32px] border border-dashed border-slate-200">
+                      <AlertCircle className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                      <p className="text-slate-400 font-bold uppercase text-xs tracking-widest">
+                        No production reviews yet
+                      </p>
+                    </div>
+                  )}
+
+                  {!hasRented && (
+                    <div className="flex items-center justify-center gap-3 p-4 bg-indigo-50 rounded-2xl text-indigo-600 text-sm font-bold">
+                      <AlertCircle className="w-5 h-5" />
+                      Verified renters only can leave reviews
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
             {/* RIGHT: CONFIG & RENTAL */}
             <div className="lg:col-span-5 space-y-8">
+              {/* TITLE & RATING */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-indigo-600 font-bold text-sm uppercase tracking-wider">
                   <div className="w-8 h-[2px] bg-indigo-600"></div>
@@ -384,6 +365,33 @@ export default function ProductDetailPage() {
                 </div>
               </div>
 
+              {/* SUPPLIER INFO */}
+              {supplier.fullName && (
+                <div className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm">
+                  <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-3">
+                    <User size={20} className="text-indigo-600" />
+                    Nhà cung cấp
+                  </h3>
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-indigo-100">
+                      <img
+                        src={supplier.avatar || "https://via.placeholder.com/64"}
+                        alt={supplier.fullName}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-900 text-lg">
+                        {supplier.fullName}
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        Đã cung cấp {device.name} cho GearXpert
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* PRICING CARD */}
               <div className="glass-panel !bg-indigo-600 rounded-[32px] p-8 text-white shadow-xl shadow-indigo-200">
                 <div className="flex justify-between items-end">
@@ -411,47 +419,12 @@ export default function ProductDetailPage() {
 
               {/* RENTAL FORM */}
               <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm space-y-6">
+                {/* RENTAL PERIOD */}
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <label className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wider">
-                      <CalendarIcon className="w-4 h-4 text-indigo-600" />
-                      Select Rental Period
-                    </label>
-
-                    {/* HIỂN THỊ CHI TIẾT LỊCH BẬN */}
-                    {busyDates.length > 0 && (
-                      <div className="mb-4 p-4 bg-rose-50 rounded-2xl border border-rose-100">
-                        <p className="text-xs font-bold text-rose-600 uppercase mb-2 flex items-center gap-2">
-                          <AlertCircle size={14} /> Lịch đã được đặt (Hết hàng):
-                        </p>
-                        <div className="space-y-1">
-                          {busyDates.map((period, index) => (
-                            <div
-                              key={index}
-                              className="flex justify-between text-[11px] font-medium text-rose-500 bg-white/50 px-2 py-1 rounded-md"
-                            >
-                              <span>
-                                {new Date(period.start).toLocaleDateString(
-                                  "vi-VN"
-                                )}{" "}
-                                -{" "}
-                                {new Date(period.end).toLocaleDateString(
-                                  "vi-VN"
-                                )}
-                              </span>
-                              <span className="font-bold">
-                                SL: {period.quantity}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                        <p className="text-[10px] text-rose-400 mt-2 italic">
-                          * Vui lòng chọn khoảng ngày tránh các lịch trên nếu
-                          bạn thuê số lượng lớn.
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                  <label className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wider">
+                    <CalendarIcon className="w-4 h-4 text-indigo-600" />
+                    Select Rental Period
+                  </label>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <p className="text-[10px] font-bold text-slate-400 uppercase ml-2">
@@ -463,8 +436,7 @@ export default function ProductDetailPage() {
                         value={startDate}
                         onChange={(e) => {
                           setStartDate(e.target.value);
-                          if (endDate && e.target.value > endDate)
-                            setEndDate("");
+                          if (endDate && e.target.value > endDate) setEndDate("");
                         }}
                         className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                       />
@@ -484,22 +456,15 @@ export default function ProductDetailPage() {
                   </div>
                 </div>
 
-                {/* QUANTITY SELECTOR - CẬP NHẬT STOCK THEO NGÀY */}
+                {/* QUANTITY */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <label className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wider">
                       <Package className="w-4 h-4 text-indigo-600" />
                       Rent Quantity
                     </label>
-                    <span
-                      className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest border ${currentAvailableStock > 0
-                        ? "text-indigo-600 bg-indigo-50 border-indigo-100"
-                        : "text-rose-600 bg-rose-50 border-rose-100"
-                        }`}
-                    >
-                      {startDate && endDate
-                        ? `Available: ${currentAvailableStock}`
-                        : `Total Stock: ${device?.stockQuantity}`}
+                    <span className="text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest border text-indigo-600 bg-indigo-50 border-indigo-100">
+                      Available: {device.stockQuantity}
                     </span>
                   </div>
                   <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-2xl border border-slate-100 w-fit">
@@ -516,33 +481,21 @@ export default function ProductDetailPage() {
                       onChange={(e) => {
                         const val = parseInt(e.target.value);
                         if (!isNaN(val)) {
-                          setQuantity(
-                            Math.min(Math.max(1, val), currentAvailableStock)
-                          );
+                          setQuantity(Math.min(Math.max(1, val), device.stockQuantity || 1));
                         }
                       }}
                       className="w-12 text-center bg-transparent border-none text-lg font-black text-slate-900 outline-none select-none"
                     />
                     <button
                       onClick={() =>
-                        setQuantity(
-                          Math.min(currentAvailableStock, quantity + 1)
-                        )
+                        setQuantity(Math.min(device.stockQuantity || 1, quantity + 1))
                       }
-                      className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-900 flex items-center justify-center text-white hover:bg-indigo-600 hover:border-indigo-600 transition-all active:scale-90 disabled:opacity-50 disabled:bg-slate-300 disabled:border-slate-300"
-                      disabled={
-                        quantity >= currentAvailableStock ||
-                        currentAvailableStock === 0
-                      }
+                      className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-900 flex items-center justify-center text-white hover:bg-indigo-600 hover:border-indigo-600 transition-all active:scale-90 disabled:opacity-50"
+                      disabled={quantity >= (device.stockQuantity || 1)}
                     >
                       <Plus size={16} strokeWidth={3} />
                     </button>
                   </div>
-                  {currentAvailableStock === 0 && startDate && endDate && (
-                    <p className="text-xs text-rose-500 font-bold flex items-center gap-1">
-                      <AlertCircle size={12} /> Sold out for selected dates
-                    </p>
-                  )}
                 </div>
 
                 {/* ADDONS */}
@@ -553,24 +506,22 @@ export default function ProductDetailPage() {
                   </label>
                   <div className="space-y-3">
                     {addonsList.map((a) => {
-                      const isSelected = addons.find(
-                        (item) => item._id === a._id
-                      );
+                      const isSelected = addons.find((item) => item._id === a._id);
                       return (
                         <button
                           key={a._id}
                           onClick={() => toggleAddon(a)}
-                          className={`w-full flex justify-between items-center p-4 rounded-2xl border-2 transition-all ${isSelected
-                            ? "border-indigo-600 bg-indigo-50 shadow-sm"
-                            : "border-slate-100 hover:border-slate-200 bg-white"
-                            }`}
+                          className={`w-full flex justify-between items-center p-4 rounded-2xl border-2 transition-all ${
+                            isSelected
+                              ? "border-indigo-600 bg-indigo-50 shadow-sm"
+                              : "border-slate-100 hover:border-slate-200 bg-white"
+                          }`}
                         >
                           <div className="text-left">
                             <p
-                              className={`font-bold text-sm ${isSelected
-                                ? "text-indigo-700"
-                                : "text-slate-700"
-                                }`}
+                              className={`font-bold text-sm ${
+                                isSelected ? "text-indigo-700" : "text-slate-700"
+                              }`}
                             >
                               {a.name}
                             </p>
@@ -605,7 +556,7 @@ export default function ProductDetailPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <button
                     onClick={handleAddToCart}
-                    disabled={currentAvailableStock === 0}
+                    disabled={device.stockQuantity === 0}
                     className="flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-slate-200 text-slate-700 font-bold hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <ShoppingCart className="w-5 h-5" />
@@ -613,7 +564,7 @@ export default function ProductDetailPage() {
                   </button>
                   <button
                     onClick={handleBuyNow}
-                    disabled={currentAvailableStock === 0}
+                    disabled={device.stockQuantity === 0}
                     className="flex items-center justify-center gap-2 py-4 rounded-2xl bg-slate-900 text-white font-bold hover:bg-black shadow-lg shadow-slate-200 transition-all active:scale-95 disabled:bg-slate-400 disabled:shadow-none disabled:cursor-not-allowed"
                   >
                     <Zap className="w-5 h-5 fill-current" />
@@ -624,101 +575,15 @@ export default function ProductDetailPage() {
 
               {/* TRUST CRITERIA */}
               <div className="grid grid-cols-3 gap-4">
-                <Criteria
-                  icon={<Shield className="w-5 h-5" />}
-                  text="Pro Insurance"
-                />
-                <Criteria
-                  icon={<Package className="w-5 h-5" />}
-                  text="Same-day Delivery"
-                />
-                <Criteria
-                  icon={<CheckCircle className="w-5 h-5" />}
-                  text="Tech Inspected"
-                />
+                <Criteria icon={<Shield className="w-5 h-5" />} text="Pro Insurance" />
+                <Criteria icon={<Package className="w-5 h-5" />} text="Same-day Delivery" />
+                <Criteria icon={<CheckCircle className="w-5 h-5" />} text="Tech Inspected" />
               </div>
             </div>
           </div>
 
-          {/* DETAILS SECTION */}
+          {/* SPECS & RELATED */}
           <div className="mt-20 grid lg:grid-cols-12 gap-12">
-            <div className="lg:col-span-7 space-y-12">
-              <div className="space-y-6">
-                <h2 className="text-3xl font-bold text-slate-900 font-display flex items-center gap-3">
-                  Overview
-                  <div className="h-1 flex-1 bg-slate-100 rounded-full"></div>
-                </h2>
-                <p className="text-lg text-slate-600 leading-relaxed whitespace-pre-line font-medium">
-                  {device.description}
-                </p>
-              </div>
-
-              {/* REVIEWS */}
-              <div className="space-y-8">
-                <h2 className="text-3xl font-bold text-slate-900 font-display flex items-center gap-3">
-                  Production Reviews
-                  <div className="h-1 flex-1 bg-slate-100 rounded-full"></div>
-                </h2>
-
-                <div className="space-y-6">
-                  {reviews.length > 0 ? (
-                    reviews.map((r) => (
-                      <div
-                        key={r._id}
-                        className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex gap-6"
-                      >
-                        <img
-                          src={r.user?.avatar}
-                          className="w-14 h-14 rounded-2xl object-cover ring-4 ring-slate-50"
-                          alt="avatar"
-                        />
-                        <div className="flex-1 space-y-2">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h4 className="font-bold text-slate-900">
-                                {r.user?.fullName}
-                              </h4>
-                              <div className="flex gap-0.5 mt-1">
-                                {Array.from({ length: 5 }).map((_, i) => (
-                                  <Star
-                                    key={i}
-                                    className={`w-3.5 h-3.5 ${i < r.rating
-                                      ? "fill-amber-400 text-amber-400"
-                                      : "text-slate-200"
-                                      }`}
-                                  />
-                                ))}
-                              </div>
-                            </div>
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter">
-                              {new Date(r.createdAt).toLocaleDateString()}
-                            </span>
-                          </div>
-                          <p className="text-slate-600 font-medium leading-relaxed italic">
-                            "{r.comment}"
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-12 bg-slate-50 rounded-[32px] border border-dashed border-slate-200">
-                      <AlertCircle className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                      <p className="text-slate-400 font-bold uppercase text-xs tracking-widest">
-                        No production reviews yet
-                      </p>
-                    </div>
-                  )}
-
-                  {!hasRented && (
-                    <div className="flex items-center justify-center gap-3 p-4 bg-indigo-50 rounded-2xl text-indigo-600 text-sm font-bold">
-                      <AlertCircle className="w-5 h-5" />
-                      Verified renters only can leave reviews
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
             {/* SPECS */}
             <div className="lg:col-span-5">
               <div className="sticky top-28 bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm space-y-6">
@@ -748,67 +613,67 @@ export default function ProductDetailPage() {
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* RELATED DEVICES */}
-          <div className="mt-32 space-y-10">
-            <div className="flex items-end justify-between">
-              <div>
-                <h2 className="text-4xl font-bold text-slate-900 font-display">
-                  Similar Equipment
-                </h2>
-                <p className="text-slate-500 font-medium mt-2">
-                  Recommended gear based on this production kit.
-                </p>
-              </div>
-              <button className="text-indigo-600 font-bold hover:underline flex items-center gap-2">
-                View All <ArrowLeft className="w-4 h-4 rotate-180" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-              {relatedDevices.slice(0, 4).map((d) => (
-                <div
-                  key={d._id}
-                  className="group bg-white rounded-[28px] border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-500 cursor-pointer overflow-hidden"
-                  onClick={() => navigate(`/device/${d._id}`)}
-                >
-                  <div className="relative h-64 overflow-hidden">
-                    <img
-                      src={d.images?.[0] || d.image}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                      alt={d.name}
-                    />
-                    <div className="absolute bottom-4 left-4">
-                      <div className="glass-panel text-white text-[10px] font-bold px-3 py-1.5 rounded-xl backdrop-blur-md">
-                        {d.location?.city}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="p-6 space-y-4">
-                    <div className="flex justify-between items-start">
-                      <h4 className="font-bold text-slate-900 line-clamp-1 group-hover:text-indigo-600 transition-colors">
-                        {d.name}
-                      </h4>
-                      <div className="flex items-center gap-1">
-                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                        <span className="text-xs font-bold">{d.ratingAvg}</span>
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center pt-4 border-t border-slate-50">
-                      <div className="text-indigo-600 font-black text-lg">
-                        {d.rentPrice?.perDay.toLocaleString()}đ
-                        <span className="text-[10px] text-slate-400 font-bold uppercase ml-1">
-                          / day
-                        </span>
-                      </div>
-                      <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Zap className="w-4 h-4 fill-current" />
-                      </div>
-                    </div>
-                  </div>
+            {/* RELATED DEVICES */}
+            <div className="lg:col-span-7 space-y-10">
+              <div className="flex items-end justify-between">
+                <div>
+                  <h2 className="text-4xl font-bold text-slate-900 font-display">
+                    Similar Equipment
+                  </h2>
+                  <p className="text-slate-500 font-medium mt-2">
+                    Recommended gear based on this production kit.
+                  </p>
                 </div>
-              ))}
+                <button className="text-indigo-600 font-bold hover:underline flex items-center gap-2">
+                  View All <ArrowLeft className="w-4 h-4 rotate-180" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                {relatedDevices.slice(0, 6).map((d) => (
+                  <div
+                    key={d._id}
+                    className="group bg-white rounded-[28px] border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-500 cursor-pointer overflow-hidden"
+                    onClick={() => navigate(`/device/${d._id}`)}
+                  >
+                    <div className="relative h-64 overflow-hidden">
+                      <img
+                        src={d.images?.[0] || d.image}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        alt={d.name}
+                      />
+                      <div className="absolute bottom-4 left-4">
+                        <div className="glass-panel text-white text-[10px] font-bold px-3 py-1.5 rounded-xl backdrop-blur-md">
+                          {d.location?.city}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-6 space-y-4">
+                      <div className="flex justify-between items-start">
+                        <h4 className="font-bold text-slate-900 line-clamp-1 group-hover:text-indigo-600 transition-colors">
+                          {d.name}
+                        </h4>
+                        <div className="flex items-center gap-1">
+                          <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                          <span className="text-xs font-bold">{d.ratingAvg}</span>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center pt-4 border-t border-slate-50">
+                        <div className="text-indigo-600 font-black text-lg">
+                          {d.rentPrice?.perDay.toLocaleString()}đ
+                          <span className="text-[10px] text-slate-400 font-bold uppercase ml-1">
+                            / day
+                          </span>
+                        </div>
+                        <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Zap className="w-4 h-4 fill-current" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

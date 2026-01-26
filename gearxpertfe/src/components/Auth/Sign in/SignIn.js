@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ImSpinner9 } from "react-icons/im";
 import { FaGoogle } from "react-icons/fa";
 import { toast } from "react-toastify";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Cookies from "js-cookie";
 import { useDispatch, useSelector } from "react-redux";
 import { doLogin } from "../../../redux/action/userAction";
@@ -13,13 +13,20 @@ import RequestPasswordReset from "../reset password/RequestPasswordReset";
 import BlockedAccountModal from "./BlockedAccountModal";
 
 const SignIn = () => {
-  const [isSignUp, setIsSignUp] = useState(false);
+  const location = useLocation();
+  const [isSignUp, setIsSignUp] = useState(location.state?.isSignUp || false);
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
   const [isLoadingLogin, setIsLoadingLogin] = useState(false);
   const [isLoadingRegister, setIsLoadingRegister] = useState(false);
   const [isFormValid, setIsFormValid] = useState(false);
   const [isFormValidRegister, setIsFormValidRegister] = useState(false);
   const [isBlockedModalOpen, setIsBlockedModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (location.state?.isSignUp !== undefined) {
+      setIsSignUp(location.state.isSignUp);
+    }
+  }, [location.state]);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -67,7 +74,7 @@ const SignIn = () => {
       if (currentRole === "ADMIN") {
         navigate("/admin");
       } else if (currentRole === "SUPPLIER") {
-        navigate("/supplier-dashboard");
+        navigate("/supplier/dashboard");
       } else {
         navigate("/");
       }
@@ -102,7 +109,7 @@ const SignIn = () => {
           if (userRole === "ADMIN") {
             navigate("/admin");
           } else if (userRole === "SUPPLIER") {
-            navigate("/supplier-dashboard");
+            navigate("/supplier/dashboard");
           } else {
             navigate("/");
           }
@@ -139,8 +146,9 @@ const SignIn = () => {
   };
 
   const redirectGoogleLogin = () => {
-    window.location.href = "http://localhost:1357/auth/google";
-  };
+    const backendUrl = process.env.REACT_APP_BACKEND_URL;
+    window.location.href = `${backendUrl}/auth/google`;
+};
 
   return (
     <div className="min-h-screen flex flex-col bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-200 via-slate-50 to-cyan-200 relative">

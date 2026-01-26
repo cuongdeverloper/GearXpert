@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { getDevices } from "../../service/ApiService/DeviceApi";
 import Header from "../../components/navigation/Header";
 import HeroSection from "../../components/homepage/HeroSection";
@@ -8,6 +8,8 @@ import FeaturedProductsSection from "../../components/homepage/FeaturedProductsS
 import AISuggestedSection from "../../components/homepage/AISuggestedSection";
 import TrendingNowSection from "../../components/homepage/TrendingNowSection";
 import NewArrivalsSection from "../../components/homepage/NewArrivalsSection";
+import TopBannerAds from "../../components/homepage/TopBannerAds";
+import PopupAds from "../../components/homepage/PopupAds";
 import Footer from "../../components/homepage/Footer";
 
 export default function Homepage() {
@@ -17,11 +19,7 @@ export default function Homepage() {
   const [trendingDevice, setTrendingDevice] = useState(null);
   const [newArrivals, setNewArrivals] = useState([]);
 
-  useEffect(() => {
-    fetchDevices();
-  }, [selectedCategory]);
-
-  const fetchDevices = async () => {
+  const fetchDevices = useCallback(async () => {
     try {
       setLoading(true);
       const params = {
@@ -29,17 +27,15 @@ export default function Homepage() {
         ...(selectedCategory && { category: selectedCategory }),
       };
       const response = await getDevices(params);
-      console.log("API Response:", response);
       const fetchedDevices = response.devices || [];
-      console.log("Fetched Devices:", fetchedDevices);
+
       setDevices(fetchedDevices);
 
-      // Set trending device (first device or most popular)
+      // Set trending device (first device)
       if (fetchedDevices.length > 0) {
         setTrendingDevice(fetchedDevices[0]);
       }
 
-      // Set new arrivals (last 3 devices)
       if (fetchedDevices.length > 0) {
         setNewArrivals(fetchedDevices.slice(-3).reverse());
       }
@@ -48,7 +44,11 @@ export default function Homepage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedCategory]);
+
+  useEffect(() => {
+    fetchDevices();
+  }, [fetchDevices]);
 
   const handleCategorySelect = (categoryId) => {
     setSelectedCategory(categoryId === selectedCategory ? null : categoryId);
@@ -61,6 +61,14 @@ export default function Homepage() {
     { name: 'Gimbal & Grip', id: 'ACCESSORY', category: 'ACCESSORY' },
     { name: 'Aerial / Drones', id: 'DRONE', category: 'DRONE' },
   ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background-light">
+        <div className="text-xl font-semibold text-gray-600 animate-pulse">Loading gear...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background-light">
@@ -85,6 +93,10 @@ export default function Homepage() {
           <FeaturedProductsSection devices={devices.slice(0, 6)} />
         </ScrollAnimation>
 
+        <ScrollAnimation direction="up" delay={0.1} className="px-6 lg:px-10">
+          <TopBannerAds />
+        </ScrollAnimation>
+
         <ScrollAnimation effect="scale" viewportAmount={0.4}>
           <AISuggestedSection devices={devices.slice(6, 9)} />
         </ScrollAnimation>
@@ -103,6 +115,7 @@ export default function Homepage() {
       </main>
 
       <Footer />
+      <PopupAds />
     </div>
   );
 }

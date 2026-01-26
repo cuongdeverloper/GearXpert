@@ -85,7 +85,7 @@ exports.createDevice = async (req, res) => {
  */
 exports.getDevices = async (req, res) => {
   try {
-    const { category, status, limit = 12, page = 1 } = req.query;
+    const { category, status, includeAll, limit = 12, page = 1 } = req.query;
 
     const query = {
       isAddon: false,
@@ -95,9 +95,11 @@ exports.getDevices = async (req, res) => {
       query.category = category;
     }
 
-    // Add status filter if provided, otherwise show all statuses
+    // Add status filter if provided, otherwise default to AVAILABLE
     if (status) {
       query.status = status;
+    } else if (!includeAll || includeAll === "false") {
+      query.status = "AVAILABLE";
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);

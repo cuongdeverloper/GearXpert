@@ -1,7 +1,17 @@
 import { NavLink } from "react-router-dom";
-import { FiChevronLeft, FiChevronRight, FiUser, FiBox, FiClipboard, FiTool, FiDollarSign } from "react-icons/fi";
+import {
+  FiChevronLeft,
+  FiChevronRight,
+  FiUser,
+  FiHome,
+  FiBox,
+  FiClipboard,
+  FiTool,
+  FiDollarSign,
+} from "react-icons/fi";
 
 const menu = [
+  { to: "/supplier/dashboard", label: "Dashboard", icon: FiHome, desc: "Overview & quick actions" },
   { to: "/supplier/devices", label: "Devices", icon: FiBox, desc: "Manage listings & inventory" },
   { to: "/supplier/rental-requests", label: "Rental Requests", icon: FiClipboard, desc: "Approve / reject bookings" },
   { to: "/supplier/maintenance", label: "Maintenance", icon: FiTool, desc: "Handle maintenance workflow" },

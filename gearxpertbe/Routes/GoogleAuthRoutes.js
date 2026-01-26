@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const passport = require('passport');
 const { createRefreshToken, createJWT } = require('../middleware/JWTAction');
+const FRONTEND_URL = process.env.FRONTEND_URL
 
 router.get('/auth/google',
     passport.authenticate('google', { scope: ['profile', 'email'] }));
@@ -11,10 +12,10 @@ router.get('/google/redirect', (req, res, next) => {
         if (err) {
             console.error("Google auth error:", err);
             const errorMessage = encodeURIComponent(err.message || 'Xác thực thất bại');
-            return res.redirect(`http://localhost:2468/signin?error=${errorMessage}`);
+            return res.redirect(`${FRONTEND_URL}/signin?error=${errorMessage}`);
         }
         if (!user) {
-            return res.redirect('http://localhost:2468/signin');
+            return res.redirect(`${FRONTEND_URL}/signin`);
         }
 
         // success logic (must manually log in if using custom callback)
@@ -30,7 +31,7 @@ router.get('/google/redirect', (req, res, next) => {
             const accessToken = createJWT(payload);
             const refreshToken = createRefreshToken(payload);
 
-            const redirectUrl = `http://localhost:2468/auth/callback?accessToken=${encodeURIComponent(accessToken)}&refreshToken=${encodeURIComponent(refreshToken)}&user=${encodeURIComponent(JSON.stringify(user))}`;
+            const redirectUrl = `${FRONTEND_URL}/auth/callback?accessToken=${encodeURIComponent(accessToken)}&refreshToken=${encodeURIComponent(refreshToken)}&user=${encodeURIComponent(JSON.stringify(user))}`;
             res.redirect(redirectUrl);
         });
     })(req, res, next);
