@@ -405,7 +405,7 @@ const Messenger = () => {
 
   return (
     <div className="messenger-page-container" style={{display: 'flex', flexDirection: 'column', height: '100vh'}}>
-    {/* <Header /> */}
+    <Header />
       <div className="messenger">
         <div className="chatMenu">
           <div className="chatMenuWrapper">
