@@ -11,6 +11,7 @@ import Header from '../../components/navigation/Header';
 import Footer from '../../components/homepage/Footer';
 import EkycVerification from '../../components/EkycVerification';
 import AdvertisementModal from '../../components/common/AdvertisementModal';
+import PasswordStrengthMeter from "../../components/Auth/Sign in/PasswordStrengthMeter";
 
 
 export default function ProfilePage() {
@@ -295,6 +296,12 @@ export default function ProfilePage() {
 
         if (passwordData.newPassword.length < 6) {
             toast.error('Mật khẩu mới phải có ít nhất 6 ký tự');
+            return;
+        }
+
+        const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{6,}$/;
+        if (!passwordRegex.test(passwordData.newPassword)) {
+            toast.error("Mật khẩu phải có ít nhất 6 ký tự, bao gồm chữ hoa, số và ký tự đặc biệt");
             return;
         }
 
@@ -721,6 +728,7 @@ export default function ProfilePage() {
                                                 className="w-full px-4 py-3 border border-slate-200/60 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
                                                 placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
                                             />
+                                            <PasswordStrengthMeter password={passwordData.newPassword} />
                                         </div>
 
                                         {/* Confirm Password */}
