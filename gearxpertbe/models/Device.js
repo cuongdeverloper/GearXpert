@@ -80,5 +80,5 @@ const deviceSchema = new mongoose.Schema({
   reviewCount: { type: Number, default: 0 }
 
 }, { timestamps: true });
-
+deviceSchema.index({ name: 'text', description: 'text', category: 'text' });
 module.exports = mongoose.model('Device', deviceSchema);

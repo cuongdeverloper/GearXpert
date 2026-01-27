@@ -1,5 +1,5 @@
 import { Suspense, useEffect } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import Aos from "aos";
 
@@ -50,6 +50,16 @@ import EkycVerification from "./components/EkycVerification";
 
 import MyRentals from "./pages/User/MyRentals";
 import Messenger from "./components/Message Socket/Page/Messenger";
+import Chatbot from "./components/chatbot/Chatbot";
+
+const ChatbotWrapper = () => {
+  const location = useLocation();
+  if (location.pathname.startsWith("/admin") || location.pathname.startsWith("/supplier")) {
+    return null; 
+  }
+
+  return <Chatbot />;
+};
 
 export default function Layout() {
   useEffect(() => {
@@ -60,6 +70,7 @@ export default function Layout() {
     <BrowserRouter>
       <RouteHandler />
       <GlobalLoadingOverlay />
+      <ChatbotWrapper />
       <Suspense fallback={<div className="p-6">Loading...</div>}>
         <ToastContainer
           position="top-right"
