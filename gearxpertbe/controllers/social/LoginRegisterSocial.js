@@ -9,9 +9,19 @@ const upsertSocialMedia = async (typeAcc, dataRaw) => {
             if (dataUser.status === 'BLOCKED') {
                 throw new Error('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ hỗ trợ.');
             }
-            dataUser.type = typeAcc;
-            dataUser.avatar = dataRaw.photo || dataUser.avatar;
-            dataUser.socialLogin = true;
+
+            // Chỉ cập nhật type và socialLogin nếu tài khoản chưa có mật khẩu (tức là tài khoản thuần social trước đó)
+            // Nếu đã có mật khẩu (tài khoản Local), giữ nguyên để user có thể dùng mật khẩu/đổi mật khẩu
+            if (!dataUser.password) {
+                dataUser.type = typeAcc;
+                dataUser.socialLogin = true;
+            }
+
+            // Chỉ cập nhật avatar nếu user chưa có avatar
+            if (!dataUser.avatar) {
+                dataUser.avatar = dataRaw.photo;
+            }
+
             if (dataRaw.googleId) dataUser.googleId = dataRaw.googleId;
 
             await dataUser.save();

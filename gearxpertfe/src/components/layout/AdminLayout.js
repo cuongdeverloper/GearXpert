@@ -1,5 +1,6 @@
 import { Outlet } from "react-router-dom";
 import { useState } from "react";
+import { useSelector } from "react-redux";
 import AdminTopbar from "./admin/AdminTopbar";
 import AdminSidebar from "./admin/AdminSidebar";
 import AdminMobileDrawer from "./admin/AdminMobileDrawer";
@@ -9,8 +10,7 @@ export default function AdminLayout() {
   const [openDrawer, setOpenDrawer] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
-  // Mock user (later get from auth store)
-  const me = { name: "Admin User", role: "Administrator" };
+  const me = useSelector((state) => state.user.account);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">

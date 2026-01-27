@@ -1,5 +1,6 @@
 import { Outlet } from "react-router-dom";
 import { useState } from "react";
+import { useSelector } from "react-redux";
 import SupplierTopbar from "./supplier/SupplierTopbar";
 import SupplierSidebar from "./supplier/SupplierSidebar";
 import SupplierMobileDrawer from "./supplier/SupplierMobileDrawer";
@@ -13,15 +14,8 @@ export default function SupplierLayout() {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
-  // Mock user info (sau này lấy từ auth store)
-  const me = { 
-    name: "Supplier", 
-    email: "supplier@gearxpert.com",
-    revenue: 45500000,
-    activeListings: 24,
-    rating: 4.8
-  };
-
+  // Lấy user info từ redux store
+  const me = useSelector((state) => state.user.account);
   return (
     <div className="min-h-screen bg-background-light flex flex-col">
       {/* TOPBAR */}

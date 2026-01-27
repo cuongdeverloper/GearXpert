@@ -1,40 +1,78 @@
 const Device = require("../../models/Device");
 const RentalItem = require("../../models/RentalItem"); // Kiểm tra lại đường dẫn model của bạn
 const Review = require("../../models/Review");
+
 /**
- * GET /devices
- * Get list of available devices with optional filters
+ * POST /devices
+ * Create new device (Supplier only)
  */
-exports.getDevices = async (req, res) => {
+exports.createDevice = async (req, res) => {
   try {
-    const { category, limit = 12, page = 1 } = req.query;
+    // Get supplierId from token (JWT)
+    const supplierId = req.user.id;
+    
+    let { name, description, category, rentPrice, depositAmount, location, stockQuantity } = req.body;
 
-    const query = {
-      status: "AVAILABLE",
-      isAddon: false,
-    };
-
-    if (category) {
-      query.category = category;
+    // Parse rentPrice if string
+    if (typeof rentPrice === 'string') {
+      try {
+        rentPrice = JSON.parse(rentPrice);
+      } catch (e) {
+        return res.status(400).json({ message: "Invalid rentPrice format" });
+      }
+    }
+    // Parse location if string
+    if (typeof location === 'string') {
+      try {
+        location = JSON.parse(location);
+      } catch (e) {
+        location = { warehouse: '', city: '' };
+      }
+    }
+    // Parse stockQuantity
+    if (typeof stockQuantity === 'string') {
+      stockQuantity = parseInt(stockQuantity) || 1;
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    // Validate required fields
+    if (!name || !description || !category || !rentPrice || !depositAmount) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+    if (!rentPrice.perDay || rentPrice.perDay <= 0) {
+      return res.status(400).json({ message: "Invalid rentPrice - perDay is required and must be > 0" });
+    }
+    if (depositAmount <= 0) {
+      return res.status(400).json({ message: "depositAmount must be > 0" });
+    }
 
-    const devices = await Device.find(query)
-      .select("name rentPrice ratingAvg reviewCount location images category")
-      .limit(parseInt(limit))
-      .skip(skip)
-      .sort({ ratingAvg: -1, reviewCount: -1 });
+    // Xử lý images upload từ req.files (Cloudinary)
+    let images = [];
+    if (req.files && req.files.length > 0) {
+      images = req.files.map(file => file.path);
+    }
 
-    const total = await Device.countDocuments(query);
-    console.log(devices);
+    // Create new device
+    const newDevice = new Device({
+      name,
+      description,
+      category,
+      rentPrice,
+      depositAmount,
+      location,
+      stockQuantity,
+      supplierId,
+      images,
+      status: "AVAILABLE",
+      isAddon: false,
+      ratingAvg: 0,
+      reviewCount: 0,
+    });
 
-    res.json({
-      devices,
-      total,
-      page: parseInt(page),
-      limit: parseInt(limit),
-      totalPages: Math.ceil(total / parseInt(limit)),
+    await newDevice.save();
+
+    res.status(201).json({
+      message: "Device created successfully",
+      device: newDevice,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -47,24 +85,36 @@ exports.getDevices = async (req, res) => {
  */
 exports.getDevices = async (req, res) => {
   try {
-    const { category, limit = 12, page = 1 } = req.query;
-    
-    const query = { 
-      status: 'AVAILABLE',
-      isAddon: false 
+    const { category, status, includeAll, limit = 12, page = 1 } = req.query;
+
+    const query = {
+      isAddon: false,
     };
-    
+
     if (category) {
       query.category = category;
     }
 
+    // Add status filter if provided, otherwise default to AVAILABLE
+    if (status) {
+      query.status = status;
+    } else if (!includeAll || includeAll === "false") {
+      query.status = "AVAILABLE";
+    }
+
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    
-    const devices = await Device.find(query)
-      .select('name rentPrice ratingAvg reviewCount location images category')
+
+    const devicesRaw = await Device.find(query)
+      .select("name description rentPrice ratingAvg reviewCount location images category status stockQuantity depositAmount supplierId")
+      .populate("supplierId", "fullName")
       .limit(parseInt(limit))
       .skip(skip)
       .sort({ ratingAvg: -1, reviewCount: -1 });
+
+    const devices = devicesRaw.map((device) => ({
+      ...device.toObject(),
+      supplierName: device.supplierId?.fullName || "Unknown",
+    }));
 
     const total = await Device.countDocuments(query);
 
@@ -73,7 +123,7 @@ exports.getDevices = async (req, res) => {
       total,
       page: parseInt(page),
       limit: parseInt(limit),
-      totalPages: Math.ceil(total / parseInt(limit))
+      totalPages: Math.ceil(total / parseInt(limit)),
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -145,7 +195,6 @@ exports.getDeviceDetail = async (req, res) => {
           : deviceData.specs || {},
     });
   } catch (error) {
-    console.error("Error Detail Device API:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -179,4 +228,195 @@ exports.getRelatedDevices = async (req, res) => {
     .select("name rentPrice ratingAvg location images");
 
   res.json(related);
+};
+
+/**
+ * PUT /devices/:id
+ * Update device information
+ */
+exports.updateDevice = async (req, res) => {
+
+  try {
+    const { id } = req.params;
+    let { name, description, category, rentPrice, depositAmount, location, stockQuantity, oldImages } = req.body;
+
+    // Parse rentPrice if string
+    if (typeof rentPrice === 'string') {
+      try {
+        rentPrice = JSON.parse(rentPrice);
+      } catch (e) {
+        return res.status(400).json({ message: "Invalid rentPrice format" });
+      }
+    }
+    // Parse location if string
+    if (typeof location === 'string') {
+      try {
+        location = JSON.parse(location);
+      } catch (e) {
+        location = { warehouse: '', city: '' };
+      }
+    }
+    // Parse stockQuantity
+    if (typeof stockQuantity === 'string') {
+      stockQuantity = parseInt(stockQuantity) || 1;
+    }
+
+    // Handle images: combine oldImages (from body) and new uploaded images
+    let images = [];
+    // Xử lý oldImages: nếu là mảng (nhiều input), nếu là string (1 input hoặc JSON.stringify)
+    if (oldImages) {
+      if (Array.isArray(oldImages)) {
+        images = oldImages;
+      } else if (typeof oldImages === 'string') {
+        try {
+          const parsed = JSON.parse(oldImages);
+          images = Array.isArray(parsed) ? parsed : [parsed];
+        } catch (e) {
+          images = [oldImages];
+        }
+      }
+    }
+    // Multer.fields: req.files.images hoặc req.files['images[]'] là mảng file nếu có upload
+    if (req.files) {
+      if (Array.isArray(req.files.images)) {
+        images = images.concat(req.files.images.map(file => file.path));
+      }
+      if (Array.isArray(req.files['images[]'])) {
+        images = images.concat(req.files['images[]'].map(file => file.path));
+      }
+      // fallback: trường hợp Multer.array (tương thích cũ)
+      if (Array.isArray(req.files)) {
+        images = images.concat(req.files.map(file => file.path));
+      }
+    }
+
+    // Validate required fields
+    if (!name || !description || !category || !rentPrice || !depositAmount) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+    if (!rentPrice.perDay || rentPrice.perDay <= 0) {
+      return res.status(400).json({ message: "Invalid rentPrice - perDay is required and must be > 0" });
+    }
+    if (depositAmount <= 0) {
+      return res.status(400).json({ message: "depositAmount must be > 0" });
+    }
+
+    const device = await Device.findByIdAndUpdate(
+      id,
+      {
+        name,
+        description,
+        category,
+        rentPrice,
+        depositAmount,
+        location,
+        stockQuantity,
+        images,
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!device) {
+      return res.status(404).json({ message: "Device not found" });
+    }
+
+    res.json({
+      message: "Device updated successfully",
+      device,
+    });
+  } catch (error) {
+    console.error("[BE] Error updating device:", error);
+    if (error && error.stack) {
+      console.error("[BE] Error stack:", error.stack);
+    }
+    try {
+      console.error("[BE] Error (JSON):", JSON.stringify(error));
+    } catch (e) {
+      // ignore
+    }
+    res.status(500).json({ message: error.message, error });
+  }
+};
+
+/**
+ * DELETE /devices/:id
+ * Delete device - only if not currently rented
+ */
+exports.deleteDevice = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if device is currently rented
+    const activeRentals = await RentalItem.findOne({
+      deviceId: id,
+    }).populate({
+      path: "rentalId",
+      select: "status",
+    });
+
+    if (activeRentals && activeRentals.rentalId) {
+      const busyStatuses = [
+        "PENDING",
+        "PAID",
+        "APPROVED",
+        "DELIVERING",
+        "RENTING",
+        "RETURNING",
+        "INSPECTING",
+      ];
+
+      if (busyStatuses.includes(activeRentals.rentalId.status)) {
+        return res.status(400).json({
+          message: "Cannot delete device - it is currently rented or pending rental",
+          isRented: true,
+        });
+      }
+    }
+
+    // Xóa thiết bị nếu không bị thuê
+    const device = await Device.findByIdAndDelete(id);
+    if (!device) {
+      return res.status(404).json({ message: "Device not found" });
+    }
+    res.json({ message: "Device deleted successfully", device });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * GET /devices/supplier/:supplierId
+ * Lấy danh sách thiết bị của một supplier
+ */
+exports.getSupplierDevices = async (req, res) => {
+  try {
+    const { supplierId } = req.params;
+    const { category, status, limit = 12, page = 1 } = req.query;
+
+    const query = {
+      supplierId,
+      isAddon: false,
+    };
+    if (category) query.category = category;
+    if (status) query.status = status;
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const devices = await Device.find(query)
+      .select("name description rentPrice ratingAvg reviewCount location images category status stockQuantity depositAmount")
+      .limit(parseInt(limit))
+      .skip(skip)
+      .sort({ ratingAvg: -1, reviewCount: -1 });
+
+    const total = await Device.countDocuments(query);
+
+    res.json({
+      devices,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages: Math.ceil(total / parseInt(limit)),
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };

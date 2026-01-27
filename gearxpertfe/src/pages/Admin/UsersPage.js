@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
-import { FiSearch, FiCheck, FiX, FiLock, FiUnlock } from "react-icons/fi";
+import { FiSearch, FiCheck, FiX, FiLock, FiUnlock, FiEye, FiMoreVertical } from "react-icons/fi";
 import { getAdminUsers, toggleUserStatus } from "../../service/ApiService/AdminUserApi";
 import { toast } from "react-toastify";
+import UserDetailModal from "../../components/admin/UserDetailModal";
 
 export default function UsersPage() {
   const dispatch = useDispatch();
@@ -11,6 +12,8 @@ export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [menuOpenId, setMenuOpenId] = useState(null);
 
   useEffect(() => {
     fetchUsers();
@@ -167,16 +170,43 @@ export default function UsersPage() {
                   </span>
                 </td>
                 <td className="px-6 py-4 text-center">
-                  <button
-                    onClick={() => handleToggleStatus(user)}
-                    className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${user.status === "ACTIVE"
-                      ? "bg-red-50 text-red-600 hover:bg-red-600 hover:text-white"
-                      : "bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white"
-                      }`}
-                  >
-                    {user.status === "ACTIVE" ? <FiLock /> : <FiUnlock />}
-                    {user.status === "ACTIVE" ? "Khóa" : "Mở khóa"}
-                  </button>
+                  <div className="relative inline-flex">
+                    <button
+                      onClick={() => setMenuOpenId(menuOpenId === user._id ? null : user._id)}
+                      className="inline-flex items-center justify-center rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
+                      aria-label="More actions"
+                    >
+                      <FiMoreVertical />
+                    </button>
+                    {menuOpenId === user._id && (
+                      <div className="absolute right-0 top-10 z-10 w-40 rounded-xl border border-slate-200 bg-white shadow-lg">
+                        <button
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setMenuOpenId(null);
+                          }}
+                          className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                        >
+                          <FiEye />
+                          Xem chi tiết
+                        </button>
+                        <button
+                          onClick={() => {
+                            handleToggleStatus(user);
+                            setMenuOpenId(null);
+                          }}
+                          className={`flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm ${
+                            user.status === "ACTIVE"
+                              ? "text-red-600 hover:bg-red-50"
+                              : "text-emerald-600 hover:bg-emerald-50"
+                          }`}
+                        >
+                          {user.status === "ACTIVE" ? <FiLock /> : <FiUnlock />}
+                          {user.status === "ACTIVE" ? "Khóa" : "Mở khóa"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -189,6 +219,8 @@ export default function UsersPage() {
           <p className="text-slate-500">Không tìm thấy người dùng nào</p>
         </div>
       )}
+
+      <UserDetailModal user={selectedUser} onClose={() => setSelectedUser(null)} />
     </div>
   );
 }

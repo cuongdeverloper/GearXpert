@@ -1,27 +1,128 @@
+import { useEffect, useMemo, useState } from "react";
+import { useSelector } from "react-redux";
 import { FiTrendingUp, FiDollarSign, FiTarget, FiCalendar } from "react-icons/fi";
+import { Bar } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Tooltip,
+  Legend
+} from "chart.js";
+import { getSupplierRevenue } from "../../service/ApiService/SupplierRevenueApi";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Tooltip,
+  Legend
+);
+
+const EMPTY_DATA = {
+  summary: {
+    totalRevenue: 0,
+    monthlyRevenue: 0,
+    activeRentals: 0,
+    avgRating: 0
+  },
+  cashFlow: { DAY: [], MONTH: [], YEAR: [] },
+  monthlyBreakdown: [],
+  topDevices: [],
+  transactions: []
+};
+
+const formatMoney = (value) =>
+  (value || 0).toLocaleString("vi-VN");
+
+const formatMillions = (value) =>
+  `${((value || 0) / 1000000).toFixed(1)}M`;
 
 export default function SupplierRevenue() {
-  // Mock data
-  const revenueData = {
-    totalRevenue: 125400000,
-    monthlyRevenue: 18500000,
-    activeRentals: 12,
-    avgRating: 4.8
-  };
+  const user = useSelector((state) => state.user.account);
+  const [range, setRange] = useState("DAY");
+  const [data, setData] = useState(EMPTY_DATA);
+  const [loading, setLoading] = useState(true);
 
-  const monthlyBreakdown = [
-    { month: "Jan", revenue: 8500000, rentals: 24 },
-    { month: "Feb", revenue: 9200000, rentals: 28 },
-    { month: "Mar", revenue: 10100000, rentals: 31 },
-    { month: "Apr", revenue: 18500000, rentals: 45 }
-  ];
+  useEffect(() => {
+    const fetchRevenue = async () => {
+      if (!user?.id) return;
+      setLoading(true);
+      try {
+        const res = await getSupplierRevenue(user.id);
+        setData(res || EMPTY_DATA);
+      } catch (error) {
+        console.error("Error fetching supplier revenue:", error);
+        setData(EMPTY_DATA);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const topDevices = [
-    { name: "Canon EOS R5", revenue: 28500000, rentals: 142 },
-    { name: "Sony A7IV", revenue: 22300000, rentals: 118 },
-    { name: "DJI Mini 3 Pro", revenue: 18200000, rentals: 95 },
-    { name: "Rode Wireless Mic", revenue: 15600000, rentals: 78 }
-  ];
+    fetchRevenue();
+  }, [user?.id]);
+
+  const revenueData = data?.summary || EMPTY_DATA.summary;
+  const monthlyBreakdown = data?.monthlyBreakdown || [];
+  const topDevices = data?.topDevices || [];
+  const transactions = data?.transactions || [];
+  const cashFlowData = data?.cashFlow || EMPTY_DATA.cashFlow;
+  const maxMonthlyRevenue = Math.max(
+    ...monthlyBreakdown.map((item) => item.revenue || 0),
+    1
+  );
+
+  const chartData = useMemo(() => {
+    const series = cashFlowData[range] || [];
+    return {
+      labels: series.map((item) => item.label),
+      datasets: [
+        {
+          label: "Tiền vào",
+          data: series.map((item) => item.in),
+          backgroundColor: "#22c55e",
+          borderRadius: 8,
+          barThickness: 22
+        },
+        {
+          label: "Tiền ra",
+          data: series.map((item) => item.out),
+          backgroundColor: "#ef4444",
+          borderRadius: 8,
+          barThickness: 22
+        }
+      ]
+    };
+  }, [cashFlowData, range]);
+
+  const chartOptions = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: "bottom",
+        labels: {
+          usePointStyle: true,
+          padding: 20
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: (ctx) =>
+            `${ctx.dataset.label}: ${formatMoney(ctx.raw)} ₫`
+        }
+      }
+    },
+    scales: {
+      x: { grid: { display: false } },
+      y: {
+        ticks: {
+          callback: (v) => `${formatMoney(v)} ₫`
+        }
+      }
+    }
+  }), []);
 
   return (
     <div className="space-y-6">
@@ -40,7 +141,7 @@ export default function SupplierRevenue() {
               <FiDollarSign size={20} className="text-primary" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-primary">{(revenueData.totalRevenue / 1000000).toFixed(1)}M</p>
+          <p className="text-3xl font-bold text-primary">{formatMillions(revenueData.totalRevenue)}</p>
           <p className="text-xs text-primary/70 mt-2">All time earnings</p>
         </div>
 
@@ -51,7 +152,7 @@ export default function SupplierRevenue() {
               <FiTrendingUp size={20} className="text-green-600" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-green-600">{(revenueData.monthlyRevenue / 1000000).toFixed(1)}M</p>
+          <p className="text-3xl font-bold text-green-600">{formatMillions(revenueData.monthlyRevenue)}</p>
           <p className="text-xs text-green-600/70 mt-2">+15% vs last month</p>
         </div>
 
@@ -73,8 +174,36 @@ export default function SupplierRevenue() {
               ⭐
             </div>
           </div>
-          <p className="text-3xl font-bold text-amber-600">{revenueData.avgRating}</p>
+          <p className="text-3xl font-bold text-amber-600">{revenueData.avgRating?.toFixed ? revenueData.avgRating.toFixed(1) : revenueData.avgRating}</p>
           <p className="text-xs text-amber-600/70 mt-2">Customer satisfaction</p>
+        </div>
+      </div>
+
+      {/* Cash Flow */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <h3 className="text-lg font-bold text-slate-900">Cash Flow</h3>
+          <div className="flex bg-slate-100 rounded-full p-1">
+            {["DAY", "MONTH", "YEAR"].map((k) => (
+              <button
+                key={k}
+                onClick={() => setRange(k)}
+                className={`px-4 py-1.5 text-sm rounded-full ${
+                  range === k ? "bg-slate-900 text-white" : "hover:bg-slate-200"
+                }`}
+              >
+                {k === "DAY" ? "Ngày" : k === "MONTH" ? "Tháng" : "Năm"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="relative h-[260px] mt-6">
+          {loading ? (
+            <p className="text-sm text-slate-500">Đang tải dữ liệu...</p>
+          ) : (
+            <Bar data={chartData} options={chartOptions} />
+          )}
         </div>
       </div>
 
@@ -88,21 +217,26 @@ export default function SupplierRevenue() {
           </h3>
 
           <div className="space-y-4">
-            {monthlyBreakdown.map((item, idx) => (
-              <div key={idx}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-semibold text-slate-700">{item.month}</span>
-                  <span className="text-sm font-bold text-primary">{(item.revenue / 1000000).toFixed(1)}M</span>
+            {monthlyBreakdown.length === 0 && (
+              <p className="text-sm text-slate-500">Chưa có dữ liệu doanh thu.</p>
+            )}
+            {monthlyBreakdown.map((item, idx) => {
+              return (
+                <div key={idx}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold text-slate-700">{item.label}</span>
+                    <span className="text-sm font-bold text-primary">{formatMillions(item.revenue)}</span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-primary to-primary-dark rounded-full transition-all"
+                      style={{ width: `${(item.revenue / maxMonthlyRevenue) * 100}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">{item.rentals} rentals</p>
                 </div>
-                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-primary to-primary-dark rounded-full transition-all"
-                    style={{ width: `${(item.revenue / 20000000) * 100}%` }}
-                  ></div>
-                </div>
-                <p className="text-xs text-slate-500 mt-1">{item.rentals} rentals</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -111,6 +245,9 @@ export default function SupplierRevenue() {
           <h3 className="text-lg font-bold text-slate-900 mb-6">Top Performing Devices</h3>
 
           <div className="space-y-4">
+            {topDevices.length === 0 && (
+              <p className="text-sm text-slate-500">Chưa có thiết bị nổi bật.</p>
+            )}
             {topDevices.map((device, idx) => (
               <div
                 key={idx}
@@ -121,7 +258,7 @@ export default function SupplierRevenue() {
                   <p className="text-xs text-slate-500 mt-0.5">{device.rentals} rentals</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-primary">{(device.revenue / 1000000).toFixed(1)}M</p>
+                  <p className="font-bold text-primary">{formatMillions(device.revenue)}</p>
                 </div>
               </div>
             ))}
@@ -134,9 +271,15 @@ export default function SupplierRevenue() {
         <h3 className="text-lg font-bold text-slate-900 mb-6">Recent Transactions</h3>
 
         <div className="space-y-3">
-          {[1, 2, 3].map((item) => (
+          {loading && (
+            <p className="text-sm text-slate-500">Đang tải dữ liệu...</p>
+          )}
+          {!loading && transactions.length === 0 && (
+            <p className="text-sm text-slate-500">Chưa có giao dịch nào.</p>
+          )}
+          {transactions.map((item) => (
             <div
-              key={item}
+              key={item.id}
               className="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:border-primary/30 hover:bg-slate-50 transition-all"
             >
               <div className="flex items-center gap-3">
@@ -144,11 +287,13 @@ export default function SupplierRevenue() {
                   <FiDollarSign size={18} className="text-primary" />
                 </div>
                 <div>
-                  <p className="font-semibold text-slate-900">Rental Payment Received</p>
-                  <p className="text-xs text-slate-500">January 16, 2024 • 2:30 PM</p>
+                  <p className="font-semibold text-slate-900">{item.description}</p>
+                  <p className="text-xs text-slate-500">{item.createdAt}</p>
                 </div>
               </div>
-              <p className="font-bold text-green-600">+2.5M</p>
+              <p className={`font-bold ${item.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
+                {item.amount >= 0 ? "+" : "-"}{formatMillions(Math.abs(item.amount))}
+              </p>
             </div>
           ))}
         </div>

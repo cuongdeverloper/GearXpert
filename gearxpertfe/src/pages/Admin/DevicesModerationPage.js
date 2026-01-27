@@ -1,30 +1,46 @@
 import { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
-import { mockDevices } from "../../mocks/adminMock";
+import { getDevices } from "../../service/ApiService/DeviceApi";
 import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
-import AddDeviceModal from "../../components/admin/AddDeviceModal";
-import { FiSearch, FiFilter, FiStar, FiEdit2, FiTrash2, FiCheckCircle, FiAlertCircle, FiPlus } from "react-icons/fi";
+import ImageGalleryModal from "../../components/admin/ImageGalleryModal";
+import { FiSearch, FiFilter, FiStar, FiCheckCircle, FiAlertCircle, FiEye } from "react-icons/fi";
 
 export default function DevicesModerationPage() {
   const dispatch = useDispatch();
+  const [devices, setDevices] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [viewImageDevice, setViewImageDevice] = useState(null);
 
-  // Simulate data loading
+  // Fetch devices from API
   useEffect(() => {
-    dispatch(showAdminLoading());
-    const timer = setTimeout(() => {
-      dispatch(hideAdminLoading());
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [dispatch, categoryFilter, statusFilter]);
+    fetchDevices();
+  }, [categoryFilter]);
 
-  const filteredDevices = mockDevices.filter((device) => {
+  const fetchDevices = async () => {
+    try {
+      dispatch(showAdminLoading());
+      const params = {
+        limit: 100,
+        includeAll: true,
+        ...(categoryFilter !== "ALL" && { category: categoryFilter }),
+      };
+      const response = await getDevices(params);
+      setDevices(response.devices || []);
+    } catch (error) {
+      console.error("Error fetching devices:", error);
+      setDevices([]);
+    } finally {
+      dispatch(hideAdminLoading());
+    }
+  };
+
+  const filteredDevices = devices.filter((device) => {
     const matchesSearch =
-      device.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      device.supplierName.toLowerCase().includes(searchTerm.toLowerCase());
+      device.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === "ALL" || device.category === categoryFilter;
     const matchesStatus = statusFilter === "ALL" || device.status === statusFilter;
     return matchesSearch && matchesCategory && matchesStatus;
@@ -101,13 +117,9 @@ export default function DevicesModerationPage() {
           </select>
         </div>
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white font-medium hover:bg-primary-dark transition whitespace-nowrap"
-        >
-          <FiPlus size={18} />
-          Add Device
-        </button>
+        <div className="text-xs text-slate-500 font-semibold uppercase tracking-widest">
+          Supplier managed
+        </div>
       </div>
 
       {/* Table */}
@@ -161,11 +173,12 @@ export default function DevicesModerationPage() {
                 </td>
                 <td className="px-6 py-3 text-center">
                   <div className="flex items-center justify-center gap-2">
-                    <button className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600 transition">
-                      <FiEdit2 size={16} />
-                    </button>
-                    <button className="p-1.5 rounded-lg hover:bg-red-100 text-slate-600 hover:text-red-600 transition">
-                      <FiTrash2 size={16} />
+                    <button 
+                      onClick={() => setViewImageDevice(device)}
+                      className="p-1.5 rounded-lg hover:bg-blue-100 text-slate-600 hover:text-blue-600 transition"
+                      title="View Images"
+                    >
+                      <FiEye size={16} />
                     </button>
                   </div>
                 </td>
@@ -181,8 +194,15 @@ export default function DevicesModerationPage() {
         </div>
       )}
 
-      {/* Add Device Modal */}
-      <AddDeviceModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      {/* Image Gallery Modal */}
+      {viewImageDevice && (
+        <ImageGalleryModal
+          isOpen={!!viewImageDevice}
+          onClose={() => setViewImageDevice(null)}
+          images={viewImageDevice.images || []}
+          deviceName={viewImageDevice.name}
+        />
+      )}
     </div>
   );
 }
