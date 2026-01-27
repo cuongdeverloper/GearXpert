@@ -16,8 +16,6 @@ const payos = new PayOS(
   process.env.PAYOS_CHECKSUM_KEY
 );
 
-
-
 exports.checkoutRental = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -69,8 +67,7 @@ exports.checkoutRental = async (req, res) => {
         };
       }
 
-      const rent =
-        device.rentPrice.perDay * item.totalDays * item.quantity;
+      const rent = device.rentPrice.perDay * item.totalDays * item.quantity;
       const deposit = device.depositAmount * item.quantity;
 
       supplierGroups[supplierId].rentPriceTotal += rent;
@@ -158,7 +155,9 @@ exports.checkoutRental = async (req, res) => {
     let rentalStatus = "PENDING";
 
     if (paymentMethod === "WALLET") {
-      const wallet = await Wallet.findOne({ user: customerId }).session(session);
+      const wallet = await Wallet.findOne({ user: customerId }).session(
+        session
+      );
 
       if (!wallet || wallet.balance < grandTotalAmount) {
         throw new Error("Số dư ví không đủ");
@@ -388,9 +387,9 @@ exports.getSupplierRentals = async (req, res) => {
     // Lấy rentalItems cho từng rental, populate deviceId
     const rentalsWithItems = await Promise.all(
       rentals.map(async (rental) => {
-        const rentalItems = await RentalItem.find({ rentalId: rental._id }).populate(
-          "deviceId"
-        );
+        const rentalItems = await RentalItem.find({
+          rentalId: rental._id,
+        }).populate("deviceId");
         return {
           ...rental.toObject(),
           rentalItems,
@@ -415,7 +414,11 @@ exports.getMyRentals = async (req, res) => {
         path: "items",
         populate: {
           path: "deviceId",
-          select: "name images", // Đảm bảo lấy name và images
+          select: "name images supplierId", // ← THÊM supplierId vào đây
+          populate: {
+            path: "supplierId", // ← Populate supplier
+            select: "fullName avatar phone email", // Chọn field cần thiết (có thể thêm rating, address nếu muốn)
+          },
         },
       })
       .populate({
@@ -449,14 +452,18 @@ exports.getMyRentals = async (req, res) => {
               .model("DeliveryIssueReport")
               .find({ rentalItemIds: item._id })
               .sort({ createdAt: -1 })
-              .select("issueType description status images resolvedNote createdAt updatedAt")
+              .select(
+                "issueType description status images resolvedNote createdAt updatedAt"
+              )
               .lean();
 
             itemObj.damageReports = await mongoose
               .model("DamageReport")
               .find({ rentalItemId: item._id })
               .sort({ createdAt: -1 })
-              .select("description severity status images compensationAmount createdAt updatedAt")
+              .select(
+                "description severity status images compensationAmount createdAt updatedAt"
+              )
               .lean();
 
             return {
@@ -486,8 +493,10 @@ exports.approveRental = async (req, res) => {
   try {
     const { rentalId } = req.params;
     const rental = await Rental.findById(rentalId);
-    if (!rental) return res.status(404).json({ message: "Không tìm thấy đơn thuê" });
-    if (rental.status === "APPROVED") return res.status(400).json({ message: "Đơn đã được duyệt" });
+    if (!rental)
+      return res.status(404).json({ message: "Không tìm thấy đơn thuê" });
+    if (rental.status === "APPROVED")
+      return res.status(400).json({ message: "Đơn đã được duyệt" });
     rental.status = "APPROVED";
     await rental.save();
     res.json({ success: true, message: "Đã duyệt đơn thuê", rental });
@@ -501,8 +510,10 @@ exports.rejectRental = async (req, res) => {
   try {
     const { rentalId } = req.params;
     const rental = await Rental.findById(rentalId);
-    if (!rental) return res.status(404).json({ message: "Không tìm thấy đơn thuê" });
-    if (rental.status === "REJECTED") return res.status(400).json({ message: "Đơn đã bị từ chối" });
+    if (!rental)
+      return res.status(404).json({ message: "Không tìm thấy đơn thuê" });
+    if (rental.status === "REJECTED")
+      return res.status(400).json({ message: "Đơn đã bị từ chối" });
     rental.status = "REJECTED";
     await rental.save();
     res.json({ success: true, message: "Đã từ chối đơn thuê", rental });
@@ -512,20 +523,32 @@ exports.rejectRental = async (req, res) => {
 };
 
 const formatDayLabel = (date) =>
-  `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
+  `${String(date.getDate()).padStart(2, "0")}/${String(
+    date.getMonth() + 1
+  ).padStart(2, "0")}`;
 
 const formatMonthLabel = (date) =>
   `${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
 
 const formatYearLabel = (date) => `${date.getFullYear()}`;
 
-const startOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
-const endOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+const startOfDay = (date) =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate());
+const endOfDay = (date) =>
+  new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    23,
+    59,
+    59,
+    999
+  );
 
 const sumAmount = async (match) => {
   const result = await Rental.aggregate([
     { $match: match },
-    { $group: { _id: null, total: { $sum: "$totalAmount" } } }
+    { $group: { _id: null, total: { $sum: "$totalAmount" } } },
   ]);
   return result[0]?.total || 0;
 };
@@ -543,28 +566,40 @@ exports.getSupplierRevenue = async (req, res) => {
 
     const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const totalPaid = await sumAmount({ supplierId: supplierObjectId, paymentStatus: "PAID" });
-    const totalRefunded = await sumAmount({ supplierId: supplierObjectId, paymentStatus: "REFUNDED" });
+    const totalPaid = await sumAmount({
+      supplierId: supplierObjectId,
+      paymentStatus: "PAID",
+    });
+    const totalRefunded = await sumAmount({
+      supplierId: supplierObjectId,
+      paymentStatus: "REFUNDED",
+    });
     const monthlyPaid = await sumAmount({
       supplierId: supplierObjectId,
       paymentStatus: "PAID",
-      createdAt: { $gte: startMonth, $lte: now }
+      createdAt: { $gte: startMonth, $lte: now },
     });
     const monthlyRefunded = await sumAmount({
       supplierId: supplierObjectId,
       paymentStatus: "REFUNDED",
-      createdAt: { $gte: startMonth, $lte: now }
+      createdAt: { $gte: startMonth, $lte: now },
     });
 
-    const activeStatuses = ["APPROVED", "DELIVERING", "RENTING", "RETURNING", "INSPECTING"];
+    const activeStatuses = [
+      "APPROVED",
+      "DELIVERING",
+      "RENTING",
+      "RETURNING",
+      "INSPECTING",
+    ];
     const activeRentals = await Rental.countDocuments({
       supplierId: supplierObjectId,
-      status: { $in: activeStatuses }
+      status: { $in: activeStatuses },
     });
 
     const avgRatingResult = await Device.aggregate([
       { $match: { supplierId: supplierObjectId } },
-      { $group: { _id: null, avgRating: { $avg: "$ratingAvg" } } }
+      { $group: { _id: null, avgRating: { $avg: "$ratingAvg" } } },
     ]);
     const avgRating = avgRatingResult[0]?.avgRating || 0;
 
@@ -572,7 +607,7 @@ exports.getSupplierRevenue = async (req, res) => {
     const revenueRentals = await Rental.find({
       supplierId: supplierObjectId,
       paymentStatus: { $in: ["PAID", "REFUNDED"] },
-      createdAt: { $gte: yearStart, $lte: now }
+      createdAt: { $gte: yearStart, $lte: now },
     }).select("createdAt totalAmount paymentStatus");
 
     const dayBuckets = Array.from({ length: 7 }, (_, idx) => {
@@ -581,7 +616,7 @@ exports.getSupplierRevenue = async (req, res) => {
       return {
         label: formatDayLabel(date),
         start: startOfDay(date),
-        end: endOfDay(date)
+        end: endOfDay(date),
       };
     });
 
@@ -590,7 +625,15 @@ exports.getSupplierRevenue = async (req, res) => {
       return {
         label: formatMonthLabel(date),
         start: new Date(date.getFullYear(), date.getMonth(), 1),
-        end: new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999)
+        end: new Date(
+          date.getFullYear(),
+          date.getMonth() + 1,
+          0,
+          23,
+          59,
+          59,
+          999
+        ),
       };
     });
 
@@ -600,7 +643,7 @@ exports.getSupplierRevenue = async (req, res) => {
       return {
         label: formatYearLabel(date),
         start: new Date(year, 0, 1),
-        end: new Date(year, 11, 31, 23, 59, 59, 999)
+        end: new Date(year, 11, 31, 23, 59, 59, 999),
       };
     });
 
@@ -611,7 +654,10 @@ exports.getSupplierRevenue = async (req, res) => {
         let rentalsCount = 0;
 
         revenueRentals.forEach((rental) => {
-          if (rental.createdAt >= bucket.start && rental.createdAt <= bucket.end) {
+          if (
+            rental.createdAt >= bucket.start &&
+            rental.createdAt <= bucket.end
+          ) {
             if (rental.paymentStatus === "PAID") {
               totalIn += rental.totalAmount;
               rentalsCount += 1;
@@ -626,48 +672,76 @@ exports.getSupplierRevenue = async (req, res) => {
           in: totalIn,
           out: totalOut,
           revenue: totalIn - totalOut,
-          rentals: rentalsCount
+          rentals: rentalsCount,
         };
       });
 
     const cashFlow = {
-      DAY: summarizeBuckets(dayBuckets).map((b) => ({ label: b.label, in: b.in, out: b.out })),
-      MONTH: summarizeBuckets(monthBuckets).map((b) => ({ label: b.label, in: b.in, out: b.out })),
-      YEAR: summarizeBuckets(yearBuckets).map((b) => ({ label: b.label, in: b.in, out: b.out }))
+      DAY: summarizeBuckets(dayBuckets).map((b) => ({
+        label: b.label,
+        in: b.in,
+        out: b.out,
+      })),
+      MONTH: summarizeBuckets(monthBuckets).map((b) => ({
+        label: b.label,
+        in: b.in,
+        out: b.out,
+      })),
+      YEAR: summarizeBuckets(yearBuckets).map((b) => ({
+        label: b.label,
+        in: b.in,
+        out: b.out,
+      })),
     };
 
-    const monthlyBreakdown = summarizeBuckets(monthBuckets).slice(-4).map((item) => ({
-      label: item.label,
-      revenue: item.revenue,
-      rentals: item.rentals
-    }));
+    const monthlyBreakdown = summarizeBuckets(monthBuckets)
+      .slice(-4)
+      .map((item) => ({
+        label: item.label,
+        revenue: item.revenue,
+        rentals: item.rentals,
+      }));
 
     const topDevices = await RentalItem.aggregate([
-      { $lookup: { from: "rentals", localField: "rentalId", foreignField: "_id", as: "rental" } },
+      {
+        $lookup: {
+          from: "rentals",
+          localField: "rentalId",
+          foreignField: "_id",
+          as: "rental",
+        },
+      },
       { $unwind: "$rental" },
       {
         $match: {
           "rental.supplierId": supplierObjectId,
-          "rental.paymentStatus": "PAID"
-        }
+          "rental.paymentStatus": "PAID",
+        },
       },
       {
         $group: {
           _id: "$deviceId",
           revenue: { $sum: "$rentPrice" },
-          rentals: { $sum: "$quantity" }
-        }
+          rentals: { $sum: "$quantity" },
+        },
       },
-      { $lookup: { from: "devices", localField: "_id", foreignField: "_id", as: "device" } },
+      {
+        $lookup: {
+          from: "devices",
+          localField: "_id",
+          foreignField: "_id",
+          as: "device",
+        },
+      },
       { $unwind: "$device" },
       { $project: { name: "$device.name", revenue: 1, rentals: 1 } },
       { $sort: { revenue: -1 } },
-      { $limit: 4 }
+      { $limit: 4 },
     ]);
 
     const recentRentals = await Rental.find({
       supplierId: supplierObjectId,
-      paymentStatus: { $in: ["PAID", "REFUNDED"] }
+      paymentStatus: { $in: ["PAID", "REFUNDED"] },
     })
       .populate("customerId", "fullName")
       .sort({ createdAt: -1 })
@@ -675,14 +749,17 @@ exports.getSupplierRevenue = async (req, res) => {
 
     const transactions = recentRentals.map((rental) => ({
       id: rental._id,
-      amount: rental.paymentStatus === "REFUNDED" ? -rental.totalAmount : rental.totalAmount,
+      amount:
+        rental.paymentStatus === "REFUNDED"
+          ? -rental.totalAmount
+          : rental.totalAmount,
       description:
         rental.paymentStatus === "REFUNDED"
           ? `Hoàn tiền đơn thuê #${rental._id.toString().slice(-6)}`
           : `Thanh toán đơn thuê #${rental._id.toString().slice(-6)}`,
       createdAt: rental.createdAt.toLocaleString("vi-VN"),
       status: rental.paymentStatus,
-      customerName: rental.customerId?.fullName || ""
+      customerName: rental.customerId?.fullName || "",
     }));
 
     res.json({
@@ -690,12 +767,12 @@ exports.getSupplierRevenue = async (req, res) => {
         totalRevenue: totalPaid - totalRefunded,
         monthlyRevenue: monthlyPaid - monthlyRefunded,
         activeRentals,
-        avgRating
+        avgRating,
       },
       cashFlow,
       monthlyBreakdown,
       topDevices,
-      transactions
+      transactions,
     });
   } catch (error) {
     console.error("Error getSupplierRevenue:", error);
@@ -861,16 +938,18 @@ exports.extendRental = async (req, res) => {
 
     // Tạo document ExtensionRequest mới
     const extensionRequest = await ExtensionRequest.create(
-      [{
-        rentalId: rental._id,
-        customerId: rental.customerId,
-        supplierId: rental.supplierId,
-        requestedEndDate: proposedEnd,
-        requestedDays,
-        proposedExtraAmount: extraAmount,
-        note: note || "",
-        status: "PENDING",
-      }],
+      [
+        {
+          rentalId: rental._id,
+          customerId: rental.customerId,
+          supplierId: rental.supplierId,
+          requestedEndDate: proposedEnd,
+          requestedDays,
+          proposedExtraAmount: extraAmount,
+          note: note || "",
+          status: "PENDING",
+        },
+      ],
       { session }
     );
 
@@ -881,13 +960,16 @@ exports.extendRental = async (req, res) => {
     await session.commitTransaction();
 
     res.status(201).json({
-      message: "Yêu cầu gia hạn đã được gửi thành công, chờ xác nhận từ bên cho thuê",
+      message:
+        "Yêu cầu gia hạn đã được gửi thành công, chờ xác nhận từ bên cho thuê",
       extensionRequest: extensionRequest[0],
     });
   } catch (err) {
     await session.abortTransaction();
     console.error("Extend Rental Error:", err);
-    res.status(400).json({ message: err.message || "Gửi yêu cầu gia hạn thất bại" });
+    res
+      .status(400)
+      .json({ message: err.message || "Gửi yêu cầu gia hạn thất bại" });
   } finally {
     session.endSession();
   }

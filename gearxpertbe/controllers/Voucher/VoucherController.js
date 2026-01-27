@@ -3,21 +3,29 @@ const Cart = require("../../models/Cart");
 
 exports.validateVoucher = async (req, res) => {
   const { code, cartType } = req.body;
-  const customerId = req.user._id;
+  const customerId = req.user.id;
 
+  // 1. Tìm voucher
   const voucher = await Voucher.findOne({
     code: code.toUpperCase(),
     status: "ACTIVE"
   });
 
   if (!voucher) {
-    return res.status(400).json({ message: "Voucher không hợp lệ" });
+    return res.status(400).json({ message: "Voucher không hợp lệ hoặc không tồn tại" });
   }
 
+  // 2. Kiểm tra hết hạn
   if (voucher.expiredAt < new Date()) {
     return res.status(400).json({ message: "Voucher đã hết hạn" });
   }
 
+  // 3. Kiểm tra giới hạn sử dụng (nếu có)
+  if (voucher.usageLimit && voucher.usedCount >= voucher.usageLimit) {
+    return res.status(400).json({ message: "Voucher đã hết lượt sử dụng" });
+  }
+
+  // 4. Lấy giỏ hàng
   const cart = await Cart.findOne({
     customerId,
     cartType
@@ -30,55 +38,60 @@ exports.validateVoucher = async (req, res) => {
   });
 
   if (!cart || !cart.items.length) {
-    return res.status(400).json({ message: "Cart trống" });
+    return res.status(400).json({ message: "Giỏ hàng trống" });
   }
 
+  // 5. Tính tổng giá trị áp dụng voucher
   let applicableTotal = 0;
-  let supplierId = null;
+  let applicableSupplierId = null; // Chỉ dùng khi voucher là SUPPLIER
 
   cart.items.forEach(item => {
     const device = item.deviceId;
+    if (!device) return;
 
-    const itemTotal =
-      device.rentPrice.perDay *
-      item.totalDays *
-      item.quantity;
+    const itemTotal = device.rentPrice.perDay * item.totalDays * item.quantity;
 
-    if (!supplierId) supplierId = device.supplierId.toString();
-
-    if (
-      voucher.type === "GLOBAL" ||
-      (voucher.type === "SUPPLIER" &&
-        device.supplierId.equals(voucher.supplierId))
-    ) {
+    // GLOBAL: áp dụng cho tất cả
+    if (voucher.type === "GLOBAL") {
       applicableTotal += itemTotal;
+    }
+    // SUPPLIER: chỉ áp dụng cho supplier của voucher
+    else if (voucher.type === "SUPPLIER") {
+      if (device.supplierId.equals(voucher.supplierId)) {
+        applicableTotal += itemTotal;
+        applicableSupplierId = voucher.supplierId.toString();
+      }
     }
   });
 
+  // 6. Kiểm tra minOrderValue
   if (applicableTotal < voucher.minOrderValue) {
     return res.status(400).json({
-      message: "Không đạt giá trị tối thiểu"
+      message: `Đơn hàng chưa đạt giá trị tối thiểu ${voucher.minOrderValue.toLocaleString()}đ để áp dụng voucher`
     });
   }
 
+  // 7. Tính discount
   let discount = 0;
 
   if (voucher.discountType === "PERCENT") {
-    discount = Math.round(
-      applicableTotal * voucher.discountValue / 100
-    );
+    discount = Math.round((applicableTotal * voucher.discountValue) / 100);
     if (voucher.maxDiscount) {
       discount = Math.min(discount, voucher.maxDiscount);
     }
-  } else {
+  } else if (voucher.discountType === "FIXED") {
     discount = voucher.discountValue;
   }
 
+  // 8. Trả về thông tin chi tiết
   res.json({
+    success: true,
     code: voucher.code,
     type: voucher.type,
-    supplierId: voucher.supplierId,
-    discount
+    supplierId: voucher.supplierId ? voucher.supplierId.toString() : null,
+    discount,
+    applicableTotal, // Tổng giá trị áp dụng (dùng để debug hoặc hiển thị)
+    message: `Áp dụng thành công! Giảm ${discount.toLocaleString()}đ`
   });
 };
 

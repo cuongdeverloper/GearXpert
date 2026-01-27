@@ -24,7 +24,7 @@ import {
   Wrench,
   X,
   Plus,
-  Check,
+  Check,ArrowRight,ArrowLeft
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
@@ -57,7 +57,11 @@ export default function MyRentals() {
   const [reviewSelectedItems, setReviewSelectedItems] = useState([]); // array rentalItemId
   const [hasReviewed, setHasReviewed] = useState(false);
   const [reviewLoading, setReviewLoading] = useState(false);
+  const ITEMS_PER_PAGE = 5;
+  const [currentPage, setCurrentPage] = useState(1);
 
+
+  
   const [reportDetailModal, setReportDetailModal] = useState({
     isOpen: false,
     report: null,
@@ -167,7 +171,7 @@ export default function MyRentals() {
     try {
       setLoading(true);
       const res = await rentalService.getMyRentals();
-      setRentals(res.data || res);
+      setRentals(res.rentals || []);
     } catch (error) {
       toast.error("Không thể tải danh sách đơn thuê");
     } finally {
@@ -232,7 +236,10 @@ export default function MyRentals() {
       toast.error(err.response?.data?.message || "Gửi báo cáo thất bại");
     }
   };
-
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    setCurrentPage(1); // reset về trang 1 khi đổi tab
+  };
   const handleSubmitReview = async () => {
     if (reviewModal.rating === 0) {
       return toast.warning("Vui lòng chọn số sao!");
@@ -396,7 +403,7 @@ export default function MyRentals() {
   const handleModalConfirm = async () => {
     const { type, selectedId } = modalConfig;
     console.log("Đang thực hiện action:", type, "cho đơn:", selectedId); // Kiểm tra log này
-  
+
     try {
       if (type === "CANCEL") {
         const response = await rentalService.cancelRental(selectedId);
@@ -405,13 +412,13 @@ export default function MyRentals() {
         await rentalService.confirmReceived(selectedId);
         toast.success("Xác nhận đã nhận hàng thành công!");
       }
-      
+
       // Đóng modal và load lại data
       setModalConfig({ ...modalConfig, isOpen: false });
       fetchRentals();
-      
     } catch (error) {
-      const errorMsg = error.response?.data?.message || "Lỗi thao tác, vui lòng thử lại";
+      const errorMsg =
+        error.response?.data?.message || "Lỗi thao tác, vui lòng thử lại";
       toast.error(errorMsg);
       setModalConfig({ ...modalConfig, isOpen: false });
     }
@@ -435,6 +442,7 @@ export default function MyRentals() {
         : 0,
     cost: extendModal.extraAmount || 0,
   };
+
   const filteredRentals = rentals.filter((r) => {
     if (activeTab === "ALL") return true;
     if (activeTab === "DELIVERING") {
@@ -442,6 +450,13 @@ export default function MyRentals() {
     }
     return r.status === activeTab;
   });
+  const indexOfLastItem = currentPage * ITEMS_PER_PAGE;
+  const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE;
+  const currentRentals = filteredRentals.slice(
+    indexOfFirstItem,
+    indexOfLastItem
+  );
+  const totalPages = Math.ceil(filteredRentals.length / ITEMS_PER_PAGE);
   const minExtendDate = extendModal.currentEndDate
     ? new Date(
         new Date(extendModal.currentEndDate).getTime() + 24 * 60 * 60 * 1000
@@ -468,7 +483,7 @@ export default function MyRentals() {
           {STATUS_TABS.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
               className={`px-6 py-3 rounded-2xl text-[11px] font-black uppercase transition-all whitespace-nowrap ${
                 activeTab === tab.id
                   ? "bg-gray-900 text-white shadow-2xl shadow-gray-300 scale-105"
@@ -488,30 +503,105 @@ export default function MyRentals() {
           </div>
         ) : (
           <div className="space-y-8">
-            {filteredRentals.length > 0 ? (
-              filteredRentals.map((order) => (
+            {/* Pagination */}
+            {!loading && filteredRentals.length > 0 && totalPages > 1 && (
+              <div className="flex justify-center items-center gap-3 mt-12">
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(prev - 1, 1))
+                  }
+                  disabled={currentPage === 1}
+                  className={`px-5 py-2.5 rounded-xl font-medium text-sm transition-all flex items-center gap-2 ${
+                    currentPage === 1
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-white border border-gray-200 hover:bg-gray-50 shadow-sm"
+                  }`}
+                >
+                  <ArrowLeft size={16} /> Trước
+                </button>
+
+                <div className="flex gap-2">
+                  {[...Array(totalPages)].map((_, i) => {
+                    const pageNum = i + 1;
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`w-10 h-10 rounded-xl font-bold text-sm transition-all ${
+                          currentPage === pageNum
+                            ? "bg-indigo-600 text-white shadow-md"
+                            : "bg-white border border-gray-200 hover:bg-gray-50 text-gray-700"
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                  }
+                  disabled={currentPage === totalPages}
+                  className={`px-5 py-2.5 rounded-xl font-medium text-sm transition-all flex items-center gap-2 ${
+                    currentPage === totalPages
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-white border border-gray-200 hover:bg-gray-50 shadow-sm"
+                  }`}
+                >
+                  Sau <ArrowRight size={16} />
+                </button>
+              </div>
+            )}
+            {currentRentals.length > 0 ? (
+              currentRentals.map((order) => (
                 <div
                   key={order._id}
                   className="group bg-white rounded-[3rem] border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500"
                 >
-                  {/* Top Bar */}
+                  {/* Top Bar – Thêm thông tin Supplier */}
                   <div className="px-8 py-5 border-b border-gray-50 flex flex-wrap items-center justify-between gap-4 bg-[#FCFCFE]">
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center border border-gray-100">
-                        <Package className="text-indigo-600" size={18} />
+                      {/* Avatar Supplier */}
+                      <div className="relative">
+                        {!order.items?.[0]?.deviceId?.supplierId?.avatar ? (
+                          <div className="w-12 h-12 rounded-2xl bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-xl">
+                            Shop
+                          </div>
+                        ) : (
+                          <img
+                            src={order.items?.[0]?.deviceId?.supplierId?.avatar}
+                            alt={
+                              order.items?.[0]?.deviceId?.supplierId
+                                ?.fullName || "Supplier"
+                            }
+                            className="w-12 h-12 rounded-2xl object-cover"
+                            onError={(e) => {
+                              e.target.onerror = null; // ngăn loop
+                              e.target.src =
+                                "https://placehold.co/48x48?text=Shop";
+                            }}
+                          />
+                        )}
+                        <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white"></div>
                       </div>
+
                       <div>
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                          Order Reference
+                          Từ nhà cung cấp
                         </p>
-                        <h3 className="text-sm font-bold text-gray-900 tracking-tight italic">
-                          #
-                          {order._id
-                            ? order._id.slice(-12).toUpperCase()
-                            : "UNKNOWN"}
+                        <h3 className="text-base font-bold text-gray-900 tracking-tight">
+                          {order.items?.[0]?.deviceId?.supplierId?.fullName ||
+                            "Unknown Supplier"}
                         </h3>
+                        <p className="text-[11px] text-gray-500">
+                          #{order._id?.slice(-8).toUpperCase()}
+                        </p>
                       </div>
                     </div>
+
+                    {/* Status Badge */}
                     <div className="flex items-center gap-3">
                       <div
                         className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm ${
@@ -524,7 +614,9 @@ export default function MyRentals() {
                             : "bg-gray-100 text-gray-500"
                         }`}
                       >
-                        {order.status}
+                        {order.status === "APPROVED"
+                          ? "Đã duyệt"
+                          : order.status}
                       </div>
                     </div>
                   </div>
@@ -813,7 +905,7 @@ export default function MyRentals() {
                                 duyệt gia hạn
                               </span>
                             )}
-                            {(order.status === "PENDING") && (
+                            {order.status === "PENDING" && (
                               <button
                                 onClick={() =>
                                   handleOpenModal("CANCEL", order._id)
