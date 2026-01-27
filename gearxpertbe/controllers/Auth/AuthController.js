@@ -81,6 +81,14 @@ const apiRegister = async (req, res) => {
                 return res.status(200).json({ errorCode: 6, message: 'Phone number must be exactly 10 digits' });
             }
 
+            const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{6,}$/;
+            if (!passwordRegex.test(password)) {
+                return res.status(200).json({
+                    errorCode: 7,
+                    message: 'Mật khẩu phải có ít nhất 6 ký tự, bao gồm chữ hoa, số và ký tự đặc biệt'
+                });
+            }
+
             const existingUser = await User.findOne({ email });
             if (existingUser) return res.status(200).json({ errorCode: 2, message: 'Email already exists' });
 
@@ -205,6 +213,16 @@ const resetPassword = async (req, res) => {
         const userRecord = await User.findById(decoded.id);
         if (!userRecord) return res.status(404).json({ errorCode: 3, message: 'User not found' });
 
+        if (!userRecord) return res.status(404).json({ errorCode: 3, message: 'User not found' });
+
+        const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{6,}$/;
+        if (!passwordRegex.test(newPassword)) {
+            return res.status(200).json({
+                errorCode: 7,
+                message: 'Mật khẩu phải có ít nhất 6 ký tự, bao gồm chữ hoa, số và ký tự đặc biệt'
+            });
+        }
+
         userRecord.password = newPassword;
         await userRecord.save();
 
@@ -247,6 +265,14 @@ const changePassword = async (req, res) => {
         }
 
         // All validations passed, change password
+        const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{6,}$/;
+        if (!passwordRegex.test(newPassword)) {
+            return res.status(200).json({
+                errorCode: 7,
+                message: 'Mật khẩu phải có ít nhất 6 ký tự, bao gồm chữ hoa, số và ký tự đặc biệt'
+            });
+        }
+
         userRecord.password = newPassword;
         await userRecord.save();
 

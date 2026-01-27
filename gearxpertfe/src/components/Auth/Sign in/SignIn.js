@@ -11,6 +11,7 @@ import Header from "../../navigation/Header";
 import Footer from "../../homepage/Footer";
 import RequestPasswordReset from "../reset password/RequestPasswordReset";
 import BlockedAccountModal from "./BlockedAccountModal";
+import PasswordStrengthMeter from "./PasswordStrengthMeter";
 
 const SignIn = () => {
   const location = useLocation();
@@ -50,8 +51,12 @@ const SignIn = () => {
   }, [email, password]);
 
   useEffect(() => {
+    // Regex: At least 6 chars, 1 uppercase, 1 number, 1 special char
+    const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{6,}$/;
+    const isPasswordValid = passwordRegex.test(passwordReg);
     const isPhoneValid = /^\d{10}$/.test(phone);
-    setIsFormValidRegister(fullName && emailReg && passwordReg && isPhoneValid);
+
+    setIsFormValidRegister(fullName && emailReg && isPasswordValid && isPhoneValid);
   }, [fullName, emailReg, passwordReg, phone]);
 
   useEffect(() => {
@@ -148,7 +153,7 @@ const SignIn = () => {
   const redirectGoogleLogin = () => {
     const backendUrl = process.env.REACT_APP_BACKEND_URL;
     window.location.href = `${backendUrl}/auth/google`;
-};
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-200 via-slate-50 to-cyan-200 relative">
@@ -357,6 +362,7 @@ const SignIn = () => {
                             className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-base"
                             required
                           />
+                          <PasswordStrengthMeter password={passwordReg} />
                         </div>
 
                         <div>
