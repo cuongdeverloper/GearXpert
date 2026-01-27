@@ -71,7 +71,6 @@ const ChatBox = ({
     <div className="chatBox">
       {currentChat ? (
         <>
-          {/* HEADER */}
           <div className="chatHeader">
             <div className="chatHeaderLeft">
               <div className="userAvatarContainer">
