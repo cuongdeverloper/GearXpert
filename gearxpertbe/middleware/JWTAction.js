@@ -119,7 +119,27 @@ const checkSupplier = (req, res, next) => {
         });
     }
 };
-
+const requireEkyc = async (req, res, next) => {
+    try {
+      const user = req.user; // assuming you already attach user via auth middleware
+  
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+  
+      if (!user.isVerifiedEkyc) {
+        return res.status(403).json({
+          message: "Vui lòng hoàn tất xác thực eKYC trước khi thực hiện giao dịch tài chính.",
+          code: "EKYC_REQUIRED",
+          redirect: "/profile" // optional hint for frontend
+        });
+      }
+  
+      next();
+    } catch (err) {
+      res.status(500).json({ message: "Lỗi server" });
+    }
+  };
 module.exports = {
     createJWT,
     createRefreshToken,
@@ -131,6 +151,7 @@ module.exports = {
     decodeToken,
     createJWTResetPassword,
     createJWTVerifyEmail,
+    requireEkyc,
     createJWTOtp: (payload) => {
         const key = process.env.JWT_SECRET;
         const options = { expiresIn: '5m' }; // Token OTP short-lived (5 minutes)
