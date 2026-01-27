@@ -280,3 +280,136 @@
         }
     }
 }
+.chatBox {
+  flex: 1;                /* Chiếm toàn bộ không gian còn lại của cha (.messenger) */
+  display: flex;          /* Bật chế độ Flex */
+  flex-direction: column; /* Xếp dọc: Header -> Messages -> Input */
+  height: 100%;           /* Chiều cao 100% của cha */
+  overflow: hidden;       /* Ẩn thanh cuộn tổng thể của box */
+  background-color: #fff;
+  position: relative;
+
+  /* 1. HEADER: Cố định chiều cao, không co giãn */
+  .chatHeader {
+    height: 70px;         /* Chiều cao cố định */
+    flex-shrink: 0;       /* Đảm bảo không bị co lại khi màn hình nhỏ */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    border-bottom: 1px solid #e5e5e5;
+    background-color: #fff;
+    z-index: 10;          /* Đảm bảo nằm trên tin nhắn khi cuộn sát */
+
+    .chatHeaderLeft {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+
+      .userAvatarContainer {
+        position: relative;
+        .chatHeaderAvatar {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          object-fit: cover;
+        }
+        .onlineStatusDot {
+          width: 10px;
+          height: 10px;
+          background-color: #31a24c;
+          border-radius: 50%;
+          position: absolute;
+          bottom: 0;
+          right: 0;
+          border: 2px solid #fff;
+        }
+      }
+
+      .chatHeaderInfo {
+        display: flex;
+        flex-direction: column;
+        .chatHeaderName {
+          font-weight: 600;
+          font-size: 16px;
+        }
+        .chatHeaderStatus {
+          font-size: 12px;
+          color: #65676b;
+        }
+      }
+    }
+
+    .chatHeaderRight {
+      .iconAction {
+        font-size: 20px;
+        color: #0084ff;
+        margin-left: 15px;
+        cursor: pointer;
+      }
+    }
+  }
+
+  .chatBoxTop {
+    flex: 1;              
+    overflow-y: auto;     
+    background-color: #f0f2f5;
+    scroll-behavior: smooth;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+    &::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: #bcc0c4;
+      border-radius: 10px;
+    }
+  }
+
+  .chatBoxBottom {
+    flex-shrink: 0;       
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    border-top: 1px solid #e5e5e5;
+    background-color: #fff;
+    position: relative;  
+    
+    .chatInputWrapper {
+        width: 100%;
+        display: flex;
+        align-items: center;
+    }
+
+    .inputBox {
+        flex: 1;
+        background-color: #f0f2f5;
+        border-radius: 20px;
+        padding: 8px 12px;
+        display: flex;
+        align-items: center;
+        margin: 0 10px;
+
+        .chatMessageInput {
+            width: 100%;
+            border: none;
+            outline: none;
+            background: transparent;
+            resize: none; 
+            max-height: 100px;
+            font-family: inherit;
+        }
+    }
+  }
+  
+  .noConversationWrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #ccc;
+      font-size: 20px;
+  }
+}
