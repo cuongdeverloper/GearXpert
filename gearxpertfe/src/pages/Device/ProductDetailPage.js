@@ -171,16 +171,16 @@ export default function ProductDetailPage() {
   const days =
     startDate && endDate
       ? Math.max(
-          1,
-          Math.ceil((new Date(endDate) - new Date(startDate)) / 86400000)
-        )
+        1,
+        Math.ceil((new Date(endDate) - new Date(startDate)) / 86400000)
+      )
       : 0;
 
   const totalPrice = device
     ? days *
-      (device.rentPrice.perDay +
-        addons.reduce((s, a) => s + a.rentPrice.perDay, 0)) *
-      quantity
+    (device.rentPrice.perDay +
+      addons.reduce((s, a) => s + a.rentPrice.perDay, 0)) *
+    quantity
     : 0;
 
   if (loading) {
@@ -234,9 +234,8 @@ export default function ProductDetailPage() {
                   />
                   <div className="absolute top-6 left-6">
                     <span
-                      className={`text-white text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest shadow-lg ${
-                        device.stockQuantity > 0 ? "bg-indigo-600" : "bg-rose-500"
-                      }`}
+                      className={`text-white text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest shadow-lg ${device.stockQuantity > 0 ? "bg-indigo-600" : "bg-rose-500"
+                        }`}
                     >
                       {device.stockQuantity > 0 ? device.status : "Out of Stock"}
                     </span>
@@ -248,11 +247,10 @@ export default function ProductDetailPage() {
                     <button
                       key={i}
                       onClick={() => setSelectedImage(i)}
-                      className={`relative min-w-[120px] h-24 rounded-2xl overflow-hidden border-2 transition-all ${
-                        selectedImage === i
+                      className={`relative min-w-[120px] h-24 rounded-2xl overflow-hidden border-2 transition-all ${selectedImage === i
                           ? "border-indigo-600 scale-95 shadow-lg"
                           : "border-transparent opacity-60 hover:opacity-100"
-                      }`}
+                        }`}
                     >
                       <img src={img} className="w-full h-full object-cover" alt="thumb" />
                     </button>
@@ -511,17 +509,15 @@ export default function ProductDetailPage() {
                         <button
                           key={a._id}
                           onClick={() => toggleAddon(a)}
-                          className={`w-full flex justify-between items-center p-4 rounded-2xl border-2 transition-all ${
-                            isSelected
+                          className={`w-full flex justify-between items-center p-4 rounded-2xl border-2 transition-all ${isSelected
                               ? "border-indigo-600 bg-indigo-50 shadow-sm"
                               : "border-slate-100 hover:border-slate-200 bg-white"
-                          }`}
+                            }`}
                         >
                           <div className="text-left">
                             <p
-                              className={`font-bold text-sm ${
-                                isSelected ? "text-indigo-700" : "text-slate-700"
-                              }`}
+                              className={`font-bold text-sm ${isSelected ? "text-indigo-700" : "text-slate-700"
+                                }`}
                             >
                               {a.name}
                             </p>

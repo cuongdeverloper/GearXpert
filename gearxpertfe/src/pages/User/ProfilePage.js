@@ -189,8 +189,8 @@ export default function ProfilePage() {
     const handleSubmitProfile = async (e) => {
         e.preventDefault();
 
-        // Validate phone number
-        if (!/^\d{10}$/.test(formData.phone)) {
+        // Validate phone number if provided
+        if (formData.phone && !/^\d{10}$/.test(formData.phone)) {
             toast.error('Số điện thoại phải có đúng 10 chữ số');
             return;
         }
@@ -543,7 +543,7 @@ export default function ProfilePage() {
                                     {/* Phone */}
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-2">
-                                            Số điện thoại <span className="text-red-500">*</span>
+                                            Số điện thoại
                                         </label>
                                         <input
                                             type="tel"
@@ -551,7 +551,6 @@ export default function ProfilePage() {
                                             id="phone-input"
                                             value={formData.phone}
                                             onChange={handleInputChange}
-                                            required
                                             className="w-full px-4 py-3 border border-slate-200/60 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
                                             placeholder="Nhập số điện thoại"
                                         />

@@ -14,7 +14,7 @@ const deviceSchema = new mongoose.Schema({
 
   category: {
     type: String,
-    enum: ['CAMERA', 'AUDIO', 'OFFICE', 'GAMING', 'ACCESSORY'],
+    enum: ['CAMERA', 'AUDIO', 'OFFICE', 'GAMING', 'ACCESSORY', 'LIGHTING', 'DRONE', 'OTHER'],
     required: true,
     index: true
   },

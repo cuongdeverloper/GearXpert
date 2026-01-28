@@ -54,7 +54,7 @@ const SignIn = () => {
     // Regex: At least 6 chars, 1 uppercase, 1 number, 1 special char
     const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{6,}$/;
     const isPasswordValid = passwordRegex.test(passwordReg);
-    const isPhoneValid = /^\d{10}$/.test(phone);
+    const isPhoneValid = !phone || /^\d{10}$/.test(phone);
 
     setIsFormValidRegister(fullName && emailReg && isPasswordValid && isPhoneValid);
   }, [fullName, emailReg, passwordReg, phone]);
@@ -70,12 +70,6 @@ const SignIn = () => {
   useEffect(() => {
     if (isAuthenticated) {
       const currentRole = userAccount.role;
-      // If phone is missing, redirect to profile regardless of role (except maybe admin/supplier if they have different needs, but user request says redirect to /profile)
-      if (!userAccount.phone && !userAccount.phoneNumber) {
-        navigate("/profile");
-        return;
-      }
-
       if (currentRole === "ADMIN") {
         navigate("/admin");
       } else if (currentRole === "SUPPLIER") {
@@ -84,7 +78,7 @@ const SignIn = () => {
         navigate("/");
       }
     }
-  }, [isAuthenticated, userAccount.role, userAccount.phone, userAccount.phoneNumber, navigate]);
+  }, [isAuthenticated, userAccount.role, navigate]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -107,17 +101,13 @@ const SignIn = () => {
 
         await dispatch(doLogin(response));
 
-        if (!response.data.phone) {
-          navigate("/profile");
+        const userRole = response.data?.role;
+        if (userRole === "ADMIN") {
+          navigate("/admin");
+        } else if (userRole === "SUPPLIER") {
+          navigate("/supplier/dashboard");
         } else {
-          const userRole = response.data?.role;
-          if (userRole === "ADMIN") {
-            navigate("/admin");
-          } else if (userRole === "SUPPLIER") {
-            navigate("/supplier/dashboard");
-          } else {
-            navigate("/");
-          }
+          navigate("/");
         }
       } else if (response.errorCode === 4) {
         setIsBlockedModalOpen(true);
@@ -375,7 +365,6 @@ const SignIn = () => {
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
                             className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-base"
-                            required
                           />
                         </div>
 

@@ -38,7 +38,18 @@ export default function ProductCard({
   // Extract device data
   const deviceId = device?._id || device?.id;
   const name = device?.name || '';
-  const category = device?.category || 'Equipment';
+  const getCategoryDisplay = (cat) => {
+    const map = {
+      'CAMERA': 'Cinematography',
+      'LIGHTING': 'Lighting Kits',
+      'AUDIO': 'Audio Gear',
+      'ACCESSORY': 'Gimbal & Grip',
+      'DRONE': 'Aerial / Drones',
+      'OTHER': 'Other'
+    };
+    return map[cat] || 'Other';
+  };
+  const category = getCategoryDisplay(device?.category);
   const description = device?.description || '';
   const price = device?.price || device?.rentPrice?.perDay || 0;
   const image = device?.image || device?.images?.[0] || '';
@@ -147,7 +158,7 @@ export default function ProductCard({
         className={`min-w-[280px] snap-start group bg-white p-4 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer ${className}`}
         onClick={handleClick}
       >
-        <div className="aspect-[4/3] rounded-2xl overflow-hidden mb-4 bg-slate-50 relative">
+        <div className="aspect-[4/3] rounded-2xl overflow-hidden isolate mb-4 bg-slate-50 relative">
           {/* Rating Badge - Top Left */}
           {rating !== null && (
             <div className="absolute top-3 left-3 z-10 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1 text-xs font-semibold text-gray-900">
@@ -193,9 +204,9 @@ export default function ProductCard({
       className={`group relative bg-white rounded-3xl p-1 shadow-lg hover:shadow-glow-cyan transition-all duration-300 border border-slate-100 ${match ? `ring-2 ${getRingColor(match)}` : ''
         } ${className}`}
     >
-      <div className="bg-white rounded-[22px] overflow-hidden flex flex-col h-full">
+      <div className="bg-white rounded-[22px] overflow-hidden isolate flex flex-col h-full">
         {/* Image Section */}
-        <div className="relative h-64">
+        <div className="relative h-64 overflow-hidden rounded-t-[22px]">
           {/* Rating Badge - Top Left (always show if available) */}
           {rating !== null && (
             <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full flex items-center gap-1 text-sm font-semibold text-gray-900">

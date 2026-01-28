@@ -9,7 +9,7 @@ import UpdateDeviceModal from "../../components/admin/UpdateDeviceModal";
 import { toast } from "react-toastify";
 import { confirmDialog } from "../../utils/confirmDialog";
 
-const CATEGORIES = ["ALL", "CAMERA", "AUDIO", "OFFICE", "GAMING", "ACCESSORY"];
+const CATEGORIES = ["ALL", "CAMERA", "AUDIO", "OFFICE", "GAMING", "ACCESSORY", "LIGHTING", "DRONE", "OTHER"];
 const STATUS_OPTIONS = [
   { value: "ALL", label: "All status" },
   { value: "AVAILABLE", label: "Available" },
@@ -98,8 +98,8 @@ export default function SupplierDevicesList() {
   // Search filter (client-side on fetched data)
   const filteredDevices = searchTerm
     ? devices.filter((d) =>
-        d.name.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+      d.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
     : devices;
 
   // Delete device handler
@@ -135,7 +135,7 @@ export default function SupplierDevicesList() {
           <p className="mt-1 text-xs text-slate-400">Supplier ID: <span className="font-mono text-slate-500">{user?.id}</span></p>
         </div>
 
-        <button 
+        <button
           onClick={() => setIsModalOpen(true)}
           className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-primary to-primary-dark text-white rounded-2xl font-semibold shadow-lg shadow-primary/30 hover:shadow-lg hover:shadow-primary/40 transition-all hover:scale-105 active:scale-95">
           <FiPlus size={20} />
@@ -249,10 +249,9 @@ export default function SupplierDevicesList() {
                           {device.category}
                         </span>
                         <span
-                          className={`h-fit rounded px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider whitespace-nowrap border shadow-sm ${
-                            statusCfg?.className ||
+                          className={`h-fit rounded px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider whitespace-nowrap border shadow-sm ${statusCfg?.className ||
                             "bg-slate-100 text-slate-600 border-slate-200"
-                          }`}
+                            }`}
                         >
                           {statusCfg?.label || device.status}
                         </span>
@@ -286,7 +285,7 @@ export default function SupplierDevicesList() {
 
                 {/* Actions */}
                 <div className="flex flex-col gap-2 lg:flex-row items-center">
-                  <button 
+                  <button
                     onClick={() => setViewImageDevice(device)}
                     className="p-2 rounded border border-blue-100 text-blue-600 bg-blue-50 hover:bg-blue-100 hover:border-blue-300 transition-all hover:shadow focus:outline-none focus:ring-2 focus:ring-blue-200"
                     title="View Images"
@@ -370,8 +369,8 @@ export default function SupplierDevicesList() {
       )}
 
       {/* Add Device Modal */}
-      <AddDeviceModal 
-        isOpen={isModalOpen} 
+      <AddDeviceModal
+        isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onDeviceAdded={() => {
           setPage(1);

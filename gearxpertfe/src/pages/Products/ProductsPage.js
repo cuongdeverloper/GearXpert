@@ -19,6 +19,7 @@ export default function ProductsPage() {
         { name: 'Audio Gear', id: 'AUDIO', icon: 'mic' },
         { name: 'Gimbal & Grip', id: 'ACCESSORY', icon: 'handyman' },
         { name: 'Aerial / Drones', id: 'DRONE', icon: 'flight' },
+        { name: 'Other', id: 'OTHER', icon: 'category' },
     ];
 
     const fetchDevices = useCallback(async () => {
@@ -35,7 +36,7 @@ export default function ProductsPage() {
         } finally {
             setLoading(false);
         }
-    }, [selectedCategory]); 
+    }, [selectedCategory]);
 
     const applyFiltersAndSort = useCallback(() => {
         let result = [...devices];
