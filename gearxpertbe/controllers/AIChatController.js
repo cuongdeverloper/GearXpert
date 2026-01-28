@@ -1,40 +1,69 @@
 require("dotenv").config();
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const Device = require("../models/Device"); 
 
 console.log("Check Key Gemini:", process.env.GEMINI_API_KEY ? "Đã nhận Key" : "CHƯA CÓ KEY!");
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-const mockProductDB = [
-  { id: 1, name: "Chuột Gaming Logitech G102", price: "450.000 VNĐ", status: "Còn hàng", desc: "Led RGB, 8000 DPI, phù hợp tay nhỏ." },
-  { id: 2, name: "Bàn phím cơ Keychron K2", price: "1.890.000 VNĐ", status: "Hết hàng", desc: "Layout 75%, kết nối Bluetooth, Switch Gateron." },
-  { id: 3, name: "Tai nghe HyperX Cloud II", price: "2.100.000 VNĐ", status: "Còn hàng", desc: "Âm thanh vòm 7.1, mic lọc tạp âm cực tốt." },
-  { id: 4, name: "Ghế Công Thái Học Epione", price: "4.500.000 VNĐ", status: "Còn hàng", desc: "Lưới nhập khẩu, piston Class 4." }
-];
-
 const handleAIChat = async (req, res) => {
   try {
     const { message } = req.body;
+    const queryText = message ? message.toLowerCase().trim() : "";
 
-    const query = message ? message.toLowerCase() : "";
-    let relevantProducts = mockProductDB.filter(p =>
-      p.name.toLowerCase().includes(query) ||
-      p.desc.toLowerCase().includes(query)
-    );
+    let relevantProducts = await Device.find({
+      $or: [
+        { name: { $regex: queryText, $options: "i" } },
+        { category: { $regex: queryText, $options: "i" } }
+      ]
+    })
+    .select("name rentPrice status description category specs stockQuantity")
+    .limit(5); 
+    if (!relevantProducts || relevantProducts.length === 0) {
+      relevantProducts = await Device.find({ status: 'AVAILABLE' })
+        .sort({ createdAt: -1 })
+        .limit(20) 
+        .select("name rentPrice description status category specs stockQuantity");
+    }
 
-    if (relevantProducts.length === 0) relevantProducts = mockProductDB.slice(0, 3);
+    const productContext = relevantProducts.map(p => {
+      const priceDay = p.rentPrice?.perDay ? p.rentPrice.perDay.toLocaleString() + " VNĐ" : "Liên hệ";
+      
+      let specsText = "Cơ bản";
+      if (p.specs && p.specs instanceof Map) {
+         specsText = JSON.stringify(Object.fromEntries(p.specs));
+      } else if (typeof p.specs === 'object') {
+         specsText = JSON.stringify(p.specs);
+      }
 
+      return `
+      - Tên: ${p.name}
+      - Giá: ${priceDay}/ngày
+      - Kho: ${p.stockQuantity} cái
+      - Trạng thái: ${p.status}
+      - Cấu hình: ${specsText}
+      `;
+    }).join("\n"); 
+
+  
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const chat = model.startChat({
       history: [
         {
           role: "user",
-          parts: [{ text: `Bạn là trợ lý ảo của GearXpert. Chỉ được dùng dữ liệu này để tư vấn: ${JSON.stringify(relevantProducts)}. Trả lời ngắn gọn, thân thiện.` }],
-        },
-        {
-          role: "model",
-          parts: [{ text: "Đã rõ! Tôi là GearXpert AI, tôi sẵn sàng hỗ trợ khách hàng dựa trên danh sách sản phẩm bạn cung cấp." }],
+          parts: [{ text: `Bạn là nhân viên tư vấn GearXpert.
+          
+          DỮ LIỆU KHO HÀNG HIỆN TẠI:
+          ${productContext}
+          
+          KHÁCH HỎI: "${message}"
+          
+          YÊU CẦU:
+          1. Tìm trong dữ liệu kho hàng xem có món khách cần không.
+          2. Nếu có: Báo giá và số lượng tồn kho.
+          3. Nếu KHÔNG có: Gợi ý sản phẩm tương tự trong danh sách, hoặc báo hết hàng.
+          4. Trả lời ngắn gọn, thân thiện, dùng Icon.` }],
         },
       ],
     });
@@ -45,10 +74,10 @@ const handleAIChat = async (req, res) => {
     return res.status(200).json({ success: true, reply: text });
 
   } catch (error) {
-    console.error("LỖI CHI TIẾT:", error);
+    console.error("LỖI AI:", error);
     return res.status(500).json({
       success: false,
-      reply: "Cửa hàng đang bảo trì AI, bạn vui lòng quay lại sau!",
+      reply: "Hệ thống đang bảo trì AI, bạn vui lòng quay lại sau!",
       error: error.message
     });
   }

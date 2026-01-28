@@ -13,8 +13,10 @@ import {
   Phone,
   PackageCheck,
   Store,
+  User,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useSelector } from "react-redux";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -60,10 +62,11 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
 };
 
 export default function CheckoutPage() {
+  const { account } = useSelector((state) => state.user);
   const navigate = useNavigate();
   const location = useLocation();
   const CART_TYPE = location.state?.cartType || "NORMAL";
-
+  const [isEkycVerified, setIsEkycVerified] = useState(false);
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
   const [address, setAddress] = useState({
@@ -110,7 +113,24 @@ export default function CheckoutPage() {
       setLoading(false);
     }
   }, [CART_TYPE]);
+  const fillDefaultUserInfo = () => {
+    if (!account || !account.username) {
+      toast.warning("Chưa có thông tin người dùng. Vui lòng đăng nhập lại.");
+      return;
+    }
 
+    setAddress({
+      receiverName: account.username || "", // ← sửa: dùng username thay vì fullName
+      street: account.address?.street || "",
+      district: account.address?.district || "",
+      city: account.address?.city || "Đà Nẵng",
+      fullAddress: account.address?.fullAddress || "",
+    });
+
+    setPhoneNumber(account.phoneNumber || account.phone || "");
+
+    toast.success("Đã điền thông tin mặc định từ tài khoản của bạn!");
+  };
   const fetchWalletData = useCallback(async () => {
     try {
       const res = await getMyWallet();
@@ -202,51 +222,70 @@ export default function CheckoutPage() {
   };
 
   const handleApplyVoucher = async () => {
-    if (!voucherCode.trim()) return toast.warning("Nhập mã giảm giá");
+    if (!voucherCode.trim()) return toast.warning("Vui lòng nhập mã voucher");
+
     try {
       setIsApplyingVoucher(true);
       const res = await validateVoucher({
-        code: voucherCode,
+        code: voucherCode.trim().toUpperCase(),
         cartType: CART_TYPE,
       });
-      setAppliedVoucher(res.data);
-      toast.success(`Đã áp dụng giảm ${res.data.discount.toLocaleString()}đ`);
+
+      // Backend trả { code, type, supplierId, discount }
+      const voucherData = res;
+
+      setAppliedVoucher({
+        code: voucherData.code,
+        discount: voucherData.discount,
+        type: voucherData.type,
+        supplierId: voucherData.supplierId,
+      });
+
+      toast.success(
+        `Áp dụng thành công! Giảm ${voucherData.discount.toLocaleString()}đ`
+      );
     } catch (err) {
+      const errMsg =
+        err.response?.message || "Mã voucher không hợp lệ hoặc hết hạn";
+      toast.error(errMsg);
       setAppliedVoucher(null);
-      toast.error(err.response?.data?.message || "Mã không hợp lệ");
     } finally {
       setIsApplyingVoucher(false);
     }
   };
 
   // --- GROUP BY SUPPLIER FOR DISPLAY (đẹp hơn) ---
- // --- GROUP BY SUPPLIER FOR DISPLAY ---
-const groupedBySupplier = useMemo(() => {
-  const map = new Map();
+  // --- GROUP BY SUPPLIER FOR DISPLAY ---
+  const groupedBySupplier = useMemo(() => {
+    const map = new Map();
 
-  cart.forEach((item) => {
-    // Lấy supplierId từ object populated (_id là string)
-    const supplierId = item.deviceId?.supplierId?._id;
-    if (!supplierId) return;
+    cart.forEach((item) => {
+      // Lấy supplierId từ object populated (_id là string)
+      const supplierId = item.deviceId?.supplierId?._id;
+      if (!supplierId) return;
 
-    if (!map.has(supplierId)) {
-      map.set(supplierId, {
-        supplierId,
-        // Tên supplier từ fullName (đã populate)
-        supplierName: item.deviceId?.supplierId?.fullName || `Cửa hàng #${supplierId.slice(-6)}`,
-        items: [],
-        subtotal: 0,
-      });
-    }
+      if (!map.has(supplierId)) {
+        map.set(supplierId, {
+          supplierId,
+          // Tên supplier từ fullName (đã populate)
+          supplierName:
+            item.deviceId?.supplierId?.fullName ||
+            `Cửa hàng #${supplierId.slice(-6)}`,
+          items: [],
+          subtotal: 0,
+        });
+      }
 
-    const group = map.get(supplierId);
-    group.items.push(item);
-    group.subtotal +=
-      (item.deviceId?.rentPrice?.perDay || 0) * item.totalDays * item.quantity;
-  });
+      const group = map.get(supplierId);
+      group.items.push(item);
+      group.subtotal +=
+        (item.deviceId?.rentPrice?.perDay || 0) *
+        item.totalDays *
+        item.quantity;
+    });
 
-  return Array.from(map.values());
-}, [cart]);
+    return Array.from(map.values());
+  }, [cart]);
 
   // --- CALCULATION ---
   const subtotal = cart.reduce(
@@ -299,7 +338,25 @@ const groupedBySupplier = useMemo(() => {
         setTimeout(() => navigate("/user/myrental"), 2000);
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || "Thanh toán thất bại");
+      const errData = err.response?.data;
+
+      // Xử lý lỗi EKYC từ backend (403)
+      if (err.response?.status === 403 && errData?.code === "EKYC_REQUIRED") {
+        toast.error(
+          errData.message ||
+            "Vui lòng hoàn tất xác thực eKYC trước khi thanh toán",
+          { autoClose: false }
+        );
+        // Tự động redirect sau 3 giây hoặc có nút bấm
+        setTimeout(() => {
+          window.location.href = "/profile";
+        }, 3000);
+      } else {
+        // Các lỗi khác (ví dụ: giỏ hàng trống, số dư không đủ, server error...)
+        toast.error(
+          errData?.message || "Thanh toán thất bại, vui lòng thử lại"
+        );
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -344,13 +401,30 @@ const groupedBySupplier = useMemo(() => {
         {/* LEFT: DELIVERY & PAYMENT */}
         <div className="lg:col-span-7 space-y-8">
           <div className="bg-white rounded-[40px] p-10 border border-slate-100 shadow-sm">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="p-3 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-200">
-                <MapPin size={24} />
+            {/* Header phần thông tin nhận máy + NÚT MỚI */}
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-200">
+                  <MapPin size={24} />
+                </div>
+                <h2 className="text-xl font-black uppercase italic tracking-tight">
+                  Thông tin nhận máy
+                </h2>
               </div>
-              <h2 className="text-xl font-black uppercase italic tracking-tight">
-                Thông tin nhận máy
-              </h2>
+
+              {/* NÚT SỬ DỤNG THÔNG TIN MẶC ĐỊNH */}
+              <button
+                onClick={fillDefaultUserInfo}
+                disabled={!account?.username}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm ${
+                  account?.username
+                    ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                    : "bg-slate-200 text-slate-400 cursor-not-allowed opacity-70"
+                }`}
+              >
+                <User size={18} />
+                Sử dụng thông tin mặc định
+              </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -628,7 +702,10 @@ const groupedBySupplier = useMemo(() => {
 
             <div className="max-h-[320px] overflow-y-auto pr-2 space-y-6 mb-8 scrollbar-hide">
               {groupedBySupplier.map((group, idx) => (
-                <div key={idx} className="pb-4 border-b last:border-0 last:pb-0">
+                <div
+                  key={idx}
+                  className="pb-4 border-b last:border-0 last:pb-0"
+                >
                   <div className="flex items-center gap-3 mb-3 bg-indigo-50/50 p-2 rounded-lg">
                     <Store className="text-indigo-600" size={20} />
                     <h3 className="font-bold text-base text-indigo-800">
@@ -637,7 +714,10 @@ const groupedBySupplier = useMemo(() => {
                   </div>
 
                   {group.items.map((item) => (
-                    <div key={item._id} className="flex gap-4 items-start group mb-3">
+                    <div
+                      key={item._id}
+                      className="flex gap-4 items-start group mb-3"
+                    >
                       <div className="relative w-20 h-20 shrink-0">
                         <img
                           src={item.deviceId?.images?.[0]}
@@ -743,20 +823,31 @@ const groupedBySupplier = useMemo(() => {
                   {isApplyingVoucher ? "..." : "Áp dụng"}
                 </button>
               </div>
-
               {appliedVoucher && (
-                <div className="flex justify-between items-center bg-emerald-50 text-emerald-600 p-4 rounded-2xl border border-emerald-100 animate-in slide-in-from-top-2">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-emerald-600 text-white rounded-lg">
-                      <Ticket size={14} />
+                <div className="flex justify-between items-center bg-emerald-50 text-emerald-700 p-4 rounded-2xl border border-emerald-200 animate-in slide-in-from-top-2">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-emerald-600 text-white rounded-lg">
+                      <Ticket size={16} />
                     </div>
-                    <span className="text-xs font-black uppercase">
-                      Đã giảm: {appliedVoucher.code}
-                    </span>
+                    <div>
+                      <p className="font-bold text-sm">
+                        Đã áp dụng: {appliedVoucher.code}
+                      </p>
+                      <p className="text-xs">
+                        Giảm {appliedVoucher.discount.toLocaleString()}đ
+                      </p>
+                    </div>
                   </div>
-                  <span className="font-black">
-                    -{appliedVoucher.discount.toLocaleString()}đ
-                  </span>
+                  <button
+                    onClick={() => {
+                      setAppliedVoucher(null);
+                      setVoucherCode("");
+                      toast.info("Đã xóa voucher");
+                    }}
+                    className="text-emerald-700 hover:text-emerald-900 font-bold text-sm"
+                  >
+                    Xóa
+                  </button>
                 </div>
               )}
 
@@ -842,7 +933,99 @@ const groupedBySupplier = useMemo(() => {
                 <X size={24} />
               </button>
             </div>
-            <div className="h-[550px] w-full relative">
+
+            {/* NÚT MỚI: Vị trí hiện tại */}
+            <div className="p-4 bg-slate-50 border-b flex justify-center">
+              <button
+                onClick={() => {
+                  if (!navigator.geolocation) {
+                    toast.error("Trình duyệt của bạn không hỗ trợ lấy vị trí.");
+                    return;
+                  }
+
+                  navigator.geolocation.getCurrentPosition(
+                    async (position) => {
+                      const { latitude, longitude } = position.coords;
+                      setMapPosition([latitude, longitude]);
+
+                      try {
+                        const res = await fetch(
+                          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&accept-language=vi`
+                        );
+                        const data = await res.json();
+
+                        if (data && data.address) {
+                          const addr = data.address;
+                          const fullAddrText = data.display_name;
+
+                          const isDaNang = fullAddrText.includes("Đà Nẵng");
+                          if (!isDaNang) {
+                            toast.error(
+                              "Vị trí hiện tại không nằm trong Đà Nẵng. GearXpert chỉ hỗ trợ nội thành Đà Nẵng!"
+                            );
+                            return;
+                          }
+
+                          const dist = calculateDistance(
+                            FPT_COORDS.lat,
+                            FPT_COORDS.lng,
+                            latitude,
+                            longitude
+                          );
+                          const fee = Math.max(
+                            MIN_DELIVERY_FEE,
+                            Math.round(dist * FEE_PER_KM)
+                          );
+
+                          setDistance(dist);
+                          setDeliveryFee(fee);
+
+                          setAddress({
+                            city: "Đà Nẵng",
+                            district:
+                              addr.suburb ||
+                              addr.district ||
+                              addr.county ||
+                              addr.quarter ||
+                              "",
+                            street: addr.road || addr.house_number || "",
+                            fullAddress: fullAddrText,
+                          });
+
+                          toast.success(
+                            `Đã lấy vị trí hiện tại: ${dist.toFixed(
+                              1
+                            )}km. Phí ship: ${fee.toLocaleString()}đ`
+                          );
+
+                          // Tự động đóng modal sau 1.5 giây
+                          setTimeout(() => setShowMapModal(false), 1500);
+                        }
+                      } catch (err) {
+                        toast.error(
+                          "Không thể lấy địa chỉ từ vị trí hiện tại."
+                        );
+                      }
+                    },
+                    (error) => {
+                      let msg = "Không thể lấy vị trí.";
+                      if (error.code === 1)
+                        msg = "Bạn chưa cấp quyền truy cập vị trí.";
+                      if (error.code === 2) msg = "Không thể xác định vị trí.";
+                      if (error.code === 3) msg = "Hết thời gian lấy vị trí.";
+                      toast.error(msg);
+                    },
+                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                  );
+                }}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold shadow-md transition-all"
+              >
+                <MapPin size={20} />
+                Sử dụng vị trí hiện tại của tôi
+              </button>
+            </div>
+
+            <div className="h-[500px] w-full relative">
               <MapContainer
                 center={mapPosition}
                 zoom={14}
@@ -855,9 +1038,11 @@ const groupedBySupplier = useMemo(() => {
                   position={[FPT_COORDS.lat, FPT_COORDS.lng]}
                   opacity={0.6}
                 />
+                {mapPosition && <Marker position={mapPosition} />}
               </MapContainer>
+
               <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[1000] bg-white px-8 py-4 rounded-[24px] shadow-2xl border border-slate-100 font-bold text-sm text-indigo-600 animate-bounce">
-                👆 Chọn vị trí của bạn tại Đà Nẵng
+                👆 Click để chọn vị trí hoặc dùng nút trên
               </div>
             </div>
           </div>

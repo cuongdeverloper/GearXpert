@@ -150,20 +150,25 @@ export default function ProductDetailPage() {
       return;
     }
     if (!validateRental()) return;
+  
     const toastId = toast.loading("Đang xử lý yêu cầu thuê ngay...");
     try {
-      await addInstantToCart({
+      const response = await addInstantToCart({
         deviceId: device._id,
         quantity,
         rentalStartDate: startDate,
         rentalEndDate: endDate,
         addons: addons.map((a) => a._id),
       });
-      toast.success("Đang chuyển đến trang thanh toán", { id: toastId });
+  
+      console.log('[handleBuyNow] Response from addInstantToCart:', response.data);
+  
+      toast.success("Đã thêm vào giỏ INSTANT!", { id: toastId });
       navigate("/rental/checkout", {
         state: { cartType: "INSTANT" },
       });
-    } catch {
+    } catch (err) {
+      console.error('[handleBuyNow] Error:', err);
       toast.error("Thuê ngay thất bại", { id: toastId });
     }
   };
