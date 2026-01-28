@@ -3,7 +3,7 @@ import { updateDevice } from "../../service/ApiService/DeviceApi";
 import { toast } from "react-toastify";
 import { VIETNAM_CITIES } from "../../utils/vietnamCities";
 
-const CATEGORIES = ["CAMERA", "AUDIO", "OFFICE", "GAMING", "ACCESSORY"];
+const CATEGORIES = ["CAMERA", "AUDIO", "OFFICE", "GAMING", "ACCESSORY", "LIGHTING", "DRONE", "OTHER"];
 
 export default function UpdateDeviceModal({ isOpen, onClose, device, onDeviceUpdated }) {
   const [form, setForm] = useState({
@@ -124,46 +124,46 @@ export default function UpdateDeviceModal({ isOpen, onClose, device, onDeviceUpd
         >
           ×
         </button>
-                {/* Image Upload & Preview */}
-                <div className="mb-2">
-                  <label className="block text-sm font-medium mb-1">Device Images</label>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {oldImages.map((url, idx) => (
-                      <div key={idx} className="relative group w-20 h-20 rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
-                        <img src={url} alt="old" className="object-cover w-full h-full" />
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveOldImage(idx)}
-                          className="absolute top-1 right-1 bg-white/80 rounded-full p-1 text-slate-600 hover:bg-red-100 hover:text-red-500 transition"
-                          title="Remove image"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                    {newImagePreviews.map((src, idx) => (
-                      <div key={"new-"+idx} className="relative group w-20 h-20 rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
-                        <img src={src} alt="new" className="object-cover w-full h-full" />
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveNewImage(idx)}
-                          className="absolute top-1 right-1 bg-white/80 rounded-full p-1 text-slate-600 hover:bg-red-100 hover:text-red-500 transition"
-                          title="Remove image"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    ref={fileInputRef}
-                    onChange={handleNewImageChange}
-                    className="block w-full border border-slate-200 rounded-lg px-3 py-2 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-primary/10 file:text-primary file:font-semibold"
-                  />
-                </div>
+        {/* Image Upload & Preview */}
+        <div className="mb-2">
+          <label className="block text-sm font-medium mb-1">Device Images</label>
+          <div className="flex flex-wrap gap-2 mb-2">
+            {oldImages.map((url, idx) => (
+              <div key={idx} className="relative group w-20 h-20 rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                <img src={url} alt="old" className="object-cover w-full h-full" />
+                <button
+                  type="button"
+                  onClick={() => handleRemoveOldImage(idx)}
+                  className="absolute top-1 right-1 bg-white/80 rounded-full p-1 text-slate-600 hover:bg-red-100 hover:text-red-500 transition"
+                  title="Remove image"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            {newImagePreviews.map((src, idx) => (
+              <div key={"new-" + idx} className="relative group w-20 h-20 rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                <img src={src} alt="new" className="object-cover w-full h-full" />
+                <button
+                  type="button"
+                  onClick={() => handleRemoveNewImage(idx)}
+                  className="absolute top-1 right-1 bg-white/80 rounded-full p-1 text-slate-600 hover:bg-red-100 hover:text-red-500 transition"
+                  title="Remove image"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            ref={fileInputRef}
+            onChange={handleNewImageChange}
+            className="block w-full border border-slate-200 rounded-lg px-3 py-2 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-primary/10 file:text-primary file:font-semibold"
+          />
+        </div>
         <h2 className="text-xl font-bold mb-2">Update Device</h2>
         <div className="space-y-2">
           <label className="block text-sm font-medium">Name</label>

@@ -64,6 +64,9 @@ export default function DevicesModerationPage() {
       OFFICE: "bg-blue-100 text-blue-700",
       GAMING: "bg-orange-100 text-orange-700",
       ACCESSORY: "bg-cyan-100 text-cyan-700",
+      LIGHTING: "bg-yellow-100 text-yellow-700",
+      DRONE: "bg-pink-100 text-pink-700",
+      OTHER: "bg-slate-100 text-slate-700",
     };
     return colors[category] || "bg-slate-100 text-slate-700";
   };
@@ -101,6 +104,9 @@ export default function DevicesModerationPage() {
             <option value="OFFICE">Office</option>
             <option value="GAMING">Gaming</option>
             <option value="ACCESSORY">Accessory</option>
+            <option value="LIGHTING">Lighting</option>
+            <option value="DRONE">Drone</option>
+            <option value="OTHER">Other</option>
           </select>
 
           <select
@@ -173,7 +179,7 @@ export default function DevicesModerationPage() {
                 </td>
                 <td className="px-6 py-3 text-center">
                   <div className="flex items-center justify-center gap-2">
-                    <button 
+                    <button
                       onClick={() => setViewImageDevice(device)}
                       className="p-1.5 rounded-lg hover:bg-blue-100 text-slate-600 hover:text-blue-600 transition"
                       title="View Images"

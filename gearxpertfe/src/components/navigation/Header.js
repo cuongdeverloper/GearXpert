@@ -47,15 +47,6 @@ export default function Header() {
   ];
 
   const handleRestrictedNavigation = (path) => {
-    if (location.pathname === '/profile' && !userAccount.phone && !userAccount.phoneNumber) {
-      toast.warning("Vui lòng cập nhật số điện thoại trước khi tiếp tục!");
-      const phoneInput = document.getElementById('phone-input');
-      if (phoneInput) {
-        phoneInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        phoneInput.focus();
-      }
-      return;
-    }
     navigate(path);
   };
 

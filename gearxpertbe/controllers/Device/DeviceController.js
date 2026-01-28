@@ -10,7 +10,7 @@ exports.createDevice = async (req, res) => {
   try {
     // Get supplierId from token (JWT)
     const supplierId = req.user.id;
-    
+
     let { name, description, category, rentPrice, depositAmount, location, stockQuantity } = req.body;
 
     // Parse rentPrice if string

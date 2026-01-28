@@ -39,11 +39,7 @@ const RouteHandler = () => {
     }, [isAuthenticated, account, dispatch, location]);
 
     useEffect(() => {
-        // Enforce phone number requirement
-        if (isAuthenticated && !account.phone && !account.phoneNumber && location.pathname !== '/profile') {
-            navigate('/profile');
-            return;
-        }
+
 
         if (location.pathname === '/') {
             // Trigger global loading for Home page
