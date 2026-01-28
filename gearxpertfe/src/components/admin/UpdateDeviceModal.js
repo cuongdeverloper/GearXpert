@@ -97,7 +97,7 @@ export default function UpdateDeviceModal({ isOpen, onClose, device, onDeviceUpd
       // Append new images (files)
       newImages.forEach((img) => formData.append("images", img));
 
-      const res = await updateDevice(device.id, formData);
+      await updateDevice(device.id, formData);
       toast.success("Device updated successfully!");
       onDeviceUpdated && onDeviceUpdated();
       onClose();

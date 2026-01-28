@@ -7,23 +7,18 @@ import {
   AlertCircle,
   Calendar,
   MapPin,
-  CreditCard,
   Loader2,
   XCircle,
   ShieldCheck,
   Receipt,
   ChevronDown,
-  Info,
   RefreshCcw,
   Camera,
   Star,
   FileText,
-  ExternalLink,
-  MessageSquare,
   Send,
   Wrench,
   X,
-  Plus,
   Check,ArrowRight,ArrowLeft
 } from "lucide-react";
 import { toast } from "react-toastify";
@@ -155,15 +150,15 @@ export default function MyRentals() {
       extraAmount: diffDays > 0 ? diffDays * extendModal.dailyPrice : 0,
     });
   };
-  const [incidentModal, setIncidentModal] = useState({
-    isOpen: false,
-    orderId: null,
-    issueType: "technical", // technical | physical | power
-    severity: "medium", // low | medium | critical
-    description: "",
-    errorCode: "",
-    files: [], // Khởi tạo mảng rỗng để không bị lỗi map
-  });
+  // const [incidentModal, setIncidentModal] = useState({
+  //   isOpen: false,
+  //   orderId: null,
+  //   issueType: "technical", // technical | physical | power
+  //   severity: "medium", // low | medium | critical
+  //   description: "",
+  //   errorCode: "",
+  //   files: [], // Khởi tạo mảng rỗng để không bị lỗi map
+  // });
   useEffect(() => {
     fetchRentals();
   }, []);
@@ -189,7 +184,7 @@ export default function MyRentals() {
     const url = URL.createObjectURL(file);
     if (file.type.startsWith("image"))
       return (
-        <img src={url} className="w-20 h-20 rounded-xl object-cover border" />
+        <img src={url} alt="preview" className="w-20 h-20 rounded-xl object-cover border" />
       );
     if (file.type.startsWith("video"))
       return <video src={url} className="w-20 h-20 rounded-xl" controls />;
@@ -236,10 +231,10 @@ export default function MyRentals() {
       toast.error(err.response?.data?.message || "Gửi báo cáo thất bại");
     }
   };
-  const handleTabChange = (tabId) => {
-    setActiveTab(tabId);
-    setCurrentPage(1); // reset về trang 1 khi đổi tab
-  };
+  // const handleTabChange = (tabId) => {
+  //   setActiveTab(tabId);
+  //   setCurrentPage(1); // reset về trang 1 khi đổi tab
+  // };
   const handleSubmitReview = async () => {
     if (reviewModal.rating === 0) {
       return toast.warning("Vui lòng chọn số sao!");
@@ -406,7 +401,7 @@ export default function MyRentals() {
 
     try {
       if (type === "CANCEL") {
-        const response = await rentalService.cancelRental(selectedId);
+        await rentalService.cancelRental(selectedId);
         toast.success("Đã hủy đơn thành công!");
       } else {
         await rentalService.confirmReceived(selectedId);
@@ -431,18 +426,18 @@ export default function MyRentals() {
       navigate("/devices");
     }
   };
-  const extensionInfo = {
-    days:
-      extendModal.currentEndDate && extendModal.newEndDate
-        ? Math.max(
-          0,
-          (new Date(extendModal.newEndDate) -
-            new Date(extendModal.currentEndDate)) /
-          (1000 * 60 * 60 * 24)
-        )
-        : 0,
-    cost: extendModal.extraAmount || 0,
-  };
+  // const extensionInfo = {
+  //   days:
+  //     extendModal.currentEndDate && extendModal.newEndDate
+  //       ? Math.max(
+  //         0,
+  //         (new Date(extendModal.newEndDate) -
+  //           new Date(extendModal.currentEndDate)) /
+  //         (1000 * 60 * 60 * 24)
+  //       )
+  //       : 0,
+  //   cost: extendModal.extraAmount || 0,
+  // };
 
   const filteredRentals = rentals.filter((r) => {
     if (activeTab === "ALL") return true;

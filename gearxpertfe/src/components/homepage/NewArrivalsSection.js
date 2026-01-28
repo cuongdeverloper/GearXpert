@@ -42,28 +42,21 @@ export default function NewArrivalsSection({ devices = [] }) {
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-2xl font-bold text-slate-900 font-display">New Arrivals</h3>
         <div className="flex gap-2">
-          <button
-            onClick={handlePrev}
-            className="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-200 text-slate-400 hover:bg-white hover:text-primary transition-all shadow-sm"
-          >
+          <button onClick={handlePrev} className="...">
             <span className="material-symbols-outlined">chevron_left</span>
           </button>
-          <button
-            onClick={handleNext}
-            className="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-200 text-slate-400 hover:bg-white hover:text-primary transition-all shadow-sm"
-          >
+          <button onClick={handleNext} className="...">
             <span className="material-symbols-outlined">chevron_right</span>
           </button>
         </div>
       </div>
-      <div className="flex gap-6 overflow-x-auto pb-6 hide-scroll snap-x">
-        {newArrivals.map((device, index) => (
-          <ProductCard
-            key={device._id || index}
-            device={device}
-            variant="simple"
-          />
-        ))}
+
+      <div className="flex justify-center transition-all duration-500">
+        <ProductCard
+          key={newArrivals[currentIndex]._id}
+          device={newArrivals[currentIndex]}
+          variant="simple"
+        />
       </div>
     </div>
   );

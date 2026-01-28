@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getUserFavorites, toggleFavorite } from "../../service/ApiService/FavoriteApi";
+import { getUserFavorites } from "../../service/ApiService/FavoriteApi";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
 import ProductCard from "../../components/common/ProductCard";

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState } from "react";
 import Message from "../components/message/Message";
 import EmojiPicker from "emoji-picker-react";
 import { ApiMarkMessagesAsSeen } from "../ApiMessage";

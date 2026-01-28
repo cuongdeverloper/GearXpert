@@ -1,6 +1,6 @@
 import { FiMoreVertical, FiFileText } from "react-icons/fi";
 import { FiCheck, FiX, FiClock, FiUser, FiMapPin, FiCalendar } from "react-icons/fi";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { getSupplierRentalRequests } from "../../service/ApiService/RentalApi";
 import { approveRental, rejectRental } from "../../service/ApiService/RentalActionApi";
@@ -17,7 +17,7 @@ export default function SupplierRentalRequests() {
   const [sortType, setSortType] = useState('NEWEST');
   const [detailModal, setDetailModal] = useState({ open: false, rental: null });
 
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     if (!user?.id) return;
     setLoading(true);
     try {
@@ -29,11 +29,11 @@ export default function SupplierRentalRequests() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     fetchRequests();
-  }, [user?.id]);
+  }, [fetchRequests]);
 
   const handleApprove = async (req) => {
     const result = await confirmDialog({
@@ -96,6 +96,15 @@ export default function SupplierRentalRequests() {
   const revenue = requests
     .filter(r => r.status === 'APPROVED')
     .reduce((sum, r) => sum + (typeof r.totalAmount === 'number' ? r.totalAmount : 0), 0);
+
+  if (loading && requests.length === 0) {
+    return (
+      <div className="flex justify-center items-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary"></div>
+        <span className="ml-3 text-slate-500 font-medium">Đang tải dữ liệu...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -193,11 +202,10 @@ export default function SupplierRentalRequests() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-slate-900 text-lg">Rental #{req._id?.slice(-6) || req.id?.slice(-6)}</span>
-                    <span className={`ml-2 px-2 py-0.5 rounded-lg text-xs font-bold uppercase tracking-wider border ${
-                      req.status === "PENDING"
+                    <span className={`ml-2 px-2 py-0.5 rounded-lg text-xs font-bold uppercase tracking-wider border ${req.status === "PENDING"
                         ? "bg-amber-100 text-amber-700 border-amber-200"
                         : "bg-green-100 text-green-700 border-green-200"
-                    }`}>
+                      }`}>
                       {req.status}
                     </span>
                   </div>
@@ -240,7 +248,7 @@ export default function SupplierRentalRequests() {
                           <td className="py-2 pr-2 whitespace-nowrap">
                             <span className="inline-flex items-center gap-1">
                               <FiCalendar size={12} />
-                              {item.rentalStartDate?.slice(0,10)} → {item.rentalEndDate?.slice(0,10)}
+                              {item.rentalStartDate?.slice(0, 10)} → {item.rentalEndDate?.slice(0, 10)}
                             </span>
                           </td>
                           <td className="py-2 text-center">{item.quantity}</td>

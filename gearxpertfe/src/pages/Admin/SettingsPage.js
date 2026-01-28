@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
-import { FiSave, FiBell, FiLock, FiGlobe, FiMail } from "react-icons/fi";
+import { FiSave, FiBell, FiLock, FiGlobe } from "react-icons/fi";
 
 export default function SettingsPage() {
   const dispatch = useDispatch();

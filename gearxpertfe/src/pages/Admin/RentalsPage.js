@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
-import { FiSearch, FiFilter, FiCheckCircle, FiAlertCircle, FiClock, FiX } from "react-icons/fi";
+import { FiSearch, FiCheckCircle, FiAlertCircle, FiClock, FiX } from "react-icons/fi";
 import { getAdminRentals } from "../../service/ApiService/AdminDashboardApi";
 
 export default function RentalsPage() {

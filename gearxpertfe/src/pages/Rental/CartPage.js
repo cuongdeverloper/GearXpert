@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Trash2, ShoppingBag, Calendar, ShieldCheck, ArrowRight, ArrowLeft, Store } from 'lucide-react';
-import { getCart, removeCartItem, clearCart } from '../../service/ApiService/CartApi';
+import { getCart, removeCartItem } from '../../service/ApiService/CartApi';
 import { useNavigate } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -15,7 +15,7 @@ const CartPage = () => {
   const DAY = 1000 * 60 * 60 * 24;
 
   // Hàm xử lý dữ liệu: Nhóm theo supplierId
-  const processCartData = (rawCart) => {
+  const processCartData = useCallback((rawCart) => {
     if (!rawCart?.items) return [];
 
     const calculateDays = (start, end) => {
@@ -71,9 +71,9 @@ const CartPage = () => {
       });
       return supplierGroup;
     });
-  };
+  }, [DAY]);
 
-  const fetchCartData = async () => {
+  const fetchCartData = useCallback(async () => {
     try {
       const res = await getCart("NORMAL");
       const processed = processCartData(res);
@@ -84,11 +84,11 @@ const CartPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [processCartData]);
 
   useEffect(() => {
     fetchCartData();
-  }, []);
+  }, [fetchCartData]);
 
   const handleRemove = async (itemId, deviceName) => {
     try {

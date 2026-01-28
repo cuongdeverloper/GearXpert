@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
 import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
-import { FiDownload, FiBarChart2, FiTrendingUp, FiUsers, FiBox } from "react-icons/fi";
+import { FiDownload, FiBarChart2, FiUsers, FiBox } from "react-icons/fi";
 import { getAdminReports, getAdminDashboard } from "../../service/ApiService/AdminDashboardApi";
 
 export default function ReportsPage() {

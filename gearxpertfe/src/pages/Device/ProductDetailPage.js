@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import {
   ArrowLeft,
@@ -53,12 +53,7 @@ export default function ProductDetailPage() {
   const [addons, setAddons] = useState([]);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-    window.scrollTo(0, 0);
-  }, [id]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -87,7 +82,12 @@ export default function ProductDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, isAuthenticated]);
+
+  useEffect(() => {
+    fetchData();
+    window.scrollTo(0, 0);
+  }, [fetchData]);
 
   const validateRental = () => {
     if (!startDate || !endDate) {
@@ -150,7 +150,7 @@ export default function ProductDetailPage() {
       return;
     }
     if (!validateRental()) return;
-  
+
     const toastId = toast.loading("Đang xử lý yêu cầu thuê ngay...");
     try {
       const response = await addInstantToCart({
@@ -160,9 +160,9 @@ export default function ProductDetailPage() {
         rentalEndDate: endDate,
         addons: addons.map((a) => a._id),
       });
-  
+
       console.log('[handleBuyNow] Response from addInstantToCart:', response.data);
-  
+
       toast.success("Đã thêm vào giỏ INSTANT!", { id: toastId });
       navigate("/rental/checkout", {
         state: { cartType: "INSTANT" },
@@ -253,8 +253,8 @@ export default function ProductDetailPage() {
                       key={i}
                       onClick={() => setSelectedImage(i)}
                       className={`relative min-w-[120px] h-24 rounded-2xl overflow-hidden border-2 transition-all ${selectedImage === i
-                          ? "border-indigo-600 scale-95 shadow-lg"
-                          : "border-transparent opacity-60 hover:opacity-100"
+                        ? "border-indigo-600 scale-95 shadow-lg"
+                        : "border-transparent opacity-60 hover:opacity-100"
                         }`}
                     >
                       <img src={img} className="w-full h-full object-cover" alt="thumb" />
@@ -515,8 +515,8 @@ export default function ProductDetailPage() {
                           key={a._id}
                           onClick={() => toggleAddon(a)}
                           className={`w-full flex justify-between items-center p-4 rounded-2xl border-2 transition-all ${isSelected
-                              ? "border-indigo-600 bg-indigo-50 shadow-sm"
-                              : "border-slate-100 hover:border-slate-200 bg-white"
+                            ? "border-indigo-600 bg-indigo-50 shadow-sm"
+                            : "border-slate-100 hover:border-slate-200 bg-white"
                             }`}
                         >
                           <div className="text-left">

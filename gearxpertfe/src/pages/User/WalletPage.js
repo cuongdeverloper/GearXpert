@@ -35,7 +35,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 const PAGE_SIZE = 5;
 
 export default function WalletPage() {
-  const [isEkycVerified, setIsEkycVerified] = useState(false);
+  const [isEkycVerified] = useState(false);
   const [wallet, setWallet] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
