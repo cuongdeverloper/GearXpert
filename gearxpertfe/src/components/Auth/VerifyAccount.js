@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import axios from "axios";
 import "./VerifyAccount.scss"; 
 import { ImSpinner9 } from "react-icons/im";
 import { useNavigate } from "react-router-dom";

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useDispatch } from "react-redux";
 import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
 import { FiSearch, FiCheck, FiX, FiLock, FiUnlock, FiEye, FiMoreVertical } from "react-icons/fi";
@@ -15,11 +15,7 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [menuOpenId, setMenuOpenId] = useState(null);
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       dispatch(showAdminLoading());
@@ -34,8 +30,11 @@ export default function UsersPage() {
       setLoading(false);
       dispatch(hideAdminLoading());
     }
-  };
+  }, [dispatch]); 
 
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
   const handleToggleStatus = async (user) => {
     const action = user.status === "ACTIVE" ? "khóa" : "mở khóa";
     if (!window.confirm(`Bạn có chắc chắn muốn ${action} người dùng này?`)) return;

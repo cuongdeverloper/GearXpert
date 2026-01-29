@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
-  Trash2,
   CreditCard,
   Wallet,
   Ticket,
@@ -9,7 +8,6 @@ import {
   X,
   ChevronLeft,
   ShieldCheck,
-  Truck,
   Phone,
   PackageCheck,
   Store,
@@ -66,7 +64,6 @@ export default function CheckoutPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const CART_TYPE = location.state?.cartType || "NORMAL";
-  const [isEkycVerified, setIsEkycVerified] = useState(false);
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
   const [address, setAddress] = useState({
@@ -96,11 +93,16 @@ export default function CheckoutPage() {
 
   const [wallet, setWallet] = useState(null);
 
+  const { street, district, city } = address;
+
   useEffect(() => {
-    const { street, district, city } = address;
     const full = [street, district, city].filter(Boolean).join(", ");
-    setAddress((prev) => ({ ...prev, fullAddress: full }));
-  }, [address.street, address.district, address.city]);
+    
+    setAddress((prev) => {
+      if (prev.fullAddress === full) return prev; 
+      return { ...prev, fullAddress: full };
+    });
+  }, [street, district, city]);
 
   const fetchCart = useCallback(async () => {
     try {
@@ -721,6 +723,7 @@ export default function CheckoutPage() {
                       <div className="relative w-20 h-20 shrink-0">
                         <img
                           src={item.deviceId?.images?.[0]}
+                          alt={item.deviceId?.name || "Product image"}
                           className="w-full h-full rounded-2xl object-cover border border-slate-100 group-hover:scale-105 transition-transform"
                         />
                         <button

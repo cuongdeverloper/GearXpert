@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useDispatch } from "react-redux";
 import { getDevices } from "../../service/ApiService/DeviceApi";
 import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
 import ImageGalleryModal from "../../components/admin/ImageGalleryModal";
-import { FiSearch, FiFilter, FiStar, FiCheckCircle, FiAlertCircle, FiEye } from "react-icons/fi";
+import { FiSearch, FiStar, FiCheckCircle, FiAlertCircle, FiEye } from "react-icons/fi";
 
 export default function DevicesModerationPage() {
   const dispatch = useDispatch();
@@ -11,16 +11,9 @@ export default function DevicesModerationPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
   const [viewImageDevice, setViewImageDevice] = useState(null);
 
-  // Fetch devices from API
-  useEffect(() => {
-    fetchDevices();
-  }, [categoryFilter]);
-
-  const fetchDevices = async () => {
+  const fetchDevices = useCallback(async () => {
     try {
       dispatch(showAdminLoading());
       const params = {
@@ -36,8 +29,13 @@ export default function DevicesModerationPage() {
     } finally {
       dispatch(hideAdminLoading());
     }
-  };
+  }, [categoryFilter, dispatch]);
 
+  // Fetch devices from API
+  useEffect(() => {
+    fetchDevices();
+  }, [fetchDevices]);
+  
   const filteredDevices = devices.filter((device) => {
     const matchesSearch =
       device.name.toLowerCase().includes(searchTerm.toLowerCase());

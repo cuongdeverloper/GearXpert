@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
-import { FiSearch, FiFilter, FiStar, FiEdit2, FiTrash2, FiCheck, FiX } from "react-icons/fi";
+import { FiSearch, FiEdit2, FiTrash2, FiCheck, FiX } from "react-icons/fi";
 import { getAdminSuppliers } from "../../service/ApiService/AdminDashboardApi";
 
 export default function SuppliersPage() {

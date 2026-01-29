@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -63,7 +63,7 @@ export default function OrderReviewPage() {
     }
   };
 
-  const [orderData, setOrderData] = useState(mockOrderData);
+  const [orderData] = useState(mockOrderData);
 
   const handleConfirmOrder = () => {
     setIsProcessing(true);

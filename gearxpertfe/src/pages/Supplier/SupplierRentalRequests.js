@@ -9,7 +9,7 @@ import {
   FiSearch,
   FiFilter,
 } from "react-icons/fi";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { getSupplierRentalRequests } from "../../service/ApiService/RentalApi";
 import { approveRental, rejectRental } from "../../service/ApiService/RentalActionApi";
@@ -89,7 +89,7 @@ export default function SupplierRentalRequests() {
   const [rejectModal, setRejectModal] = useState({ open: false, rental: null });
   const [rejectSubmitting, setRejectSubmitting] = useState(false);
 
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     if (!user?.id) return;
     setLoading(true);
     try {
@@ -104,11 +104,11 @@ export default function SupplierRentalRequests() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     fetchRequests();
-  }, [user?.id]);
+  }, [fetchRequests]);
 
   const handleApprove = async (req) => {
     const result = await confirmDialog({
@@ -216,6 +216,15 @@ export default function SupplierRentalRequests() {
     const start = (page - 1) * pageSize;
     return filteredRequests.slice(start, start + pageSize);
   }, [filteredRequests, page, pageSize]);
+
+  if (loading && requests.length === 0) {
+    return (
+      <div className="flex justify-center items-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary"></div>
+        <span className="ml-3 text-slate-500 font-medium">Đang tải dữ liệu...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

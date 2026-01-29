@@ -75,7 +75,7 @@ const Message = ({ message, own, showTime,receiver,handleDelete }) => {
           <img
             className="messageImg"
             src={receiver?.avatar || ImageUser} 
-            alt="avatar"
+            alt="User avatar" 
           />
         )}
 
@@ -84,7 +84,7 @@ const Message = ({ message, own, showTime,receiver,handleDelete }) => {
             <img 
               className="messageContentImg" 
               src={message.image} 
-              alt="sent image" 
+              alt="Message attachment"
               title={exactTime}
             />
           )}

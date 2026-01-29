@@ -1,4 +1,4 @@
-import { FiTool, FiCheckCircle, FiAlertCircle, FiClock, FiUser, FiDollarSign } from "react-icons/fi";
+import { FiTool, FiCheckCircle, FiClock, FiUser, FiDollarSign } from "react-icons/fi";
 
 export default function SupplierMaintenance() {
   // Mock data

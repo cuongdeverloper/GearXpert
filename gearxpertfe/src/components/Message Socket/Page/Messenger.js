@@ -191,7 +191,7 @@ const Messenger = () => {
       }
     });
     return () => socket.off("messageSeen");
-  }, [socket, currentChat]);
+  }, [socket, currentChat, user.account.id]);
 
   const callUser = () => {
     if (!receiver) return toast.error("Không tìm thấy người dùng!");
@@ -397,7 +397,7 @@ const Messenger = () => {
 
   useEffect(() => {
     if (!isAuthenticated) navigate("/signin");
-  }, [isAuthenticated]);
+  }, [isAuthenticated, navigate]);
 
   const filteredConversations = conversations.filter((c) =>
     c.friendName?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -405,7 +405,7 @@ const Messenger = () => {
 
   return (
     <div className="messenger-page-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-    <Header />
+      <Header />
       <div className="messenger flex-1 flex overflow-hidden w-full bg-white">
         <div className="chatMenu">
           <div className="chatMenuWrapper">

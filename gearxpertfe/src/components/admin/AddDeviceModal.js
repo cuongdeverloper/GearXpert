@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { useSelector } from "react-redux";
 import { FiX, FiPlus } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { motion, AnimatePresence } from "framer-motion";
@@ -7,7 +6,6 @@ import { createDevice } from "../../service/ApiService/DeviceApi";
 import { VIETNAM_CITIES } from "../../utils/vietnamCities";
 
 export default function AddDeviceModal({ isOpen, onClose, onDeviceAdded }) {
-  const user = useSelector((state) => state.user.account);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -106,7 +104,7 @@ export default function AddDeviceModal({ isOpen, onClose, onDeviceAdded }) {
       images.forEach((img) => form.append("images", img));
 
       // Call API
-      const response = await createDevice(form);
+      await createDevice(form);
       toast.success("Device added successfully!");
 
       // Reset form

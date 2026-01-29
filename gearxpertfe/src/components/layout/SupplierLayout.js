@@ -4,7 +4,6 @@ import { useSelector } from "react-redux";
 import SupplierTopbar from "./supplier/SupplierTopbar";
 import SupplierSidebar from "./supplier/SupplierSidebar";
 import SupplierMobileDrawer from "./supplier/SupplierMobileDrawer";
-import SupplierPageHeader from "./supplier/SupplierPageHeader";
 
 function classNames(...xs) {
   return xs.filter(Boolean).join(" ");
