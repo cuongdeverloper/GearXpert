@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { Link } from "react-router-dom";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
 import ScrollAnimation from "../../components/common/ScrollAnimation";
@@ -35,16 +36,11 @@ export default function PrivacyPolicyPage() {
       <Header />
 
       <main className="flex-grow w-full pb-12">
-        {/* Hero Section - giống Homepage/ProductsPage */}
         <section className="relative w-full bg-slate-900 overflow-hidden mb-10 pt-16 pb-24 lg:pt-24 lg:pb-32">
           <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1485846234645-a62644f84728?w=1920&q=80')] bg-cover bg-center opacity-30 mix-blend-overlay" />
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-900/80 to-background-light" />
 
           <div className="relative z-10 max-w-[1440px] mx-auto px-6 lg:px-10 text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-white mb-6 border border-white/20">
-              <span className="material-symbols-outlined text-accent-cyan text-[18px] fill-current">verified</span>
-              <span className="text-xs font-bold tracking-[0.1em] uppercase">Pháp lý</span>
-            </div>
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 font-display tracking-tight">
               Chính sách <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-cyan to-indigo-400">quyền riêng tư</span>
             </h1>
@@ -54,7 +50,7 @@ export default function PrivacyPolicyPage() {
           </div>
         </section>
 
-        {/* Content - giống FeaturedProductsSection */}
+        {/* Content */}
         <div className="max-w-[1440px] mx-auto px-6 lg:px-10 -mt-20 relative z-20">
           <article
             className="max-w-3xl mx-auto bg-white rounded-3xl shadow-xl border border-slate-100 p-8 lg:p-12"
@@ -71,6 +67,22 @@ export default function PrivacyPolicyPage() {
                 Chính sách này giải thích cách GearXpert thu thập, xử lý, lưu trữ,
                 chia sẻ và bảo vệ dữ liệu cá nhân của người dùng.
               </p>
+
+              <nav className="mb-10 p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
+                <p className="text-sm font-semibold text-slate-700 mb-2">Tài liệu pháp lý liên quan:</p>
+                <ul className="flex flex-wrap gap-3">
+                  <li>
+                    <Link to="/terms" className="text-primary hover:text-primary-dark hover:underline font-medium transition-colors">
+                      Điều khoản sử dụng
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/rental-policy" className="text-primary hover:text-primary-dark hover:underline font-medium transition-colors">
+                      Chính sách đặt cọc & bồi thường
+                    </Link>
+                  </li>
+                </ul>
+              </nav>
 
               {/* Section 1: Định nghĩa */}
               <section className="mb-10">
@@ -332,6 +344,14 @@ export default function PrivacyPolicyPage() {
                   đọc, hiểu và đồng ý cho phép GearXpert xử lý dữ liệu cá nhân theo
                   chính sách này.
                 </p>
+                <div className="mt-4 flex flex-wrap gap-4">
+                  <Link to="/terms" className="text-primary hover:text-primary-dark hover:underline text-sm font-medium transition-colors">
+                    Điều khoản sử dụng
+                  </Link>
+                  <Link to="/rental-policy" className="text-primary hover:text-primary-dark hover:underline text-sm font-medium transition-colors">
+                    Chính sách đặt cọc & bồi thường
+                  </Link>
+                </div>
               </aside>
             </section>
           </ScrollAnimation>
