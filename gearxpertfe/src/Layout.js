@@ -1,5 +1,5 @@
 import { Suspense, useEffect } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import Aos from "aos";
 
@@ -9,6 +9,7 @@ import RouteHandler from "./components/common/RouteHandler";
 
 // Supplier layout + pages
 import SupplierLayout from "./components/layout/SupplierLayout";
+import SupplierDashboard from "./pages/Supplier/SupplierDashboard";
 import SupplierDevicesList from "./pages/Supplier/SupplierDevicesList";
 import SupplierRentalRequests from "./pages/Supplier/SupplierRentalRequests";
 import SupplierMaintenance from "./pages/Supplier/SupplierMaintenance";
@@ -23,6 +24,8 @@ import RentalsPage from "./pages/Admin/RentalsPage";
 import ReportsPage from "./pages/Admin/ReportsPage";
 import SettingsPage from "./pages/Admin/SettingsPage";
 import AdminVouchersPage from "./pages/Admin/AdminVouchersPage";
+import AdminAdsPage from "./pages/Admin/AdminAdsPage";
+
 
 // pages
 import RentalCheckout from "./pages/Rental/RentalCheckout";
@@ -45,6 +48,19 @@ import WalletSuccess from "./pages/User/Wallet/WalletSuccess";
 import WalletCancel from "./pages/User/Wallet/WalletCancel";
 import EkycVerification from "./components/EkycVerification";
 
+import MyRentals from "./pages/User/MyRentals";
+import Messenger from "./components/Message Socket/Page/Messenger";
+import Chatbot from "./components/chatbot/Chatbot";
+
+const ChatbotWrapper = () => {
+  const location = useLocation();
+  if (location.pathname.startsWith("/admin") || location.pathname.startsWith("/supplier")) {
+    return null; 
+  }
+
+  return <Chatbot />;
+};
+
 export default function Layout() {
   useEffect(() => {
     Aos.init({ duration: 1000 });
@@ -54,6 +70,7 @@ export default function Layout() {
     <BrowserRouter>
       <RouteHandler />
       <GlobalLoadingOverlay />
+      <ChatbotWrapper />
       <Suspense fallback={<div className="p-6">Loading...</div>}>
         <ToastContainer
           position="top-right"
@@ -69,10 +86,8 @@ export default function Layout() {
         />
 
         <Routes>
-          {/* Homepage has its own Header and Footer */}
           <Route path="/" element={<Homepage />} />
 
-          {/* Auth pages */}
           <Route path="/signin" element={<SignIn />} />
           <Route path="/otp-verify" element={<EnterOTPRegister />} />
           <Route path="auth/callback" element={<AuthCallback />} />
@@ -90,17 +105,17 @@ export default function Layout() {
             path="/rental/checkout/review"
             element={<RentalReviewPage />}
           />
+          <Route path="/user/myrental" element={<MyRentals />} />
           <Route path="/user/cart" element={<CartPage />} />
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/cancel" element={<PaymentCancel />} />
-          {/* <Route path="/rental/manage" element={<RentalManagementPage />} /> */}
 
-          {/* Supplier Portal routes */}
           <Route path="/supplier" element={<SupplierLayout />}>
             <Route
               index
-              element={<Navigate to="/supplier/devices" replace />}
+              element={<Navigate to="/supplier/dashboard" replace />}
             />
+            <Route path="dashboard" element={<SupplierDashboard />} />
             <Route path="devices" element={<SupplierDevicesList />} />
             <Route
               path="rental-requests"
@@ -119,16 +134,20 @@ export default function Layout() {
             <Route path="reports" element={<ReportsPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="vouchers" element={<AdminVouchersPage />} />
+            <Route path="advertisements" element={<AdminAdsPage />} />
+
           </Route>
 
-          {/* Favorites page */}
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/vouchers" element={<VouchersPage />} />
 
-          {/* Profile page (has its own Header and Footer) */}
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/ekyc" element={<EkycVerification />} />
+
+          <Route path="/messenger" element={<Messenger />} />
+          <Route path="/messenger/:conversationId" element={<Messenger />}
+          />
         </Routes>
       </Suspense>
     </BrowserRouter>

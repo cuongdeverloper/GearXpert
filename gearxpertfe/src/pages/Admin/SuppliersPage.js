@@ -1,23 +1,29 @@
 import { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
-import { mockUsers, mockDevices } from "../../mocks/adminMock";
 import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
-import { FiSearch, FiFilter, FiStar, FiEdit2, FiTrash2, FiCheck, FiX } from "react-icons/fi";
+import { FiSearch, FiEdit2, FiTrash2, FiCheck, FiX } from "react-icons/fi";
+import { getAdminSuppliers } from "../../service/ApiService/AdminDashboardApi";
 
 export default function SuppliersPage() {
   const dispatch = useDispatch();
   const [searchTerm, setSearchTerm] = useState("");
+  const [suppliers, setSuppliers] = useState([]);
 
-  // Simulate data loading
   useEffect(() => {
-    dispatch(showAdminLoading());
-    const timer = setTimeout(() => {
-      dispatch(hideAdminLoading());
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [dispatch]);
+    const fetchSuppliers = async () => {
+      dispatch(showAdminLoading());
+      try {
+        const res = await getAdminSuppliers();
+        setSuppliers(res?.suppliers || []);
+      } catch (error) {
+        console.error("Failed to load suppliers:", error);
+      } finally {
+        dispatch(hideAdminLoading());
+      }
+    };
 
-  const suppliers = mockUsers.filter((user) => user.role === "SUPPLIER");
+    fetchSuppliers();
+  }, [dispatch]);
 
   const filteredSuppliers = suppliers.filter((supplier) => {
     return (
@@ -25,16 +31,6 @@ export default function SuppliersPage() {
       supplier.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
   });
-
-  const getDeviceCount = (supplierId) => {
-    return mockDevices.filter((d) => d.supplierId === supplierId).length;
-  };
-
-  const getActiveRentals = (supplierId) => {
-    return mockDevices.filter(
-      (d) => d.supplierId === supplierId && d.status === "RENTED"
-    ).length;
-  };
 
   const getRankColor = (rank) => {
     const colors = {
@@ -48,7 +44,7 @@ export default function SuppliersPage() {
   };
 
   const getStatusColor = (status) => {
-    return status === "active"
+    return status === "ACTIVE"
       ? "bg-green-100 text-green-700"
       : "bg-red-100 text-red-700";
   };
@@ -89,7 +85,7 @@ export default function SuppliersPage() {
                   supplier.status
                 )}`}
               >
-                {supplier.status === "active" ? "Active" : "Blocked"}
+                {supplier.status === "ACTIVE" ? "Active" : "Blocked"}
               </span>
             </div>
 
@@ -98,13 +94,13 @@ export default function SuppliersPage() {
               <div>
                 <p className="text-xs text-slate-500">Devices</p>
                 <p className="font-semibold text-slate-900">
-                  {getDeviceCount(supplier.id)}
+                  {supplier.totalDevices}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-slate-500">Active Rentals</p>
                 <p className="font-semibold text-slate-900">
-                  {getActiveRentals(supplier.id)}
+                  {supplier.activeRentals}
                 </p>
               </div>
               <div>

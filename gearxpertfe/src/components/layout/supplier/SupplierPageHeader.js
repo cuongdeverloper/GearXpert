@@ -2,6 +2,7 @@ import { useLocation } from "react-router-dom";
 import { useMemo } from "react";
 
 const menu = [
+  { to: "/supplier/dashboard", label: "Dashboard", desc: "Overview & quick actions" },
   { to: "/supplier/devices", label: "Devices", desc: "Manage listings & inventory" },
   { to: "/supplier/rental-requests", label: "Rental Requests", desc: "Approve / reject bookings" },
   { to: "/supplier/maintenance", label: "Maintenance", desc: "Handle maintenance workflow" },

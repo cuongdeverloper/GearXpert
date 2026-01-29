@@ -1,27 +1,36 @@
 import { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
-import { mockRentals } from "../../mocks/adminMock";
 import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
-import { FiSearch, FiFilter, FiCheckCircle, FiAlertCircle, FiClock, FiX } from "react-icons/fi";
+import { FiSearch, FiCheckCircle, FiAlertCircle, FiClock, FiX } from "react-icons/fi";
+import { getAdminRentals } from "../../service/ApiService/AdminDashboardApi";
 
 export default function RentalsPage() {
   const dispatch = useDispatch();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [rentals, setRentals] = useState([]);
 
-  // Simulate data loading
   useEffect(() => {
-    dispatch(showAdminLoading());
-    const timer = setTimeout(() => {
-      dispatch(hideAdminLoading());
-    }, 300);
-    return () => clearTimeout(timer);
+    const fetchRentals = async () => {
+      dispatch(showAdminLoading());
+      try {
+        const res = await getAdminRentals();
+        setRentals(res?.rentals || []);
+      } catch (error) {
+        console.error("Failed to load rentals:", error);
+      } finally {
+        dispatch(hideAdminLoading());
+      }
+    };
+
+    fetchRentals();
   }, [dispatch, statusFilter]);
 
-  const filteredRentals = mockRentals.filter((rental) => {
+  const filteredRentals = rentals.filter((rental) => {
     const matchesSearch =
-      rental.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rental.deviceName.toLowerCase().includes(searchTerm.toLowerCase());
+      (rental.customerName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (rental.deviceName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (rental.supplierName || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "ALL" || rental.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -57,7 +66,9 @@ export default function RentalsPage() {
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
     const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return "N/A";
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   };
 
@@ -99,6 +110,7 @@ export default function RentalsPage() {
             <tr className="border-b border-slate-200 bg-slate-50">
               <th className="px-6 py-3 text-left font-semibold text-slate-700">Rental ID</th>
               <th className="px-6 py-3 text-left font-semibold text-slate-700">Customer</th>
+              <th className="px-6 py-3 text-left font-semibold text-slate-700">Supplier</th>
               <th className="px-6 py-3 text-left font-semibold text-slate-700">Device</th>
               <th className="px-6 py-3 text-left font-semibold text-slate-700">Duration</th>
               <th className="px-6 py-3 text-right font-semibold text-slate-700">Amount</th>
@@ -112,8 +124,9 @@ export default function RentalsPage() {
                 <td className="px-6 py-3 font-medium text-slate-900">{rental.id}</td>
                 <td className="px-6 py-3">
                   <div className="font-medium text-slate-900">{rental.customerName}</div>
-                  <div className="text-xs text-slate-500">{rental.deliveryAddress.city}</div>
+                  <div className="text-xs text-slate-500">{rental.deliveryAddress?.city || "N/A"}</div>
                 </td>
+                <td className="px-6 py-3 text-slate-600">{rental.supplierName || "Unknown"}</td>
                 <td className="px-6 py-3 text-slate-600">{rental.deviceName}</td>
                 <td className="px-6 py-3 text-slate-600">
                   <div className="text-xs">

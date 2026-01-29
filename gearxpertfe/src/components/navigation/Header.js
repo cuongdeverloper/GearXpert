@@ -1,10 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { doLogout } from '../../redux/action/userAction';
-import { persistor } from '../../redux/store';
-import Cookies from 'js-cookie';
 import { toast } from 'react-toastify';
+import { performLogout } from '../../utils/logout';
 
 export default function Header() {
   const navigate = useNavigate();
@@ -32,53 +30,23 @@ export default function Header() {
   }, []);
 
   const handleLogout = async () => {
-    try {
-      // Disconnect socket if connected
-      if (socketConnection) {
-        socketConnection.disconnect();
-      }
-
-      // Dispatch logout action to clear Redux state
-      dispatch(doLogout());
-
-      // Remove cookies
-      Cookies.remove('accessToken');
-      Cookies.remove('refreshToken');
-
-      // Purge Redux persist storage
-      await persistor.purge();
-
-      // Show success message
-      toast.success('Đăng xuất thành công');
-
-      // Close dropdown
-      setIsDropdownOpen(false);
-
-      // Navigate to login page
-      navigate('/signin');
-    } catch (error) {
-      console.error('Logout error:', error);
-      toast.error('Có lỗi xảy ra khi đăng xuất');
-    }
+    await performLogout({
+      dispatch,
+      navigate,
+      socketConnection,
+      toast,
+      onDone: () => setIsDropdownOpen(false),
+    });
   };
 
   const menuItems = [
     { label: 'Trang chủ', icon: 'home', path: '/' },
-    { label: 'Đơn thuê của tôi', icon: 'description', path: '/rental/manage' },
+    { label: 'Đơn thuê của tôi', icon: 'description', path: '/user/myrental' },
     { label: 'Vouchers', icon: 'local_activity', path: '/vouchers' },
     { label: 'Yêu thích', icon: 'favorite', path: '/favorites' },
   ];
 
   const handleRestrictedNavigation = (path) => {
-    if (location.pathname === '/profile' && !userAccount.phone && !userAccount.phoneNumber) {
-      toast.warning("Vui lòng cập nhật số điện thoại trước khi tiếp tục!");
-      const phoneInput = document.getElementById('phone-input');
-      if (phoneInput) {
-        phoneInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        phoneInput.focus();
-      }
-      return;
-    }
     navigate(path);
   };
 

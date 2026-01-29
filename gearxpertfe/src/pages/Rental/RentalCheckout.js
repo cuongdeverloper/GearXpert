@@ -1,6 +1,5 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
-  Trash2,
   CreditCard,
   Wallet,
   Ticket,
@@ -9,18 +8,19 @@ import {
   X,
   ChevronLeft,
   ShieldCheck,
-  Truck,
   Phone,
   PackageCheck,
+  Store,
+  User,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useSelector } from "react-redux";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 import { getCart, removeCartItem } from "../../service/ApiService/CartApi";
 import { validateVoucher } from "../../service/ApiService/VoucherApi.js";
 import { checkout } from "../../service/ApiService/RentalApi";
-// Giả định bạn đã import API lấy thông tin ví
 import { getMyWallet } from "../../service/ApiService/WalletApi";
 
 // --- MAP IMPORTS ---
@@ -39,14 +39,35 @@ let DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
+// --- CONSTANTS ---
+const FPT_COORDS = { lat: 15.9753, lng: 108.2524 };
+const MIN_DELIVERY_FEE = 10000;
+const FEE_PER_KM = 5000;
+
+// Hàm tính khoảng cách đường chim bay
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) *
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
 export default function CheckoutPage() {
+  const { account } = useSelector((state) => state.user);
   const navigate = useNavigate();
   const location = useLocation();
   const CART_TYPE = location.state?.cartType || "NORMAL";
-
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
   const [address, setAddress] = useState({
+    receiverName: "",
     street: "",
     district: "",
     city: "",
@@ -62,17 +83,26 @@ export default function CheckoutPage() {
   const [appliedVoucher, setAppliedVoucher] = useState(null);
   const [isApplyingVoucher, setIsApplyingVoucher] = useState(false);
   const [showMapModal, setShowMapModal] = useState(false);
-  const [mapPosition, setMapPosition] = useState([10.8231, 106.6297]);
 
-  // --- WALLET STATE ---
+  const [mapPosition, setMapPosition] = useState([
+    FPT_COORDS.lat,
+    FPT_COORDS.lng,
+  ]);
+  const [deliveryFee, setDeliveryFee] = useState(10000);
+  const [distance, setDistance] = useState(0);
+
   const [wallet, setWallet] = useState(null);
 
-  // Tự động cập nhật Full Address
+  const { street, district, city } = address;
+
   useEffect(() => {
-    const { street, district, city } = address;
     const full = [street, district, city].filter(Boolean).join(", ");
-    setAddress((prev) => ({ ...prev, fullAddress: full }));
-  }, [address.street, address.district, address.city]);
+    
+    setAddress((prev) => {
+      if (prev.fullAddress === full) return prev; 
+      return { ...prev, fullAddress: full };
+    });
+  }, [street, district, city]);
 
   const fetchCart = useCallback(async () => {
     try {
@@ -85,8 +115,24 @@ export default function CheckoutPage() {
       setLoading(false);
     }
   }, [CART_TYPE]);
+  const fillDefaultUserInfo = () => {
+    if (!account || !account.username) {
+      toast.warning("Chưa có thông tin người dùng. Vui lòng đăng nhập lại.");
+      return;
+    }
 
-  // --- FETCH WALLET DATA ---
+    setAddress({
+      receiverName: account.username || "", // ← sửa: dùng username thay vì fullName
+      street: account.address?.street || "",
+      district: account.address?.district || "",
+      city: account.address?.city || "Đà Nẵng",
+      fullAddress: account.address?.fullAddress || "",
+    });
+
+    setPhoneNumber(account.phoneNumber || account.phone || "");
+
+    toast.success("Đã điền thông tin mặc định từ tài khoản của bạn!");
+  };
   const fetchWalletData = useCallback(async () => {
     try {
       const res = await getMyWallet();
@@ -106,40 +152,63 @@ export default function CheckoutPage() {
     useMapEvents({
       click: async (e) => {
         const { lat, lng } = e.latlng;
-        if (lat !== undefined && lng !== undefined) {
-          setMapPosition([lat, lng]);
-          try {
-            const res = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=vi`
-            );
-            const data = await res.json();
-            if (data && data.address) {
-              const addr = data.address;
-              setAddress({
-                city: (addr.city || addr.town || addr.province || "")
-                  .replace("Thành phố ", "")
-                  .replace("Tỉnh ", ""),
-                district:
-                  addr.suburb ||
-                  addr.district ||
-                  addr.county ||
-                  addr.quarter ||
-                  "",
-                street: addr.road || addr.house_number || "",
-                fullAddress: data.display_name,
-              });
-              toast.success("Đã lấy vị trí từ bản đồ!");
-              setTimeout(() => setShowMapModal(false), 800);
+        setMapPosition([lat, lng]);
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=vi`
+          );
+          const data = await res.json();
+          if (data && data.address) {
+            const addr = data.address;
+            const fullAddrText = data.display_name;
+
+            const isDaNang = fullAddrText.includes("Đà Nẵng");
+            if (!isDaNang) {
+              toast.error(
+                "GearXpert hiện chỉ hỗ trợ giao hàng tại nội thành Đà Nẵng!"
+              );
+              return;
             }
-          } catch {
-            toast.error("Lỗi lấy địa chỉ");
+
+            const dist = calculateDistance(
+              FPT_COORDS.lat,
+              FPT_COORDS.lng,
+              lat,
+              lng
+            );
+            const fee = Math.max(
+              MIN_DELIVERY_FEE,
+              Math.round(dist * FEE_PER_KM)
+            );
+
+            setDistance(dist);
+            setDeliveryFee(fee);
+
+            setAddress({
+              city: "Đà Nẵng",
+              district:
+                addr.suburb ||
+                addr.district ||
+                addr.county ||
+                addr.quarter ||
+                "",
+              street: addr.road || addr.house_number || "",
+              fullAddress: fullAddrText,
+            });
+
+            toast.success(
+              `Khoảng cách: ${dist.toFixed(
+                1
+              )}km. Phí ship: ${fee.toLocaleString()}đ`
+            );
+            setTimeout(() => setShowMapModal(false), 1200);
           }
+        } catch {
+          toast.error("Lỗi lấy địa chỉ");
         }
       },
     });
-    return mapPosition && mapPosition[0] ? (
-      <Marker position={mapPosition} />
-    ) : null;
+    return mapPosition ? <Marker position={mapPosition} /> : null;
   }
 
   // --- HANDLERS ---
@@ -155,22 +224,70 @@ export default function CheckoutPage() {
   };
 
   const handleApplyVoucher = async () => {
-    if (!voucherCode.trim()) return toast.warning("Nhập mã giảm giá");
+    if (!voucherCode.trim()) return toast.warning("Vui lòng nhập mã voucher");
+
     try {
       setIsApplyingVoucher(true);
       const res = await validateVoucher({
-        code: voucherCode,
+        code: voucherCode.trim().toUpperCase(),
         cartType: CART_TYPE,
       });
-      setAppliedVoucher(res.data);
-      toast.success(`Đã áp dụng giảm ${res.data.discount.toLocaleString()}đ`);
+
+      // Backend trả { code, type, supplierId, discount }
+      const voucherData = res;
+
+      setAppliedVoucher({
+        code: voucherData.code,
+        discount: voucherData.discount,
+        type: voucherData.type,
+        supplierId: voucherData.supplierId,
+      });
+
+      toast.success(
+        `Áp dụng thành công! Giảm ${voucherData.discount.toLocaleString()}đ`
+      );
     } catch (err) {
+      const errMsg =
+        err.response?.message || "Mã voucher không hợp lệ hoặc hết hạn";
+      toast.error(errMsg);
       setAppliedVoucher(null);
-      toast.error(err.response?.data?.message || "Mã không hợp lệ");
     } finally {
       setIsApplyingVoucher(false);
     }
   };
+
+  // --- GROUP BY SUPPLIER FOR DISPLAY (đẹp hơn) ---
+  // --- GROUP BY SUPPLIER FOR DISPLAY ---
+  const groupedBySupplier = useMemo(() => {
+    const map = new Map();
+
+    cart.forEach((item) => {
+      // Lấy supplierId từ object populated (_id là string)
+      const supplierId = item.deviceId?.supplierId?._id;
+      if (!supplierId) return;
+
+      if (!map.has(supplierId)) {
+        map.set(supplierId, {
+          supplierId,
+          // Tên supplier từ fullName (đã populate)
+          supplierName:
+            item.deviceId?.supplierId?.fullName ||
+            `Cửa hàng #${supplierId.slice(-6)}`,
+          items: [],
+          subtotal: 0,
+        });
+      }
+
+      const group = map.get(supplierId);
+      group.items.push(item);
+      group.subtotal +=
+        (item.deviceId?.rentPrice?.perDay || 0) *
+        item.totalDays *
+        item.quantity;
+    });
+
+    return Array.from(map.values());
+  }, [cart]);
 
   // --- CALCULATION ---
   const subtotal = cart.reduce(
@@ -178,8 +295,9 @@ export default function CheckoutPage() {
       sum + item.deviceId?.rentPrice?.perDay * item.totalDays * item.quantity,
     0
   );
-  const deliveryFee = 10000;
+
   const insuranceFee = useInsurance ? Math.round(subtotal * 0.05) : 0;
+  // Phí ship: nếu nhận tại trường thì 0, nếu không thì theo km
   const total =
     subtotal + deliveryFee + insuranceFee - (appliedVoucher?.discount || 0);
 
@@ -194,7 +312,7 @@ export default function CheckoutPage() {
         "Số điện thoại không hợp lệ (Phải có 10 số, ví dụ: 0912345678)"
       );
     }
-    // KIỂM TRA SỐ DƯ VÍ NẾU CHỌN THANH TOÁN QUA VÍ
+
     if (selectedPayment === "WALLET") {
       if (!wallet || wallet.balance < total) {
         return toast.error("Số dư ví không đủ để thanh toán đơn hàng này!");
@@ -211,18 +329,36 @@ export default function CheckoutPage() {
         useInsurance,
         notes,
         voucherCode: appliedVoucher?.code,
+        shippingFee: deliveryFee, // Gửi phí ship (0 nếu tại trường)
       });
 
-      // ✅ LOGIC THANH TOÁN THẬT QUA PAYOS
       if (selectedPayment === "BANK" && res.paymentLink) {
         toast.info("Đang chuyển hướng đến trang thanh toán...");
         window.location.href = res.paymentLink.checkoutUrl;
       } else {
         toast.success("Đặt thuê thành công!");
-        setTimeout(() => navigate("/profile/rentals"), 2000);
+        setTimeout(() => navigate("/user/myrental"), 2000);
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || "Thanh toán thất bại");
+      const errData = err.response?.data;
+
+      // Xử lý lỗi EKYC từ backend (403)
+      if (err.response?.status === 403 && errData?.code === "EKYC_REQUIRED") {
+        toast.error(
+          errData.message ||
+            "Vui lòng hoàn tất xác thực eKYC trước khi thanh toán",
+          { autoClose: false }
+        );
+        // Tự động redirect sau 3 giây hoặc có nút bấm
+        setTimeout(() => {
+          window.location.href = "/profile";
+        }, 3000);
+      } else {
+        // Các lỗi khác (ví dụ: giỏ hàng trống, số dư không đủ, server error...)
+        toast.error(
+          errData?.message || "Thanh toán thất bại, vui lòng thử lại"
+        );
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -256,7 +392,7 @@ export default function CheckoutPage() {
               Checkout
             </h1>
             <span className="text-[10px] font-bold text-indigo-500 tracking-[0.2em] uppercase mt-1">
-              Hoàn tất đơn hàng
+              Giao hàng từ FPT University Đà Nẵng
             </span>
           </div>
           <div className="w-32 hidden md:block"></div>
@@ -267,34 +403,55 @@ export default function CheckoutPage() {
         {/* LEFT: DELIVERY & PAYMENT */}
         <div className="lg:col-span-7 space-y-8">
           <div className="bg-white rounded-[40px] p-10 border border-slate-100 shadow-sm">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="p-3 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-200">
-                <MapPin size={24} />
+            {/* Header phần thông tin nhận máy + NÚT MỚI */}
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-200">
+                  <MapPin size={24} />
+                </div>
+                <h2 className="text-xl font-black uppercase italic tracking-tight">
+                  Thông tin nhận máy
+                </h2>
               </div>
-              <h2 className="text-xl font-black uppercase italic tracking-tight">
-                Thông tin nhận máy
-              </h2>
+
+              {/* NÚT SỬ DỤNG THÔNG TIN MẶC ĐỊNH */}
+              <button
+                onClick={fillDefaultUserInfo}
+                disabled={!account?.username}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm ${
+                  account?.username
+                    ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                    : "bg-slate-200 text-slate-400 cursor-not-allowed opacity-70"
+                }`}
+              >
+                <User size={18} />
+                Sử dụng thông tin mặc định
+              </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <button
-                onClick={() =>
+                onClick={() => {
                   setAddress({
-                    street: "Số 1 Võ Văn Ngân",
-                    district: "Thủ Đức",
-                    city: "TP. Hồ Chí Minh",
-                    fullAddress: "Số 1 Võ Văn Ngân, Thủ Đức, TP. Hồ Chí Minh",
-                  })
-                }
+                    street: "FPT University",
+                    district: "Ngũ Hành Sơn",
+                    city: "Đà Nẵng",
+                    fullAddress:
+                      "Trường Đại học FPT Đà Nẵng, Ngũ Hành Sơn, Đà Nẵng",
+                  });
+                  setDistance(0);
+                  setDeliveryFee(0); // ← Fix: phí ship = 0đ khi nhận tại trường
+                  toast.success("Nhận tại trường - Miễn phí ship 0đ!");
+                }}
                 className="flex items-center justify-center gap-3 bg-slate-50 hover:bg-slate-100 py-4 rounded-2xl border border-slate-200 transition-all font-bold text-slate-700"
               >
-                <Home size={18} /> Địa chỉ mặc định
+                <Home size={18} /> Tại trường (FPTU)
               </button>
               <button
                 onClick={() => setShowMapModal(true)}
                 className="flex items-center justify-center gap-3 bg-indigo-50 hover:bg-indigo-100 py-4 rounded-2xl border border-indigo-200 transition-all font-bold text-indigo-700"
               >
-                <MapPin size={18} /> Chọn từ bản đồ
+                <MapPin size={18} /> Chọn từ bản đồ Đà Nẵng
               </button>
             </div>
 
@@ -306,11 +463,9 @@ export default function CheckoutPage() {
                   </span>
                   <input
                     className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-bold focus:ring-2 ring-indigo-500"
-                    placeholder="..."
+                    placeholder="Đà Nẵng"
+                    disabled
                     value={address.city}
-                    onChange={(e) =>
-                      setAddress({ ...address, city: e.target.value })
-                    }
                   />
                 </div>
                 <div className="space-y-1">
@@ -345,14 +500,46 @@ export default function CheckoutPage() {
                 <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform">
                   <MapPin size={80} />
                 </div>
-                <span className="text-[10px] font-black opacity-60 uppercase tracking-widest">
-                  Xem lại địa chỉ
-                </span>
-                <p className="text-sm font-bold mt-1 leading-relaxed z-10 relative">
-                  {address.fullAddress || "Chưa có địa chỉ..."}
-                </p>
+                <div className="flex justify-between items-start z-10 relative">
+                  <div>
+                    <span className="text-[10px] font-black opacity-60 uppercase tracking-widest">
+                      Địa chỉ giao hàng
+                    </span>
+                    <p className="text-sm font-bold mt-1 leading-relaxed">
+                      {address.fullAddress || "Chưa xác định vị trí..."}
+                    </p>
+                  </div>
+                  {distance > 0 && (
+                    <div className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-xl text-right">
+                      <span className="block text-[9px] uppercase font-black">
+                        Khoảng cách
+                      </span>
+                      <span className="text-xs font-black">
+                        {distance.toFixed(1)} km
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
-
+              <div className="space-y-1 mb-4">
+                <span className="ml-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Tên người nhận máy
+                </span>
+                <div className="relative">
+                  <PackageCheck
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                    size={18}
+                  />
+                  <input
+                    className="w-full bg-slate-50 border-none rounded-2xl p-4 pl-12 text-sm font-bold focus:ring-2 ring-indigo-500"
+                    placeholder="Nhập họ và tên người nhận..."
+                    value={address.receiverName}
+                    onChange={(e) =>
+                      setAddress({ ...address, receiverName: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="relative">
                   <Phone
@@ -427,7 +614,6 @@ export default function CheckoutPage() {
                 )}
               </label>
 
-              {/* HIỂN THỊ VÍ VỚI SỐ DƯ */}
               <label
                 className={`relative flex items-center gap-4 p-6 rounded-3xl border-2 transition-all cursor-pointer group ${
                   selectedPayment === "WALLET"
@@ -486,11 +672,10 @@ export default function CheckoutPage() {
                     Thanh toán an toàn qua PayOS
                   </span>
                   <p className="text-sm text-slate-300 leading-relaxed font-medium">
-                    Bạn sẽ được chuyển hướng đến cổng thanh toán PayOS để thực hiện quét mã VietQR. <br />
-                    Đơn hàng sẽ được xác nhận tự động ngay sau khi bạn hoàn tất chuyển khoản.
-                  </p>
-                  <p className="text-[10px] text-slate-500 mt-4 italic">
-                    * GearXpert không lưu trữ thông tin thẻ hay tài khoản ngân hàng của bạn.
+                    Bạn sẽ được chuyển hướng đến cổng thanh toán PayOS để thực
+                    hiện quét mã VietQR. <br />
+                    Đơn hàng sẽ được xác nhận tự động ngay sau khi bạn hoàn tất
+                    chuyển khoản.
                   </p>
                 </div>
               </div>
@@ -518,41 +703,63 @@ export default function CheckoutPage() {
             </h2>
 
             <div className="max-h-[320px] overflow-y-auto pr-2 space-y-6 mb-8 scrollbar-hide">
-              {cart.map((item) => (
-                <div key={item._id} className="flex gap-4 items-start group">
-                  <div className="relative w-20 h-20 shrink-0">
-                    <img
-                      src={item.deviceId?.images?.[0]}
-                      className="w-full h-full rounded-2xl object-cover border border-slate-100 group-hover:scale-105 transition-transform"
-                    />
-                    <button
-                      onClick={() => handleRemoveItem(item._id)}
-                      className="absolute -top-2 -left-2 bg-white text-red-500 p-1.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50"
-                    >
-                      <X size={14} />
-                    </button>
+              {groupedBySupplier.map((group, idx) => (
+                <div
+                  key={idx}
+                  className="pb-4 border-b last:border-0 last:pb-0"
+                >
+                  <div className="flex items-center gap-3 mb-3 bg-indigo-50/50 p-2 rounded-lg">
+                    <Store className="text-indigo-600" size={20} />
+                    <h3 className="font-bold text-base text-indigo-800">
+                      {group.supplierName}
+                    </h3>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-black text-slate-900 text-sm truncate uppercase tracking-tight">
-                      {item.deviceId?.name}
-                    </p>
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tighter flex items-center gap-1">
-                        {item.totalDays} ngày
-                      </span>
-                      <span className="w-1 h-1 bg-slate-200 rounded-full" />
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tighter">
-                        SL: {item.quantity}
-                      </span>
+
+                  {group.items.map((item) => (
+                    <div
+                      key={item._id}
+                      className="flex gap-4 items-start group mb-3"
+                    >
+                      <div className="relative w-20 h-20 shrink-0">
+                        <img
+                          src={item.deviceId?.images?.[0]}
+                          alt={item.deviceId?.name || "Product image"}
+                          className="w-full h-full rounded-2xl object-cover border border-slate-100 group-hover:scale-105 transition-transform"
+                        />
+                        <button
+                          onClick={() => handleRemoveItem(item._id)}
+                          className="absolute -top-2 -left-2 bg-white text-red-500 p-1.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-black text-slate-900 text-sm truncate uppercase tracking-tight">
+                          {item.deviceId?.name}
+                        </p>
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tighter flex items-center gap-1">
+                            {item.totalDays} ngày
+                          </span>
+                          <span className="w-1 h-1 bg-slate-200 rounded-full" />
+                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tighter">
+                            SL: {item.quantity}
+                          </span>
+                        </div>
+                        <p className="font-black text-indigo-600 text-sm mt-1">
+                          {(
+                            item.deviceId?.rentPrice?.perDay *
+                            item.totalDays *
+                            item.quantity
+                          ).toLocaleString()}
+                          đ
+                        </p>
+                      </div>
                     </div>
-                    <p className="font-black text-indigo-600 text-sm mt-1">
-                      {(
-                        item.deviceId?.rentPrice?.perDay *
-                        item.totalDays *
-                        item.quantity
-                      ).toLocaleString()}
-                      đ
-                    </p>
+                  ))}
+
+                  <div className="text-right mt-2 text-sm font-bold text-slate-700">
+                    Tạm tính nhóm: {group.subtotal.toLocaleString()}đ
                   </div>
                 </div>
               ))}
@@ -566,7 +773,19 @@ export default function CheckoutPage() {
                 </span>
               </div>
               <div className="flex justify-between text-sm font-bold text-slate-400 uppercase tracking-tighter">
-                <span className="flex items-center gap-2">Phí vận chuyển</span>
+                <span className="flex flex-col">
+                  Phí vận chuyển
+                  {distance > 0 && (
+                    <span className="text-[9px] text-indigo-500 lowercase font-medium">
+                      ({distance.toFixed(1)} km từ trường)
+                    </span>
+                  )}
+                  {deliveryFee === 0 && (
+                    <span className="text-[9px] text-emerald-600 font-medium">
+                      (Miễn phí tại trường)
+                    </span>
+                  )}
+                </span>
                 <span className="text-slate-600">
                   {deliveryFee.toLocaleString()}đ
                 </span>
@@ -607,20 +826,31 @@ export default function CheckoutPage() {
                   {isApplyingVoucher ? "..." : "Áp dụng"}
                 </button>
               </div>
-
               {appliedVoucher && (
-                <div className="flex justify-between items-center bg-emerald-50 text-emerald-600 p-4 rounded-2xl border border-emerald-100 animate-in slide-in-from-top-2">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-emerald-600 text-white rounded-lg">
-                      <Ticket size={14} />
+                <div className="flex justify-between items-center bg-emerald-50 text-emerald-700 p-4 rounded-2xl border border-emerald-200 animate-in slide-in-from-top-2">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-emerald-600 text-white rounded-lg">
+                      <Ticket size={16} />
                     </div>
-                    <span className="text-xs font-black uppercase">
-                      Đã giảm: {appliedVoucher.code}
-                    </span>
+                    <div>
+                      <p className="font-bold text-sm">
+                        Đã áp dụng: {appliedVoucher.code}
+                      </p>
+                      <p className="text-xs">
+                        Giảm {appliedVoucher.discount.toLocaleString()}đ
+                      </p>
+                    </div>
                   </div>
-                  <span className="font-black">
-                    -{appliedVoucher.discount.toLocaleString()}đ
-                  </span>
+                  <button
+                    onClick={() => {
+                      setAppliedVoucher(null);
+                      setVoucherCode("");
+                      toast.info("Đã xóa voucher");
+                    }}
+                    className="text-emerald-700 hover:text-emerald-900 font-bold text-sm"
+                  >
+                    Xóa
+                  </button>
                 </div>
               )}
 
@@ -692,10 +922,10 @@ export default function CheckoutPage() {
                 </div>
                 <div>
                   <h3 className="font-black text-slate-900 uppercase italic tracking-tight text-xl">
-                    Chọn vị trí của bạn
+                    Vị trí của bạn (Đà Nẵng)
                   </h3>
                   <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">
-                    Click vào bản đồ để tự định vị
+                    Vận chuyển từ FPT University Đà Nẵng
                   </p>
                 </div>
               </div>
@@ -706,18 +936,116 @@ export default function CheckoutPage() {
                 <X size={24} />
               </button>
             </div>
-            <div className="h-[550px] w-full relative">
+
+            {/* NÚT MỚI: Vị trí hiện tại */}
+            <div className="p-4 bg-slate-50 border-b flex justify-center">
+              <button
+                onClick={() => {
+                  if (!navigator.geolocation) {
+                    toast.error("Trình duyệt của bạn không hỗ trợ lấy vị trí.");
+                    return;
+                  }
+
+                  navigator.geolocation.getCurrentPosition(
+                    async (position) => {
+                      const { latitude, longitude } = position.coords;
+                      setMapPosition([latitude, longitude]);
+
+                      try {
+                        const res = await fetch(
+                          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&accept-language=vi`
+                        );
+                        const data = await res.json();
+
+                        if (data && data.address) {
+                          const addr = data.address;
+                          const fullAddrText = data.display_name;
+
+                          const isDaNang = fullAddrText.includes("Đà Nẵng");
+                          if (!isDaNang) {
+                            toast.error(
+                              "Vị trí hiện tại không nằm trong Đà Nẵng. GearXpert chỉ hỗ trợ nội thành Đà Nẵng!"
+                            );
+                            return;
+                          }
+
+                          const dist = calculateDistance(
+                            FPT_COORDS.lat,
+                            FPT_COORDS.lng,
+                            latitude,
+                            longitude
+                          );
+                          const fee = Math.max(
+                            MIN_DELIVERY_FEE,
+                            Math.round(dist * FEE_PER_KM)
+                          );
+
+                          setDistance(dist);
+                          setDeliveryFee(fee);
+
+                          setAddress({
+                            city: "Đà Nẵng",
+                            district:
+                              addr.suburb ||
+                              addr.district ||
+                              addr.county ||
+                              addr.quarter ||
+                              "",
+                            street: addr.road || addr.house_number || "",
+                            fullAddress: fullAddrText,
+                          });
+
+                          toast.success(
+                            `Đã lấy vị trí hiện tại: ${dist.toFixed(
+                              1
+                            )}km. Phí ship: ${fee.toLocaleString()}đ`
+                          );
+
+                          // Tự động đóng modal sau 1.5 giây
+                          setTimeout(() => setShowMapModal(false), 1500);
+                        }
+                      } catch (err) {
+                        toast.error(
+                          "Không thể lấy địa chỉ từ vị trí hiện tại."
+                        );
+                      }
+                    },
+                    (error) => {
+                      let msg = "Không thể lấy vị trí.";
+                      if (error.code === 1)
+                        msg = "Bạn chưa cấp quyền truy cập vị trí.";
+                      if (error.code === 2) msg = "Không thể xác định vị trí.";
+                      if (error.code === 3) msg = "Hết thời gian lấy vị trí.";
+                      toast.error(msg);
+                    },
+                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                  );
+                }}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold shadow-md transition-all"
+              >
+                <MapPin size={20} />
+                Sử dụng vị trí hiện tại của tôi
+              </button>
+            </div>
+
+            <div className="h-[500px] w-full relative">
               <MapContainer
                 center={mapPosition}
-                zoom={13}
+                zoom={14}
                 style={{ height: "100%", width: "100%" }}
                 whenCreated={(map) => map.invalidateSize()}
               >
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                 <MapEventsHandler />
+                <Marker
+                  position={[FPT_COORDS.lat, FPT_COORDS.lng]}
+                  opacity={0.6}
+                />
+                {mapPosition && <Marker position={mapPosition} />}
               </MapContainer>
+
               <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[1000] bg-white px-8 py-4 rounded-[24px] shadow-2xl border border-slate-100 font-bold text-sm text-indigo-600 animate-bounce">
-                👆 Click vào vị trí bất kỳ trên bản đồ
+                👆 Click để chọn vị trí hoặc dùng nút trên
               </div>
             </div>
           </div>

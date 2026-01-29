@@ -1,11 +1,9 @@
 import React from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { XCircle, RefreshCw, AlertCircle } from 'lucide-react';
 
 export default function PaymentCancel() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const rentalId = searchParams.get('rentalId');
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">

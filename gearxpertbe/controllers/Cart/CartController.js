@@ -7,6 +7,12 @@ const DAY = 1000 * 60 * 60 * 24;
 /**
  * GET /cart?type=NORMAL|INSTANT
  */
+/**
+ * GET /cart?type=NORMAL|INSTANT
+ */
+/**
+ * GET /cart?type=NORMAL|INSTANT
+ */
 exports.getCart = async (req, res) => {
   const customerId = req.user.id;
   const cartType = req.query.type || 'NORMAL';
@@ -16,7 +22,14 @@ exports.getCart = async (req, res) => {
     cartType
   }).populate({
     path: 'items',
-    populate: { path: 'deviceId' }
+    populate: {
+      path: 'deviceId',
+      select: 'supplierId name rentPrice depositAmount stockQuantity images',
+      populate: {
+        path: 'supplierId',           // ← Populate level 2: từ Device → User
+        select: 'fullName avatar'     // lấy fullName + avatar nếu cần
+      }
+    }
   });
 
   res.json(cart || { items: [] });
@@ -66,30 +79,38 @@ exports.addToCart = async (req, res) => {
 /**
  * POST /cart/instant (BUY NOW)
  */
-exports.instantBuy = async (req, res) => {
+exports.addInstantToCart = async (req, res) => {
   try {
     const customerId = req.user.id;
     const { deviceId, quantity, rentalStartDate, rentalEndDate } = req.body;
 
-    // 1. Dọn dẹp giỏ hàng INSTANT cũ của user này
+    // 1. Dọn dẹp giỏ INSTANT cũ
     const oldCart = await Cart.findOne({ customerId, cartType: 'INSTANT' });
     if (oldCart) {
       await CartItem.deleteMany({ cartId: oldCart._id });
       await Cart.deleteOne({ _id: oldCart._id });
+      console.log('[addInstantToCart] Cleared old INSTANT cart:', oldCart._id);
     }
 
+    // 2. Kiểm tra device
     const device = await Device.findById(deviceId);
     if (!device || device.status !== 'AVAILABLE') {
       return res.status(400).json({ message: 'Thiết bị không sẵn sàng' });
     }
 
+    // 3. Tính totalDays
     const start = new Date(rentalStartDate);
     const end = new Date(rentalEndDate);
+    if (end <= start) {
+      return res.status(400).json({ message: 'Ngày kết thúc phải sau ngày bắt đầu' });
+    }
     const totalDays = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
 
-    // 2. Tạo giỏ hàng mới
+    // 4. Tạo cart mới
     const cart = await Cart.create({ customerId, cartType: 'INSTANT' });
+    console.log('[addInstantToCart] Created new INSTANT cart:', cart._id);
 
+    // 5. Tạo CartItem
     const item = await CartItem.create({
       cartId: cart._id,
       deviceId,
@@ -98,13 +119,27 @@ exports.instantBuy = async (req, res) => {
       rentalEndDate: end,
       totalDays
     });
+    console.log('[addInstantToCart] Created CartItem:', item._id);
 
+    // 6. PUSH item vào cart
     cart.items.push(item._id);
     await cart.save();
+    console.log('[addInstantToCart] Updated cart items:', cart.items);
 
-    res.status(201).json({ message: 'Instant cart created', cartType: 'INSTANT' });
+    // 7. Trả về cart đầy đủ (để frontend kiểm tra)
+    const populatedCart = await Cart.findById(cart._id).populate({
+      path: 'items',
+      populate: { path: 'deviceId', select: 'name rentPrice' }
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Đã tạo giỏ INSTANT và thêm thiết bị',
+      cart: populatedCart
+    });
   } catch (err) {
-    res.status(500).json({ message: 'Lỗi server' });
+    console.error('[addInstantToCart] Error:', err);
+    res.status(500).json({ message: 'Lỗi server khi tạo giỏ INSTANT' });
   }
 };
 /**

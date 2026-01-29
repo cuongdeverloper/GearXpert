@@ -14,7 +14,7 @@ const deviceSchema = new mongoose.Schema({
 
   category: {
     type: String,
-    enum: ['CAMERA', 'AUDIO', 'OFFICE', 'GAMING', 'ACCESSORY'],
+    enum: ['CAMERA', 'AUDIO', 'OFFICE', 'GAMING', 'ACCESSORY', 'LIGHTING', 'DRONE', 'OTHER'],
     required: true,
     index: true
   },
@@ -80,5 +80,5 @@ const deviceSchema = new mongoose.Schema({
   reviewCount: { type: Number, default: 0 }
 
 }, { timestamps: true });
-
+deviceSchema.index({ name: 'text', description: 'text', category: 'text' });
 module.exports = mongoose.model('Device', deviceSchema);

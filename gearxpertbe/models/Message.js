@@ -13,8 +13,23 @@ const MessageSchema = new mongoose.Schema(
     },
     text: {
       type: String,
-      required: true
+      default: ""
     },
+    image: {
+      type: String, 
+      default: "", 
+    },
+    type: {
+      type: String,
+      default: "text", 
+      enum: ["text", "image", "call"]
+    },
+    deletedBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
     seen: {
       type: Boolean,
       default: false,

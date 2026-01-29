@@ -5,6 +5,7 @@ import { resetPasswordApi } from '../ApiAuth';
 import Header from "../../navigation/Header";
 import Footer from "../../homepage/Footer";
 import { ImSpinner9 } from "react-icons/im";
+import PasswordStrengthMeter from "../Sign in/PasswordStrengthMeter";
 
 const ResetPassword = () => {
     const [searchParams] = useSearchParams();
@@ -20,6 +21,13 @@ const ResetPassword = () => {
             toast.error("Mật khẩu không khớp!");
             return;
         }
+
+        const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{6,}$/;
+        if (!passwordRegex.test(newPassword)) {
+            toast.error("Mật khẩu phải có ít nhất 6 ký tự, bao gồm chữ hoa, số và ký tự đặc biệt");
+            return;
+        }
+
         setIsLoading(true);
         try {
             const response = await resetPasswordApi(token, newPassword);
@@ -72,6 +80,7 @@ const ResetPassword = () => {
                                     required
                                 />
                             </div>
+                            <PasswordStrengthMeter password={newPassword} />
                         </div>
 
                         <div>

@@ -1,25 +1,39 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
-import { mockReports, mockDashboard } from "../../mocks/adminMock";
 import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
-import { FiDownload, FiBarChart2, FiTrendingUp, FiUsers, FiBox } from "react-icons/fi";
+import { FiDownload, FiBarChart2, FiUsers, FiBox } from "react-icons/fi";
+import { getAdminReports, getAdminDashboard } from "../../service/ApiService/AdminDashboardApi";
 
 export default function ReportsPage() {
   const dispatch = useDispatch();
+  const [stats, setStats] = useState([]);
+  const [reports, setReports] = useState([]);
 
-  // Simulate data loading
   useEffect(() => {
-    dispatch(showAdminLoading());
-    const timer = setTimeout(() => {
-      dispatch(hideAdminLoading());
-    }, 800);
-    return () => clearTimeout(timer);
+    const fetchReports = async () => {
+      dispatch(showAdminLoading());
+      try {
+        const [reportRes, dashboardRes] = await Promise.all([
+          getAdminReports(),
+          getAdminDashboard(),
+        ]);
+        setReports(reportRes?.reports || []);
+        setStats(dashboardRes?.stats || []);
+      } catch (error) {
+        console.error("Failed to load reports:", error);
+      } finally {
+        dispatch(hideAdminLoading());
+      }
+    };
+
+    fetchReports();
   }, [dispatch]);
+
   return (
     <div className="space-y-8">
       {/* KPI Cards */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {mockDashboard.stats.map((stat, idx) => (
+        {stats.map((stat, idx) => (
           <div
             key={idx}
             className={`rounded-xl border border-slate-200 bg-white p-4 ${stat.color}`}
@@ -35,7 +49,7 @@ export default function ReportsPage() {
       <div>
         <h2 className="text-lg font-semibold text-slate-900 mb-4">Recent Reports</h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {mockReports.map((report) => (
+          {reports.map((report) => (
             <div
               key={report.id}
               className="rounded-xl border border-slate-200 bg-white p-5 hover:shadow-md transition"

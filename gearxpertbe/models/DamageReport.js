@@ -1,44 +1,57 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const damageReportSchema = new mongoose.Schema({
-  rentalId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Rental',
-    required: true,
-    index: true
+const damageReportSchema = new mongoose.Schema(
+  {
+    rentalId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Rental",
+      required: true,
+      index: true,
+    },
+
+    rentalItemId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "RentalItem",
+      required: true,
+    },
+
+    deviceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Device",
+      required: true,
+    },
+
+    customerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
+    description: {
+      type: String,
+      required: true,
+    },
+
+    images: [String],
+
+    severity: {
+      type: String,
+      enum: ["LOW", "MEDIUM", "HIGH"],
+      default: "LOW",
+    },
+
+    status: {
+      type: String,
+      enum: ["OPEN", "VERIFIED", "RESOLVED"],
+      default: "OPEN",
+    },
+
+    compensationAmount: {
+      type: Number,
+      default: 0,
+    },
   },
+  { timestamps: true }
+);
 
-  deviceId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Device',
-    required: true
-  },
-
-  customerId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-
-  description: {
-    type: String,
-    required: true
-  },
-
-  images: [String],
-
-  severity: {
-    type: String,
-    enum: ['LOW', 'MEDIUM', 'HIGH'],
-    default: 'LOW'
-  },
-
-  status: {
-    type: String,
-    enum: ['OPEN', 'VERIFIED', 'RESOLVED'],
-    default: 'OPEN'
-  }
-
-}, { timestamps: true });
-
-module.exports = mongoose.model('DamageReport', damageReportSchema);
+module.exports = mongoose.model("DamageReport", damageReportSchema);
