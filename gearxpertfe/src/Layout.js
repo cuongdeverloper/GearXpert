@@ -51,6 +51,7 @@ import EkycVerification from "./components/EkycVerification";
 import MyRentals from "./pages/User/MyRentals";
 import Messenger from "./components/Message Socket/Page/Messenger";
 import Chatbot from "./components/chatbot/Chatbot";
+import PrivacyPolicyPage from "./pages/Policy/PrivacyPolicyPage";
 
 const ChatbotWrapper = () => {
   const location = useLocation();
@@ -138,6 +139,7 @@ export default function Layout() {
 
           </Route>
 
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/vouchers" element={<VouchersPage />} />
