@@ -92,11 +92,7 @@ export default function SupplierTopbar({ onMenuOpen, me }) {
           <div className="w-px h-8 bg-slate-200 hidden lg:block" />
 
           <button
-            className={`flex items-center gap-2 pl-2 pr-4 py-2 bg-white rounded-2xl border border-slate-200 hover:shadow-md transition-all group relative ${RANK_STYLES[me?.rank]?.border || ''}`}
-            style={{
-              borderColor: RANK_STYLES[me?.rank]?.color || undefined,
-              animationDuration: me?.rank && me.rank !== 'BRONZE' ? '2s' : undefined
-            }}
+            className={`flex items-center gap-2 pl-2 pr-4 py-2 bg-white rounded-2xl border border-slate-200 hover:shadow-md transition-all group relative ${RANK_STYLES[me?.rank]?.border || ''}`}  
           >
             <div className="relative">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-slate-100 border border-slate-200">

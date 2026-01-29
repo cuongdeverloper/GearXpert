@@ -79,14 +79,14 @@ export default function SupplierRevenue() {
       labels: series.map((item) => item.label),
       datasets: [
         {
-          label: "Tiền vào",
+          label: "Money In",
           data: series.map((item) => item.in),
           backgroundColor: "#22c55e",
           borderRadius: 8,
           barThickness: 22
         },
         {
-          label: "Tiền ra",
+          label: "Money Out",
           data: series.map((item) => item.out),
           backgroundColor: "#ef4444",
           borderRadius: 8,
@@ -192,7 +192,7 @@ export default function SupplierRevenue() {
                   range === k ? "bg-slate-900 text-white" : "hover:bg-slate-200"
                 }`}
               >
-                {k === "DAY" ? "Ngày" : k === "MONTH" ? "Tháng" : "Năm"}
+                {k === "DAY" ? "Day" : k === "MONTH" ? "Month" : "Year"}
               </button>
             ))}
           </div>
@@ -200,7 +200,7 @@ export default function SupplierRevenue() {
 
         <div className="relative h-[260px] mt-6">
           {loading ? (
-            <p className="text-sm text-slate-500">Đang tải dữ liệu...</p>
+            <p className="text-sm text-slate-500">Loading data...</p>
           ) : (
             <Bar data={chartData} options={chartOptions} />
           )}
@@ -218,7 +218,7 @@ export default function SupplierRevenue() {
 
           <div className="space-y-4">
             {monthlyBreakdown.length === 0 && (
-              <p className="text-sm text-slate-500">Chưa có dữ liệu doanh thu.</p>
+              <p className="text-sm text-slate-500">No revenue data yet.</p>
             )}
             {monthlyBreakdown.map((item, idx) => {
               return (
@@ -246,7 +246,7 @@ export default function SupplierRevenue() {
 
           <div className="space-y-4">
             {topDevices.length === 0 && (
-              <p className="text-sm text-slate-500">Chưa có thiết bị nổi bật.</p>
+              <p className="text-sm text-slate-500">No top devices yet.</p>
             )}
             {topDevices.map((device, idx) => (
               <div
@@ -272,10 +272,10 @@ export default function SupplierRevenue() {
 
         <div className="space-y-3">
           {loading && (
-            <p className="text-sm text-slate-500">Đang tải dữ liệu...</p>
+            <p className="text-sm text-slate-500">Loading data...</p>
           )}
           {!loading && transactions.length === 0 && (
-            <p className="text-sm text-slate-500">Chưa có giao dịch nào.</p>
+            <p className="text-sm text-slate-500">No transactions yet.</p>
           )}
           {transactions.map((item) => (
             <div
