@@ -57,6 +57,7 @@ import TermsOfServicePage from "./pages/Policy/TermsOfServicePage";
 import RentalPolicyPage from "./pages/Policy/RentalPolicyPage";
 import AboutPage from "./pages/About/AboutPage";
 import FAQPage from "./pages/FAQ/FAQPage";
+import ContactPage from "./pages/Contact/ContactPage";
 
 const ChatbotWrapper = () => {
   const location = useLocation();
@@ -150,6 +151,7 @@ export default function Layout() {
           <Route path="/rental-policy" element={<RentalPolicyPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/faq" element={<FAQPage />} />
+          <Route path="/contact" element={<ContactPage />} />
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/vouchers" element={<VouchersPage />} />

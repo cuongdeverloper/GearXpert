@@ -203,7 +203,6 @@ export default function FAQPage() {
         <section className="relative w-full bg-slate-900 overflow-hidden mb-10 pt-16 pb-24 lg:pt-24 lg:pb-32">
           <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1485846234645-a62644f84728?w=1920&q=80')] bg-cover bg-center opacity-30 mix-blend-overlay" />
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-900/80 to-background-light" />
-
           <div className="relative z-10 max-w-[1440px] mx-auto px-6 lg:px-10 text-center">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 font-display tracking-tight">
               Câu hỏi <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-cyan to-indigo-400">thường gặp</span>
