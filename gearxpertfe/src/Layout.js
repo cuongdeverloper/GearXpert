@@ -6,6 +6,7 @@ import Aos from "aos";
 import Homepage from "./pages/Homepage/Homepage";
 import GlobalLoadingOverlay from "./components/common/GlobalLoadingOverlay";
 import RouteHandler from "./components/common/RouteHandler";
+import ScrollToTop from "./components/common/ScrollToTop";
 
 // Supplier layout + pages
 import SupplierLayout from "./components/layout/SupplierLayout";
@@ -71,6 +72,7 @@ export default function Layout() {
 
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <RouteHandler />
       <GlobalLoadingOverlay />
       <ChatbotWrapper />
