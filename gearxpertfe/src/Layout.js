@@ -55,6 +55,7 @@ import Chatbot from "./components/chatbot/Chatbot";
 import PrivacyPolicyPage from "./pages/Policy/PrivacyPolicyPage";
 import TermsOfServicePage from "./pages/Policy/TermsOfServicePage";
 import RentalPolicyPage from "./pages/Policy/RentalPolicyPage";
+import AboutPage from "./pages/About/AboutPage";
 
 const ChatbotWrapper = () => {
   const location = useLocation();
@@ -146,6 +147,7 @@ export default function Layout() {
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/terms" element={<TermsOfServicePage />} />
           <Route path="/rental-policy" element={<RentalPolicyPage />} />
+          <Route path="/about" element={<AboutPage />} />
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/vouchers" element={<VouchersPage />} />

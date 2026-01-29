@@ -41,10 +41,6 @@ export default function RentalPolicyPage() {
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-900/80 to-background-light" />
 
           <div className="relative z-10 max-w-[1440px] mx-auto px-6 lg:px-10 text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-white mb-6 border border-white/20">
-              <span className="material-symbols-outlined text-accent-cyan text-[18px] fill-current">savings</span>
-              <span className="text-xs font-bold tracking-[0.1em] uppercase">Pháp lý</span>
-            </div>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 font-display tracking-tight">
               Chính sách <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-cyan to-indigo-400">đặt cọc & bồi thường</span>
             </h1>
