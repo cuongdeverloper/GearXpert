@@ -1,21 +1,96 @@
 import { NavLink } from "react-router-dom";
+import { useMemo, useState } from "react";
 import {
   FiChevronLeft,
   FiChevronRight,
-  FiUser,
   FiHome,
   FiBox,
+  FiCalendar,
   FiClipboard,
-  FiTool,
   FiDollarSign,
+  FiTruck,
+  FiShield,
+  FiChevronDown,
 } from "react-icons/fi";
 
-const menu = [
-  { to: "/supplier/dashboard", label: "Dashboard", icon: FiHome, desc: "Overview & quick actions" },
-  { to: "/supplier/devices", label: "Devices", icon: FiBox, desc: "Manage listings & inventory" },
-  { to: "/supplier/rental-requests", label: "Rental Requests", icon: FiClipboard, desc: "Approve / reject bookings" },
-  { to: "/supplier/maintenance", label: "Maintenance", icon: FiTool, desc: "Handle maintenance workflow" },
-  { to: "/supplier/revenue", label: "Revenue", icon: FiDollarSign, desc: "Track earnings & payouts" },
+const sections = [
+  {
+    id: "dashboard",
+    title: "Dashboard",
+    icon: FiHome,
+    items: [
+      { to: "/supplier/dashboard", label: "Dashboard" },
+      { label: "Monthly Revenue", muted: true },
+      { label: "Rental Volume", muted: true },
+      { label: "Active Listings", muted: true },
+      { label: "New Rental Requests", muted: true },
+    ],
+  },
+  {
+    id: "products",
+    title: "Rental Products",
+    icon: FiBox,
+    items: [
+      { to: "/supplier/devices", label: "Product List" },
+      { to: "/supplier/devices/new", label: "Add New Product" },
+      { to: "/supplier/inventory", label: "Inventory Management" },
+      { label: "Status: Draft / Pending / Live / Hidden", muted: true },
+    ],
+  },
+  {
+    id: "calendar",
+    title: "Availability Calendar",
+    icon: FiCalendar,
+    items: [
+      { label: "Day / Week / Month View", muted: true },
+      { label: "Block Busy Dates", muted: true },
+      { label: "See Booked Devices", muted: true },
+    ],
+  },
+  {
+    id: "bookings",
+    title: "Bookings",
+    icon: FiClipboard,
+    items: [
+      { to: "/supplier/rental-requests", label: "Booking Requests" },
+      { label: "Pending Confirmation", muted: true },
+      { label: "Confirmed", muted: true },
+      { label: "Renting", muted: true },
+      { label: "Returned", muted: true },
+      { label: "Canceled / Disputes", muted: true },
+    ],
+  },
+  {
+    id: "delivery",
+    title: "Delivery",
+    icon: FiTruck,
+    items: [
+      { label: "Pickup & Delivery Schedule", muted: true },
+      { label: "Handover Checklist", muted: true },
+      { label: "Condition Photos (Before / After)", muted: true },
+    ],
+  },
+  {
+    id: "finance",
+    title: "Finance",
+    icon: FiDollarSign,
+    items: [
+      { to: "/supplier/revenue", label: "Revenue" },
+      { label: "Deposits Held", muted: true },
+      { label: "Platform Fees", muted: true },
+      { label: "Withdrawals", muted: true },
+    ],
+  },
+  {
+    id: "verification",
+    title: "Profile & Verification",
+    icon: FiShield,
+    items: [
+      { label: "KYC Verification", muted: true },
+      { label: "Address", muted: true },
+      { label: "Bank Account", muted: true },
+    ],
+  },
 ];
 
 function classNames(...xs) {
@@ -23,109 +98,140 @@ function classNames(...xs) {
 }
 
 export default function SupplierSidebar({ collapsed, onCollapse, me }) {
+  const [openSections, setOpenSections] = useState({
+    dashboard: true,
+    products: true,
+    calendar: false,
+    bookings: true,
+    delivery: false,
+    finance: true,
+    verification: true,
+  });
+
+  const flatLinks = useMemo(() => {
+    return sections.flatMap((section) =>
+      section.items.filter((item) => item.to).map((item) => ({
+        ...item,
+        icon: section.icon,
+      }))
+    );
+  }, []);
+
   return (
     <aside className={classNames(
       "hidden lg:flex flex-col border-r border-slate-200 bg-white transition-all duration-500",
-      collapsed ? "w-[100px]" : "w-[320px]"
+      collapsed ? "w-[88px]" : "w-[280px]"
     )}>
-      <div className="flex-1 flex flex-col p-6 overflow-y-auto">
-        {/* User Card */}
-        {!collapsed && (
-          <div className="mb-8">
-            <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 p-5 shadow-xl shadow-slate-900/10 border border-slate-700 relative overflow-hidden group">
-              {/* Background effect */}
-              <div className="absolute -right-4 -top-4 w-20 h-20 bg-primary/20 rounded-full blur-2xl group-hover:bg-primary/30 transition-all duration-700"></div>
-
-              <div className="flex items-center gap-3 mb-4 relative z-10">
-                <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center text-white border border-white/20 shadow-inner">
-                  <FiUser size={24} />
-                </div>
-                <div className="overflow-hidden min-w-0">
-                  <p className="font-bold text-white truncate text-sm">{me?.name || "Supplier"}</p>
-                  <p className="text-xs text-slate-300/70 truncate uppercase font-medium tracking-widest">Supplier</p>
-                </div>
-              </div>
-
-              <div className="space-y-2 relative z-10">
-                <div className="flex gap-2">
-                  <div className="flex-1 bg-white/10 backdrop-blur-sm p-2.5 rounded-xl border border-white/10 text-center">
-                    <div className="text-xs font-bold text-white">{me?.activeListings || 24}</div>
-                    <div className="text-[10px] text-slate-300/70 uppercase tracking-tighter">Active</div>
-                  </div>
-                  <div className="flex-1 bg-white/10 backdrop-blur-sm p-2.5 rounded-xl border border-white/10 text-center">
-                    <div className="text-xs font-bold text-yellow-400">★ {me?.rating || 4.8}</div>
-                    <div className="text-[10px] text-slate-300/70 uppercase tracking-tighter">Rating</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
+      <div className="flex-1 flex flex-col p-4 overflow-y-auto">
         {/* Menu */}
-        <nav className="space-y-1">
-          <div className={classNames(
-            "px-3 pb-3 text-xs font-bold uppercase tracking-wide text-slate-400 transition-all",
-            collapsed && "hidden"
-          )}>
-            Navigation
-          </div>
-
-          {menu.map((m) => (
-            <NavLink
-              key={m.to}
-              to={m.to}
-              className={({ isActive }) =>
-                classNames(
-                  "flex items-start gap-3 rounded-2xl px-3 py-3 transition-all group",
-                  isActive
-                    ? "bg-primary/10 text-primary shadow-sm shadow-primary/10 border border-primary/20"
-                    : "text-slate-700 hover:bg-slate-100 border border-transparent hover:border-slate-200"
-                )
-              }
-            >
-              {({ isActive }) => {
-                const Icon = m.icon;
-                return (
-                  <>
-                    <span
-                      className={classNames(
-                        "mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-xl transition-all flex-shrink-0",
-                        isActive
-                          ? "bg-primary/20 text-primary shadow-sm shadow-primary/20"
-                          : "bg-slate-100 text-slate-600 group-hover:bg-slate-200"
-                      )}
-                    >
-                      <Icon size={18} />
-                    </span>
-                    {!collapsed && (
-                      <span className="min-w-0 flex-1">
-                        <span className="block font-semibold text-sm">{m.label}</span>
-                        <span
-                          className={classNames(
-                            "block truncate text-xs",
-                            isActive ? "text-primary/70" : "text-slate-500"
-                          )}
-                        >
-                          {m.desc}
-                        </span>
+        <nav className="space-y-2">
+          {collapsed ? (
+            flatLinks.map((item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    classNames(
+                      "flex items-center justify-center rounded-xl px-2 py-2.5 transition-all group",
+                      isActive
+                        ? "bg-primary/10 text-primary border border-primary/20"
+                        : "text-slate-700 hover:bg-slate-100 border border-transparent hover:border-slate-200"
+                    )
+                  }
+                  title={item.label}
+                >
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600 group-hover:bg-slate-200">
+                    <Icon size={16} />
+                  </span>
+                </NavLink>
+              );
+            })
+          ) : (
+            sections.map((section) => {
+              const Icon = section.icon;
+              const isOpen = openSections[section.id];
+              return (
+                <div key={section.id} className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenSections((prev) => ({
+                        ...prev,
+                        [section.id]: !prev[section.id],
+                      }))
+                    }
+                    className="w-full flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-slate-700 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-all"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                        <Icon size={15} />
                       </span>
-                    )}
-                  </>
-                );
-              }}
-            </NavLink>
-          ))}
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        {section.title}
+                      </span>
+                    </span>
+                    <FiChevronDown
+                      size={14}
+                      className={classNames(
+                        "text-slate-400 transition-transform",
+                        isOpen && "rotate-180"
+                      )}
+                    />
+                  </button>
+
+                  {isOpen && (
+                    <div className="space-y-1 pl-8">
+                      {section.items.map((item) => {
+                        if (item.to) {
+                          return (
+                            <NavLink
+                              key={item.to}
+                              to={item.to}
+                              className={({ isActive }) =>
+                                classNames(
+                                  "block rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all",
+                                  isActive
+                                    ? "bg-primary/10 text-primary"
+                                    : "text-slate-600 hover:bg-slate-100"
+                                )
+                              }
+                            >
+                              {item.label}
+                            </NavLink>
+                          );
+                        }
+
+                        return (
+                          <div
+                            key={`${section.id}-${item.label}`}
+                            className={classNames(
+                              "flex items-center gap-2 rounded-lg px-3 py-1.5 text-[13px]",
+                              item.muted ? "text-slate-400" : "text-slate-600"
+                            )}
+                          >
+                            <span className="h-1 w-1 rounded-full bg-slate-300" />
+                            <span className="truncate">{item.label}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
         </nav>
       </div>
 
       {/* Collapse button */}
-      <div className="border-t border-slate-200 p-4 flex justify-end">
+      <div className="border-t border-slate-200 p-3 flex justify-end">
         <button
           onClick={onCollapse}
-          className="p-2.5 rounded-xl bg-slate-100 text-slate-600 hover:text-primary hover:bg-slate-200 transition-all"
+          className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:text-primary hover:bg-slate-200 transition-all"
         >
-          {collapsed ? <FiChevronRight size={18} /> : <FiChevronLeft size={18} />}
+          {collapsed ? <FiChevronRight size={16} /> : <FiChevronLeft size={16} />}
         </button>
       </div>
     </aside>

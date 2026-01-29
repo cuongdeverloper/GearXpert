@@ -11,9 +11,13 @@ import RouteHandler from "./components/common/RouteHandler";
 import SupplierLayout from "./components/layout/SupplierLayout";
 import SupplierDashboard from "./pages/Supplier/SupplierDashboard";
 import SupplierDevicesList from "./pages/Supplier/SupplierDevicesList";
+import SupplierDeviceDetailPage from "./pages/Supplier/SupplierDeviceDetailPage";
+import SupplierEditDevicePage from "./pages/Supplier/SupplierEditDevicePage";
+import SupplierAddDevicePage from "./pages/Supplier/SupplierAddDevicePage";
 import SupplierRentalRequests from "./pages/Supplier/SupplierRentalRequests";
 import SupplierMaintenance from "./pages/Supplier/SupplierMaintenance";
 import SupplierRevenue from "./pages/Supplier/SupplierRevenue";
+import SupplierInventoryPage from "./pages/Supplier/SupplierInventoryPage";
 
 import AdminLayout from "./components/layout/AdminLayout";
 import DashboardPage from "./pages/Admin/DashboardPage";
@@ -117,6 +121,10 @@ export default function Layout() {
             />
             <Route path="dashboard" element={<SupplierDashboard />} />
             <Route path="devices" element={<SupplierDevicesList />} />
+            <Route path="devices/new" element={<SupplierAddDevicePage />} />
+            <Route path="devices/:id/edit" element={<SupplierEditDevicePage />} />
+            <Route path="devices/:id" element={<SupplierDeviceDetailPage />} />
+            <Route path="inventory" element={<SupplierInventoryPage />} />
             <Route
               path="rental-requests"
               element={<SupplierRentalRequests />}

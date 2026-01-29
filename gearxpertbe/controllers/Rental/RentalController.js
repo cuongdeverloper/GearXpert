@@ -509,12 +509,17 @@ exports.approveRental = async (req, res) => {
 exports.rejectRental = async (req, res) => {
   try {
     const { rentalId } = req.params;
+    const { reason, details, customerMessage } = req.body;
     const rental = await Rental.findById(rentalId);
     if (!rental)
       return res.status(404).json({ message: "Không tìm thấy đơn thuê" });
     if (rental.status === "REJECTED")
       return res.status(400).json({ message: "Đơn đã bị từ chối" });
     rental.status = "REJECTED";
+    if (reason) rental.rejectionReason = reason;
+    if (details) rental.rejectionNote = details;
+    if (customerMessage) rental.rejectionMessage = customerMessage;
+    rental.rejectedAt = new Date();
     await rental.save();
     res.json({ success: true, message: "Đã từ chối đơn thuê", rental });
   } catch (error) {
