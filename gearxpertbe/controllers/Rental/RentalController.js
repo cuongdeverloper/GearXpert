@@ -520,7 +520,8 @@ exports.rejectRental = async (req, res) => {
     if (details) rental.rejectionNote = details;
     if (customerMessage) rental.rejectionMessage = customerMessage;
     rental.rejectedAt = new Date();
-    await rental.save();
+    // Skip full validation on legacy rentals missing required fields
+    await rental.save({ validateBeforeSave: false });
     res.json({ success: true, message: "Đã từ chối đơn thuê", rental });
   } catch (error) {
     res.status(500).json({ message: error.message });
