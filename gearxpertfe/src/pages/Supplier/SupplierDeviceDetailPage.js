@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import {useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { FiArrowLeft, FiStar } from "react-icons/fi";
 import { getDeviceDetail } from "../../service/ApiService/DeviceApi";
