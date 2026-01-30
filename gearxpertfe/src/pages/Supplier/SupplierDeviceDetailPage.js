@@ -12,7 +12,7 @@ export default function SupplierDeviceDetailPage() {
   const [device, setDevice] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchDevice = async () => {
+  const fetchDevice = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     try {
@@ -23,11 +23,11 @@ export default function SupplierDeviceDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]); 
 
   useEffect(() => {
     fetchDevice();
-  }, [id]);
+  }, [fetchDevice]);
 
 
   const statusCfg = useMemo(
