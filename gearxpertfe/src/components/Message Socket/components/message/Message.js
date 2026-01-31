@@ -1,18 +1,41 @@
 import "./Message.scss";
 import ImageUser from "../../../public/avatar.jpg";
 
-const Message = ({ message, own, showTime,receiver,handleDelete }) => {
-  const exactTime = new Date(message.createdAt).toLocaleString('en-US', {
+const Message = ({ message, own, showTime, receiver, handleDelete }) => {
+  const messageDate = new Date(message.createdAt);
+  
+  // Create a display string that changes based on whether the message is from today or older
+  const getDisplayTime = (date) => {
+    const today = new Date();
+    const isToday = date.getDate() === today.getDate() &&
+                    date.getMonth() === today.getMonth() &&
+                    date.getFullYear() === today.getFullYear();
+
+    if (isToday) {
+      // If today, show only time (e.g., 10:30 AM)
+      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    } else {
+      // If older than today, show full date and time (e.g., 01/02/2026 10:30 AM)
+      return date.toLocaleString('en-US', {
+        day: 'numeric',
+        month: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: true
+      });
+    }
+  };
+
+  const displayTime = getDisplayTime(messageDate);
+  
+  const exactTime = messageDate.toLocaleString('en-US', {
     hour: 'numeric',
     minute: 'numeric',
     hour12: true,
     day: 'numeric',
-    month: 'short'
-  });
-
-  const displayTime = new Date(message.createdAt).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
+    month: 'short',
+    year: 'numeric'
   });
 
   if (message.type === "call") {
@@ -95,7 +118,6 @@ const Message = ({ message, own, showTime,receiver,handleDelete }) => {
             </p>
           )}
 
-          {/* Nút xóa */}
           <div 
              className="messageActions opacity-0 group-hover:opacity-100 transition-opacity absolute top-1/2 -translate-y-1/2 cursor-pointer"
              style={{ [own ? 'left' : 'right']: '-30px' }} 

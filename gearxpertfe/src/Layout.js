@@ -55,14 +55,34 @@ import EkycVerification from "./components/EkycVerification";
 import MyRentals from "./pages/User/MyRentals";
 import Messenger from "./components/Message Socket/Page/Messenger";
 import Chatbot from "./components/chatbot/Chatbot";
+import ChatWindowManager from "./components/Message Socket/MiniChat/ChatWindowManager";
 
 const ChatbotWrapper = () => {
   const location = useLocation();
-  if (location.pathname.startsWith("/admin") || location.pathname.startsWith("/supplier")) {
+  
+  const hideOnPaths = ["/admin", "/supplier", "/messenger"];
+
+  const shouldHide = hideOnPaths.some(path => location.pathname.startsWith(path));
+
+  if (shouldHide) {
     return null; 
   }
 
   return <Chatbot />;
+};
+
+const ChatWindowWrapper = () => {
+  const location = useLocation();
+  
+  const hideOnPaths = ["/messenger", "/admin"]; 
+
+  const shouldHide = hideOnPaths.some(path => location.pathname.startsWith(path));
+
+  if (shouldHide) {
+    return null; 
+  }
+
+  return <ChatWindowManager />;
 };
 
 export default function Layout() {
@@ -75,6 +95,7 @@ export default function Layout() {
       <RouteHandler />
       <GlobalLoadingOverlay />
       <ChatbotWrapper />
+      <ChatWindowWrapper />
       <Suspense fallback={<div className="p-6">Loading...</div>}>
         <ToastContainer
           position="top-right"
