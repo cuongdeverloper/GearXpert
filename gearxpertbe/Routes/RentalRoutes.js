@@ -11,7 +11,8 @@ const {
   getMyRentals,
   cancelRental,
   confirmReceived,
-  extendRental
+  extendRental,
+  startDelivery
 } = require('../controllers/Rental/RentalController');
 const { hasReviewed, createReview, getDeviceReviews, uploadReviewImages } = require('../controllers/Review/ReviewController');  // Thêm getDeviceReviews và uploadReviewImages
 const { checkAccessToken,requireEkyc } = require('../middleware/JWTAction');
@@ -39,5 +40,8 @@ rentalRouter.post('/:rentalId/review', checkAccessToken, uploadReviewImages, cre
 
 // Thêm route cho getDeviceReviews (lấy list review per device)
 rentalRouter.get('/devices/:deviceId/reviews', getDeviceReviews);  // Không cần auth nếu công khai, thêm checkAccessToken nếu cần
-
+rentalRouter.post(
+  "/:rentalId/start-delivery",
+  checkAccessToken,startDelivery
+);
 module.exports = rentalRouter;
