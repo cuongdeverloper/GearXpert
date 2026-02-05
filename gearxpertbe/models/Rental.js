@@ -33,7 +33,6 @@ const rentalSchema = new mongoose.Schema(
       type: String,
       enum: [
         "PENDING",
-        "APPROVED",
         "REJECTED",
         "DELIVERING",
         "RENTING",

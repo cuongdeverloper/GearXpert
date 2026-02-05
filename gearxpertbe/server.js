@@ -29,6 +29,7 @@ const payosRouter = require("./Routes/PayOsRoutes");
 const adminUserRouter = require("./Routes/AdminUserRoutes");
 const advertisementRouter = require("./Routes/AdvertisementRoutes");
 const ReportRouter = require("./Routes/ReportRoutes");
+const ContractRouter = require("./Routes/ContractRoutes");
 
 const io = socketIo(server, {
     cors: {
@@ -76,6 +77,7 @@ app.use('/api/admin', adminUserRouter);
 app.use('/api/message', routerMessage);
 app.use('/api/ekyc', routerEkyce);
 app.use('/api/advertisements', advertisementRouter);
+app.use('/api/contracts', ContractRouter);
 app.use('/', googleAuthRouter);
 
 app.post("/api/ai-chat", handleAIChat);

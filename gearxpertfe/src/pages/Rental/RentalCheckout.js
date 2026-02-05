@@ -340,7 +340,7 @@ export default function CheckoutPage() {
         setTimeout(() => navigate("/user/myrental"), 2000);
       }
     } catch (err) {
-      const errData = err.response?.data;
+      const errData = err.response;
 
       // Xử lý lỗi EKYC từ backend (403)
       if (err.response?.status === 403 && errData?.code === "EKYC_REQUIRED") {

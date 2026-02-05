@@ -121,8 +121,9 @@ const checkSupplier = (req, res, next) => {
 };
 const requireEkyc = async (req, res, next) => {
     try {
-      const user = req.user; // assuming you already attach user via auth middleware
+      const userId = req.user.id;
   
+      const user = await User.findById(userId).select("isVerifiedEkyc");
       if (!user) {
         return res.status(401).json({ message: "Unauthorized" });
       }
@@ -131,7 +132,7 @@ const requireEkyc = async (req, res, next) => {
         return res.status(403).json({
           message: "Vui lòng hoàn tất xác thực eKYC trước khi thực hiện giao dịch tài chính.",
           code: "EKYC_REQUIRED",
-          redirect: "/profile" // optional hint for frontend
+          redirect: "/profile"
         });
       }
   
