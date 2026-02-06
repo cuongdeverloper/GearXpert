@@ -1,6 +1,8 @@
 const Cart = require("../../models/Cart");
 const CartItem = require("../../models/CartItem");
 const Rental = require("../../models/Rental");
+const Contract = require("../../models/Contract");
+const ContractItem = require("../../models/ContractItem");
 const RentalItem = require("../../models/RentalItem");
 const Device = require("../../models/Device");
 const Voucher = require("../../models/Voucher");
@@ -507,21 +509,119 @@ exports.approveRental = async (req, res) => {
 
 // PATCH /rentals/:rentalId/reject
 exports.rejectRental = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { rentalId } = req.params;
-    const rental = await Rental.findById(rentalId);
-    if (!rental)
-      return res.status(404).json({ message: "Không tìm thấy đơn thuê" });
-    if (rental.status === "REJECTED")
-      return res.status(400).json({ message: "Đơn đã bị từ chối" });
+    const supplierId = req.user.id; // Supplier đang đăng nhập
+
+    const { reason, details, customerMessage } = req.body;
+
+    // 1. Tìm và kiểm tra quyền
+    const rental = await Rental.findById(rentalId).session(session);
+    if (!rental) {
+      throw new Error("Không tìm thấy đơn thuê");
+    }
+
+    if (rental.supplierId.toString() !== supplierId) {
+      throw new Error("Bạn không có quyền từ chối đơn này");
+    }
+
+    if (rental.status !== "PENDING") {
+      throw new Error("Chỉ có thể từ chối đơn ở trạng thái chờ xử lý");
+    }
+
+    // 2. Cập nhật trạng thái rental
     rental.status = "REJECTED";
-    await rental.save();
-    res.json({ success: true, message: "Đã từ chối đơn thuê", rental });
+    rental.rejectionReason = reason || "Không có lý do cụ thể";
+    rental.rejectionNote = details || "";
+    rental.rejectionMessage =
+      customerMessage || "Đơn đã bị từ chối bởi nhà cung cấp";
+    rental.rejectedAt = new Date();
+
+    await rental.save({ session });
+
+    // 3. Hoàn lại tồn kho VÀ cập nhật status device
+    const rentalItems = await RentalItem.find({ rentalId: rental._id }).session(
+      session
+    );
+
+    for (const item of rentalItems) {
+      const device = await Device.findById(item.deviceId).session(session);
+      if (!device) continue;
+
+      // Hoàn lại số lượng
+      device.stockQuantity += item.quantity;
+
+      // Cập nhật status device
+      if (device.stockQuantity > 0) {
+        device.status = "AVAILABLE"; // hoặc "IN_STOCK" tùy enum của bạn
+      } else {
+        device.status = "STOPPED";
+      }
+
+      await device.save({ session });
+    }
+
+    // 4. Hoàn tiền nếu đã thanh toán
+    if (rental.paymentStatus === "PAID") {
+      const wallet = await Wallet.findOne({ user: rental.customerId }).session(
+        session
+      );
+      if (!wallet) {
+        console.warn(`Không tìm thấy ví của khách hàng ${rental.customerId}`);
+      } else {
+        const balanceBefore = wallet.balance;
+        wallet.balance += rental.totalAmount;
+        await wallet.save({ session });
+
+        await WalletTransaction.create(
+          [
+            {
+              wallet: wallet._id,
+              type: "REFUND",
+              amount: rental.totalAmount,
+              balanceBefore,
+              balanceAfter: wallet.balance,
+              referenceType: "RENTAL",
+              referenceId: rental._id,
+              description: `Hoàn tiền do nhà cung cấp từ chối đơn #${rental._id
+                .toString()
+                .slice(-6)}`,
+              status: "SUCCESS",
+            },
+          ],
+          { session }
+        );
+      }
+
+      rental.paymentStatus = "REFUNDED";
+      await rental.save({ session });
+    }
+
+    // 5. (Optional) Xóa cart items liên quan nếu cần
+    // await CartItem.deleteMany({ rentalId: rental._id }).session(session);
+
+    // 6. Commit transaction
+    await session.commitTransaction();
+
+    res.status(200).json({
+      success: true,
+      message: "Đã từ chối đơn thuê và hoàn tất các bước liên quan",
+      rental,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    await session.abortTransaction();
+    console.error("REJECT RENTAL ERROR:", error);
+    res.status(400).json({
+      success: false,
+      message: error.message || "Từ chối đơn thất bại",
+    });
+  } finally {
+    session.endSession();
   }
 };
-
 const formatDayLabel = (date) =>
   `${String(date.getDate()).padStart(2, "0")}/${String(
     date.getMonth() + 1
@@ -972,5 +1072,49 @@ exports.extendRental = async (req, res) => {
       .json({ message: err.message || "Gửi yêu cầu gia hạn thất bại" });
   } finally {
     session.endSession();
+  }
+};
+exports.startDelivery = async (req, res) => {
+  try {
+    const { rentalId } = req.params;
+
+    const rental = await Rental.findById(rentalId);
+    if (!rental) {
+      return res.status(404).json({ message: "Rental not found" });
+    }
+
+    // 1️⃣ update rental status
+    rental.status = "DELIVERING";
+    await rental.save();
+
+    // 2️⃣ create contract DELIVERY
+    const contract = await Contract.create({
+      rentalId: rental._id,
+      contractType: "DELIVERY",
+      status: "DRAFT",
+      deliveryMethod: rental.deliveryFee > 0 ? "SHIP" : "HANDOVER",
+      location: rental.deliveryAddress.fullAddress,
+    });
+
+    // 3️⃣ create contract items
+    const rentalItems = await RentalItem.find({ rentalId: rental._id });
+
+    const contractItems = rentalItems.map((item) => ({
+      contractId: contract._id,
+      rentalItemId: item._id,
+      deviceId: item.deviceId,
+      quantity: item.quantity,
+      conditionBefore: item.conditionBeforeRent,
+    }));
+
+    await ContractItem.insertMany(contractItems);
+
+    return res.status(200).json({
+      message: "Delivery started & contract created",
+      contractId: contract._id,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
   }
 };

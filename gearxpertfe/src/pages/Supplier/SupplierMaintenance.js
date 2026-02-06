@@ -9,7 +9,7 @@ export default function SupplierMaintenance() {
       issue: "Lens cleaning required",
       status: "PENDING",
       priority: "HIGH",
-      assignedTo: "Kỹ thuật viên A",
+      assignedTo: "Technician A",
       estCost: 500000,
       dueDate: "2024-01-20"
     },
@@ -19,7 +19,7 @@ export default function SupplierMaintenance() {
       issue: "Battery replacement",
       status: "IN_PROGRESS",
       priority: "MEDIUM",
-      assignedTo: "Kỹ thuật viên B",
+      assignedTo: "Technician B",
       estCost: 800000,
       dueDate: "2024-01-22"
     },
@@ -29,7 +29,7 @@ export default function SupplierMaintenance() {
       issue: "Propeller damage",
       status: "COMPLETED",
       priority: "HIGH",
-      assignedTo: "Kỹ thuật viên C",
+      assignedTo: "Technician C",
       estCost: 1200000,
       dueDate: "2024-01-18"
     }

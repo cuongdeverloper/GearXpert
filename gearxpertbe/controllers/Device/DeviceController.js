@@ -11,7 +11,17 @@ exports.createDevice = async (req, res) => {
     // Get supplierId from token (JWT)
     const supplierId = req.user.id;
 
-    let { name, description, category, rentPrice, depositAmount, location, stockQuantity } = req.body;
+    let {
+      name,
+      description,
+      category,
+      rentPrice,
+      depositAmount,
+      location,
+      stockQuantity,
+      specs,
+      status,
+    } = req.body;
 
     // Parse rentPrice if string
     if (typeof rentPrice === 'string') {
@@ -33,6 +43,17 @@ exports.createDevice = async (req, res) => {
     if (typeof stockQuantity === 'string') {
       stockQuantity = parseInt(stockQuantity) || 1;
     }
+    // Parse specs if provided
+    if (typeof specs === 'string') {
+      try {
+        specs = JSON.parse(specs);
+      } catch (e) {
+        specs = {};
+      }
+    }
+
+    const allowedStatuses = ['AVAILABLE', 'RENTED', 'MAINTENANCE', 'BROKEN', 'STOPPED'];
+    const normalizedStatus = allowedStatuses.includes(status) ? status : 'AVAILABLE';
 
     // Validate required fields
     if (!name || !description || !category || !rentPrice || !depositAmount) {
@@ -62,7 +83,8 @@ exports.createDevice = async (req, res) => {
       stockQuantity,
       supplierId,
       images,
-      status: "AVAILABLE",
+      status: normalizedStatus,
+      specs,
       isAddon: false,
       ratingAvg: 0,
       reviewCount: 0,
@@ -151,6 +173,14 @@ exports.getDeviceDetail = async (req, res) => {
       .populate("userId", "fullName avatar")
       .sort({ createdAt: -1 });
 
+    // 2.1 Tổng số lần thuê và tổng số lượng thuê
+    const rentalCount = await RentalItem.countDocuments({ deviceId: device._id });
+    const rentalQtyAgg = await RentalItem.aggregate([
+      { $match: { deviceId: device._id } },
+      { $group: { _id: null, totalQuantity: { $sum: "$quantity" } } },
+    ]);
+    const totalRentedUnits = rentalQtyAgg[0]?.totalQuantity || 0;
+
     // 3. Lấy các đơn thuê đang hoạt động để tính lịch bận (Occupied Dates)
     const activeBookings = await RentalItem.find({
       deviceId: device._id,
@@ -187,6 +217,8 @@ exports.getDeviceDetail = async (req, res) => {
     res.json({
       ...deviceData,
       reviews, // Trả về mảng review chi tiết
+      rentalCount,
+      totalRentedUnits,
       occupiedDates,
       // Đảm bảo specs được convert sang object nếu nó là Map
       specs:
@@ -238,7 +270,18 @@ exports.updateDevice = async (req, res) => {
 
   try {
     const { id } = req.params;
-    let { name, description, category, rentPrice, depositAmount, location, stockQuantity, oldImages } = req.body;
+    let {
+      name,
+      description,
+      category,
+      rentPrice,
+      depositAmount,
+      location,
+      stockQuantity,
+      oldImages,
+      status,
+      specs,
+    } = req.body;
 
     // Parse rentPrice if string
     if (typeof rentPrice === 'string') {
@@ -259,6 +302,15 @@ exports.updateDevice = async (req, res) => {
     // Parse stockQuantity
     if (typeof stockQuantity === 'string') {
       stockQuantity = parseInt(stockQuantity) || 1;
+    }
+
+    // Parse specs if string
+    if (typeof specs === "string") {
+      try {
+        specs = JSON.parse(specs);
+      } catch (e) {
+        specs = undefined;
+      }
     }
 
     // Handle images: combine oldImages (from body) and new uploaded images
@@ -301,20 +353,29 @@ exports.updateDevice = async (req, res) => {
       return res.status(400).json({ message: "depositAmount must be > 0" });
     }
 
-    const device = await Device.findByIdAndUpdate(
-      id,
-      {
-        name,
-        description,
-        category,
-        rentPrice,
-        depositAmount,
-        location,
-        stockQuantity,
-        images,
-      },
-      { new: true, runValidators: true }
-    );
+    const updatePayload = {
+      name,
+      description,
+      category,
+      rentPrice,
+      depositAmount,
+      location,
+      stockQuantity,
+      images,
+    };
+
+    if (status) {
+      updatePayload.status = status;
+    }
+
+    if (specs && typeof specs === "object") {
+      updatePayload.specs = specs;
+    }
+
+    const device = await Device.findByIdAndUpdate(id, updatePayload, {
+      new: true,
+      runValidators: true,
+    });
 
     if (!device) {
       return res.status(404).json({ message: "Device not found" });

@@ -2,11 +2,36 @@ import { useLocation } from "react-router-dom";
 import { useMemo } from "react";
 
 const menu = [
-  { to: "/supplier/dashboard", label: "Dashboard", desc: "Overview & quick actions" },
-  { to: "/supplier/devices", label: "Devices", desc: "Manage listings & inventory" },
-  { to: "/supplier/rental-requests", label: "Rental Requests", desc: "Approve / reject bookings" },
-  { to: "/supplier/maintenance", label: "Maintenance", desc: "Handle maintenance workflow" },
-  { to: "/supplier/revenue", label: "Revenue", desc: "Track earnings & payouts" },
+  {
+    to: "/supplier/dashboard",
+    label: "Overview",
+    desc: "Monthly revenue, rentals, listings, and new requests.",
+  },
+  {
+    to: "/supplier/devices",
+    label: "Products",
+    desc: "Manage your rental products, inventory, and status.",
+  },
+  {
+    to: "/supplier/inventory",
+    label: "Inventory",
+    desc: "Track stock levels, rentals, and availability.",
+  },
+  {
+    to: "/supplier/rental-requests",
+    label: "Bookings",
+    desc: "Review, approve, and track booking requests.",
+  },
+  {
+    to: "/supplier/maintenance",
+    label: "Maintenance",
+    desc: "Handle maintenance and availability workflow.",
+  },
+  {
+    to: "/supplier/revenue",
+    label: "Finance",
+    desc: "Revenue, deposits held, fees, and withdrawals.",
+  },
 ];
 
 export default function SupplierPageHeader() {
@@ -19,7 +44,7 @@ export default function SupplierPageHeader() {
   return (
     <div className="mb-8">
       <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-        Supplier Dashboard
+        Supplier Center
       </div>
       <h1 className="text-3xl font-bold text-slate-900 font-display tracking-tight mb-2">
         {current?.label || "Dashboard"}

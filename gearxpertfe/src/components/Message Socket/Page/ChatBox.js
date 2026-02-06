@@ -115,7 +115,7 @@ const ChatBox = ({
           >
             {messages.length === 0 ? (
               <div className="noMessageContainer">
-                 <img src={receiver?.image || "/default-avatar.png"} alt="" className="noMessageAvatar"/>
+                 <img src={receiver?.avatar || "/default-avatar.png"} alt="" className="noMessageAvatar"/>
                  <p className="noMessageName">{receiver?.username}</p>
                  <span className="noMessageText">You are friends on Messenger</span>
               </div>

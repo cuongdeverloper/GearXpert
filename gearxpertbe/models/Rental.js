@@ -33,7 +33,7 @@ const rentalSchema = new mongoose.Schema(
       type: String,
       enum: [
         "PENDING",
-        "APPROVED",
+        "REJECTED",
         "DELIVERING",
         "RENTING",
         "RETURNING",
@@ -43,6 +43,10 @@ const rentalSchema = new mongoose.Schema(
       ],
       default: "PENDING",
     },
+    rejectionReason: String,
+    rejectionNote: String,
+    rejectionMessage: String,
+    rejectedAt: Date,
 
     voucherCode: String,
     voucherDiscount: { type: Number, default: 0 },

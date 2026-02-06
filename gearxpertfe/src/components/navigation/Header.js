@@ -3,23 +3,30 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { performLogout } from '../../utils/logout';
+import MessengerPopup from '../Message Socket/MessengerPopup/MessengerPopup';
 
 export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isMessengerOpen, setIsMessengerOpen] = useState(false);
+  const messengerRef = useRef(null);
   const dropdownRef = useRef(null);
 
   const userAccount = useSelector((state) => state.user.account);
   const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
   const socketConnection = useSelector((state) => state.user.account.socketConnection);
 
+  
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsDropdownOpen(false);
+      }
+      if (messengerRef.current && !messengerRef.current.contains(event.target)) {
+        setIsMessengerOpen(false);
       }
     };
 
@@ -132,6 +139,17 @@ export default function Header() {
         <div className="flex items-center gap-3 md:gap-4">
           {isAuthenticated && (
             <>
+            <div className="relative" ref={messengerRef}>
+                <button 
+                  onClick={() => setIsMessengerOpen(!isMessengerOpen)}
+                  className={`w-10 h-10 flex items-center justify-center rounded-full border transition-colors ${isMessengerOpen ? 'bg-indigo-100 text-primary border-indigo-200' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                >
+                  <span className={`material-symbols-outlined text-[20px] ${isMessengerOpen ? 'fill-current' : ''}`}>forum</span>
+                </button>
+                
+                {isMessengerOpen && <MessengerPopup setIsDropdownOpen={setIsMessengerOpen} />}
+              </div>
+
               <button className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors">
                 <span className="material-symbols-outlined text-[20px]">notifications</span>
               </button>

@@ -12,9 +12,13 @@ import ScrollToTop from "./components/common/ScrollToTop";
 import SupplierLayout from "./components/layout/SupplierLayout";
 import SupplierDashboard from "./pages/Supplier/SupplierDashboard";
 import SupplierDevicesList from "./pages/Supplier/SupplierDevicesList";
+import SupplierDeviceDetailPage from "./pages/Supplier/SupplierDeviceDetailPage";
+import SupplierEditDevicePage from "./pages/Supplier/SupplierEditDevicePage";
+import SupplierAddDevicePage from "./pages/Supplier/SupplierAddDevicePage";
 import SupplierRentalRequests from "./pages/Supplier/SupplierRentalRequests";
 import SupplierMaintenance from "./pages/Supplier/SupplierMaintenance";
 import SupplierRevenue from "./pages/Supplier/SupplierRevenue";
+import SupplierInventoryPage from "./pages/Supplier/SupplierInventoryPage";
 
 import AdminLayout from "./components/layout/AdminLayout";
 import DashboardPage from "./pages/Admin/DashboardPage";
@@ -61,11 +65,30 @@ import ContactPage from "./pages/Contact/ContactPage";
 
 const ChatbotWrapper = () => {
   const location = useLocation();
-  if (location.pathname.startsWith("/admin") || location.pathname.startsWith("/supplier")) {
+  
+  const hideOnPaths = ["/admin", "/supplier", "/messenger"];
+
+  const shouldHide = hideOnPaths.some(path => location.pathname.startsWith(path));
+
+  if (shouldHide) {
     return null; 
   }
 
   return <Chatbot />;
+};
+
+const ChatWindowWrapper = () => {
+  const location = useLocation();
+  
+  const hideOnPaths = ["/messenger", "/admin"]; 
+
+  const shouldHide = hideOnPaths.some(path => location.pathname.startsWith(path));
+
+  if (shouldHide) {
+    return null; 
+  }
+
+  return <ChatWindowManager />;
 };
 
 export default function Layout() {
@@ -79,6 +102,7 @@ export default function Layout() {
       <RouteHandler />
       <GlobalLoadingOverlay />
       <ChatbotWrapper />
+      <ChatWindowWrapper />
       <Suspense fallback={<div className="p-6">Loading...</div>}>
         <ToastContainer
           position="top-right"
@@ -125,6 +149,10 @@ export default function Layout() {
             />
             <Route path="dashboard" element={<SupplierDashboard />} />
             <Route path="devices" element={<SupplierDevicesList />} />
+            <Route path="devices/new" element={<SupplierAddDevicePage />} />
+            <Route path="devices/:id/edit" element={<SupplierEditDevicePage />} />
+            <Route path="devices/:id" element={<SupplierDeviceDetailPage />} />
+            <Route path="inventory" element={<SupplierInventoryPage />} />
             <Route
               path="rental-requests"
               element={<SupplierRentalRequests />}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState,useMemo } from "react";
 import {
   Package,
   Clock,
@@ -19,7 +19,9 @@ import {
   Send,
   Wrench,
   X,
-  Check,ArrowRight,ArrowLeft
+  Check,
+  ArrowRight,
+  ArrowLeft,Search
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
@@ -55,8 +57,6 @@ export default function MyRentals() {
   const ITEMS_PER_PAGE = 5;
   const [currentPage, setCurrentPage] = useState(1);
 
-
-  
   const [reportDetailModal, setReportDetailModal] = useState({
     isOpen: false,
     report: null,
@@ -137,6 +137,8 @@ export default function MyRentals() {
     note: "", // thêm để lưu ghi chú
     order: null, // <--- THÊM DÒNG NÀY
   });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortOption, setSortOption] = useState("newest");
   // Hàm tính tiền khi khách chọn ngày mới
   const handleDateChange = (date) => {
     const start = new Date(extendModal.currentEndDate);
@@ -173,6 +175,9 @@ export default function MyRentals() {
       setLoading(false);
     }
   };
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchTerm, sortOption]);
   // ================= HELPERS =================
   const handleFileUpload = (files, setter) => {
     setter((prev) => ({
@@ -184,7 +189,11 @@ export default function MyRentals() {
     const url = URL.createObjectURL(file);
     if (file.type.startsWith("image"))
       return (
-        <img src={url} alt="preview" className="w-20 h-20 rounded-xl object-cover border" />
+        <img
+          src={url}
+          alt="preview"
+          className="w-20 h-20 rounded-xl object-cover border"
+        />
       );
     if (file.type.startsWith("video"))
       return <video src={url} className="w-20 h-20 rounded-xl" controls />;
@@ -384,15 +393,15 @@ export default function MyRentals() {
     const config =
       type === "CANCEL"
         ? {
-          title: "Xác nhận hủy đơn?",
-          description:
-            "Tiền sẽ được hoàn về ví nếu bạn đã thanh toán thành công.",
-        }
+            title: "Xác nhận hủy đơn?",
+            description:
+              "Tiền sẽ được hoàn về ví nếu bạn đã thanh toán thành công.",
+          }
         : {
-          title: "Xác nhận nhận hàng?",
-          description:
-            "Vui lòng chỉ xác nhận khi bạn đã kiểm tra kỹ thiết bị.",
-        };
+            title: "Xác nhận nhận hàng?",
+            description:
+              "Vui lòng chỉ xác nhận khi bạn đã kiểm tra kỹ thiết bị.",
+          };
     setModalConfig({ isOpen: true, type, selectedId: id, ...config });
   };
   const handleModalConfirm = async () => {
@@ -411,7 +420,6 @@ export default function MyRentals() {
       // Đóng modal và load lại data
       setModalConfig({ ...modalConfig, isOpen: false });
       fetchRentals();
-
     } catch (error) {
       const errorMsg =
         error.response?.data?.message || "Lỗi thao tác, vui lòng thử lại";
@@ -439,26 +447,80 @@ export default function MyRentals() {
   //   cost: extendModal.extraAmount || 0,
   // };
 
-  const filteredRentals = rentals.filter((r) => {
-    if (activeTab === "ALL") return true;
-    if (activeTab === "DELIVERING") {
-      return r.status === "DELIVERING" || r.status === "APPROVED";
+  const filteredAndSortedRentals = useMemo(() => {
+    let result = [...rentals];
+  
+    // Lọc theo tab
+    if (activeTab !== "ALL") {
+      if (activeTab === "DELIVERING") {
+        result = result.filter(
+          (r) => r.status === "DELIVERING" || r.status === "APPROVED"
+        );
+      } else {
+        result = result.filter((r) => r.status === activeTab);
+      }
     }
-    return r.status === activeTab;
-  });
+  
+    // Search
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      result = result.filter((r) => {
+        const code = r.orderCode
+          ? `BK${String(r.orderCode).padStart(4, "0")}`
+          : r._id?.slice(-8).toUpperCase() || "";
+        const customerName = r.customerId?.fullName?.toLowerCase() || "";
+        const phone = r.phoneNumber || "";
+        const deviceNames = (r.items || [])
+          .map((item) => item.deviceId?.name?.toLowerCase() || "")
+          .join(" ");
+  
+        return (
+          code.includes(term) ||
+          customerName.includes(term) ||
+          phone.includes(term) ||
+          deviceNames.includes(term)
+        );
+      });
+    }
+  
+    // Sort
+    switch (sortOption) {
+      case "newest":
+        result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        break;
+      case "oldest":
+        result.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+        break;
+      case "price-high":
+        result.sort((a, b) => (b.totalAmount || 0) - (a.totalAmount || 0));
+        break;
+      case "price-low":
+        result.sort((a, b) => (a.totalAmount || 0) - (b.totalAmount || 0));
+        break;
+      case "start-date":
+        result.sort((a, b) => {
+          const dateA = new Date(a.items?.[0]?.rentalStartDate || a.createdAt);
+          const dateB = new Date(b.items?.[0]?.rentalStartDate || b.createdAt);
+          return dateA - dateB;
+        });
+        break;
+      default:
+        break;
+    }
+  
+    return result;
+  }, [rentals, activeTab, searchTerm, sortOption]);
   const indexOfLastItem = currentPage * ITEMS_PER_PAGE;
   const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE;
-  const currentRentals = filteredRentals.slice(
-    indexOfFirstItem,
-    indexOfLastItem
-  );
-  const totalPages = Math.ceil(filteredRentals.length / ITEMS_PER_PAGE);
+  const currentRentals = filteredAndSortedRentals.slice(indexOfFirstItem, indexOfLastItem);
+  
+  const totalPages = Math.ceil(filteredAndSortedRentals.length / ITEMS_PER_PAGE);
   const minExtendDate = extendModal.currentEndDate
     ? new Date(
-      new Date(extendModal.currentEndDate).getTime() + 24 * 60 * 60 * 1000
-    )
-      .toISOString()
-      .split("T")[0]
+        new Date(extendModal.currentEndDate).getTime() + 24 * 60 * 60 * 1000
+      )
+        .toISOString()
+        .split("T")[0]
     : "";
   return (
     <div className="min-h-screen bg-[#F8F9FB] pb-20 font-sans">
@@ -480,14 +542,50 @@ export default function MyRentals() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-6 py-3 rounded-2xl text-[11px] font-black uppercase transition-all whitespace-nowrap ${activeTab === tab.id
-                ? "bg-gray-900 text-white shadow-2xl shadow-gray-300 scale-105"
-                : "bg-white text-gray-400 border border-gray-100 hover:bg-gray-50"
-                }`}
+              className={`px-6 py-3 rounded-2xl text-[11px] font-black uppercase transition-all whitespace-nowrap ${
+                activeTab === tab.id
+                  ? "bg-gray-900 text-white shadow-2xl shadow-gray-300 scale-105"
+                  : "bg-white text-gray-400 border border-gray-100 hover:bg-gray-50"
+              }`}
             >
               {tab.label}
             </button>
           ))}
+        </div>
+        {/* === SEARCH & SORT BAR === */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-8 items-center justify-between">
+          {/* Search */}
+          <div className="relative w-full sm:w-96">
+            <Search
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+              size={18}
+            />
+            <input
+              type="text"
+              placeholder="Tìm mã đơn, tên thiết bị, khách hàng..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+            />
+          </div>
+
+          {/* Sort */}
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">
+              Sắp xếp:
+            </label>
+            <select
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value)}
+              className="w-full sm:w-52 px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white"
+            >
+              <option value="newest">Mới nhất</option>
+              <option value="oldest">Cũ nhất</option>
+              <option value="price-high">Tiền thuê: Cao → Thấp</option>
+              <option value="price-low">Tiền thuê: Thấp → Cao</option>
+              <option value="start-date">Ngày bắt đầu thuê</option>
+            </select>
+          </div>
         </div>
         {loading ? (
           <div className="flex flex-col items-center py-20">
@@ -499,56 +597,58 @@ export default function MyRentals() {
         ) : (
           <div className="space-y-8">
             {/* Pagination */}
-            {!loading && filteredRentals.length > 0 && totalPages > 1 && (
-              <div className="flex justify-center items-center gap-3 mt-12">
-                <button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.max(prev - 1, 1))
-                  }
-                  disabled={currentPage === 1}
-                  className={`px-5 py-2.5 rounded-xl font-medium text-sm transition-all flex items-center gap-2 ${
-                    currentPage === 1
-                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                      : "bg-white border border-gray-200 hover:bg-gray-50 shadow-sm"
-                  }`}
-                >
-                  <ArrowLeft size={16} /> Trước
-                </button>
+            {!loading &&
+              filteredAndSortedRentals.length > 0 &&
+              totalPages > 1 && (
+                <div className="flex justify-center items-center gap-3 mt-12">
+                  <button
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.max(prev - 1, 1))
+                    }
+                    disabled={currentPage === 1}
+                    className={`px-5 py-2.5 rounded-xl font-medium text-sm transition-all flex items-center gap-2 ${
+                      currentPage === 1
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : "bg-white border border-gray-200 hover:bg-gray-50 shadow-sm"
+                    }`}
+                  >
+                    <ArrowLeft size={16} /> Trước
+                  </button>
 
-                <div className="flex gap-2">
-                  {[...Array(totalPages)].map((_, i) => {
-                    const pageNum = i + 1;
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => setCurrentPage(pageNum)}
-                        className={`w-10 h-10 rounded-xl font-bold text-sm transition-all ${
-                          currentPage === pageNum
-                            ? "bg-indigo-600 text-white shadow-md"
-                            : "bg-white border border-gray-200 hover:bg-gray-50 text-gray-700"
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
+                  <div className="flex gap-2">
+                    {[...Array(totalPages)].map((_, i) => {
+                      const pageNum = i + 1;
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`w-10 h-10 rounded-xl font-bold text-sm transition-all ${
+                            currentPage === pageNum
+                              ? "bg-indigo-600 text-white shadow-md"
+                              : "bg-white border border-gray-200 hover:bg-gray-50 text-gray-700"
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                    }
+                    disabled={currentPage === totalPages}
+                    className={`px-5 py-2.5 rounded-xl font-medium text-sm transition-all flex items-center gap-2 ${
+                      currentPage === totalPages
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : "bg-white border border-gray-200 hover:bg-gray-50 shadow-sm"
+                    }`}
+                  >
+                    Sau <ArrowRight size={16} />
+                  </button>
                 </div>
-
-                <button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                  }
-                  disabled={currentPage === totalPages}
-                  className={`px-5 py-2.5 rounded-xl font-medium text-sm transition-all flex items-center gap-2 ${
-                    currentPage === totalPages
-                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                      : "bg-white border border-gray-200 hover:bg-gray-50 shadow-sm"
-                  }`}
-                >
-                  Sau <ArrowRight size={16} />
-                </button>
-              </div>
-            )}
+              )}
             {currentRentals.length > 0 ? (
               currentRentals.map((order) => (
                 <div
@@ -599,14 +699,15 @@ export default function MyRentals() {
                     {/* Status Badge */}
                     <div className="flex items-center gap-3">
                       <div
-                        className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm ${order.status === "PENDING"
-                          ? "bg-amber-100 text-amber-600"
-                          : order.status === "DELIVERING"
+                        className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm ${
+                          order.status === "PENDING"
+                            ? "bg-amber-100 text-amber-600"
+                            : order.status === "DELIVERING"
                             ? "bg-blue-100 text-blue-600"
                             : order.status === "RENTING"
-                              ? "bg-emerald-100 text-emerald-600"
-                              : "bg-gray-100 text-gray-500"
-                          }`}
+                            ? "bg-emerald-100 text-emerald-600"
+                            : "bg-gray-100 text-gray-500"
+                        }`}
                       >
                         {order.status === "APPROVED"
                           ? "Đã duyệt"
@@ -668,12 +769,13 @@ export default function MyRentals() {
                                 onClick={() =>
                                   navigate(`/device/${item.deviceId?._id}`)
                                 }
-                                className={`relative flex items-center gap-5 p-4 rounded-[2rem] transition-all cursor-pointer group/item ${hasReport
-                                  ? isActiveReport
-                                    ? "bg-red-50/70 border-2 border-red-300 shadow-sm shadow-red-100"
-                                    : "bg-green-50/60 border border-green-200"
-                                  : "bg-gray-50 border border-transparent hover:border-indigo-200 hover:shadow-md"
-                                  }`}
+                                className={`relative flex items-center gap-5 p-4 rounded-[2rem] transition-all cursor-pointer group/item ${
+                                  hasReport
+                                    ? isActiveReport
+                                      ? "bg-red-50/70 border-2 border-red-300 shadow-sm shadow-red-100"
+                                      : "bg-green-50/60 border border-green-200"
+                                    : "bg-gray-50 border border-transparent hover:border-indigo-200 hover:shadow-md"
+                                }`}
                               >
                                 {/* Ảnh + icon */}
                                 <div className="relative w-16 h-16 shrink-0">
@@ -691,10 +793,11 @@ export default function MyRentals() {
                                   {hasReport && (
                                     <div className="absolute -top-2 -right-2 z-10">
                                       <div
-                                        className={`p-1.5 rounded-full ${isActiveReport
-                                          ? "bg-red-500"
-                                          : "bg-green-500"
-                                          } shadow-md`}
+                                        className={`p-1.5 rounded-full ${
+                                          isActiveReport
+                                            ? "bg-red-500"
+                                            : "bg-green-500"
+                                        } shadow-md`}
                                       >
                                         <AlertCircle
                                           size={16}
@@ -733,10 +836,11 @@ export default function MyRentals() {
                                   {hasReport && reportStatusLabel && (
                                     <div className="mt-2">
                                       <span
-                                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wide ${isActiveReport
-                                          ? "bg-red-100 text-red-700 border border-red-200"
-                                          : "bg-green-100 text-green-700 border border-green-200"
-                                          }`}
+                                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wide ${
+                                          isActiveReport
+                                            ? "bg-red-100 text-red-700 border border-red-200"
+                                            : "bg-green-100 text-green-700 border border-green-200"
+                                        }`}
                                       >
                                         {reportStatusLabel}
                                       </span>
@@ -795,14 +899,15 @@ export default function MyRentals() {
                                           }
                                         }
                                       }}
-                                      className={`min-w-[140px] py-2.5 px-4 rounded-xl text-[11px] font-black uppercase transition-all flex items-center justify-center gap-1.5 shadow-sm ${hasReport
-                                        ? reportType === "delivery"
-                                          ? "bg-blue-600 text-white hover:bg-blue-700"
-                                          : "bg-orange-600 text-white hover:bg-orange-700"
-                                        : reportType === "delivery"
+                                      className={`min-w-[140px] py-2.5 px-4 rounded-xl text-[11px] font-black uppercase transition-all flex items-center justify-center gap-1.5 shadow-sm ${
+                                        hasReport
+                                          ? reportType === "delivery"
+                                            ? "bg-blue-600 text-white hover:bg-blue-700"
+                                            : "bg-orange-600 text-white hover:bg-orange-700"
+                                          : reportType === "delivery"
                                           ? "bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-200"
                                           : "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
-                                        }`}
+                                      }`}
                                     >
                                       {hasReport ? (
                                         <>
@@ -1012,32 +1117,33 @@ export default function MyRentals() {
                             {/* COMPLETED / CANCELLED */}
                             {(order.status === "COMPLETED" ||
                               order.status === "CANCELLED") && (
-                                <>
+                              <>
+                                <button
+                                  onClick={() => handleReRent(order)}
+                                  className="w-full py-4 rounded-2xl bg-gray-900 text-white text-[11px] font-black uppercase italic hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
+                                >
+                                  <RefreshCcw size={14} /> Thuê lại thiết bị
+                                </button>
+                                {order.status === "COMPLETED" && (
                                   <button
-                                    onClick={() => handleReRent(order)}
-                                    className="w-full py-4 rounded-2xl bg-gray-900 text-white text-[11px] font-black uppercase italic hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
-                                  >
-                                    <RefreshCcw size={14} /> Thuê lại thiết bị
-                                  </button>
-                                  {order.status === "COMPLETED" && (
-                                    <button
-                                      onClick={() => openReviewModal(order)}
-                                      disabled={hasReviewed || reviewLoading}
-                                      className={`w-full py-4 rounded-2xl text-[11px] font-black uppercase italic flex items-center justify-center gap-2 transition-all border ${hasReviewed
+                                    onClick={() => openReviewModal(order)}
+                                    disabled={hasReviewed || reviewLoading}
+                                    className={`w-full py-4 rounded-2xl text-[11px] font-black uppercase italic flex items-center justify-center gap-2 transition-all border ${
+                                      hasReviewed
                                         ? "bg-gray-200 text-gray-500 cursor-not-allowed"
                                         : "bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100"
-                                        }`}
-                                    >
-                                      <Star size={14} />
-                                      {hasReviewed
-                                        ? "Đã đánh giá"
-                                        : reviewLoading
-                                          ? "Đang gửi..."
-                                          : "Đánh giá dịch vụ"}
-                                    </button>
-                                  )}
-                                </>
-                              )}
+                                    }`}
+                                  >
+                                    <Star size={14} />
+                                    {hasReviewed
+                                      ? "Đã đánh giá"
+                                      : reviewLoading
+                                      ? "Đang gửi..."
+                                      : "Đánh giá dịch vụ"}
+                                  </button>
+                                )}
+                              </>
+                            )}
 
                             {/* Luôn có nút chi tiết */}
                             <button
@@ -1264,24 +1370,27 @@ export default function MyRentals() {
                 <div key={idx} className="flex gap-4 relative">
                   {idx !== arr.length - 1 && (
                     <div
-                      className={`absolute left-[11px] top-6 w-[2px] h-12 ${step.done ? "bg-indigo-600" : "bg-gray-100"
-                        }`}
+                      className={`absolute left-[11px] top-6 w-[2px] h-12 ${
+                        step.done ? "bg-indigo-600" : "bg-gray-100"
+                      }`}
                     />
                   )}
                   <div
-                    className={`w-6 h-6 rounded-full flex items-center justify-center z-10 ${step.active
-                      ? "bg-indigo-600 ring-4 ring-indigo-100"
-                      : step.done
+                    className={`w-6 h-6 rounded-full flex items-center justify-center z-10 ${
+                      step.active
+                        ? "bg-indigo-600 ring-4 ring-indigo-100"
+                        : step.done
                         ? "bg-indigo-600"
                         : "bg-gray-100"
-                      }`}
+                    }`}
                   >
                     <CheckCircle2 size={14} className="text-white" />
                   </div>
                   <div>
                     <p
-                      className={`text-[12px] font-black uppercase italic ${step.active ? "text-indigo-600" : "text-gray-900"
-                        }`}
+                      className={`text-[12px] font-black uppercase italic ${
+                        step.active ? "text-indigo-600" : "text-gray-900"
+                      }`}
                     >
                       {step.label}
                     </p>
@@ -1341,16 +1450,18 @@ export default function MyRentals() {
                       <div
                         key={idx}
                         onClick={() => toggleItemSelection(item._id)} // FIX: Toggle rentalItemId
-                        className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all cursor-pointer ${isSelected
-                          ? "border-amber-500 bg-amber-50"
-                          : "border-gray-100 bg-white hover:border-gray-200"
-                          }`}
+                        className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all cursor-pointer ${
+                          isSelected
+                            ? "border-amber-500 bg-amber-50"
+                            : "border-gray-100 bg-white hover:border-gray-200"
+                        }`}
                       >
                         <div
-                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${isSelected
-                            ? "bg-amber-500 border-amber-500"
-                            : "border-gray-300"
-                            }`}
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                            isSelected
+                              ? "bg-amber-500 border-amber-500"
+                              : "border-gray-300"
+                          }`}
                         >
                           {isSelected && (
                             <Check
@@ -1484,11 +1595,12 @@ export default function MyRentals() {
                     !DeliReportModal.reasonType
                   }
                   onClick={handleSubmitDeliReport}
-                  className={`py-4 rounded-xl font-black uppercase italic text-[11px] flex items-center justify-center gap-2 transition-all ${DeliReportModal.selectedItems?.length > 0 &&
+                  className={`py-4 rounded-xl font-black uppercase italic text-[11px] flex items-center justify-center gap-2 transition-all ${
+                    DeliReportModal.selectedItems?.length > 0 &&
                     DeliReportModal.reasonType
-                    ? "bg-amber-500 text-white shadow-lg shadow-amber-200 hover:bg-amber-600"
-                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                    }`}
+                      ? "bg-amber-500 text-white shadow-lg shadow-amber-200 hover:bg-amber-600"
+                      : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  }`}
                 >
                   Gửi báo cáo <Send size={14} />
                 </button>
@@ -1553,16 +1665,18 @@ export default function MyRentals() {
                               : [...current, item._id];
                             setReviewSelectedItems(next);
                           }}
-                          className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all cursor-pointer ${isSelected
-                            ? "border-emerald-500 bg-emerald-50"
-                            : "border-gray-100 bg-white hover:border-gray-200"
-                            }`}
+                          className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all cursor-pointer ${
+                            isSelected
+                              ? "border-emerald-500 bg-emerald-50"
+                              : "border-gray-100 bg-white hover:border-gray-200"
+                          }`}
                         >
                           <div
-                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected
-                              ? "bg-emerald-500 border-emerald-500"
-                              : "border-gray-300"
-                              }`}
+                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                              isSelected
+                                ? "bg-emerald-500 border-emerald-500"
+                                : "border-gray-300"
+                            }`}
                           >
                             {isSelected && (
                               <Check
@@ -1644,16 +1758,17 @@ export default function MyRentals() {
               <button
                 onClick={handleSubmitReview}
                 disabled={reviewLoading || hasReviewed}
-                className={`w-full py-4 rounded-2xl text-white font-black uppercase italic shadow-xl transition-transform ${reviewLoading || hasReviewed
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-gray-900 hover:scale-[1.02]"
-                  }`}
+                className={`w-full py-4 rounded-2xl text-white font-black uppercase italic shadow-xl transition-transform ${
+                  reviewLoading || hasReviewed
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-gray-900 hover:scale-[1.02]"
+                }`}
               >
                 {reviewLoading
                   ? "Đang gửi..."
                   : hasReviewed
-                    ? "Đã đánh giá"
-                    : "Gửi đánh giá"}
+                  ? "Đã đánh giá"
+                  : "Gửi đánh giá"}
               </button>
             </div>
           </div>
@@ -1684,10 +1799,11 @@ export default function MyRentals() {
               </button>
               <button
                 onClick={handleModalConfirm}
-                className={`py-3 rounded-xl text-white font-bold text-xs uppercase shadow-lg ${modalConfig.type === "CANCEL"
-                  ? "bg-red-500 shadow-red-200"
-                  : "bg-indigo-600 shadow-indigo-200"
-                  }`}
+                className={`py-3 rounded-xl text-white font-bold text-xs uppercase shadow-lg ${
+                  modalConfig.type === "CANCEL"
+                    ? "bg-red-500 shadow-red-200"
+                    : "bg-indigo-600 shadow-indigo-200"
+                }`}
               >
                 Xác nhận
               </button>
@@ -1737,22 +1853,23 @@ export default function MyRentals() {
                   Trạng thái:
                 </span>
                 <span
-                  className={`px-4 py-1.5 rounded-full text-sm font-bold ${reportDetailModal.report.status === "OPEN"
-                    ? "bg-red-100 text-red-700"
-                    : reportDetailModal.report.status === "PROCESSING"
+                  className={`px-4 py-1.5 rounded-full text-sm font-bold ${
+                    reportDetailModal.report.status === "OPEN"
+                      ? "bg-red-100 text-red-700"
+                      : reportDetailModal.report.status === "PROCESSING"
                       ? "bg-amber-100 text-amber-700"
                       : reportDetailModal.report.status === "RESOLVED"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-700"
-                    }`}
+                      ? "bg-green-100 text-green-700"
+                      : "bg-gray-100 text-gray-700"
+                  }`}
                 >
                   {reportDetailModal.report.status === "OPEN"
                     ? "Chờ xử lý"
                     : reportDetailModal.report.status === "PROCESSING"
-                      ? "Đang xử lý"
-                      : reportDetailModal.report.status === "RESOLVED"
-                        ? "Đã giải quyết"
-                        : "Từ chối"}
+                    ? "Đang xử lý"
+                    : reportDetailModal.report.status === "RESOLVED"
+                    ? "Đã giải quyết"
+                    : "Từ chối"}
                 </span>
               </div>
 
@@ -1821,14 +1938,14 @@ export default function MyRentals() {
                 )}
                 {reportDetailModal.report.updatedAt !==
                   reportDetailModal.report.createdAt && (
-                    <>
-                      {" "}
-                      • Cập nhật lần cuối:{" "}
-                      {new Date(
-                        reportDetailModal.report.updatedAt
-                      ).toLocaleString("vi-VN")}
-                    </>
-                  )}
+                  <>
+                    {" "}
+                    • Cập nhật lần cuối:{" "}
+                    {new Date(
+                      reportDetailModal.report.updatedAt
+                    ).toLocaleString("vi-VN")}
+                  </>
+                )}
               </div>
             </div>
 
@@ -1934,10 +2051,11 @@ export default function MyRentals() {
               <button
                 disabled={extendModal.extraAmount <= 0}
                 onClick={handleSubmitExtend}
-                className={`py-4 rounded-2xl font-black uppercase italic text-[11px] shadow-lg transition-all ${extendModal.extraAmount > 0
-                  ? "bg-indigo-600 text-white shadow-indigo-200 hover:scale-105 active:scale-95"
-                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  }`}
+                className={`py-4 rounded-2xl font-black uppercase italic text-[11px] shadow-lg transition-all ${
+                  extendModal.extraAmount > 0
+                    ? "bg-indigo-600 text-white shadow-indigo-200 hover:scale-105 active:scale-95"
+                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                }`}
               >
                 Gửi yêu cầu gia hạn
               </button>
@@ -1991,16 +2109,18 @@ export default function MyRentals() {
                             selectedItems: next,
                           });
                         }}
-                        className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all cursor-pointer ${isSelected
-                          ? "border-red-500 bg-red-50"
-                          : "border-gray-100 bg-white hover:border-gray-200"
-                          }`}
+                        className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all cursor-pointer ${
+                          isSelected
+                            ? "border-red-500 bg-red-50"
+                            : "border-gray-100 bg-white hover:border-gray-200"
+                        }`}
                       >
                         <div
-                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected
-                            ? "bg-red-500 border-red-500"
-                            : "border-gray-300"
-                            }`}
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            isSelected
+                              ? "bg-red-500 border-red-500"
+                              : "border-gray-300"
+                          }`}
                         >
                           {isSelected && (
                             <Check
@@ -2190,11 +2310,12 @@ export default function MyRentals() {
                       );
                     }
                   }}
-                  className={`py-4 rounded-xl font-black uppercase italic text-[11px] flex items-center justify-center gap-2 transition-all ${damageReportModal.selectedItems?.length > 0 &&
+                  className={`py-4 rounded-xl font-black uppercase italic text-[11px] flex items-center justify-center gap-2 transition-all ${
+                    damageReportModal.selectedItems?.length > 0 &&
                     damageReportModal.description.trim()
-                    ? "bg-red-600 text-white shadow-lg shadow-red-200 hover:bg-red-700"
-                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                    }`}
+                      ? "bg-red-600 text-white shadow-lg shadow-red-200 hover:bg-red-700"
+                      : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  }`}
                 >
                   Gửi báo cáo <Send size={14} />
                 </button>
@@ -2245,18 +2366,19 @@ export default function MyRentals() {
                   Trạng thái:
                 </span>
                 <span
-                  className={`px-4 py-1.5 rounded-full text-sm font-bold ${damageDetailModal.report.status === "OPEN"
-                    ? "bg-red-100 text-red-700"
-                    : damageDetailModal.report.status === "VERIFIED"
+                  className={`px-4 py-1.5 rounded-full text-sm font-bold ${
+                    damageDetailModal.report.status === "OPEN"
+                      ? "bg-red-100 text-red-700"
+                      : damageDetailModal.report.status === "VERIFIED"
                       ? "bg-amber-100 text-amber-700"
                       : "bg-green-100 text-green-700"
-                    }`}
+                  }`}
                 >
                   {damageDetailModal.report.status === "OPEN"
                     ? "Chờ xác nhận"
                     : damageDetailModal.report.status === "VERIFIED"
-                      ? "Đã xác nhận"
-                      : "Đã xử lý"}
+                    ? "Đã xác nhận"
+                    : "Đã xử lý"}
                 </span>
               </div>
 
