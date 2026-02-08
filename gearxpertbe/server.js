@@ -30,6 +30,7 @@ const adminUserRouter = require("./Routes/AdminUserRoutes");
 const advertisementRouter = require("./Routes/AdvertisementRoutes");
 const ReportRouter = require("./Routes/ReportRoutes");
 const ContractRouter = require("./Routes/ContractRoutes");
+const NotificationConfig = require("./configs/NotificationConfig");
 
 const io = socketIo(server, {
     cors: {
@@ -91,6 +92,7 @@ app.use((err, req, res, next) => {
     res.status(500).send("Something broke!");
 });
 
+NotificationConfig.init(io);
 socketHandler(io);
 
 (async () => {
