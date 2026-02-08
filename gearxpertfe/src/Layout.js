@@ -6,6 +6,7 @@ import Aos from "aos";
 import Homepage from "./pages/Homepage/Homepage";
 import GlobalLoadingOverlay from "./components/common/GlobalLoadingOverlay";
 import RouteHandler from "./components/common/RouteHandler";
+import ScrollToTop from "./components/common/ScrollToTop";
 
 // Supplier layout + pages
 import SupplierLayout from "./components/layout/SupplierLayout";
@@ -55,6 +56,12 @@ import EkycVerification from "./components/EkycVerification";
 import MyRentals from "./pages/User/MyRentals";
 import Messenger from "./components/Message Socket/Page/Messenger";
 import Chatbot from "./components/chatbot/Chatbot";
+import PrivacyPolicyPage from "./pages/Policy/PrivacyPolicyPage";
+import TermsOfServicePage from "./pages/Policy/TermsOfServicePage";
+import RentalPolicyPage from "./pages/Policy/RentalPolicyPage";
+import AboutPage from "./pages/About/AboutPage";
+import FAQPage from "./pages/FAQ/FAQPage";
+import ContactPage from "./pages/Contact/ContactPage";
 import ChatWindowManager from "./components/Message Socket/MiniChat/ChatWindowManager";
 import OperationStaffDashboard from "./pages/OperationStaff/OperationStaffDashboard";
 import StaffLayout from "./components/layout/StaffLayout";
@@ -94,6 +101,7 @@ export default function Layout() {
 
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <RouteHandler />
       <GlobalLoadingOverlay />
       <ChatbotWrapper />
@@ -168,6 +176,13 @@ export default function Layout() {
             <Route path="advertisements" element={<AdminAdsPage />} />
 
           </Route>
+
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsOfServicePage />} />
+          <Route path="/rental-policy" element={<RentalPolicyPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/faq" element={<FAQPage />} />
+          <Route path="/contact" element={<ContactPage />} />
           <Route path="/staff" element={<StaffLayout />}>
             <Route index element={<OperationStaffDashboard />} />
           </Route>
