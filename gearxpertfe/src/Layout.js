@@ -19,6 +19,7 @@ import SupplierRentalRequests from "./pages/Supplier/SupplierRentalRequests";
 import SupplierMaintenance from "./pages/Supplier/SupplierMaintenance";
 import SupplierRevenue from "./pages/Supplier/SupplierRevenue";
 import SupplierInventoryPage from "./pages/Supplier/SupplierInventoryPage";
+import SupplierVouchersPage from "./pages/Supplier/SupplierVouchersPage";
 
 import AdminLayout from "./components/layout/AdminLayout";
 import DashboardPage from "./pages/Admin/DashboardPage";
@@ -66,13 +67,13 @@ import ChatWindowManager from "./components/Message Socket/MiniChat/ChatWindowMa
 
 const ChatbotWrapper = () => {
   const location = useLocation();
-  
+
   const hideOnPaths = ["/admin", "/supplier", "/messenger"];
 
   const shouldHide = hideOnPaths.some(path => location.pathname.startsWith(path));
 
   if (shouldHide) {
-    return null; 
+    return null;
   }
 
   return <Chatbot />;
@@ -80,13 +81,13 @@ const ChatbotWrapper = () => {
 
 const ChatWindowWrapper = () => {
   const location = useLocation();
-  
-  const hideOnPaths = ["/messenger", "/admin"]; 
+
+  const hideOnPaths = ["/messenger", "/admin"];
 
   const shouldHide = hideOnPaths.some(path => location.pathname.startsWith(path));
 
   if (shouldHide) {
-    return null; 
+    return null;
   }
 
   return <ChatWindowManager />;
@@ -160,6 +161,7 @@ export default function Layout() {
             />
             <Route path="maintenance" element={<SupplierMaintenance />} />
             <Route path="revenue" element={<SupplierRevenue />} />
+            <Route path="vouchers" element={<SupplierVouchersPage />} />
           </Route>
 
           <Route path="/admin" element={<AdminLayout />}>
