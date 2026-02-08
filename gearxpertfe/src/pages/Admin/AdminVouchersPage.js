@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
     getVouchersForAdmin,
     createVoucherByAdmin,
@@ -6,7 +7,7 @@ import {
     deleteVoucher
 } from "../../service/ApiService/VoucherApi";
 import { toast } from "react-toastify";
-import { FiPlus, FiTrash2, FiClock, FiTag, FiSearch, FiEdit2, FiMoreVertical, FiEye, FiEyeOff } from "react-icons/fi";
+import { FiPlus, FiTrash2, FiClock, FiTag, FiSearch, FiEdit2, FiMoreVertical, FiEye, FiEyeOff, FiRefreshCw, FiCalendar, FiDollarSign, FiHash, FiFileText, FiX } from "react-icons/fi";
 
 export default function AdminVouchersPage() {
     const [vouchers, setVouchers] = useState([]);
@@ -137,6 +138,15 @@ export default function AdminVouchersPage() {
         } catch (error) {
             toast.error(error.response?.data?.message || `Lỗi khi ${editingVoucher ? "cập nhật" : "tạo"} voucher`);
         }
+    };
+
+    const generateRandomCode = () => {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        let result = "";
+        for (let i = 0; i < 8; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        setFormData({ ...formData, code: result });
     };
 
     const filteredVouchers = vouchers.filter(v =>
@@ -272,129 +282,179 @@ export default function AdminVouchersPage() {
             </div>
 
             {/* Create / Edit Voucher Modal */}
-            {isModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-xl overflow-hidden border border-slate-200">
-                        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                                {editingVoucher ? <FiEdit2 className="text-primary" /> : <FiPlus className="text-primary" />}
-                                {editingVoucher ? `Chỉnh sửa Voucher [${editingVoucher.code}]` : "Tạo Voucher GLOBAL mới"}
-                            </h2>
-                            <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all">
-                                <span className="material-symbols-outlined text-[20px]">close</span>
-                            </button>
+            {isModalOpen && createPortal(
+                <div
+                    className="fixed top-0 left-0 w-full h-screen z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300 overflow-hidden cursor-pointer"
+                    onClick={() => setIsModalOpen(false)}
+                >
+                    <div
+                        className="bg-white/95 rounded-[32px] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.25)] w-full max-w-xl border border-white relative animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh] overflow-hidden cursor-default"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header with Gradient Backdrop */}
+                        <div className="relative h-32 flex items-end p-8 overflow-hidden shrink-0">
+                            <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-violet-700 opacity-90"></div>
+                            <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
+                            <div className="absolute bottom-[-20%] left-[-10%] w-48 h-48 bg-indigo-400/20 rounded-full blur-2xl"></div>
+
+                            <div className="relative z-10 w-full flex items-center justify-between">
+                                <div>
+                                    <h2 className="text-2xl font-black text-white uppercase italic tracking-tight leading-none">
+                                        {editingVoucher ? "Chỉnh sửa Voucher" : "Tạo Voucher GLOBAL"}
+                                    </h2>
+                                    <p className="text-indigo-100 text-xs font-bold uppercase tracking-widest mt-2 opacity-80">
+                                        Cấu hình ưu đãi toàn hệ thống
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setIsModalOpen(false)}
+                                    className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-2xl backdrop-blur-md transition-all border border-white/10 hover:rotate-90 duration-300"
+                                >
+                                    <FiX size={20} />
+                                </button>
+                            </div>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mã Voucher</label>
-                                    <input
-                                        required
-                                        disabled={!!editingVoucher}
-                                        type="text"
-                                        placeholder="VD: MAGGIAM20"
-                                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:bg-slate-50 disabled:text-slate-400"
-                                        value={formData.code}
-                                        onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                                    />
+                        <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto hide-scroll flex-1">
+                            {/* SECTION: THÔNG TIN CHI TIẾT */}
+                            <div className="grid grid-cols-2 gap-5">
+                                <div className="space-y-2">
+                                    <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                                        <FiHash size={12} className="text-indigo-500" /> Mã Voucher
+                                    </label>
+                                    <div className="relative group">
+                                        <input
+                                            required
+                                            disabled={!!editingVoucher}
+                                            type="text"
+                                            placeholder="MAGGIAM20"
+                                            className="w-full pl-4 pr-12 py-3.5 bg-slate-50 border-2 border-transparent rounded-[20px] focus:bg-white focus:border-indigo-500/20 outline-none transition-all font-black uppercase text-slate-700 placeholder:text-slate-300 focus:ring-4 ring-indigo-500/5 shadow-sm disabled:opacity-50"
+                                            value={formData.code}
+                                            onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+                                        />
+                                        {!editingVoucher && (
+                                            <button
+                                                type="button"
+                                                onClick={generateRandomCode}
+                                                title="Tạo mã ngẫu nhiên"
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-indigo-500 hover:bg-indigo-50 rounded-xl transition-all"
+                                            >
+                                                <FiRefreshCw size={18} className="group-hover:rotate-180 transition-transform duration-700" />
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Hạn dùng</label>
+                                <div className="space-y-2">
+                                    <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                                        <FiCalendar size={12} className="text-indigo-500" /> Hạn sử dụng
+                                    </label>
                                     <input
                                         required
                                         type="date"
-                                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                                        className="w-full px-4 py-3.5 bg-slate-50 border-2 border-transparent rounded-[20px] focus:bg-white focus:border-indigo-500/20 outline-none transition-all font-bold text-slate-700 focus:ring-4 ring-indigo-500/5 shadow-sm"
                                         value={formData.expiredAt}
                                         onChange={(e) => setFormData({ ...formData, expiredAt: e.target.value })}
                                     />
                                 </div>
                             </div>
 
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mô tả</label>
+                            <div className="space-y-2">
+                                <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                                    <FiFileText size={12} className="text-indigo-500" /> Mô tả ưu đãi
+                                </label>
                                 <textarea
                                     placeholder="Mô tả ngắn gọn về ưu đãi..."
-                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all h-20 resize-none"
+                                    className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-[24px] focus:bg-white focus:border-indigo-500/20 outline-none transition-all h-24 resize-none font-medium text-slate-600 placeholder:text-slate-300 focus:ring-4 ring-indigo-500/5 shadow-sm"
                                     value={formData.description}
                                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                 />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Loại giảm giá</label>
-                                    <select
-                                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                                        value={formData.discountType}
-                                        onChange={(e) => setFormData({ ...formData, discountType: e.target.value })}
-                                    >
-                                        <option value="PERCENT">Phần trăm (%)</option>
-                                        <option value="FIXED">Số tiền cố định (đ)</option>
-                                    </select>
+                            {/* SECTION: CƠ CHẾ GIẢM GIÁ */}
+                            <div className="p-5 bg-indigo-50/50 rounded-[28px] border border-indigo-100/50 space-y-5">
+                                <div className="grid grid-cols-2 gap-5">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Loại giảm giá</label>
+                                        <select
+                                            className="w-full px-4 py-3.5 bg-white border-2 border-transparent rounded-[18px] focus:border-indigo-500/20 outline-none transition-all font-bold text-slate-700 shadow-sm"
+                                            value={formData.discountType}
+                                            onChange={(e) => setFormData({ ...formData, discountType: e.target.value })}
+                                        >
+                                            <option value="PERCENT">Phần trăm (%)</option>
+                                            <option value="FIXED">Số tiền (đ)</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Giá trị giảm</label>
+                                        <div className="relative">
+                                            <input
+                                                required
+                                                type="number"
+                                                className="w-full pl-4 pr-10 py-3.5 bg-white border-2 border-transparent rounded-[18px] focus:border-indigo-500/20 outline-none transition-all font-black text-slate-800 shadow-sm"
+                                                value={formData.discountValue}
+                                                onChange={(e) => setFormData({ ...formData, discountValue: e.target.value })}
+                                            />
+                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 font-black text-indigo-500">
+                                                {formData.discountType === 'PERCENT' ? '%' : 'đ'}
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Giá trị giảm</label>
+
+                                <div className="grid grid-cols-2 gap-5">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Lượt dùng tối đa</label>
+                                        <input
+                                            type="number"
+                                            className="w-full px-4 py-3.5 bg-white border-2 border-transparent rounded-[18px] focus:border-indigo-500/20 outline-none transition-all font-bold text-slate-700 shadow-sm"
+                                            value={formData.usageLimit}
+                                            onChange={(e) => setFormData({ ...formData, usageLimit: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Giảm tối đa (đ)</label>
+                                        <input
+                                            type="number"
+                                            placeholder="Không giới hạn"
+                                            className="w-full px-4 py-3.5 bg-white border-2 border-transparent rounded-[18px] focus:border-indigo-500/20 outline-none transition-all font-bold text-slate-700 shadow-sm placeholder:text-slate-200"
+                                            value={formData.maxDiscount}
+                                            onChange={(e) => setFormData({ ...formData, maxDiscount: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="flex items-center gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">
+                                        <FiDollarSign size={12} /> Giá trị đơn tối thiểu (đ)
+                                    </label>
                                     <input
-                                        required
                                         type="number"
-                                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                                        value={formData.discountValue}
-                                        onChange={(e) => setFormData({ ...formData, discountValue: e.target.value })}
+                                        className="w-full px-4 py-3.5 bg-white border-2 border-transparent rounded-[18px] focus:border-indigo-500/20 outline-none transition-all font-bold text-slate-700 shadow-sm"
+                                        value={formData.minOrderValue}
+                                        onChange={(e) => setFormData({ ...formData, minOrderValue: e.target.value })}
                                     />
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Lượt dùng tối đa</label>
-                                    <input
-                                        type="number"
-                                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                                        value={formData.usageLimit}
-                                        onChange={(e) => setFormData({ ...formData, usageLimit: e.target.value })}
-                                    />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Giảm tối đa (đ)</label>
-                                    <input
-                                        type="number"
-                                        placeholder="Không giới hạn"
-                                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                                        value={formData.maxDiscount}
-                                        onChange={(e) => setFormData({ ...formData, maxDiscount: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Đơn tối thiểu (đ)</label>
-                                <input
-                                    type="number"
-                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                                    value={formData.minOrderValue}
-                                    onChange={(e) => setFormData({ ...formData, minOrderValue: e.target.value })}
-                                />
-                            </div>
-
-                            <div className="pt-6 flex items-center gap-3">
+                            <div className="pt-4 flex items-center gap-4">
                                 <button
                                     type="button"
                                     onClick={() => setIsModalOpen(false)}
-                                    className="flex-1 px-6 py-3 border border-slate-200 text-slate-600 rounded-2xl font-bold hover:bg-slate-50 transition-all"
+                                    className="flex-1 px-6 py-4 bg-slate-100 text-slate-500 rounded-[24px] font-black uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all active:scale-[0.98]"
                                 >
-                                    Hủy
+                                    Hủy bỏ
                                 </button>
                                 <button
                                     type="submit"
-                                    className="flex-1 px-6 py-3 bg-primary text-white rounded-2xl font-bold hover:bg-primary-dark transition-all shadow-lg shadow-primary/20"
+                                    className="flex-[2] px-6 py-4 bg-slate-900 text-white rounded-[24px] font-black uppercase tracking-[0.15em] text-xs hover:bg-indigo-600 transition-all shadow-xl shadow-indigo-100 hover:-translate-y-1 active:scale-[0.98]"
                                 >
-                                    {editingVoucher ? "Lưu thay đổi" : "Tạo Voucher"}
+                                    {editingVoucher ? "Lưu thay đổi" : "Tạo Voucher Ngay"}
                                 </button>
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

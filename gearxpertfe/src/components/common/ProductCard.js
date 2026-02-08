@@ -155,10 +155,10 @@ export default function ProductCard({
   if (variant === 'simple') {
     return (
       <div
-        className={`min-w-[280px] snap-start group bg-white p-4 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer ${className}`}
+        className={`flex flex-col h-full w-full max-w-[320px] mx-auto snap-start group bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-500 cursor-pointer ${className}`}
         onClick={handleClick}
       >
-        <div className="aspect-[4/3] rounded-2xl overflow-hidden isolate mb-4 bg-slate-50 relative">
+        <div className="aspect-square rounded-xl overflow-hidden isolate mb-4 bg-slate-50 relative shrink-0">
           {/* Rating Badge - Top Left */}
           {rating !== null && (
             <div className="absolute top-3 left-3 z-10 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1 text-xs font-semibold text-gray-900">
@@ -189,10 +189,18 @@ export default function ProductCard({
             />
           </div>
         </div>
-        <h4 className="font-bold text-slate-900 font-display text-lg">{name}</h4>
-        <div className="flex items-center justify-between mt-2">
-          <p className="text-primary font-bold">${price.toLocaleString('vi-VN')}/day</p>
-          <span className="text-xs text-slate-400">{category}</span>
+
+        <div className="flex flex-col flex-1">
+          <h4 className="font-bold text-slate-900 font-display text-base mb-2 line-clamp-2 h-12 leading-tight">
+            {name}
+          </h4>
+          <div className="mt-auto pt-2 flex items-center justify-between border-t border-slate-50">
+            <p className="text-primary font-bold text-sm">
+              ${price.toLocaleString('vi-VN')}
+              <span className="text-[10px] text-slate-400 font-normal ml-0.5">/day</span>
+            </p>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{category}</span>
+          </div>
         </div>
       </div>
     );
