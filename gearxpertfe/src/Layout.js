@@ -56,6 +56,8 @@ import MyRentals from "./pages/User/MyRentals";
 import Messenger from "./components/Message Socket/Page/Messenger";
 import Chatbot from "./components/chatbot/Chatbot";
 import ChatWindowManager from "./components/Message Socket/MiniChat/ChatWindowManager";
+import OperationStaffDashboard from "./pages/OperationStaff/OperationStaffDashboard";
+import StaffLayout from "./components/layout/StaffLayout";
 
 const ChatbotWrapper = () => {
   const location = useLocation();
@@ -166,7 +168,9 @@ export default function Layout() {
             <Route path="advertisements" element={<AdminAdsPage />} />
 
           </Route>
-
+          <Route path="/staff" element={<StaffLayout />}>
+            <Route index element={<OperationStaffDashboard />} />
+          </Route>
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/vouchers" element={<VouchersPage />} />
