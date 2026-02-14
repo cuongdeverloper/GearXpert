@@ -64,6 +64,8 @@ import AboutPage from "./pages/About/AboutPage";
 import FAQPage from "./pages/FAQ/FAQPage";
 import ContactPage from "./pages/Contact/ContactPage";
 import ChatWindowManager from "./components/Message Socket/MiniChat/ChatWindowManager";
+import OperationStaffDashboard from "./pages/OperationStaff/OperationStaffDashboard";
+import StaffLayout from "./components/layout/StaffLayout";
 
 const ChatbotWrapper = () => {
   const location = useLocation();
@@ -183,6 +185,9 @@ export default function Layout() {
           <Route path="/about" element={<AboutPage />} />
           <Route path="/faq" element={<FAQPage />} />
           <Route path="/contact" element={<ContactPage />} />
+          <Route path="/staff" element={<StaffLayout />}>
+            <Route index element={<OperationStaffDashboard />} />
+          </Route>
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/vouchers" element={<VouchersPage />} />
