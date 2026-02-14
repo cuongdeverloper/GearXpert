@@ -107,7 +107,7 @@ exports.createDevice = async (req, res) => {
  */
 exports.getDevices = async (req, res) => {
   try {
-    const { category, status, includeAll, limit = 12, page = 1 } = req.query;
+    const { category, status, includeAll, limit = 12, page = 1, sort = "popular" } = req.query;
 
     const query = {
       isAddon: false,
@@ -124,14 +124,19 @@ exports.getDevices = async (req, res) => {
       query.status = "AVAILABLE";
     }
 
+    let sortQuery = { ratingAvg: -1, reviewCount: -1 };
+    if (sort === "newest") {
+      sortQuery = { createdAt: -1 };
+    }
+
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const devicesRaw = await Device.find(query)
-      .select("name description rentPrice ratingAvg reviewCount location images category status stockQuantity depositAmount supplierId")
+      .select("name description rentPrice ratingAvg reviewCount location images category status stockQuantity depositAmount supplierId createdAt")
       .populate("supplierId", "fullName")
       .limit(parseInt(limit))
       .skip(skip)
-      .sort({ ratingAvg: -1, reviewCount: -1 });
+      .sort(sortQuery);
 
     const devices = devicesRaw.map((device) => ({
       ...device.toObject(),

@@ -19,7 +19,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 import { getCart, removeCartItem } from "../../service/ApiService/CartApi";
-import { validateVoucher } from "../../service/ApiService/VoucherApi.js";
+import { validateVoucher, getAllVouchers } from "../../service/ApiService/VoucherApi.js";
 import { checkout } from "../../service/ApiService/RentalApi";
 import { getMyWallet } from "../../service/ApiService/WalletApi";
 
@@ -52,9 +52,9 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(lat1 * (Math.PI / 180)) *
-      Math.cos(lat2 * (Math.PI / 180)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };
@@ -83,6 +83,10 @@ export default function CheckoutPage() {
   const [appliedVoucher, setAppliedVoucher] = useState(null);
   const [isApplyingVoucher, setIsApplyingVoucher] = useState(false);
   const [showMapModal, setShowMapModal] = useState(false);
+  const [availableVouchers, setAvailableVouchers] = useState([]);
+  const [showVoucherDropdown, setShowVoucherDropdown] = useState(false);
+  const [isLoadingVouchers, setIsLoadingVouchers] = useState(false);
+  const [hasAutoApplied, setHasAutoApplied] = useState(false);
 
   const [mapPosition, setMapPosition] = useState([
     FPT_COORDS.lat,
@@ -97,9 +101,9 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     const full = [street, district, city].filter(Boolean).join(", ");
-    
+
     setAddress((prev) => {
-      if (prev.fullAddress === full) return prev; 
+      if (prev.fullAddress === full) return prev;
       return { ...prev, fullAddress: full };
     });
   }, [street, district, city]);
@@ -142,10 +146,25 @@ export default function CheckoutPage() {
     }
   }, []);
 
+  const fetchVouchers = useCallback(async () => {
+    try {
+      setIsLoadingVouchers(true);
+      const res = await getAllVouchers();
+      if (res && res.success) {
+        setAvailableVouchers(res.vouchers || []);
+      }
+    } catch (error) {
+      console.error("Lỗi lấy danh sách voucher:", error);
+    } finally {
+      setIsLoadingVouchers(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchCart();
     fetchWalletData();
-  }, [fetchCart, fetchWalletData]);
+    fetchVouchers();
+  }, [fetchCart, fetchWalletData, fetchVouchers]);
 
   // --- MAP LOGIC ---
   function MapEventsHandler() {
@@ -223,17 +242,17 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleApplyVoucher = async () => {
-    if (!voucherCode.trim()) return toast.warning("Vui lòng nhập mã voucher");
+  const handleApplyVoucher = useCallback(async (codeToApply) => {
+    const code = codeToApply || voucherCode;
+    if (!code.trim()) return toast.warning("Vui lòng nhập mã voucher");
 
     try {
       setIsApplyingVoucher(true);
       const res = await validateVoucher({
-        code: voucherCode.trim().toUpperCase(),
+        code: code.trim().toUpperCase(),
         cartType: CART_TYPE,
       });
 
-      // Backend trả { code, type, supplierId, discount }
       const voucherData = res;
 
       setAppliedVoucher({
@@ -242,19 +261,19 @@ export default function CheckoutPage() {
         type: voucherData.type,
         supplierId: voucherData.supplierId,
       });
+      setVoucherCode(voucherData.code);
 
       toast.success(
-        `Áp dụng thành công! Giảm ${voucherData.discount.toLocaleString()}đ`
+        `Đã tự động áp dụng mã ${voucherData.code}! Giảm ${voucherData.discount.toLocaleString()}đ`
       );
     } catch (err) {
-      const errMsg =
-        err.response?.message || "Mã voucher không hợp lệ hoặc hết hạn";
-      toast.error(errMsg);
+      const errMsg = err.response?.data?.message || err.response?.message || "Mã voucher không hợp lệ";
+      if (!codeToApply) toast.error(errMsg);
       setAppliedVoucher(null);
     } finally {
       setIsApplyingVoucher(false);
     }
-  };
+  }, [CART_TYPE, voucherCode]);
 
   // --- GROUP BY SUPPLIER FOR DISPLAY (đẹp hơn) ---
   // --- GROUP BY SUPPLIER FOR DISPLAY ---
@@ -296,7 +315,58 @@ export default function CheckoutPage() {
     0
   );
 
+  const filteredVouchers = useMemo(() => {
+    return availableVouchers.filter(v => {
+      if (v.type === 'GLOBAL') {
+        return subtotal >= v.minOrderValue;
+      }
+      if (v.type === 'SUPPLIER') {
+        const group = groupedBySupplier.find(g => g.supplierId === v.supplierId);
+        if (!group) return false;
+        return group.subtotal >= v.minOrderValue;
+      }
+      return false;
+    });
+  }, [availableVouchers, subtotal, groupedBySupplier]);
+
   const insuranceFee = useInsurance ? Math.round(subtotal * 0.05) : 0;
+
+  // AUTO APPLY BEST VOUCHER
+  useEffect(() => {
+    if (!loading && !isLoadingVouchers && cart.length > 0 && availableVouchers.length > 0 && !appliedVoucher && !hasAutoApplied) {
+      // Find best voucher
+      let bestVoucher = null;
+      let maxDiscountVal = 0;
+
+      filteredVouchers.forEach(v => {
+        let applicableTotal = 0;
+        if (v.type === 'GLOBAL') {
+          applicableTotal = subtotal;
+        } else {
+          const group = groupedBySupplier.find(g => g.supplierId === v.supplierId);
+          applicableTotal = group ? group.subtotal : 0;
+        }
+
+        let discount = 0;
+        if (v.discountType === 'PERCENT') {
+          discount = (applicableTotal * v.discountValue) / 100;
+          if (v.maxDiscount) discount = Math.min(discount, v.maxDiscount);
+        } else {
+          discount = v.discountValue;
+        }
+
+        if (discount > maxDiscountVal) {
+          maxDiscountVal = discount;
+          bestVoucher = v;
+        }
+      });
+
+      if (bestVoucher) {
+        setHasAutoApplied(true); // Mark as auto-applied to prevent re-triggering
+        handleApplyVoucher(bestVoucher.code);
+      }
+    }
+  }, [loading, isLoadingVouchers, cart.length, availableVouchers.length, appliedVoucher, filteredVouchers, subtotal, groupedBySupplier, hasAutoApplied, handleApplyVoucher]);
   // Phí ship: nếu nhận tại trường thì 0, nếu không thì theo km
   const total =
     subtotal + deliveryFee + insuranceFee - (appliedVoucher?.discount || 0);
@@ -346,7 +416,7 @@ export default function CheckoutPage() {
       if (err.response?.status === 403 && errData?.code === "EKYC_REQUIRED") {
         toast.error(
           errData.message ||
-            "Vui lòng hoàn tất xác thực eKYC trước khi thanh toán",
+          "Vui lòng hoàn tất xác thực eKYC trước khi thanh toán",
           { autoClose: false }
         );
         // Tự động redirect sau 3 giây hoặc có nút bấm
@@ -418,11 +488,10 @@ export default function CheckoutPage() {
               <button
                 onClick={fillDefaultUserInfo}
                 disabled={!account?.username}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm ${
-                  account?.username
-                    ? "bg-indigo-600 text-white hover:bg-indigo-700"
-                    : "bg-slate-200 text-slate-400 cursor-not-allowed opacity-70"
-                }`}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm ${account?.username
+                  ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                  : "bg-slate-200 text-slate-400 cursor-not-allowed opacity-70"
+                  }`}
               >
                 <User size={18} />
                 Sử dụng thông tin mặc định
@@ -580,11 +649,10 @@ export default function CheckoutPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <label
-                className={`relative flex items-center gap-4 p-6 rounded-3xl border-2 transition-all cursor-pointer group ${
-                  selectedPayment === "BANK"
-                    ? "border-indigo-600 bg-indigo-50/50"
-                    : "border-slate-100 bg-slate-50 hover:border-slate-200"
-                }`}
+                className={`relative flex items-center gap-4 p-6 rounded-3xl border-2 transition-all cursor-pointer group ${selectedPayment === "BANK"
+                  ? "border-indigo-600 bg-indigo-50/50"
+                  : "border-slate-100 bg-slate-50 hover:border-slate-200"
+                  }`}
               >
                 <input
                   type="radio"
@@ -593,11 +661,10 @@ export default function CheckoutPage() {
                   onChange={() => setSelectedPayment("BANK")}
                 />
                 <div
-                  className={`p-3 rounded-2xl transition-all ${
-                    selectedPayment === "BANK"
-                      ? "bg-indigo-600 text-white"
-                      : "bg-white text-slate-400 group-hover:text-slate-600"
-                  }`}
+                  className={`p-3 rounded-2xl transition-all ${selectedPayment === "BANK"
+                    ? "bg-indigo-600 text-white"
+                    : "bg-white text-slate-400 group-hover:text-slate-600"
+                    }`}
                 >
                   <CreditCard size={24} />
                 </div>
@@ -615,11 +682,10 @@ export default function CheckoutPage() {
               </label>
 
               <label
-                className={`relative flex items-center gap-4 p-6 rounded-3xl border-2 transition-all cursor-pointer group ${
-                  selectedPayment === "WALLET"
-                    ? "border-indigo-600 bg-indigo-50/50"
-                    : "border-slate-100 bg-slate-50 hover:border-slate-200"
-                }`}
+                className={`relative flex items-center gap-4 p-6 rounded-3xl border-2 transition-all cursor-pointer group ${selectedPayment === "WALLET"
+                  ? "border-indigo-600 bg-indigo-50/50"
+                  : "border-slate-100 bg-slate-50 hover:border-slate-200"
+                  }`}
               >
                 <input
                   type="radio"
@@ -628,11 +694,10 @@ export default function CheckoutPage() {
                   onChange={() => setSelectedPayment("WALLET")}
                 />
                 <div
-                  className={`p-3 rounded-2xl transition-all ${
-                    selectedPayment === "WALLET"
-                      ? "bg-indigo-600 text-white"
-                      : "bg-white text-slate-400 group-hover:text-slate-600"
-                  }`}
+                  className={`p-3 rounded-2xl transition-all ${selectedPayment === "WALLET"
+                    ? "bg-indigo-600 text-white"
+                    : "bg-white text-slate-400 group-hover:text-slate-600"
+                    }`}
                 >
                   <Wallet size={24} />
                 </div>
@@ -642,11 +707,10 @@ export default function CheckoutPage() {
                       Ví GearXpert
                     </p>
                     <span
-                      className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
-                        wallet?.balance >= total
-                          ? "bg-emerald-100 text-emerald-600"
-                          : "bg-red-100 text-red-600"
-                      }`}
+                      className={`text-[10px] font-black px-2 py-0.5 rounded-md ${wallet?.balance >= total
+                        ? "bg-emerald-100 text-emerald-600"
+                        : "bg-red-100 text-red-600"
+                        }`}
                     >
                       {wallet?.balance?.toLocaleString() || 0}đ
                     </span>
@@ -816,10 +880,73 @@ export default function CheckoutPage() {
                     placeholder="Mã voucher"
                     value={voucherCode}
                     onChange={(e) => setVoucherCode(e.target.value)}
+                    onFocus={() => setShowVoucherDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowVoucherDropdown(false), 200)}
                   />
+
+                  {/* VOUCHER DROPDOWN */}
+                  {showVoucherDropdown && filteredVouchers.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-3xl shadow-2xl border border-slate-100 z-[70] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300 max-h-[300px] overflow-y-auto scrollbar-hide">
+                      <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                          Voucher khả dụng cho đơn hàng này
+                        </p>
+                        {isLoadingVouchers && (
+                          <div className="w-3 h-3 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
+                        )}
+                      </div>
+                      <div className="divide-y divide-slate-50">
+                        {filteredVouchers.map((v) => (
+                          <button
+                            key={v._id}
+                            onClick={() => {
+                              setVoucherCode(v.code);
+                              setShowVoucherDropdown(false);
+                            }}
+                            className="w-full p-4 hover:bg-indigo-50 transition-all text-left flex items-start gap-3 group"
+                          >
+                            <div className="p-2 bg-white rounded-xl shadow-sm group-hover:bg-indigo-600 group-hover:text-white transition-all text-indigo-600 border border-slate-100">
+                              <Ticket size={16} />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex justify-between items-center">
+                                <span className="font-black text-slate-900 group-hover:text-indigo-700 uppercase tracking-tight">
+                                  {v.code}
+                                </span>
+                                <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+                                  {v.discountType === "PERCENT" ? `-${v.discountValue}%` : `-${v.discountValue.toLocaleString()}đ`}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-slate-500 font-medium line-clamp-1 mt-0.5">
+                                {v.description}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-[9px] font-bold text-slate-400 uppercase">
+                                  Min: {v.minOrderValue.toLocaleString()}đ
+                                </span>
+                                {v.type === "SUPPLIER" && (
+                                  <span className="text-[9px] font-bold text-indigo-500 bg-indigo-50 px-1.5 rounded uppercase">
+                                    Cửa hàng
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {showVoucherDropdown && filteredVouchers.length === 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-3xl shadow-2xl border border-slate-100 z-[70] p-6 text-center animate-in fade-in slide-in-from-top-2 duration-300">
+                      <p className="text-xs font-bold text-slate-400 uppercase">
+                        Không có voucher nào đủ điều kiện cho đơn này
+                      </p>
+                    </div>
+                  )}
                 </div>
                 <button
-                  onClick={handleApplyVoucher}
+                  onClick={() => handleApplyVoucher()}
                   disabled={isApplyingVoucher || !voucherCode}
                   className="bg-slate-900 text-white px-6 rounded-[20px] text-xs font-black uppercase hover:bg-indigo-600 disabled:opacity-30 transition-all shadow-lg shadow-slate-200"
                 >

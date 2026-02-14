@@ -109,38 +109,40 @@ const checkAdmin = (req, res, next) => {
 };
 
 const checkSupplier = (req, res, next) => {
+    console.log("Checking supplier role for user:", req.user);
     if (req.user && req.user.role === 'SUPPLIER') {
         next();
     } else {
         return res.status(403).json({
             EC: -1,
             data: '',
-            EM: 'Only suppliers can perform this action'
+            EM: `Only suppliers can perform this action. Your role: ${req.user?.role}`,
+            user: req.user
         });
     }
 };
 const requireEkyc = async (req, res, next) => {
     try {
-      const userId = req.user.id;
-  
-      const user = await User.findById(userId).select("isVerifiedEkyc");
-      if (!user) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-  
-      if (!user.isVerifiedEkyc) {
-        return res.status(403).json({
-          message: "Vui lòng hoàn tất xác thực eKYC trước khi thực hiện giao dịch tài chính.",
-          code: "EKYC_REQUIRED",
-          redirect: "/profile"
-        });
-      }
-  
-      next();
+        const userId = req.user.id;
+
+        const user = await User.findById(userId).select("isVerifiedEkyc");
+        if (!user) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        if (!user.isVerifiedEkyc) {
+            return res.status(403).json({
+                message: "Vui lòng hoàn tất xác thực eKYC trước khi thực hiện giao dịch tài chính.",
+                code: "EKYC_REQUIRED",
+                redirect: "/profile"
+            });
+        }
+
+        next();
     } catch (err) {
-      res.status(500).json({ message: "Lỗi server" });
+        res.status(500).json({ message: "Lỗi server" });
     }
-  };
+};
 module.exports = {
     createJWT,
     createRefreshToken,
