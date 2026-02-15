@@ -62,6 +62,7 @@ import RentalPolicyPage from "./pages/Policy/RentalPolicyPage";
 import AboutPage from "./pages/About/AboutPage";
 import FAQPage from "./pages/FAQ/FAQPage";
 import ContactPage from "./pages/Contact/ContactPage";
+import ChatWindowManager from "./components/Message Socket/MiniChat/ChatWindowManager";
 
 const ChatbotWrapper = () => {
   const location = useLocation();
