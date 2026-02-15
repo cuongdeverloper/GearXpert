@@ -8,6 +8,7 @@ export const getAllVouchers = () => {
   return axios.get("/api/vouchers");
 };
 
+// Admin APIs
 export const getVouchersForAdmin = () => {
   return axios.get("/api/vouchers/admin");
 };
@@ -22,4 +23,17 @@ export const updateVoucherByAdmin = (id, data) => {
 
 export const deleteVoucher = (id) => {
   return axios.delete(`/api/vouchers/${id}`);
+};
+
+// Supplier APIs
+export const getVouchersBySupplier = () => {
+  return axios.get("/api/vouchers/supplier");
+};
+
+export const createVoucherBySupplier = (data) => {
+  return axios.post("/api/vouchers/supplier", data);
+};
+
+export const updateVoucherStatusBySupplier = (id, status) => {
+  return axios.patch(`/api/vouchers/supplier/${id}/status`, { status });
 };

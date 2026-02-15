@@ -22,22 +22,29 @@ export default function Homepage() {
   const fetchDevices = useCallback(async () => {
     try {
       setLoading(true);
-      const params = {
+      const baseParams = {
         limit: 20,
         ...(selectedCategory && { category: selectedCategory }),
       };
-      const response = await getDevices(params);
-      const fetchedDevices = response.devices || [];
 
-      setDevices(fetchedDevices);
+      // Fetch popular devices for Trending/Featured
+      const popularResponse = await getDevices({ ...baseParams, sort: 'popular' });
+      const popularDevices = popularResponse.devices || [];
 
-      // Set trending device (first device)
-      if (fetchedDevices.length > 0) {
-        setTrendingDevice(fetchedDevices[0]);
+      // Fetch newest devices for New Arrivals
+      const newestResponse = await getDevices({ ...baseParams, sort: 'newest', limit: 8 });
+      const newestDevices = newestResponse.devices || [];
+
+      setDevices(popularDevices);
+
+      // Set trending device (first popular device)
+      if (popularDevices.length > 0) {
+        setTrendingDevice(popularDevices[0]);
       }
 
-      if (fetchedDevices.length > 0) {
-        setNewArrivals(fetchedDevices.slice(-3).reverse());
+      // Set new arrivals from the newest batch
+      if (newestDevices.length > 0) {
+        setNewArrivals(newestDevices);
       }
     } catch (error) {
       console.error("Error fetching devices:", error);

@@ -254,3 +254,108 @@ exports.updateVoucherByAdmin = async (req, res) => {
     });
   }
 };
+
+// --- SUPPLIER METHODS ---
+
+exports.getVouchersBySupplier = async (req, res) => {
+  try {
+    const supplierId = req.user.id;
+    const vouchers = await Voucher.find({ supplierId }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      vouchers
+    });
+  } catch (error) {
+    console.error("Get supplier vouchers error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi lấy danh sách voucher"
+    });
+  }
+};
+
+exports.createVoucherBySupplier = async (req, res) => {
+  try {
+    const supplierId = req.user.id;
+    const {
+      code,
+      description,
+      discountType,
+      discountValue,
+      minOrderValue,
+      maxDiscount,
+      usageLimit,
+      expiredAt
+    } = req.body;
+
+    const newVoucher = new Voucher({
+      code: code.toUpperCase(),
+      type: "SUPPLIER",
+      supplierId,
+      description,
+      discountType,
+      discountValue,
+      minOrderValue,
+      maxDiscount,
+      usageLimit,
+      expiredAt,
+      status: "ACTIVE"
+    });
+
+    await newVoucher.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Voucher đã được tạo thành công",
+      voucher: newVoucher
+    });
+  } catch (error) {
+    console.error("Create supplier voucher error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.code === 11000 ? "Mã voucher đã tồn tại" : "Lỗi server khi tạo voucher"
+    });
+  }
+};
+
+exports.updateVoucherStatusBySupplier = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const supplierId = req.user.id;
+
+    if (!["ACTIVE", "INACTIVE"].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Trạng thái không hợp lệ"
+      });
+    }
+
+    const voucher = await Voucher.findOneAndUpdate(
+      { _id: id, supplierId },
+      { status },
+      { new: true }
+    );
+
+    if (!voucher) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy voucher hoặc bạn không có quyền"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Đã ${status === "ACTIVE" ? "kích hoạt" : "tạm ngưng"} voucher thành công`,
+      voucher
+    });
+  } catch (error) {
+    console.error("Update voucher status error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi cập nhật trạng thái voucher"
+    });
+  }
+};
+
