@@ -5,11 +5,8 @@ import {
   Search,
   Filter,
   Eye,
-  DollarSign,
   CheckCircle2,
   Upload,
-  Clock,
-  AlertTriangle,
   MessageSquare,
   User,X
 } from "lucide-react";
@@ -112,11 +109,11 @@ export default function DamageTab() {
     setEvidenceFiles([]);
   };
 
-  const openClose = (report) => {
-    setSelectedReport(report);
-    setShowCloseModal(true);
-    setCloseNote("");
-  };
+  // const openClose = (report) => {
+  //   setSelectedReport(report);
+  //   setShowCloseModal(true);
+  //   setCloseNote("");
+  // };
 
   const openCancel = (report) => {
     setSelectedReport(report);

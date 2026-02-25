@@ -1,7 +1,6 @@
 // src/pages/staff/tabs/ContractsTab.jsx
 import React, { useState } from "react";
 import {
-  FileText,
   Search,
   Filter,
   Eye,
@@ -9,8 +8,8 @@ import {
   CheckCircle2,
   XCircle,
   Upload,
-  Printer,
-  AlertTriangle,X
+  Printer
+ ,X
 } from "lucide-react";
 
 const mockData = [

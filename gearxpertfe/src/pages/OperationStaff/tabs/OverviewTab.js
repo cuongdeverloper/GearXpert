@@ -1,6 +1,6 @@
 // src/pages/staff/tabs/OverviewTab.jsx
-import React, { useState, useEffect } from "react";
-import { Truck, PackageCheck, FileText, AlertTriangle, Wrench, ClipboardList, ArrowUpRight, Bell, Clock ,XCircle,Eye} from "lucide-react";
+import React, { useState } from "react";
+import { Truck, PackageCheck, FileText, AlertTriangle, Wrench, ArrowUpRight,XCircle,Eye} from "lucide-react";
 
 const mockStats = {
   pendingDelivery: 12,
@@ -22,8 +22,8 @@ const mockRecent = [
 ];
 
 export default function OverviewTab() {
-  const [stats, setStats] = useState(mockStats);
-  const [recent, setRecent] = useState(mockRecent);
+  const [stats] = useState(mockStats);
+  const [recent] = useState(mockRecent);
 
   return (
     <div className="space-y-8">

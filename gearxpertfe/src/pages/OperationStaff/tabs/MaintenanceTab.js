@@ -1,16 +1,12 @@
 // src/pages/staff/tabs/MaintenanceTab.jsx
 import React, { useState } from "react";
 import {
-  Wrench,
   Search,
   Filter,
   Eye,
   CheckCircle2,
   XCircle,
   Calendar,
-  Upload,
-  DollarSign,
-  AlertTriangle,
   Edit,
   Camera,X
 } from "lucide-react";

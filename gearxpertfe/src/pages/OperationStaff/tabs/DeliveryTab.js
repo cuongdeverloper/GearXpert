@@ -1,7 +1,6 @@
 // src/pages/staff/tabs/DeliveryTab.jsx
 import React, { useState } from "react";
 import {
-  Truck,
   Search,
   Filter,
   Eye,
@@ -9,7 +8,6 @@ import {
   XCircle,
   Clock,
   MapPin,
-  Camera,
   Upload,
   AlertTriangle,X
 } from "lucide-react";

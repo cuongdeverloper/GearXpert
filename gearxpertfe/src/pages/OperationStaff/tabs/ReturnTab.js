@@ -1,7 +1,6 @@
 // src/pages/staff/tabs/ReturnTab.jsx
 import React, { useState } from "react";
 import {
-  PackageCheck,
   Search,
   Filter,
   Eye,
@@ -9,10 +8,9 @@ import {
   XCircle,
   Clock,
   MapPin,
-  Camera,
   Upload,
   AlertTriangle,
-  DollarSign,X
+  X
 } from "lucide-react";
 
 const mockData = [
