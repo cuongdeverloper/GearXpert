@@ -66,8 +66,18 @@ const verifyIdentity = async (req, res) => {
         });
     }
 
-    console.log(`✅ Xác thực giấy tờ OK - FPT đọc số CCCD: ${idNumber}`);
-    console.log("🔍 Đang đối chiếu khuôn mặt bằng Face++...");
+    const existingUser = await User.findOne({
+        "identityInfo.cccdNumber": idNumber,
+        isVerifiedEkyc: true, 
+        _id: { $ne: req.user.id } 
+    });
+
+    if (existingUser) {
+        return res.status(400).json({
+            success: false,
+            message: "Căn cước công dân này đã được xác thực cho một tài khoản khác. Không thể đăng ký lại."
+        });
+    }
 
     const formData = new FormData();
     formData.append('api_key', FACEPP_API_KEY);
@@ -93,6 +103,7 @@ const verifyIdentity = async (req, res) => {
         updatedUser = await User.findByIdAndUpdate(userId, {
             $set: {
                 isVerifiedEkyc: true,
+                "identityInfo.cccdNumber": idNumber,
                 "identityInfo.cccdFrontImage": cccdFrontUrl,
                 "identityInfo.cccdBackImage": cccdBackUrl,
                 "identityInfo.faceMatchScore": confidence,
