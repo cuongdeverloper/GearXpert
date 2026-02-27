@@ -1,5 +1,5 @@
 // src/components/Header/Header.jsx
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -34,7 +34,7 @@ export default function Header() {
   const socketConnection = useSelector((state) => state.user.account.socketConnection);
 
   // Fetch notifications using api
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (!isAuthenticated) return;
     setLoadingNotifications(true);
     try {
@@ -49,14 +49,14 @@ export default function Header() {
     } finally {
       setLoadingNotifications(false);
     }
-  };
+  }, [isAuthenticated]);
 
   // Load notifications khi authenticated
   useEffect(() => {
     if (isAuthenticated) {
       fetchNotifications();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchNotifications]);
 
   // Socket realtime notification
   useEffect(() => {
