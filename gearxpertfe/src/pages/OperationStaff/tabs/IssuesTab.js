@@ -1,19 +1,14 @@
 // src/pages/staff/tabs/IssuesTab.jsx
 import React, { useState } from "react";
 import {
-  AlertTriangle,
   Search,
   Filter,
   Eye,
   CheckCircle2,
   XCircle,
   Upload,
-  Clock,
   MessageSquare,
-  DollarSign,
-  Truck,
-  RefreshCw,
-  Printer,X
+  X
 } from "lucide-react";
 
 const mockData = [
@@ -110,11 +105,11 @@ export default function IssuesTab() {
     setEvidenceFiles([]);
   };
 
-  const openClose = (issue) => {
-    setSelectedIssue(issue);
-    setShowCloseModal(true);
-    setCloseNote("");
-  };
+  // const openClose = (issue) => {
+  //   setSelectedIssue(issue);
+  //   setShowCloseModal(true);
+  //   setCloseNote("");
+  // };
 
   const openCancel = (issue) => {
     setSelectedIssue(issue);
