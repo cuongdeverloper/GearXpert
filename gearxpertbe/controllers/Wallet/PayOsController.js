@@ -1,8 +1,13 @@
-const { createHmac } = require('crypto'); // Dùng thư viện crypto có sẵn của Node.js
-const Wallet = require('../../models/Wallet');
-const WalletTransaction = require('../../models/WalletTransaction');
-const Payment = require('../../models/Payment');
-const Rental = require('../../models/Rental');
+const { createHmac } = require("crypto"); // Dùng thư viện crypto có sẵn của Node.js
+const Wallet = require("../../models/Wallet");
+const WalletTransaction = require("../../models/WalletTransaction");
+const Payment = require("../../models/Payment");
+const Rental = require("../../models/Rental");
+const RentalItem = require("../../models/RentalItem");
+const Device = require("../../models/Device");
+const Cart = require("../../models/Cart");
+const CartItem = require("../../models/CartItem");
+const Voucher = require("../../models/Voucher");
 
 /**
  * 🛠 CÁC HÀM HỖ TRỢ KIỂM TRA CHỮ KÝ (Theo tài liệu PayOS)
@@ -24,12 +29,12 @@ function convertObjToQueryStr(object) {
       if (value && Array.isArray(value)) {
         value = JSON.stringify(value.map((val) => sortObjDataByKey(val)));
       }
-      if ([null, undefined, 'undefined', 'null'].includes(value)) {
-        value = '';
+      if ([null, undefined, "undefined", "null"].includes(value)) {
+        value = "";
       }
       return `${key}=${value}`;
     })
-    .join('&');
+    .join("&");
 }
 
 /**
@@ -41,9 +46,9 @@ function isValidWebhookSignature(webhookBody, checksumKey) {
 
   const sortedDataByKey = sortObjDataByKey(data);
   const dataQueryStr = convertObjToQueryStr(sortedDataByKey);
-  const computedSignature = createHmac('sha256', checksumKey)
+  const computedSignature = createHmac("sha256", checksumKey)
     .update(dataQueryStr)
-    .digest('hex');
+    .digest("hex");
 
   return computedSignature === signature;
 }
@@ -56,46 +61,196 @@ exports.handleWebhook = async (req, res) => {
     const body = req.body;
     const checksumKey = process.env.PAYOS_CHECKSUM_KEY;
 
-    // 1. Kiểm tra Ping (Dành cho Dashboard PayOS)
-    if (!body || Object.keys(body).length === 0 || body.desc === 'test') {
-      return res.status(200).json({ success: true, message: "Webhook URL active" });
+    // Test webhook hoặc empty
+    if (!body || Object.keys(body).length === 0 || body.desc === "test") {
+      return res
+        .status(200)
+        .json({ success: true, message: "Webhook URL active" });
     }
 
-    // 2. Kiểm tra chữ ký thủ công (Tránh lỗi "not a function" của SDK)
-    const isVerified = isValidWebhookSignature(body, checksumKey);
-
-    if (!isVerified) {
-      console.error("[WEBHOOK] Chữ ký không hợp lệ!");
-      return res.status(200).json({ success: false, message: "Invalid Signature" });
+    if (!isValidWebhookSignature(body, checksumKey)) {
+      console.error("[WEBHOOK] Invalid signature");
+      return res
+        .status(200)
+        .json({ success: false, message: "Invalid Signature" });
     }
 
     const webhookData = body.data;
-
-    // 3. Chỉ xử lý khi trạng thái thanh toán là thành công
-    if (body.code !== "00" || webhookData.code !== "00") {
-       return res.status(200).json({ success: true, message: "Transaction not successful" });
-    }
-
     const orderCode = webhookData.orderCode;
 
-    /* ================= LUỒNG 1: RENTAL ================= */
-    const rental = await Rental.findOne({ orderCode });
-    if (rental && rental.paymentStatus !== 'PAID') {
-      rental.paymentStatus = 'PAID';
-      rental.status = 'APPROVED';
-      await rental.save();
-      console.log(`[WEBHOOK] Đơn thuê ${orderCode} thành công.`);
+    const rentals = await Rental.find({ orderCode });
+
+    // 1. Thanh toán THẤT BẠI hoặc HỦY → rollback stock (đã có sẵn), không đụng rentedQuantity
+    if (body.code !== "00" || webhookData.code !== "00") {
+      console.log(`[WEBHOOK] Đơn ${orderCode} thất bại/hủy`);
+
+      if (
+        rentals.length > 0 &&
+        rentals[0].paymentStatus === "UNPAID" &&
+        rentals[0].status !== "CANCELLED"
+      ) {
+        const session = await mongoose.startSession();
+        session.startTransaction();
+        try {
+          await Rental.updateMany(
+            { orderCode },
+            { status: "CANCELLED" },
+            { session }
+          );
+
+          for (const rental of rentals) {
+            const items = await RentalItem.find({
+              rentalId: rental._id,
+            }).session(session);
+            for (const item of items) {
+              const device = await Device.findByIdAndUpdate(
+                item.deviceId,
+                { $inc: { stockQuantity: item.quantity } },
+                { new: true, session }
+              );
+              if (device?.stockQuantity > 0 && device.status === "RENTED") {
+                await Device.updateOne(
+                  { _id: device._id },
+                  { status: "AVAILABLE" },
+                  { session }
+                );
+              }
+            }
+          }
+
+          await session.commitTransaction();
+          session.endSession();
+          return res
+            .status(200)
+            .json({ success: true, message: "Cancelled & stock restored" });
+        } catch (err) {
+          await session.abortTransaction();
+          session.endSession();
+          console.error("[WEBHOOK CANCEL ERROR]", err);
+          return res.status(500).json({ success: false });
+        }
+      }
       return res.status(200).json({ success: true });
     }
 
-    /* ================= LUỒNG 2: TOP-UP ================= */
+    // 2. THANH TOÁN THÀNH CÔNG (BANK) → tăng rentedQuantity + update status nếu cần
+    if (rentals.length > 0 && rentals[0].paymentStatus !== "PAID") {
+      const session = await mongoose.startSession();
+      session.startTransaction();
+
+      try {
+        const customerId = rentals[0].customerId;
+        const deviceIdsToClear = [];
+
+        // Update PAID
+        await Rental.updateMany(
+          { orderCode },
+          { paymentStatus: "PAID", status: "PENDING" },
+          { session }
+        );
+
+        // Thu thập deviceIds để clear cart + tăng rentedQuantity
+        for (const rental of rentals) {
+          const items = await RentalItem.find({ rentalId: rental._id }).session(
+            session
+          );
+          for (const item of items) {
+            deviceIdsToClear.push(item.deviceId.toString());
+
+            // TĂNG rentedQuantity khi thanh toán thành công
+            const device = await Device.findByIdAndUpdate(
+              item.deviceId,
+              { $inc: { rentedQuantity: item.quantity } },
+              { new: true, session }
+            );
+
+            // Nếu rentedQuantity đã bằng hoặc vượt stock → set status RENTED
+            if (device && device.rentedQuantity >= device.stockQuantity) {
+              await Device.updateOne(
+                { _id: device._id },
+                { status: "RENTED" },
+                { session }
+              );
+            }
+          }
+        }
+
+        // Clear cart (chỉ các món đã thanh toán)
+        const cart = await Cart.findOne({
+          customerId,
+          cartType: "NORMAL",
+        }).session(session);
+        if (cart && cart.items.length > 0) {
+          const cartItems = await CartItem.find({
+            _id: { $in: cart.items },
+          }).session(session);
+          const toDelete = cartItems
+            .filter((ci) => deviceIdsToClear.includes(ci.deviceId.toString()))
+            .map((ci) => ci._id);
+
+          if (toDelete.length > 0) {
+            await CartItem.deleteMany({ _id: { $in: toDelete } }).session(
+              session
+            );
+            cart.items = cart.items.filter(
+              (id) => !toDelete.some((d) => d.equals(id))
+            );
+            await cart.save({ session });
+          }
+        }
+
+        // Trừ voucher (chỉ 1 lần cho toàn bộ order)
+        let voucherUsed = false;
+        if (rentals[0].voucherCode) {
+          const updated = await Voucher.updateOne(
+            {
+              code: rentals[0].voucherCode,
+              status: "ACTIVE",
+            },
+            { $inc: { usedCount: 1 } },
+            { session }
+          );
+          voucherUsed = updated.modifiedCount === 1;
+        }
+
+        // Gửi thông báo cho supplier
+        for (const rental of rentals) {
+          await sendRentalNotification(
+            rental,
+            "SUPPLIER",
+            "Đơn thuê đã thanh toán thành công",
+            `Khách hàng đã thanh toán ${rental.totalAmount.toLocaleString(
+              "vi-VN"
+            )}₫ qua ngân hàng`,
+            "/payments" // hoặc tùy chỉnh link
+          );
+        }
+
+        await session.commitTransaction();
+        session.endSession();
+
+        console.log(
+          `[WEBHOOK SUCCESS] Đơn ${orderCode} - Voucher used: ${voucherUsed}`
+        );
+        return res.status(200).json({ success: true });
+      } catch (err) {
+        await session.abortTransaction();
+        session.endSession();
+        console.error("[WEBHOOK RENTAL ERROR]", err);
+        return res.status(500).json({ success: false });
+      }
+    }
+
+    // 3. TOP-UP WALLET (không liên quan rentedQuantity)
     const payment = await Payment.findOne({ orderCode });
-    if (payment && payment.status !== 'PAID') {
-      payment.status = 'PAID';
+    if (payment && payment.status !== "PAID") {
+      // ... giữ nguyên phần top-up
+      payment.status = "PAID";
       await payment.save();
 
       let wallet = await Wallet.findOne({ user: payment.user });
-      if (!wallet) wallet = await Wallet.create({ user: payment.user, balance: 0 });
+      if (!wallet)
+        wallet = await Wallet.create({ user: payment.user, balance: 0 });
 
       const before = wallet.balance;
       wallet.balance += payment.amount;
@@ -103,22 +258,22 @@ exports.handleWebhook = async (req, res) => {
 
       await WalletTransaction.create({
         wallet: wallet._id,
-        type: 'TOP_UP',
+        type: "TOP_UP",
         amount: payment.amount,
         balanceBefore: before,
         balanceAfter: wallet.balance,
-        status: 'SUCCESS',
-        description: `Nạp tiền PayOS (Mã: ${orderCode})`
+        status: "SUCCESS",
+        description: `Nạp tiền PayOS (Mã: ${orderCode})`,
       });
 
-      console.log(`[WEBHOOK] Ví người dùng ${payment.user} đã được cộng tiền.`);
+      console.log(`[WEBHOOK] Top-up thành công cho user ${payment.user}`);
       return res.status(200).json({ success: true });
     }
 
+    // Idempotent: đã xử lý trước đó
     return res.status(200).json({ success: true });
-
   } catch (err) {
-    console.error('WEBHOOK ERROR:', err.message);
+    console.error("WEBHOOK GLOBAL ERROR:", err.message);
     return res.status(200).json({ success: false });
   }
 };
@@ -138,11 +293,13 @@ exports.createRentalPaymentLink = async (newRental) => {
       description: `GXP ${String(newRental._id).slice(-6)}`.toUpperCase(),
       returnUrl: `${process.env.FRONTEND_URL}/payment/success?rentalId=${newRental._id}`,
       cancelUrl: `${process.env.FRONTEND_URL}/payment/cancel?rentalId=${newRental._id}`,
-      items: [{
-        name: "Thuê thiết bị GearXpert",
-        quantity: 1,
-        price: newRental.totalAmount
-      }]
+      items: [
+        {
+          name: "Thuê thiết bị GearXpert",
+          quantity: 1,
+          price: newRental.totalAmount,
+        },
+      ],
     };
 
     // Gọi SDK PayOS v2

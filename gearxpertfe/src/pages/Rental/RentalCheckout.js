@@ -19,7 +19,10 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 import { getCart, removeCartItem } from "../../service/ApiService/CartApi";
-import { validateVoucher, getAllVouchers } from "../../service/ApiService/VoucherApi.js";
+import {
+  validateVoucher,
+  getAllVouchers,
+} from "../../service/ApiService/VoucherApi.js";
 import { checkout } from "../../service/ApiService/RentalApi";
 import { getMyWallet } from "../../service/ApiService/WalletApi";
 
@@ -52,9 +55,9 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(lat1 * (Math.PI / 180)) *
-    Math.cos(lat2 * (Math.PI / 180)) *
-    Math.sin(dLon / 2) *
-    Math.sin(dLon / 2);
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };
@@ -242,38 +245,46 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleApplyVoucher = useCallback(async (codeToApply) => {
-    const code = codeToApply || voucherCode;
-    if (!code.trim()) return toast.warning("Vui lòng nhập mã voucher");
+  const handleApplyVoucher = useCallback(
+    async (codeToApply) => {
+      const code = codeToApply || voucherCode;
+      if (!code.trim()) return toast.warning("Vui lòng nhập mã voucher");
 
-    try {
-      setIsApplyingVoucher(true);
-      const res = await validateVoucher({
-        code: code.trim().toUpperCase(),
-        cartType: CART_TYPE,
-      });
+      try {
+        setIsApplyingVoucher(true);
+        const res = await validateVoucher({
+          code: code.trim().toUpperCase(),
+          cartType: CART_TYPE,
+        });
 
-      const voucherData = res;
+        const voucherData = res;
 
-      setAppliedVoucher({
-        code: voucherData.code,
-        discount: voucherData.discount,
-        type: voucherData.type,
-        supplierId: voucherData.supplierId,
-      });
-      setVoucherCode(voucherData.code);
+        setAppliedVoucher({
+          code: voucherData.code,
+          discount: voucherData.discount,
+          type: voucherData.type,
+          supplierId: voucherData.supplierId,
+        });
+        setVoucherCode(voucherData.code);
 
-      toast.success(
-        `Đã tự động áp dụng mã ${voucherData.code}! Giảm ${voucherData.discount.toLocaleString()}đ`
-      );
-    } catch (err) {
-      const errMsg = err.response?.data?.message || err.response?.message || "Mã voucher không hợp lệ";
-      if (!codeToApply) toast.error(errMsg);
-      setAppliedVoucher(null);
-    } finally {
-      setIsApplyingVoucher(false);
-    }
-  }, [CART_TYPE, voucherCode]);
+        toast.success(
+          `Đã tự động áp dụng mã ${
+            voucherData.code
+          }! Giảm ${voucherData.discount.toLocaleString()}đ`
+        );
+      } catch (err) {
+        const errMsg =
+          err.response?.data?.message ||
+          err.response?.message ||
+          "Mã voucher không hợp lệ";
+        if (!codeToApply) toast.error(errMsg);
+        setAppliedVoucher(null);
+      } finally {
+        setIsApplyingVoucher(false);
+      }
+    },
+    [CART_TYPE, voucherCode]
+  );
 
   // --- GROUP BY SUPPLIER FOR DISPLAY (đẹp hơn) ---
   // --- GROUP BY SUPPLIER FOR DISPLAY ---
@@ -315,13 +326,20 @@ export default function CheckoutPage() {
     0
   );
 
+  // Thêm tính tổng tiền cọc (depositAmount)
+  const totalDeposit = cart.reduce(
+    (sum, item) => sum + (item.deviceId?.depositAmount || 0) * item.quantity,
+    0
+  );
   const filteredVouchers = useMemo(() => {
-    return availableVouchers.filter(v => {
-      if (v.type === 'GLOBAL') {
+    return availableVouchers.filter((v) => {
+      if (v.type === "GLOBAL") {
         return subtotal >= v.minOrderValue;
       }
-      if (v.type === 'SUPPLIER') {
-        const group = groupedBySupplier.find(g => g.supplierId === v.supplierId);
+      if (v.type === "SUPPLIER") {
+        const group = groupedBySupplier.find(
+          (g) => g.supplierId === v.supplierId
+        );
         if (!group) return false;
         return group.subtotal >= v.minOrderValue;
       }
@@ -333,22 +351,31 @@ export default function CheckoutPage() {
 
   // AUTO APPLY BEST VOUCHER
   useEffect(() => {
-    if (!loading && !isLoadingVouchers && cart.length > 0 && availableVouchers.length > 0 && !appliedVoucher && !hasAutoApplied) {
+    if (
+      !loading &&
+      !isLoadingVouchers &&
+      cart.length > 0 &&
+      availableVouchers.length > 0 &&
+      !appliedVoucher &&
+      !hasAutoApplied
+    ) {
       // Find best voucher
       let bestVoucher = null;
       let maxDiscountVal = 0;
 
-      filteredVouchers.forEach(v => {
+      filteredVouchers.forEach((v) => {
         let applicableTotal = 0;
-        if (v.type === 'GLOBAL') {
+        if (v.type === "GLOBAL") {
           applicableTotal = subtotal;
         } else {
-          const group = groupedBySupplier.find(g => g.supplierId === v.supplierId);
+          const group = groupedBySupplier.find(
+            (g) => g.supplierId === v.supplierId
+          );
           applicableTotal = group ? group.subtotal : 0;
         }
 
         let discount = 0;
-        if (v.discountType === 'PERCENT') {
+        if (v.discountType === "PERCENT") {
           discount = (applicableTotal * v.discountValue) / 100;
           if (v.maxDiscount) discount = Math.min(discount, v.maxDiscount);
         } else {
@@ -366,10 +393,25 @@ export default function CheckoutPage() {
         handleApplyVoucher(bestVoucher.code);
       }
     }
-  }, [loading, isLoadingVouchers, cart.length, availableVouchers.length, appliedVoucher, filteredVouchers, subtotal, groupedBySupplier, hasAutoApplied, handleApplyVoucher]);
+  }, [
+    loading,
+    isLoadingVouchers,
+    cart.length,
+    availableVouchers.length,
+    appliedVoucher,
+    filteredVouchers,
+    subtotal,
+    groupedBySupplier,
+    hasAutoApplied,
+    handleApplyVoucher,
+  ]);
   // Phí ship: nếu nhận tại trường thì 0, nếu không thì theo km
   const total =
-    subtotal + deliveryFee + insuranceFee - (appliedVoucher?.discount || 0);
+    subtotal +
+    totalDeposit +
+    deliveryFee +
+    insuranceFee -
+    (appliedVoucher?.discount || 0);
 
   const handleCheckout = async () => {
     if (!address.fullAddress || !phoneNumber)
@@ -416,7 +458,7 @@ export default function CheckoutPage() {
       if (err.response?.status === 403 && errData?.code === "EKYC_REQUIRED") {
         toast.error(
           errData.message ||
-          "Vui lòng hoàn tất xác thực eKYC trước khi thanh toán",
+            "Vui lòng hoàn tất xác thực eKYC trước khi thanh toán",
           { autoClose: false }
         );
         // Tự động redirect sau 3 giây hoặc có nút bấm
@@ -488,10 +530,11 @@ export default function CheckoutPage() {
               <button
                 onClick={fillDefaultUserInfo}
                 disabled={!account?.username}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm ${account?.username
-                  ? "bg-indigo-600 text-white hover:bg-indigo-700"
-                  : "bg-slate-200 text-slate-400 cursor-not-allowed opacity-70"
-                  }`}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm ${
+                  account?.username
+                    ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                    : "bg-slate-200 text-slate-400 cursor-not-allowed opacity-70"
+                }`}
               >
                 <User size={18} />
                 Sử dụng thông tin mặc định
@@ -649,10 +692,11 @@ export default function CheckoutPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <label
-                className={`relative flex items-center gap-4 p-6 rounded-3xl border-2 transition-all cursor-pointer group ${selectedPayment === "BANK"
-                  ? "border-indigo-600 bg-indigo-50/50"
-                  : "border-slate-100 bg-slate-50 hover:border-slate-200"
-                  }`}
+                className={`relative flex items-center gap-4 p-6 rounded-3xl border-2 transition-all cursor-pointer group ${
+                  selectedPayment === "BANK"
+                    ? "border-indigo-600 bg-indigo-50/50"
+                    : "border-slate-100 bg-slate-50 hover:border-slate-200"
+                }`}
               >
                 <input
                   type="radio"
@@ -661,10 +705,11 @@ export default function CheckoutPage() {
                   onChange={() => setSelectedPayment("BANK")}
                 />
                 <div
-                  className={`p-3 rounded-2xl transition-all ${selectedPayment === "BANK"
-                    ? "bg-indigo-600 text-white"
-                    : "bg-white text-slate-400 group-hover:text-slate-600"
-                    }`}
+                  className={`p-3 rounded-2xl transition-all ${
+                    selectedPayment === "BANK"
+                      ? "bg-indigo-600 text-white"
+                      : "bg-white text-slate-400 group-hover:text-slate-600"
+                  }`}
                 >
                   <CreditCard size={24} />
                 </div>
@@ -682,10 +727,11 @@ export default function CheckoutPage() {
               </label>
 
               <label
-                className={`relative flex items-center gap-4 p-6 rounded-3xl border-2 transition-all cursor-pointer group ${selectedPayment === "WALLET"
-                  ? "border-indigo-600 bg-indigo-50/50"
-                  : "border-slate-100 bg-slate-50 hover:border-slate-200"
-                  }`}
+                className={`relative flex items-center gap-4 p-6 rounded-3xl border-2 transition-all cursor-pointer group ${
+                  selectedPayment === "WALLET"
+                    ? "border-indigo-600 bg-indigo-50/50"
+                    : "border-slate-100 bg-slate-50 hover:border-slate-200"
+                }`}
               >
                 <input
                   type="radio"
@@ -694,10 +740,11 @@ export default function CheckoutPage() {
                   onChange={() => setSelectedPayment("WALLET")}
                 />
                 <div
-                  className={`p-3 rounded-2xl transition-all ${selectedPayment === "WALLET"
-                    ? "bg-indigo-600 text-white"
-                    : "bg-white text-slate-400 group-hover:text-slate-600"
-                    }`}
+                  className={`p-3 rounded-2xl transition-all ${
+                    selectedPayment === "WALLET"
+                      ? "bg-indigo-600 text-white"
+                      : "bg-white text-slate-400 group-hover:text-slate-600"
+                  }`}
                 >
                   <Wallet size={24} />
                 </div>
@@ -707,10 +754,11 @@ export default function CheckoutPage() {
                       Ví GearXpert
                     </p>
                     <span
-                      className={`text-[10px] font-black px-2 py-0.5 rounded-md ${wallet?.balance >= total
-                        ? "bg-emerald-100 text-emerald-600"
-                        : "bg-red-100 text-red-600"
-                        }`}
+                      className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
+                        wallet?.balance >= total
+                          ? "bg-emerald-100 text-emerald-600"
+                          : "bg-red-100 text-red-600"
+                      }`}
                     >
                       {wallet?.balance?.toLocaleString() || 0}đ
                     </span>
@@ -837,6 +885,12 @@ export default function CheckoutPage() {
                 </span>
               </div>
               <div className="flex justify-between text-sm font-bold text-slate-400 uppercase tracking-tighter">
+                <span>Tiền cọc (hoàn lại sau)</span>
+                <span className="text-slate-600">
+                  {totalDeposit.toLocaleString()}đ
+                </span>
+              </div>
+              <div className="flex justify-between text-sm font-bold text-slate-400 uppercase tracking-tighter">
                 <span className="flex flex-col">
                   Phí vận chuyển
                   {distance > 0 && (
@@ -881,7 +935,9 @@ export default function CheckoutPage() {
                     value={voucherCode}
                     onChange={(e) => setVoucherCode(e.target.value)}
                     onFocus={() => setShowVoucherDropdown(true)}
-                    onBlur={() => setTimeout(() => setShowVoucherDropdown(false), 200)}
+                    onBlur={() =>
+                      setTimeout(() => setShowVoucherDropdown(false), 200)
+                    }
                   />
 
                   {/* VOUCHER DROPDOWN */}
@@ -914,7 +970,9 @@ export default function CheckoutPage() {
                                   {v.code}
                                 </span>
                                 <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
-                                  {v.discountType === "PERCENT" ? `-${v.discountValue}%` : `-${v.discountValue.toLocaleString()}đ`}
+                                  {v.discountType === "PERCENT"
+                                    ? `-${v.discountValue}%`
+                                    : `-${v.discountValue.toLocaleString()}đ`}
                                 </span>
                               </div>
                               <p className="text-[10px] text-slate-500 font-medium line-clamp-1 mt-0.5">

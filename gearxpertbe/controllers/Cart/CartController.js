@@ -1,6 +1,6 @@
-const Cart = require('../../models/Cart');
-const CartItem = require('../../models/CartItem');
-const Device = require('../../models/Device');
+const Cart = require("../../models/Cart");
+const CartItem = require("../../models/CartItem");
+const Device = require("../../models/Device");
 
 const DAY = 1000 * 60 * 60 * 24;
 
@@ -15,21 +15,21 @@ const DAY = 1000 * 60 * 60 * 24;
  */
 exports.getCart = async (req, res) => {
   const customerId = req.user.id;
-  const cartType = req.query.type || 'NORMAL';
+  const cartType = req.query.type || "NORMAL";
 
   const cart = await Cart.findOne({
     customerId,
-    cartType
+    cartType,
   }).populate({
-    path: 'items',
+    path: "items",
     populate: {
-      path: 'deviceId',
-      select: 'supplierId name rentPrice depositAmount stockQuantity images',
+      path: "deviceId",
+      select: "supplierId name rentPrice depositAmount stockQuantity images",
       populate: {
-        path: 'supplierId',           // ← Populate level 2: từ Device → User
-        select: 'fullName avatar'     // lấy fullName + avatar nếu cần
-      }
-    }
+        path: "supplierId", // ← Populate level 2: từ Device → User
+        select: "fullName avatar", // lấy fullName + avatar nếu cần
+      },
+    },
   });
 
   res.json(cart || { items: [] });
@@ -39,13 +39,13 @@ exports.getCart = async (req, res) => {
  * POST /cart/items (NORMAL)
  */
 exports.addToCart = async (req, res) => {
-  console.log('USER:', req.user);
+  console.log("USER:", req.user);
   const customerId = req.user.id;
   const { deviceId, quantity, rentalStartDate, rentalEndDate } = req.body;
 
   const device = await Device.findById(deviceId);
-  if (!device || device.status !== 'AVAILABLE') {
-    return res.status(400).json({ message: 'Device not available' });
+  if (!device || device.status !== "AVAILABLE") {
+    return res.status(400).json({ message: "Device not available" });
   }
 
   const start = new Date(rentalStartDate);
@@ -54,11 +54,11 @@ exports.addToCart = async (req, res) => {
 
   let cart = await Cart.findOne({
     customerId,
-    cartType: 'NORMAL'
+    cartType: "NORMAL",
   });
 
   if (!cart) {
-    cart = await Cart.create({ customerId, cartType: 'NORMAL' });
+    cart = await Cart.create({ customerId, cartType: "NORMAL" });
   }
 
   const item = await CartItem.create({
@@ -67,13 +67,13 @@ exports.addToCart = async (req, res) => {
     quantity,
     rentalStartDate: start,
     rentalEndDate: end,
-    totalDays
+    totalDays,
   });
 
   cart.items.push(item._id);
   await cart.save();
 
-  res.status(201).json({ message: 'Added to cart' });
+  res.status(201).json({ message: "Added to cart" });
 };
 
 /**
@@ -84,31 +84,61 @@ exports.addInstantToCart = async (req, res) => {
     const customerId = req.user.id;
     const { deviceId, quantity, rentalStartDate, rentalEndDate } = req.body;
 
+    // Log request để debug
+    console.log("[addInstantToCart] Request body:", req.body);
+
     // 1. Dọn dẹp giỏ INSTANT cũ
-    const oldCart = await Cart.findOne({ customerId, cartType: 'INSTANT' });
+    const oldCart = await Cart.findOne({ customerId, cartType: "INSTANT" });
     if (oldCart) {
       await CartItem.deleteMany({ cartId: oldCart._id });
       await Cart.deleteOne({ _id: oldCart._id });
-      console.log('[addInstantToCart] Cleared old INSTANT cart:', oldCart._id);
+      console.log("[addInstantToCart] Cleared old INSTANT cart:", oldCart._id);
     }
 
-    // 2. Kiểm tra device
+    // 2. Kiểm tra device (PHẢI QUERY TRƯỚC)
     const device = await Device.findById(deviceId);
-    if (!device || device.status !== 'AVAILABLE') {
-      return res.status(400).json({ message: 'Thiết bị không sẵn sàng' });
+    if (!device) {
+      console.error("[addInstantToCart] Device not found:", deviceId);
+      return res.status(400).json({ message: "Thiết bị không tồn tại" });
+    }
+
+    // Kiểm tra số lượng khả dụng (dùng virtual availableQuantity)
+    if (device.availableQuantity < quantity) {
+      console.warn("[addInstantToCart] Not enough available quantity", {
+        deviceId,
+        requested: quantity,
+        available: device.availableQuantity,
+      });
+      return res.status(400).json({
+        message: `Chỉ còn ${device.availableQuantity} thiết bị khả dụng để thuê`,
+      });
+    }
+
+    // Optional: Nếu rented >= stock → set status RENTED (nếu cần nhất quán)
+    if (
+      device.rentedQuantity >= device.stockQuantity &&
+      device.status !== "RENTED"
+    ) {
+      device.status = "RENTED";
+      await device.save();
     }
 
     // 3. Tính totalDays
     const start = new Date(rentalStartDate);
     const end = new Date(rentalEndDate);
     if (end <= start) {
-      return res.status(400).json({ message: 'Ngày kết thúc phải sau ngày bắt đầu' });
+      return res
+        .status(400)
+        .json({ message: "Ngày kết thúc phải sau ngày bắt đầu" });
     }
-    const totalDays = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
+    const totalDays = Math.max(
+      1,
+      Math.ceil((end - start) / (1000 * 60 * 60 * 24))
+    );
 
     // 4. Tạo cart mới
-    const cart = await Cart.create({ customerId, cartType: 'INSTANT' });
-    console.log('[addInstantToCart] Created new INSTANT cart:', cart._id);
+    const cart = await Cart.create({ customerId, cartType: "INSTANT" });
+    console.log("[addInstantToCart] Created new INSTANT cart:", cart._id);
 
     // 5. Tạo CartItem
     const item = await CartItem.create({
@@ -117,29 +147,37 @@ exports.addInstantToCart = async (req, res) => {
       quantity,
       rentalStartDate: start,
       rentalEndDate: end,
-      totalDays
+      totalDays,
     });
-    console.log('[addInstantToCart] Created CartItem:', item._id);
+    console.log("[addInstantToCart] Created CartItem:", item._id);
 
     // 6. PUSH item vào cart
     cart.items.push(item._id);
     await cart.save();
-    console.log('[addInstantToCart] Updated cart items:', cart.items);
+    console.log("[addInstantToCart] Updated cart items:", cart.items);
 
-    // 7. Trả về cart đầy đủ (để frontend kiểm tra)
+    // 7. Trả về cart đầy đủ (populate để frontend dùng)
     const populatedCart = await Cart.findById(cart._id).populate({
-      path: 'items',
-      populate: { path: 'deviceId', select: 'name rentPrice' }
+      path: "items",
+      populate: {
+        path: "deviceId",
+        select:
+          "name rentPrice images stockQuantity rentedQuantity availableQuantity",
+      },
     });
 
     res.status(201).json({
       success: true,
-      message: 'Đã tạo giỏ INSTANT và thêm thiết bị',
-      cart: populatedCart
+      message: "Đã tạo giỏ INSTANT và thêm thiết bị",
+      cart: populatedCart,
     });
   } catch (err) {
-    console.error('[addInstantToCart] Error:', err);
-    res.status(500).json({ message: 'Lỗi server khi tạo giỏ INSTANT' });
+    console.error("[addInstantToCart] Error:", {
+      message: err.message,
+      stack: err.stack,
+      body: req.body,
+    });
+    res.status(500).json({ message: "Lỗi server khi tạo giỏ INSTANT" });
   }
 };
 /**
@@ -150,20 +188,20 @@ exports.removeCartItem = async (req, res) => {
   const { cartItemId } = req.params;
 
   const item = await CartItem.findById(cartItemId);
-  if (!item) return res.status(404).json({ message: 'Item not found' });
+  if (!item) return res.status(404).json({ message: "Item not found" });
 
   const cart = await Cart.findOne({
     _id: item.cartId,
-    customerId
+    customerId,
   });
 
-  if (!cart) return res.status(403).json({ message: 'Access denied' });
+  if (!cart) return res.status(403).json({ message: "Access denied" });
 
   await CartItem.deleteOne({ _id: cartItemId });
   cart.items.pull(cartItemId);
   await cart.save();
 
-  res.json({ message: 'Item removed' });
+  res.json({ message: "Item removed" });
 };
 
 /**
@@ -171,13 +209,13 @@ exports.removeCartItem = async (req, res) => {
  */
 exports.clearCart = async (req, res) => {
   const customerId = req.user._id;
-  const cartType = req.query.type || 'NORMAL';
+  const cartType = req.query.type || "NORMAL";
 
   const cart = await Cart.findOne({ customerId, cartType });
-  if (!cart) return res.json({ message: 'Cart already empty' });
+  if (!cart) return res.json({ message: "Cart already empty" });
 
   await CartItem.deleteMany({ cartId: cart._id });
   await Cart.deleteOne({ _id: cart._id });
 
-  res.json({ message: 'Cart cleared' });
+  res.json({ message: "Cart cleared" });
 };
