@@ -448,7 +448,7 @@ export default function MyRentals() {
   // };
 
   const filteredAndSortedRentals = useMemo(() => {
-    let result = [...rentals];
+    let result = rentals.filter((r) => r.paymentStatus === "PAID");
   
     // Lọc theo tab
     if (activeTab !== "ALL") {

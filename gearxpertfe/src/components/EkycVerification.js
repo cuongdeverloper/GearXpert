@@ -89,13 +89,21 @@ const EkycVerification = ({ isModal = false, onClose, onSuccess }) => {
 
         } catch (error) {
             console.error("Lỗi upload:", error);
+
             if (error.response) {
-                setStatus(`❌ Lỗi Server: ${error.response.data.message || "Xử lý thất bại"}`);
+                setResult({
+                    success: false,
+                    message: error.response.data.message || "Dữ liệu không hợp lệ. Vui lòng kiểm tra lại CCCD."
+                });
             } else {
-                setStatus("❌ Lỗi kết nối: Mạng yếu hoặc Server không phản hồi.");
+                setResult({
+                    success: false,
+                    message: "Lỗi kết nối: Mạng yếu hoặc Server không phản hồi."
+                });
             }
         } finally {
             setIsLoading(false);
+            setIsCaptured(false);
         }
     }, [isLoading, frontFile, backFile]);
 
@@ -217,7 +225,14 @@ const EkycVerification = ({ isModal = false, onClose, onSuccess }) => {
                         <h2 className="text-3xl font-bold text-slate-900 mb-2 font-display">Xác thực thất bại</h2>
                         <p className="text-slate-600 mb-8 max-w-sm mx-auto">{result.message || "Đã có lỗi xảy ra trong quá trình xác thực. Vui lòng thử lại."}</p>
                         <button
-                            onClick={() => setResult(null)}
+                            onClick={() => {
+                                setResult(null);
+                                setFrontFile(null);
+                                setPreviewFront(null);
+                                setBackFile(null);
+                                setPreviewBack(null);
+                                setStatus("Vui lòng nhìn thẳng và QUAY TỪ TỪ SANG TRÁI");
+                            }}
                             className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-lg hover:bg-slate-800 hover:scale-[1.02] transition-all"
                         >
                             Thử lại ngay
