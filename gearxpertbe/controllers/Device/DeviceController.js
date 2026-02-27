@@ -24,7 +24,7 @@ exports.createDevice = async (req, res) => {
     } = req.body;
 
     // Parse rentPrice if string
-    if (typeof rentPrice === 'string') {
+    if (typeof rentPrice === "string") {
       try {
         rentPrice = JSON.parse(rentPrice);
       } catch (e) {
@@ -32,19 +32,19 @@ exports.createDevice = async (req, res) => {
       }
     }
     // Parse location if string
-    if (typeof location === 'string') {
+    if (typeof location === "string") {
       try {
         location = JSON.parse(location);
       } catch (e) {
-        location = { warehouse: '', city: '' };
+        location = { warehouse: "", city: "" };
       }
     }
     // Parse stockQuantity
-    if (typeof stockQuantity === 'string') {
+    if (typeof stockQuantity === "string") {
       stockQuantity = parseInt(stockQuantity) || 1;
     }
     // Parse specs if provided
-    if (typeof specs === 'string') {
+    if (typeof specs === "string") {
       try {
         specs = JSON.parse(specs);
       } catch (e) {
@@ -52,15 +52,27 @@ exports.createDevice = async (req, res) => {
       }
     }
 
-    const allowedStatuses = ['AVAILABLE', 'RENTED', 'MAINTENANCE', 'BROKEN', 'STOPPED'];
-    const normalizedStatus = allowedStatuses.includes(status) ? status : 'AVAILABLE';
+    const allowedStatuses = [
+      "AVAILABLE",
+      "RENTED",
+      "MAINTENANCE",
+      "BROKEN",
+      "STOPPED",
+    ];
+    const normalizedStatus = allowedStatuses.includes(status)
+      ? status
+      : "AVAILABLE";
 
     // Validate required fields
     if (!name || !description || !category || !rentPrice || !depositAmount) {
       return res.status(400).json({ message: "Missing required fields" });
     }
     if (!rentPrice.perDay || rentPrice.perDay <= 0) {
-      return res.status(400).json({ message: "Invalid rentPrice - perDay is required and must be > 0" });
+      return res
+        .status(400)
+        .json({
+          message: "Invalid rentPrice - perDay is required and must be > 0",
+        });
     }
     if (depositAmount <= 0) {
       return res.status(400).json({ message: "depositAmount must be > 0" });
@@ -69,7 +81,7 @@ exports.createDevice = async (req, res) => {
     // Xử lý images upload từ req.files (Cloudinary)
     let images = [];
     if (req.files && req.files.length > 0) {
-      images = req.files.map(file => file.path);
+      images = req.files.map((file) => file.path);
     }
 
     // Create new device
@@ -107,7 +119,14 @@ exports.createDevice = async (req, res) => {
  */
 exports.getDevices = async (req, res) => {
   try {
-    const { category, status, includeAll, limit = 12, page = 1, sort = "popular" } = req.query;
+    const {
+      category,
+      status,
+      includeAll,
+      limit = 12,
+      page = 1,
+      sort = "popular",
+    } = req.query;
 
     const query = {
       isAddon: false,
@@ -117,30 +136,46 @@ exports.getDevices = async (req, res) => {
       query.category = category;
     }
 
-    // Add status filter if provided, otherwise default to AVAILABLE
+    // Chỉ lấy thiết bị còn hàng (available >= 1)
+    // Không dùng status = AVAILABLE nữa, mà dùng rentedQuantity < stockQuantity
+    query.$expr = { $gt: ["$stockQuantity", "$rentedQuantity"] };
+
+    // Nếu người dùng muốn xem cả thiết bị hết hàng (admin/debug)
+    if (includeAll === "true") {
+      delete query.$expr;
+    }
+
+    // Nếu vẫn muốn lọc status (ví dụ chỉ AVAILABLE hoặc MAINTENANCE)
     if (status) {
       query.status = status;
-    } else if (!includeAll || includeAll === "false") {
-      query.status = "AVAILABLE";
     }
 
     let sortQuery = { ratingAvg: -1, reviewCount: -1 };
     if (sort === "newest") {
       sortQuery = { createdAt: -1 };
+    } else if (sort === "priceAsc") {
+      sortQuery = { "rentPrice.perDay": 1 };
+    } else if (sort === "priceDesc") {
+      sortQuery = { "rentPrice.perDay": -1 };
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const devicesRaw = await Device.find(query)
-      .select("name description rentPrice ratingAvg reviewCount location images category status stockQuantity depositAmount supplierId createdAt")
+      .select(
+        "name description rentPrice ratingAvg reviewCount location images category status stockQuantity rentedQuantity depositAmount supplierId createdAt"
+      )
       .populate("supplierId", "fullName")
       .limit(parseInt(limit))
       .skip(skip)
-      .sort(sortQuery);
+      .sort(sortQuery)
+      .lean(); // nhanh hơn, trả plain object
 
+    // Thêm availableQuantity & supplierName
     const devices = devicesRaw.map((device) => ({
-      ...device.toObject(),
+      ...device,
       supplierName: device.supplierId?.fullName || "Unknown",
+      availableQuantity: device.stockQuantity - (device.rentedQuantity || 0),
     }));
 
     const total = await Device.countDocuments(query);
@@ -153,7 +188,8 @@ exports.getDevices = async (req, res) => {
       totalPages: Math.ceil(total / parseInt(limit)),
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("GET DEVICES ERROR:", error);
+    res.status(500).json({ message: error.message || "Lỗi server" });
   }
 };
 
@@ -179,7 +215,9 @@ exports.getDeviceDetail = async (req, res) => {
       .sort({ createdAt: -1 });
 
     // 2.1 Tổng số lần thuê và tổng số lượng thuê
-    const rentalCount = await RentalItem.countDocuments({ deviceId: device._id });
+    const rentalCount = await RentalItem.countDocuments({
+      deviceId: device._id,
+    });
     const rentalQtyAgg = await RentalItem.aggregate([
       { $match: { deviceId: device._id } },
       { $group: { _id: null, totalQuantity: { $sum: "$quantity" } } },
@@ -272,7 +310,6 @@ exports.getRelatedDevices = async (req, res) => {
  * Update device information
  */
 exports.updateDevice = async (req, res) => {
-
   try {
     const { id } = req.params;
     let {
@@ -289,7 +326,7 @@ exports.updateDevice = async (req, res) => {
     } = req.body;
 
     // Parse rentPrice if string
-    if (typeof rentPrice === 'string') {
+    if (typeof rentPrice === "string") {
       try {
         rentPrice = JSON.parse(rentPrice);
       } catch (e) {
@@ -297,15 +334,15 @@ exports.updateDevice = async (req, res) => {
       }
     }
     // Parse location if string
-    if (typeof location === 'string') {
+    if (typeof location === "string") {
       try {
         location = JSON.parse(location);
       } catch (e) {
-        location = { warehouse: '', city: '' };
+        location = { warehouse: "", city: "" };
       }
     }
     // Parse stockQuantity
-    if (typeof stockQuantity === 'string') {
+    if (typeof stockQuantity === "string") {
       stockQuantity = parseInt(stockQuantity) || 1;
     }
 
@@ -324,7 +361,7 @@ exports.updateDevice = async (req, res) => {
     if (oldImages) {
       if (Array.isArray(oldImages)) {
         images = oldImages;
-      } else if (typeof oldImages === 'string') {
+      } else if (typeof oldImages === "string") {
         try {
           const parsed = JSON.parse(oldImages);
           images = Array.isArray(parsed) ? parsed : [parsed];
@@ -336,14 +373,14 @@ exports.updateDevice = async (req, res) => {
     // Multer.fields: req.files.images hoặc req.files['images[]'] là mảng file nếu có upload
     if (req.files) {
       if (Array.isArray(req.files.images)) {
-        images = images.concat(req.files.images.map(file => file.path));
+        images = images.concat(req.files.images.map((file) => file.path));
       }
-      if (Array.isArray(req.files['images[]'])) {
-        images = images.concat(req.files['images[]'].map(file => file.path));
+      if (Array.isArray(req.files["images[]"])) {
+        images = images.concat(req.files["images[]"].map((file) => file.path));
       }
       // fallback: trường hợp Multer.array (tương thích cũ)
       if (Array.isArray(req.files)) {
-        images = images.concat(req.files.map(file => file.path));
+        images = images.concat(req.files.map((file) => file.path));
       }
     }
 
@@ -352,7 +389,11 @@ exports.updateDevice = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
     if (!rentPrice.perDay || rentPrice.perDay <= 0) {
-      return res.status(400).json({ message: "Invalid rentPrice - perDay is required and must be > 0" });
+      return res
+        .status(400)
+        .json({
+          message: "Invalid rentPrice - perDay is required and must be > 0",
+        });
     }
     if (depositAmount <= 0) {
       return res.status(400).json({ message: "depositAmount must be > 0" });
@@ -433,7 +474,8 @@ exports.deleteDevice = async (req, res) => {
 
       if (busyStatuses.includes(activeRentals.rentalId.status)) {
         return res.status(400).json({
-          message: "Cannot delete device - it is currently rented or pending rental",
+          message:
+            "Cannot delete device - it is currently rented or pending rental",
           isRented: true,
         });
       }
@@ -468,7 +510,9 @@ exports.getSupplierDevices = async (req, res) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const devices = await Device.find(query)
-      .select("name description rentPrice ratingAvg reviewCount location images category status stockQuantity depositAmount")
+      .select(
+        "name description rentPrice ratingAvg reviewCount location images category status stockQuantity depositAmount"
+      )
       .limit(parseInt(limit))
       .skip(skip)
       .sort({ ratingAvg: -1, reviewCount: -1 });
