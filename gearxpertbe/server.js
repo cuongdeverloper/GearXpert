@@ -30,6 +30,7 @@ const adminUserRouter = require("./Routes/AdminUserRoutes");
 const advertisementRouter = require("./Routes/AdvertisementRoutes");
 const ReportRouter = require("./Routes/ReportRoutes");
 const ContractRouter = require("./Routes/ContractRoutes");
+const NotificationRouter = require("./Routes/notificationRoutes");
 const NotificationConfig = require("./configs/NotificationConfig");
 
 const io = socketIo(server, {
@@ -79,6 +80,8 @@ app.use('/api/message', routerMessage);
 app.use('/api/ekyc', routerEkyce);
 app.use('/api/advertisements', advertisementRouter);
 app.use('/api/contracts', ContractRouter);
+app.use('/api/notifications', NotificationRouter);
+
 app.use('/', googleAuthRouter);
 
 app.post("/api/ai-chat", handleAIChat);

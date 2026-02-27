@@ -17,7 +17,23 @@ const payos = new PayOS(
   process.env.PAYOS_API_KEY,
   process.env.PAYOS_CHECKSUM_KEY
 );
+// Đầu file RentalController.js (hoặc nơi bạn định nghĩa các hàm)
+const NotificationConfig = require("../../configs/NotificationConfig"); // điều chỉnh path cho đúng
 
+// Helper gửi noti cho supplier hoặc customer
+const sendRentalNotification = async (rental, receiverRole, title, message, linkSuffix = "") => {
+  const receiverId = receiverRole === "SUPPLIER" ? rental.supplierId : rental.customerId;
+  const senderId   = receiverRole === "SUPPLIER" ? rental.customerId   : rental.supplierId;
+
+  await NotificationConfig.sendNotification({
+    senderId,
+    receiverId,
+    title,
+    message,
+    link: linkSuffix ? `/my-rentals/${rental._id}${linkSuffix}` : `/my-rentals/${rental._id}`, // tùy frontend route
+    type: "ORDER",
+  });
+};
 exports.checkoutRental = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -299,6 +315,15 @@ exports.checkoutRental = async (req, res) => {
     await cart.save({ session });
 
     await session.commitTransaction();
+    for (const rental of createdRentals) {
+      await sendRentalNotification(
+        rental,
+        "SUPPLIER",
+        "Có đơn thuê mới",
+        `Khách hàng vừa đặt thuê thiết bị - Tổng tiền: ${rental.totalAmount.toLocaleString()}đ`,
+        "" // hoặc thêm query param nếu frontend cần
+      );
+    }
     session.endSession();
 
     res.status(201).json({
@@ -500,6 +525,12 @@ exports.approveRental = async (req, res) => {
     if (rental.status === "APPROVED")
       return res.status(400).json({ message: "Đơn đã được duyệt" });
     rental.status = "APPROVED";
+    await sendRentalNotification(
+      rental,
+      "CUSTOMER",
+      "Đơn thuê đã được duyệt",
+      "Nhà cung cấp đã xác nhận đơn thuê của bạn. Chuẩn bị nhận hàng nhé!",
+    );
     await rental.save();
     res.json({ success: true, message: "Đã duyệt đơn thuê", rental });
   } catch (error) {
@@ -541,7 +572,14 @@ exports.rejectRental = async (req, res) => {
     rental.rejectedAt = new Date();
 
     await rental.save({ session });
-
+    await NotificationConfig.sendNotification({
+      senderId: supplierId,               // supplier từ chối
+      receiverId: rental.customerId,
+      title: "Đơn thuê bị từ chối",
+      message: `Đơn thuê của bạn đã bị từ chối. Lý do: ${reason || "Không có lý do cụ thể"}${details ? " - " + details : ""}`,
+      link: `/my-rentals/${rental._id}`,
+      type: "ORDER",
+    });
     // 3. Hoàn lại tồn kho VÀ cập nhật status device
     const rentalItems = await RentalItem.find({ rentalId: rental._id }).session(
       session
@@ -935,6 +973,12 @@ exports.cancelRental = async (req, res) => {
     }
 
     rental.status = "CANCELLED";
+    await sendRentalNotification(
+      rental,
+      "SUPPLIER",
+      "Khách hàng đã hủy đơn thuê",
+      `Khách hàng đã hủy đơn #${rental._id.toString().slice(-6)}. Tồn kho đã được hoàn lại.`,
+    );
     await rental.save({ session });
 
     await session.commitTransaction();
@@ -961,7 +1005,12 @@ exports.confirmReceived = async (req, res) => {
     // Hoàn thành đơn
     rental.status = "RENTING"; // Hoặc COMPLETED tùy flow của bạn, ở đây chọn RENTING vì khách bắt đầu dùng
     await rental.save({ session });
-
+    await sendRentalNotification(
+      rental,
+      "SUPPLIER",
+      "Khách đã xác nhận nhận hàng",
+      "Khách hàng đã xác nhận nhận thiết bị thành công.",
+    );
     // Cộng tiền cho Supplier (Sau khi trừ phí sàn nếu có)
     const supplierWallet = await Wallet.findOne({
       user: rental.supplierId,
@@ -1052,7 +1101,14 @@ exports.extendRental = async (req, res) => {
       ],
       { session }
     );
-
+    await NotificationConfig.sendNotification({
+      senderId: rental.customerId,
+      receiverId: rental.supplierId,
+      title: "Yêu cầu gia hạn đơn thuê",
+      message: `Khách hàng yêu cầu gia hạn thêm ${requestedDays} ngày đến ${newEndDate.toLocaleDateString("vi-VN")}. Số tiền đề xuất thêm: ${extraAmount.toLocaleString()}đ`,
+      link: `/supplier/orders/${rental._id}`,
+      type: "ORDER",
+    });
     // Optional: Cập nhật Rental để đánh dấu có yêu cầu pending (dễ filter)
     rental.extensionStatus = "PENDING";
     await rental.save({ session });
@@ -1087,6 +1143,12 @@ exports.startDelivery = async (req, res) => {
     rental.status = "DELIVERING";
     await rental.save();
 
+    await sendRentalNotification(
+      rental,
+      "CUSTOMER",
+      "Đơn thuê đang được giao",
+      "Nhà cung cấp đã bắt đầu giao hàng. Vui lòng theo dõi trạng thái.",
+    );
     // 2️⃣ create contract DELIVERY
     const contract = await Contract.create({
       rentalId: rental._id,
