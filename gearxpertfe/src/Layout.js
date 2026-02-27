@@ -70,7 +70,7 @@ import StaffLayout from "./components/layout/StaffLayout";
 const ChatbotWrapper = () => {
   const location = useLocation();
 
-  const hideOnPaths = ["/admin", "/supplier", "/messenger"];
+  const hideOnPaths = ["/admin", "/supplier", "/messenger", "/staff"];
 
   const shouldHide = hideOnPaths.some(path => location.pathname.startsWith(path));
 
@@ -84,7 +84,7 @@ const ChatbotWrapper = () => {
 const ChatWindowWrapper = () => {
   const location = useLocation();
 
-  const hideOnPaths = ["/messenger", "/admin"];
+  const hideOnPaths = ["/messenger", "/admin", "/staff"];
 
   const shouldHide = hideOnPaths.some(path => location.pathname.startsWith(path));
 
