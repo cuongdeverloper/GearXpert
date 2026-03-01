@@ -32,6 +32,7 @@ const ReportRouter = require("./Routes/ReportRoutes");
 const ContractRouter = require("./Routes/ContractRoutes");
 const NotificationRouter = require("./Routes/notificationRoutes");
 const NotificationConfig = require("./configs/NotificationConfig");
+const blogRouter = require("./Routes/BlogRoutes");
 
 const io = socketIo(server, {
     cors: {
@@ -81,6 +82,7 @@ app.use('/api/ekyc', routerEkyce);
 app.use('/api/advertisements', advertisementRouter);
 app.use('/api/contracts', ContractRouter);
 app.use('/api/notifications', NotificationRouter);
+app.use('/api/blogs', blogRouter);
 
 app.use('/', googleAuthRouter);
 

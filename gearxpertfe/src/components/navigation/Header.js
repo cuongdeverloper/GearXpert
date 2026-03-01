@@ -201,8 +201,14 @@ export default function Header() {
             Productions
           </button>
           <button
+            className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors cursor-pointer bg-transparent border-none"
+            onClick={() => handleRestrictedNavigation('/blog')}
+          >
+            Blog
+          </button>
+          <button
             className="flex items-center gap-1.5 text-sm font-bold text-primary bg-indigo-50 px-4 py-2 rounded-full border border-indigo-100 cursor-pointer bg-transparent"
-            onClick={() => {}}
+            onClick={() => { }}
           >
             <span className="material-symbols-outlined text-[18px] fill-current">auto_awesome</span>
             AI Discovery
@@ -217,11 +223,10 @@ export default function Header() {
               <div className="relative" ref={messengerRef}>
                 <button
                   onClick={() => setIsMessengerOpen(!isMessengerOpen)}
-                  className={`w-10 h-10 flex items-center justify-center rounded-full border transition-colors ${
-                    isMessengerOpen
+                  className={`w-10 h-10 flex items-center justify-center rounded-full border transition-colors ${isMessengerOpen
                       ? 'bg-indigo-100 text-primary border-indigo-200'
                       : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                  }`}
+                    }`}
                 >
                   <span className={`material-symbols-outlined text-[20px] ${isMessengerOpen ? 'fill-current' : ''}`}>
                     forum
@@ -238,11 +243,10 @@ export default function Header() {
                     setIsNotificationOpen(!isNotificationOpen);
                     if (!isNotificationOpen) fetchNotifications();
                   }}
-                  className={`w-10 h-10 flex items-center justify-center rounded-full border transition-colors relative ${
-                    isNotificationOpen
+                  className={`w-10 h-10 flex items-center justify-center rounded-full border transition-colors relative ${isNotificationOpen
                       ? 'bg-indigo-100 text-primary border-indigo-200'
                       : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                  }`}
+                    }`}
                 >
                   <span className="material-symbols-outlined text-[20px]">notifications</span>
 
@@ -280,15 +284,13 @@ export default function Header() {
                               if (notif.link) navigate(notif.link);
                               setIsNotificationOpen(false);
                             }}
-                            className={`p-4 border-b border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors ${
-                              !notif.isRead ? 'bg-indigo-50/50' : ''
-                            }`}
+                            className={`p-4 border-b border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors ${!notif.isRead ? 'bg-indigo-50/50' : ''
+                              }`}
                           >
                             <div className="flex items-start gap-3">
                               <div
-                                className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
-                                  notif.type === 'ORDER' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-600'
-                                }`}
+                                className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${notif.type === 'ORDER' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-600'
+                                  }`}
                               >
                                 <span className="material-symbols-outlined text-[20px]">
                                   {notif.type === 'ORDER' ? 'inventory_2' : 'notifications'}
@@ -425,9 +427,8 @@ export default function Header() {
                         <button
                           key={item.path}
                           onClick={() => handleMenuItemClick(item.path)}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
-                            isActive ? 'bg-gradient-to-r from-primary/10 to-accent-cyan/10 text-primary' : 'text-slate-700 hover:bg-slate-50'
-                          }`}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${isActive ? 'bg-gradient-to-r from-primary/10 to-accent-cyan/10 text-primary' : 'text-slate-700 hover:bg-slate-50'
+                            }`}
                         >
                           <span className={`material-symbols-outlined text-[20px] ${isActive ? 'fill-current' : ''}`}>
                             {item.icon}

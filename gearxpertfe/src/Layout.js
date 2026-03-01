@@ -63,6 +63,8 @@ import RentalPolicyPage from "./pages/Policy/RentalPolicyPage";
 import AboutPage from "./pages/About/AboutPage";
 import FAQPage from "./pages/FAQ/FAQPage";
 import ContactPage from "./pages/Contact/ContactPage";
+import BlogPage from "./pages/Blog/BlogPage";
+import BlogDetailPage from "./pages/Blog/BlogDetailPage";
 import ChatWindowManager from "./components/Message Socket/MiniChat/ChatWindowManager";
 import OperationStaffDashboard from "./pages/OperationStaff/OperationStaffDashboard";
 import StaffLayout from "./components/layout/StaffLayout";
@@ -190,6 +192,8 @@ export default function Layout() {
           </Route>
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/products" element={<ProductsPage />} />
+          <Route path="/blog" element={<BlogPage />} />
+          <Route path="/blog/:id" element={<BlogDetailPage />} />
           <Route path="/vouchers" element={<VouchersPage />} />
 
           <Route path="/profile" element={<ProfilePage />} />
