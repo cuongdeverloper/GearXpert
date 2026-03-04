@@ -172,11 +172,10 @@ export default function BlogDetailPage() {
 
                     {/* Content */}
                     <div
-                        className="text-base leading-relaxed whitespace-pre-line"
+                        className="text-base leading-relaxed blog-content"
                         style={{ color: "#0d0e1b", lineHeight: "1.9" }}
-                    >
-                        {blog.content}
-                    </div>
+                        dangerouslySetInnerHTML={{ __html: blog.content }}
+                    />
 
                     {/* Tags */}
                     {blog.tags && blog.tags.length > 0 && (

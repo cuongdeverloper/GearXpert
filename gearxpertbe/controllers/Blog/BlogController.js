@@ -99,9 +99,72 @@ const getBlogCategories = async (req, res) => {
     }
 };
 
+// POST /api/blogs — create a new blog
+const createBlog = async (req, res) => {
+    try {
+        let { title, description, content, category, author, readTime, isFeatured, tags } = req.body;
+
+        // Xử lý images từ Cloudinary (req.files)
+        let images = [];
+        if (req.files && req.files.length > 0) {
+            images = req.files.map(file => file.path);
+        }
+
+        const coverImage = images.length > 0 ? images[0] : null;
+
+        // Parse author if it's a string (FormData case)
+        if (typeof author === 'string') {
+            try {
+                author = JSON.parse(author);
+            } catch (e) {
+                return res.status(400).json({ message: "Định dạng author không hợp lệ" });
+            }
+        }
+
+        // Parse tags if it's a string (FormData case)
+        if (typeof tags === 'string') {
+            try {
+                tags = JSON.parse(tags);
+            } catch (e) {
+                tags = tags.split(',').map(tag => tag.trim());
+            }
+        }
+
+        // Validations
+        if (!title || !description || !content || !category || !coverImage || !author?.name) {
+            return res.status(400).json({ message: "Thiếu dữ liệu bắt buộc hoặc chưa tải ảnh lên" });
+        }
+
+        const newBlog = new Blog({
+            title,
+            description,
+            content,
+            category,
+            coverImage,
+            author,
+            readTime: parseInt(readTime) || 0,
+            isFeatured: isFeatured === 'true' || isFeatured === true,
+            tags: Array.isArray(tags) ? tags : [],
+            images: images,
+        });
+
+        await newBlog.save();
+
+
+        return res.status(201).json({
+            message: "Bài viết của bạn đã được gửi thành công!",
+            blog: newBlog,
+        });
+    } catch (error) {
+        console.error("Error creating blog:", error);
+        return res.status(500).json({ message: "Lỗi khi tạo bài viết" });
+    }
+};
+
 module.exports = {
     getBlogs,
     getFeaturedBlog,
     getBlogDetail,
     getBlogCategories,
+    createBlog,
 };
