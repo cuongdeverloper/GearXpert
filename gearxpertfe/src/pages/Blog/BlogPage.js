@@ -1,30 +1,14 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { toast } from "react-toastify";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
 import { getBlogs, getFeaturedBlog } from "../../service/ApiService/BlogApi";
+import { CATEGORY_MAP, formatDate } from "./BlogConstants";
+import SubmitBlogModal from "./SubmitBlogModal";
 
-// Category badge labels & colors (synced with Popular Categories sidebar)
-const CATEGORY_MAP = {
-    CAMERA: { label: "Cameras", color: "bg-primary" },
-    DRONE: { label: "Drones", color: "bg-primary" },
-    LIGHTING: { label: "Lighting", color: "bg-amber-500" },
-    AI_TECH: { label: "AI Tech", color: "bg-accent-cyan" },
-    AUDIO: { label: "Audio Gear", color: "bg-primary" },
-    CINEMATOGRAPHY: { label: "Cinematography", color: "bg-violet-500" },
-    ACCESSORIES: { label: "Accessories", color: "bg-primary" },
-    INDUSTRY_NEWS: { label: "Industry News", color: "bg-slate-800" },
-};
 
-const formatDate = (dateStr) => {
-    if (!dateStr) return "";
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-    });
-};
 
 export default function BlogPage() {
     const navigate = useNavigate();
@@ -40,6 +24,10 @@ export default function BlogPage() {
     const [isSearchExpanded, setIsSearchExpanded] = useState(false);
     const [viewMode, setViewMode] = useState("grid"); // "grid" | "list"
     const blogsLengthRef = useRef(0);
+
+    // Submission Form State
+    const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
+    const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
 
     useEffect(() => {
         blogsLengthRef.current = blogs.length;
@@ -131,6 +119,15 @@ export default function BlogPage() {
     const gridBlogs = blogs;
     // Trending = first 3 for sidebar
     const trendingBlogs = gridBlogs.slice(0, 3);
+
+    const handleOpenSubmitModal = () => {
+        if (!isAuthenticated) {
+            toast.error("Vui lòng đăng nhập để đóng góp bài viết!");
+            navigate("/signin");
+            return;
+        }
+        setIsSubmitModalOpen(true);
+    };
 
     // Category hover class (AI_TECH uses accent-cyan hover)
     const getCardHoverClass = (category) => {
@@ -608,7 +605,10 @@ export default function BlogPage() {
                             <p className="text-sm mb-6 leading-relaxed" style={{ color: "#4c4d9a" }}>
                                 Got gear insights or a tech tutorial? Share your expertise with our global community of 50k+ professionals.
                             </p>
-                            <button className="w-full flex items-center justify-center gap-2 rounded-lg border-2 border-primary text-primary py-3 text-sm font-bold transition-all hover:bg-primary hover:text-white">
+                            <button
+                                onClick={handleOpenSubmitModal}
+                                className="w-full flex items-center justify-center gap-2 rounded-lg border-2 border-primary text-primary py-3 text-sm font-bold transition-all hover:bg-primary hover:text-white"
+                            >
                                 <span className="material-symbols-outlined text-lg">upload_file</span>
                                 Submit Your Article
                             </button>
@@ -635,43 +635,50 @@ export default function BlogPage() {
             </main>
 
             {/* ============ NEWSLETTER SECTION ============ */}
-            <section className="mt-20 px-6 md:px-10 pb-20">
-                <div className="mx-auto max-w-[1440px]">
-                    <div className="relative overflow-hidden rounded-2xl p-8 md:p-16 text-white shadow-2xl" style={{ background: "linear-gradient(to right, #6366F1, #22D3EE)" }}>
-                        <div className="relative z-10 flex flex-col items-center text-center lg:flex-row lg:text-left lg:justify-between gap-12">
-                            <div className="max-w-xl">
-                                <h2 className="text-4xl font-black mb-4" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-                                    The Future of Gear, Delivered Weekly.
-                                </h2>
-                                <p className="text-white/80 text-lg leading-relaxed">
-                                    Join 50k+ professionals getting the latest reviews, AI tips, and industry insights directly in their inbox.
-                                </p>
-                            </div>
-                            <div className="w-full max-w-md">
-                                <form className="flex flex-col sm:flex-row gap-3" onSubmit={(e) => e.preventDefault()}>
-                                    <input
-                                        className="h-14 flex-1 rounded-xl border-none bg-white/20 px-6 text-white placeholder:text-white/60 backdrop-blur-md focus:ring-2 focus:ring-white/50 transition-all outline-none"
-                                        placeholder="Your best email"
-                                        type="email"
-                                    />
-                                    <button
-                                        className="h-14 rounded-xl bg-white px-8 font-bold text-primary hover:bg-opacity-90 transition-all shadow-xl active:scale-95"
-                                        type="submit"
-                                    >
-                                        Subscribe
-                                    </button>
-                                </form>
-                                <p className="mt-4 text-xs text-white/60">No spam. Just tech. Unsubscribe anytime.</p>
-                            </div>
-                        </div>
-                        {/* Abstract Background Elements */}
-                        <div className="absolute -left-20 top-0 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-                        <div className="absolute -bottom-20 right-0 h-96 w-96 rounded-full bg-primary/20 blur-3xl" />
-                    </div>
+            <section className="bg-slate-950 text-white py-20">
+                <div className="max-w-4xl mx-auto px-6 text-center">
+                    <span className="inline-block bg-primary/20 text-primary text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-[0.2em] mb-6 border border-primary/30">
+                        Intelligence for Creators
+                    </span>
+
+                    <h2 className="text-4xl md:text-5xl font-bold mb-6 font-display">
+                        Gear Intelligence Delivered.
+                    </h2>
+
+                    <p className="text-slate-400 text-lg mb-10 max-w-2xl mx-auto">
+                        Join 50,000+ professionals getting weekly insights on the latest cinematography tech, field tests, and production workflows.
+                    </p>
+
+                    <form className="flex flex-col sm:flex-row gap-4 max-w-lg mx-auto" onSubmit={(e) => e.preventDefault()}>
+                        <input
+                            className="flex-1 bg-slate-900 border-slate-800 rounded-xl px-6 py-4 focus:ring-primary focus:border-primary placeholder:text-slate-600 text-white"
+                            placeholder="Enter your email address"
+                            type="email"
+                        />
+                        <button
+                            className="bg-primary hover:bg-primary/90 text-white px-8 py-4 rounded-xl font-bold transition-all shadow-lg shadow-primary/20"
+                            type="submit"
+                        >
+                            Subscribe Now
+                        </button>
+                    </form>
+
+                    <p className="mt-6 text-slate-600 text-xs">
+                        Zero spam. Only high-end gear. Unsubscribe at any time.
+                    </p>
                 </div>
             </section>
 
             <Footer />
+
+
+
+
+            <SubmitBlogModal
+                isOpen={isSubmitModalOpen}
+                onClose={() => setIsSubmitModalOpen(false)}
+                onSuccess={fetchBlogs}
+            />
         </div>
     );
 }

@@ -11,3 +11,6 @@ export const getBlogDetail = (id) =>
 
 export const getBlogCategories = () =>
     axios.get(`/api/blogs/categories`);
+
+export const createBlog = (blogData) =>
+    axios.post(`/api/blogs`, blogData);

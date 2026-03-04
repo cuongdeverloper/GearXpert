@@ -37,6 +37,7 @@ const blogSchema = new mongoose.Schema(
             default: false,
         },
         tags: [String],
+        images: [String],
     },
     { timestamps: true }
 );
