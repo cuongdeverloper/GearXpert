@@ -78,6 +78,26 @@ const hasReviewedRental = async (rentalId) => {
 const getDeviceReviews = (deviceId) => {
   return axios.get(`/api/rentals/devices/${deviceId}/reviews`);
 };
+const repayRental = async (rentalId) => {
+  try {
+    const res = await axios.post(`/api/rentals/${rentalId}/repay`);
+    return res;
+  } catch (err) {
+    throw err;
+  }
+};
+const repaySingleRental = async (rentalId) => {
+  try {
+    const res = await axios.post(`/api/rentals/${rentalId}/singlerepay`);
+    return res;
+  } catch (err) {
+    throw err;
+  }
+};
+const cancelPayRental = async (rentalId) => {
+  const res = await axios.post(`/api/rentals/${rentalId}/cancelpay`); // Hoặc PATCH nếu bạn dùng PATCH
+  return res.data;
+};
 export { 
   checkout, 
   hasRentedDevice, 
@@ -93,5 +113,5 @@ export {
   reportDamage,
   extendRental,
   hasReviewedRental,
-  getDeviceReviews
+  getDeviceReviews,repayRental,cancelPayRental,repaySingleRental
 };

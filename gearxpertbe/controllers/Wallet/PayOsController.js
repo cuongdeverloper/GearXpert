@@ -80,7 +80,7 @@ exports.handleWebhook = async (req, res) => {
 
     const rentals = await Rental.find({ orderCode });
 
-    // 1. Thanh toán THẤT BẠI hoặc HỦY → rollback stock (đã có sẵn), không đụng rentedQuantity
+    // 1. Thanh toán THẤT BẠI hoặc HỦY → rollback stock
     if (body.code !== "00" || webhookData.code !== "00") {
       console.log(`[WEBHOOK] Đơn ${orderCode} thất bại/hủy`);
 
@@ -133,7 +133,7 @@ exports.handleWebhook = async (req, res) => {
       return res.status(200).json({ success: true });
     }
 
-    // 2. THANH TOÁN THÀNH CÔNG (BANK) → tăng rentedQuantity + update status nếu cần
+    // 2. THANH TOÁN THÀNH CÔNG (BANK) → tăng rentedQuantity + update status
     if (rentals.length > 0 && rentals[0].paymentStatus !== "PAID") {
       const session = await mongoose.startSession();
       session.startTransaction();
@@ -141,30 +141,30 @@ exports.handleWebhook = async (req, res) => {
       try {
         const customerId = rentals[0].customerId;
         const deviceIdsToClear = [];
+        let voucherCodeToUse = null;
 
-        // Update PAID
-        await Rental.updateMany(
-          { orderCode },
-          { paymentStatus: "PAID", status: "PENDING" },
-          { session }
-        );
+        // Xác định đây là repay (single rental) hay checkout group (multi)
+        const isRepay = rentals.length === 1;
 
-        // Thu thập deviceIds để clear cart + tăng rentedQuantity
         for (const rental of rentals) {
+          // Update PAID
+          rental.paymentStatus = "PAID";
+          rental.status = "APPROVED"; // hoặc "DELIVERING" tùy flow của bạn
+          await rental.save({ session });
+
+          // Tăng rentedQuantity
           const items = await RentalItem.find({ rentalId: rental._id }).session(
             session
           );
           for (const item of items) {
             deviceIdsToClear.push(item.deviceId.toString());
 
-            // TĂNG rentedQuantity khi thanh toán thành công
             const device = await Device.findByIdAndUpdate(
               item.deviceId,
               { $inc: { rentedQuantity: item.quantity } },
               { new: true, session }
             );
 
-            // Nếu rentedQuantity đã bằng hoặc vượt stock → set status RENTED
             if (device && device.rentedQuantity >= device.stockQuantity) {
               await Device.updateOne(
                 { _id: device._id },
@@ -173,17 +173,45 @@ exports.handleWebhook = async (req, res) => {
               );
             }
           }
+
+          // Lưu voucherCode (dùng cái đầu tiên nếu multi)
+          if (rental.voucherCode && !voucherCodeToUse) {
+            voucherCodeToUse = rental.voucherCode;
+          }
+
+          // Gửi noti – phân biệt rõ ràng repay hay lần đầu
+          const notiTitle = isRepay
+            ? "Đơn thuê đã thanh toán thành công (thanh toán lại)"
+            : "Đơn thuê đã thanh toán thành công";
+
+          const notiMessage = isRepay
+            ? `Khách hàng đã thanh toán lại ${rental.totalAmount.toLocaleString(
+                "vi-VN"
+              )}₫ qua ngân hàng cho đơn này.`
+            : `Khách hàng đã thanh toán ${rental.totalAmount.toLocaleString(
+                "vi-VN"
+              )}₫ qua ngân hàng.`;
+
+          await sendRentalNotification(
+            rental,
+            "SUPPLIER",
+            notiTitle,
+            notiMessage,
+            "/payments"
+          );
         }
 
-        // Clear cart (chỉ các món đã thanh toán)
+        // Clear cart (dùng chung deviceIdsToClear từ tất cả rental)
         const cart = await Cart.findOne({
           customerId,
           cartType: "NORMAL",
         }).session(session);
+
         if (cart && cart.items.length > 0) {
           const cartItems = await CartItem.find({
             _id: { $in: cart.items },
           }).session(session);
+
           const toDelete = cartItems
             .filter((ci) => deviceIdsToClear.includes(ci.deviceId.toString()))
             .map((ci) => ci._id);
@@ -199,12 +227,12 @@ exports.handleWebhook = async (req, res) => {
           }
         }
 
-        // Trừ voucher (chỉ 1 lần cho toàn bộ order)
+        // Trừ voucher (chỉ 1 lần cho toàn bộ, dùng voucherCode đầu tiên)
         let voucherUsed = false;
-        if (rentals[0].voucherCode) {
+        if (voucherCodeToUse) {
           const updated = await Voucher.updateOne(
             {
-              code: rentals[0].voucherCode,
+              code: voucherCodeToUse,
               status: "ACTIVE",
             },
             { $inc: { usedCount: 1 } },
@@ -213,24 +241,13 @@ exports.handleWebhook = async (req, res) => {
           voucherUsed = updated.modifiedCount === 1;
         }
 
-        // Gửi thông báo cho supplier
-        for (const rental of rentals) {
-          await sendRentalNotification(
-            rental,
-            "SUPPLIER",
-            "Đơn thuê đã thanh toán thành công",
-            `Khách hàng đã thanh toán ${rental.totalAmount.toLocaleString(
-              "vi-VN"
-            )}₫ qua ngân hàng`,
-            "/payments" // hoặc tùy chỉnh link
-          );
-        }
-
         await session.commitTransaction();
         session.endSession();
 
         console.log(
-          `[WEBHOOK SUCCESS] Đơn ${orderCode} - Voucher used: ${voucherUsed}`
+          `[WEBHOOK SUCCESS] Đơn ${orderCode} - ${
+            isRepay ? "Repay single rental" : "Group checkout"
+          } - Voucher used: ${voucherUsed}`
         );
         return res.status(200).json({ success: true });
       } catch (err) {
@@ -244,7 +261,6 @@ exports.handleWebhook = async (req, res) => {
     // 3. TOP-UP WALLET (không liên quan rentedQuantity)
     const payment = await Payment.findOne({ orderCode });
     if (payment && payment.status !== "PAID") {
-      // ... giữ nguyên phần top-up
       payment.status = "PAID";
       await payment.save();
 
