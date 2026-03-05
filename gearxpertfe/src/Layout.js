@@ -1,5 +1,11 @@
 import { Suspense, useEffect } from "react";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import Aos from "aos";
 
@@ -31,7 +37,6 @@ import ReportsPage from "./pages/Admin/ReportsPage";
 import SettingsPage from "./pages/Admin/SettingsPage";
 import AdminVouchersPage from "./pages/Admin/AdminVouchersPage";
 import AdminAdsPage from "./pages/Admin/AdminAdsPage";
-
 
 // pages
 import RentalCheckout from "./pages/Rental/RentalCheckout";
@@ -68,13 +73,17 @@ import BlogDetailPage from "./pages/Blog/BlogDetailPage";
 import ChatWindowManager from "./components/Message Socket/MiniChat/ChatWindowManager";
 import OperationStaffDashboard from "./pages/OperationStaff/OperationStaffDashboard";
 import StaffLayout from "./components/layout/StaffLayout";
+import SupplierProfileEdit from "./pages/Supplier/SupplierProfileEdit";
+import SupplierPublicProfile from "./pages/User/SupplierPublicProfile";
 
 const ChatbotWrapper = () => {
   const location = useLocation();
 
   const hideOnPaths = ["/admin", "/supplier", "/messenger", "/staff"];
 
-  const shouldHide = hideOnPaths.some(path => location.pathname.startsWith(path));
+  const shouldHide = hideOnPaths.some((path) =>
+    location.pathname.startsWith(path)
+  );
 
   if (shouldHide) {
     return null;
@@ -88,7 +97,9 @@ const ChatWindowWrapper = () => {
 
   const hideOnPaths = ["/messenger", "/admin", "/staff"];
 
-  const shouldHide = hideOnPaths.some(path => location.pathname.startsWith(path));
+  const shouldHide = hideOnPaths.some((path) =>
+    location.pathname.startsWith(path)
+  );
 
   if (shouldHide) {
     return null;
@@ -147,7 +158,11 @@ export default function Layout() {
           <Route path="/user/cart" element={<CartPage />} />
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/cancel" element={<PaymentCancel />} />
-
+          <Route
+            path="/supplier/profile/edit"
+            element={<SupplierProfileEdit />}
+          />
+          <Route path="/supplier/:id" element={<SupplierPublicProfile />} />
           <Route path="/supplier" element={<SupplierLayout />}>
             <Route
               index
@@ -156,7 +171,10 @@ export default function Layout() {
             <Route path="dashboard" element={<SupplierDashboard />} />
             <Route path="devices" element={<SupplierDevicesList />} />
             <Route path="devices/new" element={<SupplierAddDevicePage />} />
-            <Route path="devices/:id/edit" element={<SupplierEditDevicePage />} />
+            <Route
+              path="devices/:id/edit"
+              element={<SupplierEditDevicePage />}
+            />
             <Route path="devices/:id" element={<SupplierDeviceDetailPage />} />
             <Route path="inventory" element={<SupplierInventoryPage />} />
             <Route
@@ -178,7 +196,6 @@ export default function Layout() {
             <Route path="settings" element={<SettingsPage />} />
             <Route path="vouchers" element={<AdminVouchersPage />} />
             <Route path="advertisements" element={<AdminAdsPage />} />
-
           </Route>
 
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
@@ -200,8 +217,7 @@ export default function Layout() {
           <Route path="/ekyc" element={<EkycVerification />} />
 
           <Route path="/messenger" element={<Messenger />} />
-          <Route path="/messenger/:conversationId" element={<Messenger />}
-          />
+          <Route path="/messenger/:conversationId" element={<Messenger />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

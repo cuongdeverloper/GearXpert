@@ -12,7 +12,10 @@ const {
   cancelRental,
   confirmReceived,
   extendRental,
-  startDelivery
+  startDelivery,
+  repayRental,
+  cancelPayRental,
+  repaySingleRental
 } = require('../controllers/Rental/RentalController');
 const { hasReviewed, createReview, getDeviceReviews, uploadReviewImages } = require('../controllers/Review/ReviewController');  // Thêm getDeviceReviews và uploadReviewImages
 const { checkAccessToken,requireEkyc } = require('../middleware/JWTAction');
@@ -44,4 +47,7 @@ rentalRouter.post(
   "/:rentalId/start-delivery",
   checkAccessToken,startDelivery
 );
+rentalRouter.post('/:rentalId/cancelpay', checkAccessToken, cancelPayRental);
+rentalRouter.post("/:rentalId/repay", checkAccessToken, repayRental);
+rentalRouter.post("/:rentalId/singlerepay", checkAccessToken, repaySingleRental);
 module.exports = rentalRouter;

@@ -61,7 +61,7 @@ const rentalSchema = new mongoose.Schema(
     phoneNumber: { type: String, required: true },
     notes: String,
 
-    orderCode: { type: Number, unique: true, sparse: true },
+    orderCode: { type: Number, sparse: true },
   },
   { timestamps: true }
 );

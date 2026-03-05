@@ -129,7 +129,6 @@ exports.checkoutRental = async (req, res) => {
 
     /* ================= 4. TÍNH TOÁN ================= */
     const rentalCreationData = [];
-  
 
     for (const supplierId of supplierIds) {
       const group = supplierGroups[supplierId];
@@ -176,7 +175,6 @@ exports.checkoutRental = async (req, res) => {
       });
 
       grandTotalAmount += totalAmount;
-  
     }
 
     /* ================= 5. TRỪ STOCK ================= */
@@ -342,13 +340,14 @@ exports.checkoutRental = async (req, res) => {
     let paymentLink = null;
     if (paymentMethod === "BANK") {
       const orderCode = Number(String(Date.now()).slice(-9));
-
+      // Lấy rentalId đại diện (đầu tiên trong createdRentals)
+      const representativeRentalId = createdRentals[0]._id.toString();
       paymentLink = await payos.paymentRequests.create({
         orderCode,
         amount: grandTotalAmount,
         description: `GXP ${createdRentals[0]._id.toString().slice(-6)}`,
-        returnUrl: `${process.env.FRONTEND_URL}/payment/success`,
-        cancelUrl: `${process.env.FRONTEND_URL}/payment/cancel`,
+        returnUrl: `${process.env.FRONTEND_URL}/payment/success?rentalId=${representativeRentalId}`,
+        cancelUrl: `${process.env.FRONTEND_URL}/payment/cancel?rentalId=${representativeRentalId}`,
       });
 
       await Rental.updateMany(
@@ -1234,5 +1233,213 @@ exports.startDelivery = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
+  }
+};
+exports.repayRental = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { rentalId } = req.params;
+    const customerId = req.user.id;
+
+    // Tìm rental đại diện
+    const rental = await Rental.findOne({
+      _id: rentalId,
+      customerId,
+      paymentStatus: "UNPAID",
+      status: "PENDING",
+    }).session(session);
+
+    if (!rental) {
+      throw new Error("Không tìm thấy đơn chờ thanh toán hợp lệ");
+    }
+
+    let rentalsToRepay = [rental];
+    let totalAmount = rental.totalAmount;
+
+    // Nếu có orderCode cũ (từ checkout group) → tìm toàn bộ group
+    if (rental.orderCode) {
+      rentalsToRepay = await Rental.find({
+        orderCode: rental.orderCode,
+        customerId,
+        paymentStatus: "UNPAID",
+      }).session(session);
+
+      // Tính tổng amount của group
+      totalAmount = rentalsToRepay.reduce((sum, r) => sum + r.totalAmount, 0);
+    }
+
+    // Tạo orderCode mới (riêng cho lần repay này)
+    const newOrderCode = Number(String(Date.now()).slice(-9));
+
+    // Tạo payment link PayOS
+    const paymentLinkData = await payos.paymentRequests.create({
+      orderCode: newOrderCode,
+      amount: totalAmount,
+      description: `GXP repay #${rental._id.toString().slice(-6)}
+ 
+      `,
+      returnUrl: `${process.env.FRONTEND_URL}/payment/success?rentalId=${rental._id}`,
+      cancelUrl: `${process.env.FRONTEND_URL}/payment/cancel?rentalId=${rental._id}`,
+    });
+
+    if (!paymentLinkData?.checkoutUrl) {
+      throw new Error("Không thể tạo link thanh toán PayOS");
+    }
+
+    // Cập nhật orderCode mới cho TOÀN BỘ group (hoặc single)
+    await Rental.updateMany(
+      { _id: { $in: rentalsToRepay.map((r) => r._id) } },
+      { orderCode: newOrderCode },
+      { session }
+    );
+
+    await session.commitTransaction();
+
+    res.status(200).json({
+      success: true,
+      message: `Đã tạo link thanh toán mới cho ${rentalsToRepay.length} đơn`,
+      paymentLink: paymentLinkData.checkoutUrl,
+      amount: totalAmount,
+      orderCode: newOrderCode,
+      rentalId: rental._id, // đại diện
+      isGroup: rentalsToRepay.length > 1,
+    });
+  } catch (err) {
+    await session.abortTransaction();
+    console.error("Repay Rental Error:", err);
+    res.status(400).json({
+      success: false,
+      message: err.message || "Không thể tạo thanh toán lại",
+    });
+  } finally {
+    session.endSession();
+  }
+};
+exports.cancelPayRental = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { rentalId } = req.params;
+    const customerId = req.user.id;
+
+    // Tìm rental đại diện
+    const rental = await Rental.findOne({
+      _id: rentalId,
+      customerId,
+    }).session(session);
+
+    if (!rental) {
+      throw new Error("Không tìm thấy đơn hàng");
+    }
+
+    // Tìm toàn bộ group (nếu có orderCode)
+    let rentalsToCancel = [rental];
+    if (rental.orderCode) {
+      rentalsToCancel = await Rental.find({
+        orderCode: rental.orderCode,
+        customerId,
+        status: { $in: ["PENDING", "UNPAID"] },
+      }).session(session);
+    }
+
+    if (rentalsToCancel.length === 0) {
+      throw new Error("Không có đơn hàng nào có thể hủy");
+    }
+
+    // Chỉ cập nhật status CANCELLED cho toàn bộ group
+    await Rental.updateMany(
+      { _id: { $in: rentalsToCancel.map((r) => r._id) } },
+      {
+        status: "CANCELLED",
+        cancelledAt: new Date(),
+        cancelReason: "Khách hàng hủy từ trang thanh toán thất bại",
+      },
+      { session }
+    );
+
+    await session.commitTransaction();
+
+    res.json({
+      success: true,
+      message: `Đã hủy thành công ${rentalsToCancel.length} đơn hàng`,
+    });
+  } catch (err) {
+    await session.abortTransaction();
+    console.error("Cancel Rental Error:", err);
+    res.status(400).json({
+      success: false,
+      message: err.message || "Hủy đơn thất bại",
+    });
+  } finally {
+    session.endSession();
+  }
+};
+exports.repaySingleRental = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { rentalId } = req.params;
+    const customerId = req.user.id;
+
+    // Tìm rental cụ thể, đảm bảo UNPAID + PENDING
+    const rental = await Rental.findOne({
+      _id: rentalId,
+      customerId,
+      paymentStatus: "UNPAID",
+      status: "PENDING",
+    }).session(session);
+
+    if (!rental) {
+      throw new Error("Không tìm thấy đơn chờ thanh toán hợp lệ");
+    }
+
+    // Luôn chỉ xử lý single rental
+    const rentalsToRepay = [rental];
+    const totalAmount = rental.totalAmount;
+
+    // Tạo orderCode mới riêng cho rental này
+    const newOrderCode = Number(String(Date.now()).slice(-9));
+
+    // Tạo payment link PayOS chỉ cho rental này
+    const paymentLinkData = await payos.paymentRequests.create({
+      orderCode: newOrderCode,
+      amount: totalAmount,
+      description: `GXP repay single #${rental._id.toString().slice(-6)}`,
+      returnUrl: `${process.env.FRONTEND_URL}/payment/success?rentalId=${rental._id}`,
+      cancelUrl: `${process.env.FRONTEND_URL}/payment/cancel?rentalId=${rental._id}`,
+    });
+
+    if (!paymentLinkData?.checkoutUrl) {
+      throw new Error("Không thể tạo link thanh toán PayOS");
+    }
+
+    // Cập nhật orderCode mới CHỈ cho rental này
+    rental.orderCode = newOrderCode;
+    await rental.save({ session });
+
+    await session.commitTransaction();
+
+    res.status(200).json({
+      success: true,
+      message: "Đã tạo link thanh toán mới cho đơn lẻ này",
+      paymentLink: paymentLinkData.checkoutUrl,
+      amount: totalAmount,
+      orderCode: newOrderCode,
+      rentalId: rental._id,
+      isGroup: false,
+    });
+  } catch (err) {
+    await session.abortTransaction();
+    console.error("Repay Single Rental Error:", err);
+    res.status(400).json({
+      success: false,
+      message: err.message || "Không thể tạo thanh toán lại cho đơn lẻ",
+    });
+  } finally {
+    session.endSession();
   }
 };

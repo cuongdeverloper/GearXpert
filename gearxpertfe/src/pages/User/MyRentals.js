@@ -1,4 +1,4 @@
-import React, { useEffect, useState,useMemo } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   Package,
   Clock,
@@ -21,7 +21,9 @@ import {
   X,
   Check,
   ArrowRight,
-  ArrowLeft,Search
+  ArrowLeft,
+  Search,
+  CreditCard,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
@@ -105,7 +107,24 @@ export default function MyRentals() {
     files: [],
     order: null, // FIX: Thêm order vào state để hiển thị items
   });
-
+  const handlePayNow = async (order) => {
+    try {
+      toast.info("Đang tạo link thanh toán...");
+  
+      const res = await rentalService.repaySingleRental(order._id);
+  
+      if (res?.success && res?.paymentLink) {
+        window.location.href = res.paymentLink;
+      } else {
+        toast.error("Không thể tạo link thanh toán");
+      }
+    } catch (err) {
+      toast.error(
+        err.response?.data?.message ||
+          "Lỗi khi khởi tạo thanh toán lại, vui lòng thử lại"
+      );
+    }
+  };
   const toggleItemSelection = (rentalItemId) => {
     // FIX: Sử dụng rentalItemId (item._id) thay vì deviceId
     const currentSelected = DeliReportModal.selectedItems || [];
@@ -448,8 +467,8 @@ export default function MyRentals() {
   // };
 
   const filteredAndSortedRentals = useMemo(() => {
-    let result = rentals.filter((r) => r.paymentStatus === "PAID");
-  
+    let result = [...rentals];
+
     // Lọc theo tab
     if (activeTab !== "ALL") {
       if (activeTab === "DELIVERING") {
@@ -460,7 +479,7 @@ export default function MyRentals() {
         result = result.filter((r) => r.status === activeTab);
       }
     }
-  
+
     // Search
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase().trim();
@@ -473,7 +492,7 @@ export default function MyRentals() {
         const deviceNames = (r.items || [])
           .map((item) => item.deviceId?.name?.toLowerCase() || "")
           .join(" ");
-  
+
         return (
           code.includes(term) ||
           customerName.includes(term) ||
@@ -482,7 +501,7 @@ export default function MyRentals() {
         );
       });
     }
-  
+
     // Sort
     switch (sortOption) {
       case "newest":
@@ -507,14 +526,19 @@ export default function MyRentals() {
       default:
         break;
     }
-  
+
     return result;
   }, [rentals, activeTab, searchTerm, sortOption]);
   const indexOfLastItem = currentPage * ITEMS_PER_PAGE;
   const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE;
-  const currentRentals = filteredAndSortedRentals.slice(indexOfFirstItem, indexOfLastItem);
-  
-  const totalPages = Math.ceil(filteredAndSortedRentals.length / ITEMS_PER_PAGE);
+  const currentRentals = filteredAndSortedRentals.slice(
+    indexOfFirstItem,
+    indexOfLastItem
+  );
+
+  const totalPages = Math.ceil(
+    filteredAndSortedRentals.length / ITEMS_PER_PAGE
+  );
   const minExtendDate = extendModal.currentEndDate
     ? new Date(
         new Date(extendModal.currentEndDate).getTime() + 24 * 60 * 60 * 1000
@@ -713,6 +737,12 @@ export default function MyRentals() {
                           ? "Đã duyệt"
                           : order.status}
                       </div>
+                      {order.paymentStatus === "UNPAID" && (
+                        <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-300">
+                          <AlertCircle size={14} className="mr-1.5" /> Chờ thanh
+                          toán
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="p-8">
@@ -849,6 +879,7 @@ export default function MyRentals() {
                                 </div>
 
                                 {/* Button hành động */}
+                                
                                 {(order.status === "DELIVERING" ||
                                   order.status === "RENTING") &&
                                   reportType && (
@@ -1000,6 +1031,15 @@ export default function MyRentals() {
                                 duyệt gia hạn
                               </span>
                             )}
+                            {order.paymentStatus === "UNPAID" &&
+                                  order.status === "PENDING" && (
+                                    <button
+                                      onClick={() => handlePayNow(order)}
+                                      className="w-full py-4 rounded-2xl bg-green-600 text-white text-[11px] font-black uppercase italic shadow-lg shadow-green-200 hover:bg-green-700 transition-all flex items-center justify-center gap-2"
+                                    >
+                                      <CreditCard size={16} /> Thanh toán ngay
+                                    </button>
+                                  )}
                             {order.status === "PENDING" && (
                               <button
                                 onClick={() =>

@@ -33,6 +33,7 @@ const ContractRouter = require("./Routes/ContractRoutes");
 const NotificationRouter = require("./Routes/notificationRoutes");
 const NotificationConfig = require("./configs/NotificationConfig");
 const blogRouter = require("./Routes/BlogRoutes");
+const supplierRouter = require("./Routes/SupplierRoutes");
 
 const io = socketIo(server, {
     cors: {
@@ -83,6 +84,7 @@ app.use('/api/advertisements', advertisementRouter);
 app.use('/api/contracts', ContractRouter);
 app.use('/api/notifications', NotificationRouter);
 app.use('/api/blogs', blogRouter);
+app.use('/api/suppliers', supplierRouter);
 
 app.use('/', googleAuthRouter);
 

@@ -17,22 +17,98 @@ exports.getCart = async (req, res) => {
   const customerId = req.user.id;
   const cartType = req.query.type || "NORMAL";
 
-  const cart = await Cart.findOne({
-    customerId,
-    cartType,
-  }).populate({
-    path: "items",
-    populate: {
-      path: "deviceId",
-      select: "supplierId name rentPrice depositAmount stockQuantity images",
+  try {
+    // Tìm cart và populate
+    let cart = await Cart.findOne({
+      customerId,
+      cartType,
+    }).populate({
+      path: "items",
       populate: {
-        path: "supplierId", // ← Populate level 2: từ Device → User
-        select: "fullName avatar", // lấy fullName + avatar nếu cần
+        path: "deviceId",
+        select: "supplierId name rentPrice depositAmount stockQuantity images status",
+        populate: {
+          path: "supplierId",
+          select: "fullName avatar",
+        },
       },
-    },
-  });
+    });
 
-  res.json(cart || { items: [] });
+    if (!cart || cart.items.length === 0) {
+      return res.json({ items: [], message: "Giỏ hàng trống" });
+    }
+
+    // Danh sách cartItem cần xóa
+    const invalidItemIds = [];
+
+    // Kiểm tra từng item
+    for (const item of cart.items) {
+      if (!item.deviceId) {
+        // Thiết bị bị xóa hoặc không populate được
+        invalidItemIds.push(item._id);
+        continue;
+      }
+
+      const device = item.deviceId;
+
+      // Kiểm tra hợp lệ
+      const isInvalid =
+        !device ||                                   // Không tồn tại
+        device.status !== "AVAILABLE" ||             // Không khả dụng
+        device.stockQuantity < item.quantity ||      // Hết hàng
+        device.stockQuantity === 0;                  // Stock = 0
+
+      if (isInvalid) {
+        invalidItemIds.push(item._id);
+      }
+    }
+
+    // Nếu có item không hợp lệ → xóa chúng
+    let cleaned = false;
+    if (invalidItemIds.length > 0) {
+      cleaned = true;
+
+      // Xóa CartItem
+      await CartItem.deleteMany({ _id: { $in: invalidItemIds } });
+
+      // Cập nhật mảng items trong Cart
+      cart.items = cart.items.filter(
+        (item) => !invalidItemIds.some((id) => id.equals(item._id))
+      );
+
+      // Lưu cart
+      await cart.save();
+
+      console.log(
+        `Đã tự động xóa ${invalidItemIds.length} cartItem không hợp lệ cho user ${customerId}`
+      );
+    }
+
+    // Populate lại cart để trả về data mới nhất
+    cart = await Cart.findById(cart._id).populate({
+      path: "items",
+      populate: {
+        path: "deviceId",
+        select: "supplierId name rentPrice depositAmount stockQuantity images status",
+        populate: {
+          path: "supplierId",
+          select: "fullName avatar",
+        },
+      },
+    });
+
+    // Trả về
+    res.json({
+      ...cart.toObject(),
+      cleaned, // Flag để frontend toast warning
+      message: cleaned
+        ? `Đã tự động xóa ${invalidItemIds.length} sản phẩm hết hàng hoặc không khả dụng`
+        : "Giỏ hàng hiện tại",
+    });
+  } catch (err) {
+    console.error("Get Cart Error:", err);
+    res.status(500).json({ message: "Lỗi khi lấy giỏ hàng" });
+  }
 };
 
 /**
@@ -44,9 +120,6 @@ exports.addToCart = async (req, res) => {
   const { deviceId, quantity, rentalStartDate, rentalEndDate } = req.body;
 
   const device = await Device.findById(deviceId);
-  if (!device || device.status !== "AVAILABLE") {
-    return res.status(400).json({ message: "Device not available" });
-  }
 
   const start = new Date(rentalStartDate);
   const end = new Date(rentalEndDate);

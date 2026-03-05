@@ -92,7 +92,10 @@ exports.topUpWallet = async (req, res) => {
  * GET /api/wallet/me
  */
 exports.getMyWallet = async (req, res) => {
-  const wallet = await Wallet.findOne({ user: req.user.id });
+  const wallet = await Wallet
+    .findOne({ user: req.user.id })
+    .populate("user", "isVerifiedEkyc");
+
   res.json(wallet);
 };
 
