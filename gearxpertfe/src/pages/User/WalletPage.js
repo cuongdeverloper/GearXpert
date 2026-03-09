@@ -35,7 +35,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 const PAGE_SIZE = 5;
 
 export default function WalletPage() {
-  const [isEkycVerified] = useState(false);
+  const [isEkycVerified, setIsEkycVerified] = useState(false);
   const [wallet, setWallet] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -69,8 +69,10 @@ export default function WalletPage() {
         getMyWallet(),
         getWalletTransactions(),
       ]);
-      setWallet(walletRes?.data || walletRes);
+      console.log(walletRes);
+      setWallet(walletRes);
       setTransactions(transRes?.data || transRes);
+      setIsEkycVerified(walletRes?.user?.isVerifiedEkyc);
     } catch (error) {
       toast.error("Không thể lấy thông tin ví");
     } finally {
@@ -522,7 +524,7 @@ export default function WalletPage() {
                 <div className="mt-12 flex items-center justify-between">
                   <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl">
                     <p className="text-[10px] font-mono text-white/80">
-                      {wallet?.user?.slice(-12).toUpperCase() || "USER_WALLET"}
+                      {wallet?.user?._id.slice(-12).toUpperCase() || "USER_WALLET"}
                     </p>
                   </div>
                   <Wallet size={40} className="text-white/20" />

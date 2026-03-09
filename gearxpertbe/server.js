@@ -33,7 +33,12 @@ const ContractRouter = require("./Routes/ContractRoutes");
 const NotificationRouter = require("./Routes/notificationRoutes");
 const NotificationConfig = require("./configs/NotificationConfig");
 const blogRouter = require("./Routes/BlogRoutes");
+<<<<<<< HEAD
 const smartgearRoutes = require("./Routes/SmartGearRoutes");
+=======
+const supplierRouter = require("./Routes/SupplierRoutes");
+
+>>>>>>> cfd9fe5684cf1f4719ed42bf222789dbb8572c82
 const io = socketIo(server, {
     cors: {
         origin: '*',
@@ -83,7 +88,12 @@ app.use('/api/advertisements', advertisementRouter);
 app.use('/api/contracts', ContractRouter);
 app.use('/api/notifications', NotificationRouter);
 app.use('/api/blogs', blogRouter);
+<<<<<<< HEAD
 app.use("/api/smartgear", smartgearRoutes);
+=======
+app.use('/api/suppliers', supplierRouter);
+
+>>>>>>> cfd9fe5684cf1f4719ed42bf222789dbb8572c82
 app.use('/', googleAuthRouter);
 
 app.post("/api/ai-chat", handleAIChat);
