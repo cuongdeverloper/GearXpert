@@ -4,7 +4,12 @@ const supplierRouter = express.Router();
 const supplierProfileController = require('../controllers/Supplier/SupplierController');
 const { checkAccessToken } = require('../middleware/JWTAction');
 
-// Public routes
+// Public storefront routes (new — safe, no overlap with existing)
+supplierRouter.get('/:supplierId/storefront', supplierProfileController.getSupplierStorefront);
+supplierRouter.get('/:supplierId/storefront/devices', supplierProfileController.getSupplierStorefrontDevices);
+supplierRouter.get('/:supplierId/storefront/vouchers', supplierProfileController.getSupplierStorefrontVouchers);
+
+// Existing public routes — DO NOT MODIFY
 supplierRouter.get('/:supplierId', supplierProfileController.getSupplierProfile);
 supplierRouter.get('/:supplierId/devices', supplierProfileController.getSupplierDevices);
 

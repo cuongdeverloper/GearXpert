@@ -2,6 +2,11 @@ const mongoose = require("mongoose");
 const SupplierProfile = require("../../models/SupplierProfile");
 const User = require("../../models/User");
 const Device = require("../../models/Device");
+const Voucher = require("../../models/Voucher");
+
+// =============================================
+// ORIGINAL FUNCTIONS — DO NOT MODIFY
+// =============================================
 
 // Lấy profile Supplier (public & edit)
 exports.getSupplierProfile = async (req, res) => {
@@ -94,9 +99,7 @@ exports.updateSupplierProfile = async (req, res) => {
 
     // Xử lý upload businessAvatar (multer hoặc cloudinary)
     if (req.files && req.files.businessAvatar) {
-      // Giả sử multer lưu file vào req.files
-      // Nếu dùng Cloudinary → upload và lấy url
-      updateData.businessAvatar = req.files.businessAvatar[0].path; // hoặc url từ cloudinary
+      updateData.businessAvatar = req.files.businessAvatar[0].path;
     }
 
     // Cập nhật
@@ -174,6 +177,212 @@ exports.getSupplierDevices = async (req, res) => {
       success: false,
       errorCode: 500,
       message: "Lỗi server khi lấy danh sách thiết bị",
+    });
+  }
+};
+
+// =============================================
+// NEW FUNCTIONS — Supplier public storefront
+// =============================================
+
+/**
+ * GET /api/suppliers/:supplierId/storefront
+ * Public storefront profile — works even without SupplierProfile document.
+ * Falls back to User data when no SupplierProfile exists.
+ */
+exports.getSupplierStorefront = async (req, res) => {
+  try {
+    const { supplierId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(supplierId)) {
+      return res.status(400).json({
+        success: false,
+        errorCode: 400,
+        message: "Invalid supplierId",
+      });
+    }
+
+    const objectId = new mongoose.Types.ObjectId(supplierId);
+
+    const user = await User.findById(objectId).select(
+      "fullName phone avatar email role createdAt"
+    );
+    if (!user || user.role !== "SUPPLIER") {
+      return res.status(404).json({
+        success: false,
+        errorCode: 404,
+        message: "Supplier not found",
+      });
+    }
+
+    const profile = await SupplierProfile.findOne({ userId: objectId });
+
+    const deviceCount = await Device.countDocuments({ supplierId: objectId });
+
+    const ratingAgg = await Device.aggregate([
+      { $match: { supplierId: objectId } },
+      {
+        $group: {
+          _id: null,
+          avgRating: { $avg: "$ratingAvg" },
+          totalReviews: { $sum: "$reviewCount" },
+        },
+      },
+    ]);
+
+    const data = {
+      _id: profile?._id || null,
+      userId: {
+        _id: user._id,
+        fullName: user.fullName,
+        phone: user.phone,
+        avatar: user.avatar,
+        email: user.email,
+      },
+      businessName: profile?.businessName || user.fullName,
+      businessDescription: profile?.businessDescription || null,
+      businessAvatar: profile?.businessAvatar || user.avatar,
+      warehouseAddress: profile?.warehouseAddress || null,
+      contactZalo: profile?.contactZalo || null,
+      contactFacebook: profile?.contactFacebook || null,
+      contactPhone: profile?.contactPhone || user.phone,
+      operatingHours: profile?.operatingHours || "08:00 - 22:00",
+      supplierRating: ratingAgg[0]?.avgRating || 0,
+      supplierReviewCount: ratingAgg[0]?.totalReviews || 0,
+      deviceCount,
+      memberSince: user.createdAt,
+      status: profile?.status || "ACTIVE",
+    };
+
+    res.status(200).json({ success: true, errorCode: 0, data });
+  } catch (err) {
+    console.error("getSupplierStorefront error:", err);
+    res.status(500).json({
+      success: false,
+      errorCode: 500,
+      message: "Server error",
+    });
+  }
+};
+
+/**
+ * GET /api/suppliers/:supplierId/storefront/devices
+ * Public device listing for storefront with sort, category filter, search.
+ */
+exports.getSupplierStorefrontDevices = async (req, res) => {
+  try {
+    const { supplierId } = req.params;
+    const {
+      page = 1,
+      limit = 12,
+      category,
+      search,
+      sort = "newest",
+    } = req.query;
+
+    if (!mongoose.Types.ObjectId.isValid(supplierId)) {
+      return res.status(400).json({
+        success: false,
+        errorCode: 400,
+        message: "Invalid supplierId",
+      });
+    }
+
+    const objectId = new mongoose.Types.ObjectId(supplierId);
+
+    const query = {
+      supplierId: objectId,
+      status: { $nin: ["STOPPED", "BROKEN"] },
+    };
+
+    if (category) query.category = category;
+    if (search) query.$text = { $search: search };
+
+    let sortQuery = { createdAt: -1 };
+    if (sort === "price-asc") sortQuery = { "rentPrice.perDay": 1 };
+    else if (sort === "price-desc") sortQuery = { "rentPrice.perDay": -1 };
+    else if (sort === "rating-desc") sortQuery = { ratingAvg: -1 };
+    else if (sort === "popular") sortQuery = { reviewCount: -1 };
+
+    const devices = await Device.find(query)
+      .select(
+        "name images rentPrice depositAmount category stockQuantity rentedQuantity ratingAvg reviewCount status location createdAt"
+      )
+      .sort(sortQuery)
+      .skip((Number(page) - 1) * Number(limit))
+      .limit(Number(limit));
+
+    const total = await Device.countDocuments(query);
+
+    const categories = await Device.distinct("category", {
+      supplierId: objectId,
+      status: { $nin: ["STOPPED", "BROKEN"] },
+    });
+
+    res.status(200).json({
+      success: true,
+      errorCode: 0,
+      data: {
+        devices,
+        categories,
+        pagination: {
+          currentPage: Number(page),
+          totalPages: Math.ceil(total / Number(limit)),
+          totalItems: total,
+        },
+      },
+    });
+  } catch (err) {
+    console.error("getSupplierStorefrontDevices error:", err);
+    res.status(500).json({
+      success: false,
+      errorCode: 500,
+      message: "Server error",
+    });
+  }
+};
+
+/**
+ * GET /api/suppliers/:supplierId/storefront/vouchers
+ * Public — active, non-expired vouchers for a supplier + GLOBAL vouchers.
+ */
+exports.getSupplierStorefrontVouchers = async (req, res) => {
+  try {
+    const { supplierId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(supplierId)) {
+      return res.status(400).json({
+        success: false,
+        errorCode: 400,
+        message: "Invalid supplierId",
+      });
+    }
+
+    const now = new Date();
+
+    const vouchers = await Voucher.find({
+      $or: [
+        { supplierId: new mongoose.Types.ObjectId(supplierId) },
+        { type: "GLOBAL" },
+      ],
+      status: "ACTIVE",
+      expiredAt: { $gt: now },
+      $expr: { $lt: ["$usedCount", "$usageLimit"] },
+    })
+      .select(
+        "code description discountType discountValue minOrderValue maxDiscount usageLimit usedCount expiredAt type"
+      )
+      .sort({ discountValue: -1 })
+      .limit(10)
+      .lean();
+
+    res.status(200).json({ success: true, errorCode: 0, data: vouchers });
+  } catch (err) {
+    console.error("getSupplierStorefrontVouchers error:", err);
+    res.status(500).json({
+      success: false,
+      errorCode: 500,
+      message: "Server error",
     });
   }
 };

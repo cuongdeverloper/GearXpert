@@ -370,27 +370,31 @@ export default function ProductDetailPage() {
 
               {/* SUPPLIER INFO */}
               {supplier.fullName && (
-                <div className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm">
+                <div
+                  onClick={() => navigate(`/supplier/${supplier._id}`)}
+                  className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm cursor-pointer hover:border-indigo-200 hover:shadow-md transition-all group"
+                >
                   <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-3">
                     <User size={20} className="text-indigo-600" />
-                    Nhà cung cấp
+                    Supplier
                   </h3>
                   <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-indigo-100">
+                    <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-indigo-100 group-hover:border-indigo-300 transition-colors">
                       <img
                         src={supplier.avatar || "https://via.placeholder.com/64"}
                         alt={supplier.fullName}
                         className="w-full h-full object-cover"
                       />
                     </div>
-                    <div>
-                      <p className="font-bold text-slate-900 text-lg">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-slate-900 text-lg group-hover:text-indigo-600 transition-colors">
                         {supplier.fullName}
                       </p>
                       <p className="text-sm text-slate-500">
-                        Đã cung cấp {device.name} cho GearXpert
+                        Listed {device.name} on GearXpert
                       </p>
                     </div>
+                    <ArrowLeft className="w-5 h-5 text-slate-300 rotate-180 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
                   </div>
                 </div>
               )}
