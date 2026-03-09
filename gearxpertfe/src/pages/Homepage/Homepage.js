@@ -11,6 +11,7 @@ import NewArrivalsSection from "../../components/homepage/NewArrivalsSection";
 import TopBannerAds from "../../components/homepage/TopBannerAds";
 import PopupAds from "../../components/homepage/PopupAds";
 import Footer from "../../components/homepage/Footer";
+import SmartGearPromoSection from "../../components/homepage/SmartGearPromoSection";
 
 export default function Homepage() {
   const [devices, setDevices] = useState([]);
@@ -102,6 +103,10 @@ export default function Homepage() {
 
         <ScrollAnimation direction="up" delay={0.1} className="px-6 lg:px-10">
           <TopBannerAds />
+        </ScrollAnimation>
+
+        <ScrollAnimation effect="fade" delay={0.05}>
+          <SmartGearPromoSection />
         </ScrollAnimation>
 
         <ScrollAnimation effect="scale" viewportAmount={0.4}>

@@ -68,6 +68,7 @@ import BlogDetailPage from "./pages/Blog/BlogDetailPage";
 import ChatWindowManager from "./components/Message Socket/MiniChat/ChatWindowManager";
 import OperationStaffDashboard from "./pages/OperationStaff/OperationStaffDashboard";
 import StaffLayout from "./components/layout/StaffLayout";
+import SmartGearPage from "./pages/SmartGear/SmartGearPage";
 
 const ChatbotWrapper = () => {
   const location = useLocation();
@@ -201,7 +202,9 @@ export default function Layout() {
 
           <Route path="/messenger" element={<Messenger />} />
           <Route path="/messenger/:conversationId" element={<Messenger />}
+          
           />
+          <Route path="/smartgear" element={<SmartGearPage />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

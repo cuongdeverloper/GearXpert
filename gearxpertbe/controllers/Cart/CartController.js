@@ -219,3 +219,63 @@ exports.clearCart = async (req, res) => {
 
   res.json({ message: "Cart cleared" });
 };
+
+exports.addComboToCart = async (req, res) => {
+  try {
+    const customerId = req.user.id;
+    const { comboItems, rentalStartDate, rentalEndDate } = req.body;
+
+    if (!comboItems || !Array.isArray(comboItems) || comboItems.length === 0) {
+      return res.status(400).json({ message: "Combo không hợp lệ hoặc trống" });
+    }
+
+    const start = new Date(rentalStartDate);
+    const end = new Date(rentalEndDate);
+    if (end <= start) {
+      return res.status(400).json({ message: "Ngày kết thúc phải sau ngày bắt đầu" });
+    }
+    const totalDays = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
+
+    let cart = await Cart.findOne({ customerId, cartType: "NORMAL" });
+    if (!cart) {
+      cart = await Cart.create({ customerId, cartType: "NORMAL" });
+    }
+
+    const addedItems = [];
+    const failedItems = [];
+
+    for (const item of comboItems) {
+      const device = await Device.findById(item.deviceId);
+      
+      if (!device || device.status !== "AVAILABLE" || device.availableQuantity < item.quantity) {
+        failedItems.push(item.deviceId);
+        continue; 
+      }
+
+      const cartItem = await CartItem.create({
+        cartId: cart._id,
+        deviceId: item.deviceId,
+        quantity: item.quantity,
+        rentalStartDate: start,
+        rentalEndDate: end,
+        totalDays,
+      });
+
+      cart.items.push(cartItem._id);
+      addedItems.push(cartItem._id);
+    }
+
+    await cart.save();
+
+    res.status(201).json({ 
+      success: true, 
+      message: `Đã thêm ${addedItems.length} thiết bị vào giỏ hàng.`,
+      failedCount: failedItems.length,
+      cart: cart
+    });
+
+  } catch (err) {
+    console.error("[addComboToCart] Error:", err);
+    res.status(500).json({ message: "Lỗi server khi thêm combo vào giỏ hàng" });
+  }
+};
