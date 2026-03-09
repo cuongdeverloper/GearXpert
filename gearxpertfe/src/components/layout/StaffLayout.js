@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   LayoutDashboard, Truck, PackageCheck, Wrench,
   AlertTriangle, CheckCircle, X, Camera, MapPin, Phone,
-  FileText, LogOut, UserCircle, ShieldAlert, Eye,
+  FileText, LogOut, ShieldAlert,
   QrCode, Bell, User, History
 } from 'lucide-react';
 
