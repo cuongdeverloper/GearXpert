@@ -92,33 +92,36 @@ const getPrimaryItem = (rental) => {
   return items[0] || null;
 };
 
-// Fake dữ liệu trạng thái giao hàng (khi chưa có API thật)
-const getFakeDeliveryTimeline = (rentalCode) => [
-  {
-    status: "Nhận đơn từ nhà cung cấp",
-    time: new Date(Date.now() - 10800000).toISOString(), // 3 giờ trước
-    location: "Kho thiết bị - Nhà cung cấp",
-    done: true,
-  },
-  {
-    status: "Đang lấy hàng (Pickup)",
-    time: new Date(Date.now() - 7200000).toISOString(), // 2 giờ trước
-    location: "Quận 1, TP. Hồ Chí Minh",
-    done: true,
-  },
-  {
-    status: "Đang di chuyển đến khách hàng",
-    time: new Date(Date.now() - 3600000).toISOString(), // 1 giờ trước
-    location: "Đang trên đường đến địa chỉ khách",
-    done: false,
-  },
-  {
-    status: "Đã giao thành công",
-    time: null,
-    location: null,
-    done: false,
-  },
-];
+// Trạng thái giao hàng dựa trên dữ liệu thực của rental
+const getDeliveryTimeline = (rental) => {
+  const pickedUpAt = rental?.pickedUpAt;
+  return [
+    {
+      status: "Nhận đơn từ nhà cung cấp",
+      time: rental?.updatedAt ? new Date(rental.updatedAt).toISOString() : null,
+      location: "Kho thiết bị - Nhà cung cấp",
+      done: true,
+    },
+    {
+      status: "Đang lấy hàng (Pickup)",
+      time: pickedUpAt ? new Date(pickedUpAt).toISOString() : null,
+      location: "Kho thiết bị - Nhà cung cấp",
+      done: !!pickedUpAt,
+    },
+    {
+      status: "Đang di chuyển đến khách hàng",
+      time: pickedUpAt ? new Date(pickedUpAt).toISOString() : null,
+      location: "Đang trên đường đến địa chỉ khách",
+      done: !!pickedUpAt,
+    },
+    {
+      status: "Đã giao thành công",
+      time: null,
+      location: null,
+      done: false,
+    },
+  ];
+};
 
 export default function SupplierRentalRequests() {
   const user = useSelector((state) => state.user.account);
@@ -544,7 +547,7 @@ export default function SupplierRentalRequests() {
             </div>
 
             <div className="space-y-6 py-2">
-              {getFakeDeliveryTimeline(getRentalCode(deliveryModal.rental)).map((step, index) => (
+              {getDeliveryTimeline(deliveryModal.rental).map((step, index) => (
                 <div key={index} className="flex items-start gap-4">
                   <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${

@@ -3,7 +3,7 @@ import {
   Truck, PackageCheck, Wrench,
   AlertTriangle, CheckCircle, X, Camera, MapPin, Phone, FileText,
 } from 'lucide-react';
-import { getDeliveringRentals } from '../../../service/ApiService/RentalApi';
+import { getDeliveringRentals, confirmPickup } from '../../../service/ApiService/RentalApi';
 
 const mapRentalToTask = (rental) => {
   const items = rental.rentalItems || [];
@@ -31,6 +31,7 @@ export default function TasksTab() {
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [showIssueModal, setShowIssueModal] = useState(false);
+  const [pickupLoading, setPickupLoading] = useState(false);
 
   const fetchDeliveryTasks = useCallback(async () => {
     setLoadingTasks(true);
@@ -48,6 +49,29 @@ export default function TasksTab() {
   useEffect(() => {
     fetchDeliveryTasks();
   }, [fetchDeliveryTasks]);
+
+  const handleConfirmPickup = async () => {
+    if (!selectedTask || pickupLoading) return;
+    setPickupLoading(true);
+    try {
+      await confirmPickup(selectedTask.rentalId);
+      // Update local state: mark pickedUpAt on the rental
+      setTasks(prev => prev.map(t =>
+        t.id === selectedTask.id
+          ? { ...t, rentalData: { ...t.rentalData, pickedUpAt: new Date().toISOString() } }
+          : t
+      ));
+      setSelectedTask(prev => ({
+        ...prev,
+        rentalData: { ...prev.rentalData, pickedUpAt: new Date().toISOString() },
+      }));
+    } catch (err) {
+      console.error('Lỗi xác nhận lấy hàng:', err);
+      alert(err?.response?.data?.message || 'Không thể xác nhận lấy hàng');
+    } finally {
+      setPickupLoading(false);
+    }
+  };
 
   const filteredTasks = tasks.filter(task =>
     activeTab === 'all' ? true : task.type === activeTab
@@ -237,6 +261,20 @@ export default function TasksTab() {
               >
                 <AlertTriangle size={18} /> Ghi nhận sự cố
               </button>
+              {selectedTask?.type === 'delivery' && !selectedTask?.rentalData?.pickedUpAt && (
+                <button
+                  onClick={handleConfirmPickup}
+                  disabled={pickupLoading}
+                  className="w-full md:w-auto px-6 py-3.5 bg-amber-500 text-white rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-amber-600 active:bg-amber-700 transition-colors disabled:opacity-60 shadow-md shadow-amber-200"
+                >
+                  <PackageCheck size={18} /> {pickupLoading ? 'Đang xác nhận...' : 'Đã lấy hàng'}
+                </button>
+              )}
+              {selectedTask?.type === 'delivery' && selectedTask?.rentalData?.pickedUpAt && (
+                <span className="w-full md:w-auto px-6 py-3.5 bg-amber-50 text-amber-700 rounded-xl font-bold flex justify-center items-center gap-2 border border-amber-200 text-sm">
+                  <PackageCheck size={18} /> Đã lấy hàng
+                </span>
+              )}
               <button className="w-full md:flex-1 py-3.5 bg-slate-900 text-white rounded-xl font-bold flex justify-center items-center gap-2 active:bg-slate-800 shadow-md">
                 <CheckCircle size={18} /> Xác nhận hoàn thành
               </button>

@@ -103,6 +103,12 @@ const cancelPayRental = async (rentalId) => {
 const getDeliveringRentals = () => {
   return axios.get("/api/rentals/delivering");
 };
+
+// Staff xác nhận đã lấy hàng từ kho supplier
+const confirmPickup = (rentalId) => {
+  return axios.post(`/api/rentals/${rentalId}/confirm-pickup`);
+};
+
 export { 
   checkout, 
   hasRentedDevice, 
@@ -122,5 +128,6 @@ export {
   repayRental,
   cancelPayRental,
   repaySingleRental,
-  getDeliveringRentals
+  getDeliveringRentals,
+  confirmPickup
 };

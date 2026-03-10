@@ -1260,6 +1260,27 @@ exports.startDelivery = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+exports.confirmPickup = async (req, res) => {
+  try {
+    const { rentalId } = req.params;
+    const rental = await Rental.findById(rentalId);
+    if (!rental) return res.status(404).json({ message: "Rental not found" });
+    if (rental.status !== "DELIVERING")
+      return res.status(400).json({ message: "Rental is not in DELIVERING status" });
+    if (rental.pickedUpAt)
+      return res.status(400).json({ message: "Pickup already confirmed" });
+
+    rental.pickedUpAt = new Date();
+    await rental.save();
+
+    return res.status(200).json({ message: "Pickup confirmed", pickedUpAt: rental.pickedUpAt });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 exports.repayRental = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
