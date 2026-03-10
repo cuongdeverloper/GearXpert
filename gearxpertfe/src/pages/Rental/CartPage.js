@@ -109,7 +109,9 @@ const CartPage = () => {
       setLoading(false);
     }
   }, [processCartData]);
-
+  useEffect(() => {
+    fetchCartData();
+  }, [fetchCartData]);
   const handleRemove = async (itemId, deviceName) => {
     try {
       await removeCartItem(itemId);
