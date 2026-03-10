@@ -480,6 +480,31 @@ exports.getSupplierRentals = async (req, res) => {
   }
 };
 
+exports.getDeliveringRentals = async (req, res) => {
+  try {
+    const rentals = await Rental.find({ status: "DELIVERING" })
+      .populate("customerId", "fullName avatar email")
+      .sort({ updatedAt: -1 });
+
+    const rentalsWithItems = await Promise.all(
+      rentals.map(async (rental) => {
+        const rentalItems = await RentalItem.find({
+          rentalId: rental._id,
+        }).populate("deviceId", "name images");
+        return {
+          ...rental.toObject(),
+          rentalItems,
+        };
+      })
+    );
+
+    res.json({ rentals: rentalsWithItems });
+  } catch (error) {
+    console.error("Error getDeliveringRentals:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 exports.getMyRentals = async (req, res) => {
   try {
     const customerId = req.user.id;
