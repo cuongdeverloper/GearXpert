@@ -726,6 +726,8 @@ export default function MyRentals() {
                         className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm ${
                           order.status === "PENDING"
                             ? "bg-amber-100 text-amber-600"
+                            : order.status === "DELIVERING" && order.deliveredAt
+                            ? "bg-teal-100 text-teal-600"
                             : order.status === "DELIVERING"
                             ? "bg-blue-100 text-blue-600"
                             : order.status === "RENTING"
@@ -735,6 +737,8 @@ export default function MyRentals() {
                       >
                         {order.status === "APPROVED"
                           ? "Đã duyệt"
+                          : order.status === "DELIVERING" && order.deliveredAt
+                          ? "Đã giao · Chờ xác nhận"
                           : order.status}
                       </div>
                       {order.paymentStatus === "UNPAID" && (
@@ -1079,15 +1083,25 @@ export default function MyRentals() {
                             {/* DELIVERING: Báo cáo giao hàng + Xác nhận nhận */}
                             {order.status === "DELIVERING" && (
                               <>
-                                <button
-                                  onClick={() =>
-                                    handleOpenModal("CONFIRM", order._id)
-                                  }
-                                  className="w-full py-4 rounded-2xl bg-indigo-600 text-white text-[11px] font-black uppercase italic shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
-                                >
-                                  <CheckCircle2 size={16} /> Xác nhận đã nhận
-                                  hàng
-                                </button>
+                                {order.deliveredAt ? (
+                                  <>
+                                    <div className="w-full py-3 px-4 rounded-2xl bg-teal-50 border border-teal-200 text-teal-700 text-[11px] font-black uppercase italic flex items-center justify-center gap-2">
+                                      <Truck size={14} /> Giao hàng thành công · Vui lòng xác nhận nhận hàng
+                                    </div>
+                                    <button
+                                      onClick={() =>
+                                        handleOpenModal("CONFIRM", order._id)
+                                      }
+                                      className="w-full py-4 rounded-2xl bg-indigo-600 text-white text-[11px] font-black uppercase italic shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+                                    >
+                                      <CheckCircle2 size={16} /> Xác nhận đã nhận hàng
+                                    </button>
+                                  </>
+                                ) : (
+                                  <div className="w-full py-3 px-4 rounded-2xl bg-blue-50 border border-blue-200 text-blue-700 text-[11px] font-black uppercase italic flex items-center justify-center gap-2">
+                                    <Truck size={14} /> Đang trên đường giao đến bạn...
+                                  </div>
+                                )}
                                 <button
                                   onClick={() =>
                                     setTrackingModal({ isOpen: true, order })

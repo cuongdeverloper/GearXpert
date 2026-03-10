@@ -95,6 +95,7 @@ const getPrimaryItem = (rental) => {
 // Trạng thái giao hàng dựa trên dữ liệu thực của rental
 const getDeliveryTimeline = (rental) => {
   const pickedUpAt = rental?.pickedUpAt;
+  const deliveredAt = rental?.deliveredAt;
   return [
     {
       status: "Nhận đơn từ nhà cung cấp",
@@ -116,9 +117,9 @@ const getDeliveryTimeline = (rental) => {
     },
     {
       status: "Đã giao thành công",
-      time: null,
-      location: null,
-      done: false,
+      time: deliveredAt ? new Date(deliveredAt).toISOString() : null,
+      location: "Địa chỉ khách hàng",
+      done: !!deliveredAt,
     },
   ];
 };
@@ -387,8 +388,12 @@ export default function SupplierRentalRequests() {
                 const extraCount = (rental.rentalItems?.length || 0) - 1;
                 const rentalStart = primaryItem?.rentalStartDate || rental.rentalStartDate;
                 const rentalEnd = primaryItem?.rentalEndDate || rental.rentalEndDate;
-                const statusLabel = STATUS_LABELS[rental.status] || rental.status;
-                const statusClass = STATUS_STYLES[rental.status] || STATUS_STYLES.INSPECTING;
+                const statusLabel = rental.status === "DELIVERING" && rental.deliveredAt
+                  ? "Đã giao thành công (chờ xác nhận)"
+                  : STATUS_LABELS[rental.status] || rental.status;
+                const statusClass = rental.status === "DELIVERING" && rental.deliveredAt
+                  ? "bg-teal-50 text-teal-700 border-teal-200"
+                  : STATUS_STYLES[rental.status] || STATUS_STYLES.INSPECTING;
                 const code = getRentalCode(rental, index + (page - 1) * pageSize);
 
                 return (

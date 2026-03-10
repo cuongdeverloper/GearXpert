@@ -52,6 +52,7 @@ const rentalSchema = new mongoose.Schema(
     voucherDiscount: { type: Number, default: 0 },
 
     pickedUpAt: Date,
+    deliveredAt: Date,
 
     deliveryAddress: {
       receiverName: { type: String, required: true },

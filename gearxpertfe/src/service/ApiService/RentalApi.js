@@ -109,6 +109,11 @@ const confirmPickup = (rentalId) => {
   return axios.post(`/api/rentals/${rentalId}/confirm-pickup`);
 };
 
+// Staff xác nhận đã giao hàng đến tay customer
+const confirmDelivery = (rentalId) => {
+  return axios.post(`/api/rentals/${rentalId}/confirm-delivery`);
+};
+
 export { 
   checkout, 
   hasRentedDevice, 
@@ -129,5 +134,6 @@ export {
   cancelPayRental,
   repaySingleRental,
   getDeliveringRentals,
-  confirmPickup
+  confirmPickup,
+  confirmDelivery
 };

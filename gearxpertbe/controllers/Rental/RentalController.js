@@ -1080,6 +1080,9 @@ exports.confirmReceived = async (req, res) => {
     if (rental.status !== "DELIVERING")
       throw new Error("Đơn hàng chưa ở trạng thái giao hàng");
 
+    if (!rental.deliveredAt)
+      throw new Error("Nhân viên chưa xác nhận đã giao hàng. Vui lòng chờ nhân viên xác nhận.");
+
     // Hoàn thành đơn
     rental.status = "RENTING"; // Hoặc COMPLETED tùy flow của bạn, ở đây chọn RENTING vì khách bắt đầu dùng
     await rental.save({ session });
@@ -1275,6 +1278,35 @@ exports.confirmPickup = async (req, res) => {
     await rental.save();
 
     return res.status(200).json({ message: "Pickup confirmed", pickedUpAt: rental.pickedUpAt });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.confirmDelivery = async (req, res) => {
+  try {
+    const { rentalId } = req.params;
+    const rental = await Rental.findById(rentalId);
+    if (!rental) return res.status(404).json({ message: "Rental not found" });
+    if (rental.status !== "DELIVERING")
+      return res.status(400).json({ message: "Rental is not in DELIVERING status" });
+    if (!rental.pickedUpAt)
+      return res.status(400).json({ message: "Please confirm pickup before confirming delivery" });
+    if (rental.deliveredAt)
+      return res.status(400).json({ message: "Delivery already confirmed" });
+
+    rental.deliveredAt = new Date();
+    await rental.save();
+
+    await sendRentalNotification(
+      rental,
+      "CUSTOMER",
+      "Thiết bị đã được giao đến bạn!",
+      "Nhân viên đã xác nhận giao hàng thành công. Vui lòng kiểm tra và xác nhận đã nhận hàng."
+    );
+
+    return res.status(200).json({ message: "Delivery confirmed", deliveredAt: rental.deliveredAt });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });

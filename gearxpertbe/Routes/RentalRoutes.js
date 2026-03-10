@@ -17,7 +17,8 @@ const {
   cancelPayRental,
   repaySingleRental,
   getDeliveringRentals,
-  confirmPickup
+  confirmPickup,
+  confirmDelivery
 } = require('../controllers/Rental/RentalController');
 const { hasReviewed, createReview, getDeviceReviews, uploadReviewImages } = require('../controllers/Review/ReviewController');  // Thêm getDeviceReviews và uploadReviewImages
 const { checkAccessToken,requireEkyc } = require('../middleware/JWTAction');
@@ -51,6 +52,7 @@ rentalRouter.post(
   checkAccessToken,startDelivery
 );
 rentalRouter.post('/:rentalId/confirm-pickup', checkAccessToken, confirmPickup);
+rentalRouter.post('/:rentalId/confirm-delivery', checkAccessToken, confirmDelivery);
 rentalRouter.post('/:rentalId/cancelpay', checkAccessToken, cancelPayRental);
 rentalRouter.post("/:rentalId/repay", checkAccessToken, repayRental);
 rentalRouter.post("/:rentalId/singlerepay", checkAccessToken, repaySingleRental);

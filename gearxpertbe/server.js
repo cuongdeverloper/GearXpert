@@ -34,6 +34,7 @@ const NotificationRouter = require("./Routes/notificationRoutes");
 const NotificationConfig = require("./configs/NotificationConfig");
 const blogRouter = require("./Routes/BlogRoutes");
 const supplierRouter = require("./Routes/SupplierRoutes");
+const { startAutoConfirmJob } = require("./jobs/autoConfirmDelivery");
 
 const io = socketIo(server, {
     cors: {
@@ -106,6 +107,7 @@ socketHandler(io);
     try {
         await connection();
         doLoginWGoogle();
+        startAutoConfirmJob();
         server.listen(port, () => {
             console.log(`Backend + Socket listening on port ${port}`);
         });
