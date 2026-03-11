@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { LayoutDashboard, ShieldAlert, QrCode, Bell, User, History } from 'lucide-react';
 
 import TasksTab from './tabs/TasksTab';
