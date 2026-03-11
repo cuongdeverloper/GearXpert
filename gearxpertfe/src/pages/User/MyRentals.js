@@ -736,6 +736,8 @@ export default function MyRentals() {
                             ? "bg-emerald-100 text-emerald-600"
                             : order.status === "RETURNING"
                             ? "bg-orange-100 text-orange-600"
+                            : order.status === "INSPECTING"
+                            ? "bg-slate-100 text-slate-600"
                             : "bg-gray-100 text-gray-500"
                         }`}
                       >
@@ -745,6 +747,8 @@ export default function MyRentals() {
                           ? "Đã giao · Chờ xác nhận"
                           : order.status === "RETURNING"
                           ? "Thu hồi"
+                          : order.status === "INSPECTING"
+                          ? "Đang kiểm tra"
                           : order.status}
                       </div>
                       {order.paymentStatus === "UNPAID" && (
@@ -1181,8 +1185,8 @@ export default function MyRentals() {
                               </div>
                             )}
 
-                            {/* INSPECTING: Chờ kiểm tra */}
-                            {order.status === "INSPECTING" && (
+                            {/* INSPECTING — giao hàng: Hoàn tiền + Đổi trả */}
+                            {order.status === "INSPECTING" && order.inspectedContext !== "RETURN" && (
                               <>
                                 <button
                                   className="w-full py-4 rounded-2xl bg-amber-50 text-amber-700 text-[11px] font-black uppercase italic border border-amber-200 flex items-center justify-center gap-2"
@@ -1195,6 +1199,15 @@ export default function MyRentals() {
                                   <ArrowLeft size={14} /> Yêu cầu đổi trả
                                 </button>
                               </>
+                            )}
+
+                            {/* INSPECTING — thu hồi: Liên hệ với shop */}
+                            {order.status === "INSPECTING" && order.inspectedContext === "RETURN" && (
+                              <button
+                                className="w-full py-4 rounded-2xl bg-slate-900 text-white text-[11px] font-black uppercase italic flex items-center justify-center gap-2 hover:bg-slate-700 transition-colors"
+                              >
+                                <Send size={14} /> Liên hệ với shop
+                              </button>
                             )}
 
                             {/* COMPLETED / CANCELLED */}

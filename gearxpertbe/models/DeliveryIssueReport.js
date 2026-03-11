@@ -64,6 +64,13 @@ const deliveryIssueReportSchema = new mongoose.Schema(
     },
 
     resolvedNote: String,
+
+    // DELIVERY = sự cố lúc giao hàng | RETURN = sự cố lúc thu hồi
+    reportContext: {
+      type: String,
+      enum: ["DELIVERY", "RETURN"],
+      default: "DELIVERY",
+    },
   },
   { timestamps: true }
 );

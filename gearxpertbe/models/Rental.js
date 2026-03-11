@@ -38,6 +38,7 @@ const rentalSchema = new mongoose.Schema(
         "RENTING",
         "RETURNING",
         "INSPECTING",
+        "PENDING_RESOLUTION",
         "COMPLETED",
         "CANCELLED",
       ],
@@ -65,6 +66,12 @@ const rentalSchema = new mongoose.Schema(
     notes: String,
 
     orderCode: { type: Number, sparse: true },
+
+    // Context khi chuyển sang INSPECTING: DELIVERY (staff báo cáo lúc giao) | RETURN (staff báo cáo lúc thu hồi)
+    inspectedContext: {
+      type: String,
+      enum: ["DELIVERY", "RETURN"],
+    },
   },
   { timestamps: true }
 );

@@ -33,6 +33,20 @@ ReportRouter.get(
   deliveryCtrl.getStaffDeliveryIssues
 );
 
+// LÚC THU HỒI — Staff
+ReportRouter.post(
+  "/staff-return-issue",
+  checkAccessToken,
+  uploadCloud.any(),
+  deliveryCtrl.createStaffReturnIssue
+);
+
+ReportRouter.get(
+  "/staff-return-issues",
+  checkAccessToken,
+  deliveryCtrl.getStaffReturnIssues
+);
+
 // ĐANG THUÊ
 ReportRouter.post(
   "/damage",
