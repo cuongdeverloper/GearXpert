@@ -315,6 +315,7 @@ exports.checkoutRental = async (req, res) => {
     /* ================= GỬI NOTIFICATION (CHỈ WALLET) ================= */
     if (walletSuccess) {
       for (const rental of createdRentals) {
+        // Thông báo cho Supplier
         await sendRentalNotification(
           rental,
           "SUPPLIER",
@@ -322,6 +323,17 @@ exports.checkoutRental = async (req, res) => {
           `Khách hàng vừa thanh toán thành công ${rental.totalAmount.toLocaleString(
             "vi-VN"
           )}₫`,
+          ""
+        );
+    
+        // Thông báo cho chính Customer
+        await sendRentalNotification(
+          rental,
+          "CUSTOMER",
+          "Đặt thuê thành công",
+          `Bạn đã đặt thuê thành công đơn #${rental._id
+            .toString()
+            .slice(-6)}. Vui lòng chờ nhà cung cấp xác nhận.`,
           ""
         );
       }
