@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { getDeliveringRentals, getReturningRentals, confirmPickup, confirmDelivery, confirmReturn } from '../../../service/ApiService/RentalApi';
 import { createStaffDeliveryIssue, createStaffReturnIssue } from '../../../service/ApiService/ReportApi';
+import { logOperationAction } from '../../../service/ApiService/OperationLogApi';
 
 const mapRentalToTask = (rental) => {
   const items = rental.rentalItems || [];
@@ -109,16 +110,21 @@ export default function TasksTab() {
     setPickupLoading(true);
     try {
       await confirmPickup(selectedTask.rentalId);
-      // Update local state: mark pickedUpAt on the rental
+      const now = new Date().toISOString();
       setTasks(prev => prev.map(t =>
         t.id === selectedTask.id
-          ? { ...t, rentalData: { ...t.rentalData, pickedUpAt: new Date().toISOString() } }
+          ? { ...t, rentalData: { ...t.rentalData, pickedUpAt: now } }
           : t
       ));
       setSelectedTask(prev => ({
         ...prev,
-        rentalData: { ...prev.rentalData, pickedUpAt: new Date().toISOString() },
+        rentalData: { ...prev.rentalData, pickedUpAt: now },
       }));
+      logOperationAction('CONFIRM_PICKUP', 'RENTAL', selectedTask.rentalId, {
+        device: selectedTask.device,
+        customer: selectedTask.customer,
+        address: selectedTask.address,
+      }).catch(() => {});
     } catch (err) {
       console.error('Lỗi xác nhận lấy hàng:', err);
       alert(err?.response?.data?.message || 'Không thể xác nhận lấy hàng');
@@ -142,6 +148,11 @@ export default function TasksTab() {
         ...prev,
         rentalData: { ...prev.rentalData, deliveredAt: now },
       }));
+      logOperationAction('CONFIRM_DELIVERY', 'RENTAL', selectedTask.rentalId, {
+        device: selectedTask.device,
+        customer: selectedTask.customer,
+        address: selectedTask.address,
+      }).catch(() => {});
       alert('Đã xác nhận giao hàng thành công! Đang chờ khách hàng xác nhận nhận hàng.');
     } catch (err) {
       console.error('Lỗi xác nhận giao hàng:', err);
@@ -156,6 +167,11 @@ export default function TasksTab() {
     setReturnLoading(true);
     try {
       await confirmReturn(selectedTask.rentalId);
+      logOperationAction('CONFIRM_RETURN', 'RENTAL', selectedTask.rentalId, {
+        device: selectedTask.device,
+        customer: selectedTask.customer,
+        address: selectedTask.address,
+      }).catch(() => {});
       // Xóa task khỏi danh sách vì đơn đã chuyển sang INSPECTING
       setTasks(prev => prev.filter(t => t.id !== selectedTask.id));
       setSelectedTask(null);
@@ -182,6 +198,12 @@ export default function TasksTab() {
       issueForm.files.forEach(file => formData.append('images', file));
 
       await createStaffDeliveryIssue(formData);
+      logOperationAction('LOG_DELIVERY_ISSUE', 'RENTAL', selectedTask.rentalId, {
+        device: selectedTask.device,
+        customer: selectedTask.customer,
+        issueType: issueForm.issueType,
+        description: issueForm.description.trim(),
+      }).catch(() => {});
 
       setTasks(prev => prev.filter(t => t.id !== selectedTask.id));
       setShowIssueModal(false);
@@ -210,6 +232,12 @@ export default function TasksTab() {
       returnIssueForm.files.forEach(file => formData.append('images', file));
 
       await createStaffReturnIssue(formData);
+      logOperationAction('LOG_RETURN_ISSUE', 'RENTAL', selectedTask.rentalId, {
+        device: selectedTask.device,
+        customer: selectedTask.customer,
+        issueType: returnIssueForm.issueType,
+        description: returnIssueForm.description.trim(),
+      }).catch(() => {});
 
       // Xóa task khỏi danh sách vì đơn chuyển sang PENDING_RESOLUTION
       setTasks(prev => prev.filter(t => t.id !== selectedTask.id));
