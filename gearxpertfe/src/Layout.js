@@ -6,6 +6,7 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
+import { useSelector } from "react-redux";
 import { ToastContainer } from "react-toastify";
 import Aos from "aos";
 
@@ -71,8 +72,7 @@ import ContactPage from "./pages/Contact/ContactPage";
 import BlogPage from "./pages/Blog/BlogPage";
 import BlogDetailPage from "./pages/Blog/BlogDetailPage";
 import ChatWindowManager from "./components/Message Socket/MiniChat/ChatWindowManager";
-import OperationStaffDashboard from "./pages/OperationStaff/OperationStaffDashboard";
-import StaffLayout from "./components/layout/StaffLayout";
+import StaffLayout from "./pages/OperationStaff/StaffLayout";
 import SmartGearPage from "./pages/SmartGear/SmartGearPage";
 import SupplierProfileEdit from "./pages/Supplier/SupplierProfileEdit";
 import SupplierPublicProfile from "./pages/User/SupplierPublicProfile";
@@ -91,6 +91,14 @@ const ChatbotWrapper = () => {
   }
 
   return <Chatbot />;
+};
+
+const StaffRoute = ({ children }) => {
+  const { account, isAuthenticated } = useSelector((state) => state.user);
+  if (!isAuthenticated) return <Navigate to="/signin" replace />;
+  if (account.role !== "OPERATION_STAFF")
+    return <Navigate to="/" replace />;
+  return children;
 };
 
 const ChatWindowWrapper = () => {
@@ -205,9 +213,14 @@ export default function Layout() {
           <Route path="/about" element={<AboutPage />} />
           <Route path="/faq" element={<FAQPage />} />
           <Route path="/contact" element={<ContactPage />} />
-          <Route path="/staff" element={<StaffLayout />}>
-            <Route index element={<OperationStaffDashboard />} />
-          </Route>
+          <Route
+            path="/staff"
+            element={
+              <StaffRoute>
+                <StaffLayout />
+              </StaffRoute>
+            }
+          />
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/blog" element={<BlogPage />} />

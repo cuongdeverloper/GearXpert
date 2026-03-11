@@ -38,6 +38,7 @@ const rentalSchema = new mongoose.Schema(
         "RENTING",
         "RETURNING",
         "INSPECTING",
+        "PENDING_RESOLUTION",
         "COMPLETED",
         "CANCELLED",
       ],
@@ -51,6 +52,9 @@ const rentalSchema = new mongoose.Schema(
     voucherCode: String,
     voucherDiscount: { type: Number, default: 0 },
 
+    pickedUpAt: Date,
+    deliveredAt: Date,
+
     deliveryAddress: {
       receiverName: { type: String, required: true },
       street: String,
@@ -62,6 +66,12 @@ const rentalSchema = new mongoose.Schema(
     notes: String,
 
     orderCode: { type: Number, sparse: true },
+
+    // Context khi chuyển sang INSPECTING: DELIVERY (staff báo cáo lúc giao) | RETURN (staff báo cáo lúc thu hồi)
+    inspectedContext: {
+      type: String,
+      enum: ["DELIVERY", "RETURN"],
+    },
   },
   { timestamps: true }
 );
