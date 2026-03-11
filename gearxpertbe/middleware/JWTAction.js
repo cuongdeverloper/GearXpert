@@ -108,6 +108,18 @@ const checkAdmin = (req, res, next) => {
     }
 };
 
+const checkOperationStaff = (req, res, next) => {
+    if (req.user && req.user.role === 'OPERATION_STAFF') {
+        next();
+    } else {
+        return res.status(403).json({
+            EC: -1,
+            data: '',
+            EM: 'Only operation staff can perform this action.'
+        });
+    }
+};
+
 const checkSupplier = (req, res, next) => {
     console.log("Checking supplier role for user:", req.user);
     if (req.user && req.user.role === 'SUPPLIER') {
@@ -150,6 +162,7 @@ module.exports = {
     verifyRefreshToken,
     checkAccessToken,
     checkAdmin,
+    checkOperationStaff,
     checkSupplier,
     decodeToken,
     createJWTResetPassword,

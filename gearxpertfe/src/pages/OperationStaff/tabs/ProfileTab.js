@@ -1,7 +1,34 @@
 import React from 'react';
 import { History, LogOut, User } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import { doLogout } from '../../../redux/action/userAction';
+import { persistor } from '../../../redux/store';
+import Cookies from 'js-cookie';
+import { toast } from 'react-toastify';
 
 export default function ProfileTab({ setActiveMenu }) {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const socketConnection = useSelector((state) => state.user.account.socketConnection);
+
+  const handleLogout = async () => {
+    try {
+      if (socketConnection) {
+        socketConnection.disconnect();
+      }
+      dispatch(doLogout());
+      Cookies.remove('accessToken');
+      Cookies.remove('refreshToken');
+      await persistor.purge();
+      toast.success('Đăng xuất thành công');
+      navigate('/signin');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Có lỗi xảy ra khi đăng xuất');
+    }
+  };
+
   return (
     <div className="flex-1 p-4 md:p-8 flex items-start justify-center">
       <div className="w-full max-w-md">
@@ -35,7 +62,7 @@ export default function ProfileTab({ setActiveMenu }) {
             </div>
             <span className="font-bold flex-1">Lịch sử hoạt động</span>
           </div>
-          <div className="p-5 flex items-center gap-4 text-red-600 hover:bg-red-50 active:bg-red-100 cursor-pointer transition-colors">
+          <div onClick={handleLogout} className="p-5 flex items-center gap-4 text-red-600 hover:bg-red-50 active:bg-red-100 cursor-pointer transition-colors">
             <div className="p-2 bg-red-100 rounded-lg">
               <LogOut size={20} className="text-red-600" />
             </div>
