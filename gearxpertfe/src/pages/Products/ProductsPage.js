@@ -514,7 +514,7 @@ export default function ProductsPage() {
                             return [...keys].map((key) => {
                               const v1 = compareData.device1?.specs?.[key];
                               const v2 = compareData.device2?.specs?.[key];
-                              const diff = v1 != v2 && v1 !== undefined && v2 !== undefined;
+                              const diff = v1 !== v2 && v1 !== undefined && v2 !== undefined;
                               return (
                                 <tr key={key}>
                                   <td className="border p-3 font-medium">{key}</td>
