@@ -24,7 +24,7 @@ const STATUS_LABELS = {
   RENTING: "Đang thuê",
   RETURNING: "Đang trả",
   INSPECTING: "Đang kiểm tra",
-  COMPLETED: "Hoàn tất",
+  COMPLETED: "Đã trả",
   REJECTED: "Từ chối",
   CANCELLED: "Đã hủy",
 };

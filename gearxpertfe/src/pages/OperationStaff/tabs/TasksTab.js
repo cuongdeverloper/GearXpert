@@ -3,7 +3,7 @@ import {
   Truck, PackageCheck, Wrench,
   AlertTriangle, CheckCircle, X, Camera, MapPin, Phone, FileText, XCircle,
 } from 'lucide-react';
-import { getDeliveringRentals, confirmPickup, confirmDelivery } from '../../../service/ApiService/RentalApi';
+import { getDeliveringRentals, getReturningRentals, confirmPickup, confirmDelivery, confirmReturn } from '../../../service/ApiService/RentalApi';
 import { createStaffDeliveryIssue } from '../../../service/ApiService/ReportApi';
 
 const mapRentalToTask = (rental) => {
@@ -26,6 +26,26 @@ const mapRentalToTask = (rental) => {
   };
 };
 
+const mapRentalToReturnTask = (rental) => {
+  const items = rental.rentalItems || [];
+  const firstItem = items[0];
+  const deviceName = firstItem?.deviceId?.name || 'Thiết bị';
+  const extraCount = items.length - 1;
+  const deviceLabel = extraCount > 0 ? `${deviceName} (+${extraCount} khác)` : deviceName;
+  return {
+    id: rental._id,
+    rentalId: rental._id,
+    type: 'return',
+    status: 'pending',
+    customer: rental.customerId?.fullName || rental.deliveryAddress?.receiverName || 'Khách hàng',
+    phone: rental.phoneNumber || '—',
+    address: rental.deliveryAddress?.fullAddress || '—',
+    device: deviceLabel,
+    note: rental.notes || 'Không có ghi chú',
+    rentalData: rental,
+  };
+};
+
 export default function TasksTab() {
   const [activeTab, setActiveTab] = useState('all');
   const [tasks, setTasks] = useState([]);
@@ -34,6 +54,7 @@ export default function TasksTab() {
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [pickupLoading, setPickupLoading] = useState(false);
   const [completionLoading, setCompletionLoading] = useState(false);
+  const [returnLoading, setReturnLoading] = useState(false);
 
   // Issue report form state
   const [issueForm, setIssueForm] = useState({ issueType: '', description: '', files: [] });
@@ -47,22 +68,29 @@ export default function TasksTab() {
     setShowIssueModal(true);
   };
 
-  const fetchDeliveryTasks = useCallback(async () => {
+  const fetchAllTasks = useCallback(async () => {
     setLoadingTasks(true);
     try {
-      const res = await getDeliveringRentals();
-      const rentals = res?.rentals || [];
-      setTasks(rentals.map(mapRentalToTask));
+      const [deliveryRes, returnRes] = await Promise.all([
+        getDeliveringRentals(),
+        getReturningRentals(),
+      ]);
+      const deliveryTasks = (deliveryRes?.rentals || []).map(mapRentalToTask);
+      const returnTasks = (returnRes?.rentals || []).map(mapRentalToReturnTask);
+      setTasks([...deliveryTasks, ...returnTasks]);
     } catch (err) {
-      console.error('Lỗi tải nhiệm vụ giao hàng:', err);
+      console.error('Lỗi tải nhiệm vụ:', err);
     } finally {
       setLoadingTasks(false);
     }
   }, []);
 
+  // Keep legacy name for refresh button compatibility
+  const fetchDeliveryTasks = fetchAllTasks;
+
   useEffect(() => {
-    fetchDeliveryTasks();
-  }, [fetchDeliveryTasks]);
+    fetchAllTasks();
+  }, [fetchAllTasks]);
 
   const handleConfirmPickup = async () => {
     if (!selectedTask || pickupLoading) return;
@@ -111,6 +139,23 @@ export default function TasksTab() {
     }
   };
 
+  const handleConfirmReturn = async () => {
+    if (!selectedTask || returnLoading) return;
+    setReturnLoading(true);
+    try {
+      await confirmReturn(selectedTask.rentalId);
+      // Xóa task khỏi danh sách vì đơn đã chuyển sang INSPECTING
+      setTasks(prev => prev.filter(t => t.id !== selectedTask.id));
+      setSelectedTask(null);
+      alert('Xác nhận thu hồi thành công! Đơn hàng đã hoàn thành.');
+    } catch (err) {
+      console.error('Lỗi xác nhận thu hồi:', err);
+      alert(err?.response?.data?.message || 'Không thể xác nhận thu hồi');
+    } finally {
+      setReturnLoading(false);
+    }
+  };
+
   const handleSubmitIssue = async () => {
     if (!issueForm.issueType) return alert('Vui lòng chọn phân loại sự cố.');
     if (!issueForm.description.trim()) return alert('Vui lòng mô tả chi tiết sự cố.');
@@ -150,7 +195,7 @@ export default function TasksTab() {
       <div className="bg-white border-b border-slate-100 z-0 sticky top-0 md:top-auto">
         <div className="px-4 md:px-8 py-3 md:py-5 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <div className="hidden md:flex items-center gap-3">
-            <h2 className="text-2xl font-bold text-slate-900 font-display">Nhiệm vụ giao hàng</h2>
+            <h2 className="text-2xl font-bold text-slate-900 font-display">Nhiệm vụ</h2>
             <span className="text-sm font-semibold bg-primary/10 text-primary px-2.5 py-1 rounded-full">
               {tasks.length} đơn
             </span>
@@ -196,7 +241,7 @@ export default function TasksTab() {
         ) : filteredTasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-slate-400">
             <CheckCircle className="w-12 h-12 mb-3 text-slate-300" />
-            <p>Không có nhiệm vụ giao hàng nào</p>
+            <p>Không có nhiệm vụ nào</p>
             <button
               onClick={fetchDeliveryTasks}
               className="mt-3 px-4 py-2 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition-colors"
@@ -322,7 +367,7 @@ export default function TasksTab() {
             </div>
 
             <div className="p-4 border-t border-slate-200 bg-white flex flex-col md:flex-row gap-3 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] shrink-0">
-              {selectedTask?.rentalData?.pickedUpAt && (
+              {selectedTask?.type === 'delivery' && selectedTask?.rentalData?.pickedUpAt && (
                 <button
                   onClick={handleOpenIssueModal}
                   className="w-full md:w-auto px-6 py-3.5 bg-red-50 text-red-600 rounded-xl font-bold flex justify-center items-center gap-2 active:bg-red-100 transition-colors"
@@ -356,6 +401,16 @@ export default function TasksTab() {
                   className="w-full md:flex-1 py-3.5 bg-slate-900 text-white rounded-xl font-bold flex justify-center items-center gap-2 active:bg-slate-800 shadow-md disabled:opacity-60"
                 >
                   <CheckCircle size={18} /> {completionLoading ? 'Đang xác nhận...' : 'Xác nhận hoàn thành'}
+                </button>
+              )}
+              {/* RETURN task actions */}
+              {selectedTask?.type === 'return' && (
+                <button
+                  onClick={handleConfirmReturn}
+                  disabled={returnLoading}
+                  className="w-full md:flex-1 py-3.5 bg-orange-500 text-white rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-orange-600 active:bg-orange-700 transition-colors disabled:opacity-60 shadow-md shadow-orange-200"
+                >
+                  <PackageCheck size={18} /> {returnLoading ? 'Đang xác nhận...' : 'Xác nhận đã thu hồi'}
                 </button>
               )}
             </div>

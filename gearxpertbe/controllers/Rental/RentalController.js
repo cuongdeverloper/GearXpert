@@ -505,6 +505,31 @@ exports.getDeliveringRentals = async (req, res) => {
   }
 };
 
+exports.getReturningRentals = async (req, res) => {
+  try {
+    const rentals = await Rental.find({ status: "RETURNING" })
+      .populate("customerId", "fullName avatar email")
+      .sort({ updatedAt: -1 });
+
+    const rentalsWithItems = await Promise.all(
+      rentals.map(async (rental) => {
+        const rentalItems = await RentalItem.find({
+          rentalId: rental._id,
+        }).populate("deviceId", "name images");
+        return {
+          ...rental.toObject(),
+          rentalItems,
+        };
+      })
+    );
+
+    res.json({ rentals: rentalsWithItems });
+  } catch (error) {
+    console.error("Error getReturningRentals:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 exports.getMyRentals = async (req, res) => {
   try {
     const customerId = req.user.id;
@@ -1278,6 +1303,40 @@ exports.confirmPickup = async (req, res) => {
     await rental.save();
 
     return res.status(200).json({ message: "Pickup confirmed", pickedUpAt: rental.pickedUpAt });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.confirmReturn = async (req, res) => {
+  try {
+    const { rentalId } = req.params;
+    const rental = await Rental.findById(rentalId);
+    if (!rental) return res.status(404).json({ message: "Rental not found" });
+    if (rental.status !== "RETURNING")
+      return res.status(400).json({ message: "Rental is not in RETURNING status" });
+
+    rental.status = "COMPLETED";
+    await rental.save();
+
+    // Notify customer
+    await sendRentalNotification(
+      rental,
+      "CUSTOMER",
+      "Đơn thuê đã hoàn thành",
+      `Thiết bị của đơn #${rental._id.toString().slice(-6).toUpperCase()} đã được thu hồi thành công. Cảm ơn bạn đã sử dụng dịch vụ!`
+    );
+
+    // Notify supplier
+    await sendRentalNotification(
+      rental,
+      "SUPPLIER",
+      "Thiết bị đã được thu hồi - Đơn hoàn tất",
+      `Đơn thuê #${rental._id.toString().slice(-6).toUpperCase()} đã hoàn tất. Thiết bị đã được thu hồi từ khách hàng.`
+    );
+
+    return res.status(200).json({ message: "Return confirmed, rental is now COMPLETED" });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });

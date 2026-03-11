@@ -24,6 +24,7 @@ import {
   ArrowLeft,
   Search,
   CreditCard,
+  PackageCheck,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
@@ -35,6 +36,7 @@ const STATUS_TABS = [
   { id: "PENDING", label: "Chờ duyệt" },
   { id: "DELIVERING", label: "Đang giao" },
   { id: "RENTING", label: "Đang thuê" },
+  { id: "RETURNING", label: "Thu hồi" },
   { id: "COMPLETED", label: "Hoàn thành" },
   { id: "CANCELLED", label: "Đã hủy" },
 ];
@@ -732,6 +734,8 @@ export default function MyRentals() {
                             ? "bg-blue-100 text-blue-600"
                             : order.status === "RENTING"
                             ? "bg-emerald-100 text-emerald-600"
+                            : order.status === "RETURNING"
+                            ? "bg-orange-100 text-orange-600"
                             : "bg-gray-100 text-gray-500"
                         }`}
                       >
@@ -739,6 +743,8 @@ export default function MyRentals() {
                           ? "Đã duyệt"
                           : order.status === "DELIVERING" && order.deliveredAt
                           ? "Đã giao · Chờ xác nhận"
+                          : order.status === "RETURNING"
+                          ? "Thu hồi"
                           : order.status}
                       </div>
                       {order.paymentStatus === "UNPAID" && (
@@ -1166,6 +1172,13 @@ export default function MyRentals() {
                                   <Wrench size={14} /> Báo cáo sự cố / hư hỏng
                                 </button>
                               </>
+                            )}
+
+                            {/* RETURNING: Chờ nhân viên thu hồi */}
+                            {order.status === "RETURNING" && (
+                              <div className="w-full py-4 px-4 rounded-2xl bg-orange-50 border border-orange-200 text-orange-700 text-[11px] font-black uppercase italic flex items-center justify-center gap-2">
+                                <PackageCheck size={14} /> Đang chờ thu hồi thiết bị · Vui lòng chuẩn bị bàn giao
+                              </div>
                             )}
 
                             {/* INSPECTING: Chờ kiểm tra */}
