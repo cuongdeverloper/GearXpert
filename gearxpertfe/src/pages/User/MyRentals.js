@@ -1168,6 +1168,22 @@ export default function MyRentals() {
                               </>
                             )}
 
+                            {/* INSPECTING: Chờ kiểm tra */}
+                            {order.status === "INSPECTING" && (
+                              <>
+                                <button
+                                  className="w-full py-4 rounded-2xl bg-amber-50 text-amber-700 text-[11px] font-black uppercase italic border border-amber-200 flex items-center justify-center gap-2"
+                                >
+                                  <RefreshCcw size={14} /> Hoàn tiền
+                                </button>
+                                <button
+                                  className="w-full py-4 rounded-2xl bg-blue-50 text-blue-600 text-[11px] font-black uppercase italic border border-blue-100 flex items-center justify-center gap-2"
+                                >
+                                  <ArrowLeft size={14} /> Yêu cầu đổi trả
+                                </button>
+                              </>
+                            )}
+
                             {/* COMPLETED / CANCELLED */}
                             {(order.status === "COMPLETED" ||
                               order.status === "CANCELLED") && (

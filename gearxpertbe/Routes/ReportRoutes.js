@@ -5,7 +5,7 @@ const deliveryCtrl = require("../controllers/Report/deliveryIssueController");
 const damageCtrl = require("../controllers/Report/damageReportController");
 const { checkAccessToken } = require("../middleware/JWTAction");
 
-// 📦 LÚC GIAO HÀNG
+// LÚC GIAO HÀNG — Customer
 ReportRouter.post(
   "/delivery-issue",
   checkAccessToken,
@@ -19,7 +19,21 @@ ReportRouter.get(
   deliveryCtrl.getDeliveryIssueByRental
 );
 
-// 🔧 ĐANG THUÊ
+//  Staff ghi nhận sự cố lúc giao hàng
+ReportRouter.post(
+  "/staff-delivery-issue",
+  checkAccessToken,
+  uploadCloud.array("images", 5),
+  deliveryCtrl.createStaffDeliveryIssue
+);
+
+ReportRouter.get(
+  "/staff-delivery-issues",
+  checkAccessToken,
+  deliveryCtrl.getStaffDeliveryIssues
+);
+
+// ĐANG THUÊ
 ReportRouter.post(
   "/damage",
   checkAccessToken,

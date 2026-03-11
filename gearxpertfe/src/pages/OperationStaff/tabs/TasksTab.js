@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Truck, PackageCheck, Wrench,
-  AlertTriangle, CheckCircle, X, Camera, MapPin, Phone, FileText,
+  AlertTriangle, CheckCircle, X, Camera, MapPin, Phone, FileText, XCircle,
 } from 'lucide-react';
 import { getDeliveringRentals, confirmPickup, confirmDelivery } from '../../../service/ApiService/RentalApi';
+import { createStaffDeliveryIssue } from '../../../service/ApiService/ReportApi';
 
 const mapRentalToTask = (rental) => {
   const items = rental.rentalItems || [];
@@ -33,6 +34,18 @@ export default function TasksTab() {
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [pickupLoading, setPickupLoading] = useState(false);
   const [completionLoading, setCompletionLoading] = useState(false);
+
+  // Issue report form state
+  const [issueForm, setIssueForm] = useState({ issueType: '', description: '', files: [] });
+  const [issueSubmitting, setIssueSubmitting] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const resetIssueForm = () => setIssueForm({ issueType: '', description: '', files: [] });
+
+  const handleOpenIssueModal = () => {
+    resetIssueForm();
+    setShowIssueModal(true);
+  };
 
   const fetchDeliveryTasks = useCallback(async () => {
     setLoadingTasks(true);
@@ -95,6 +108,35 @@ export default function TasksTab() {
       alert(err?.response?.data?.message || 'Không thể xác nhận giao hàng');
     } finally {
       setCompletionLoading(false);
+    }
+  };
+
+  const handleSubmitIssue = async () => {
+    if (!issueForm.issueType) return alert('Vui lòng chọn phân loại sự cố.');
+    if (!issueForm.description.trim()) return alert('Vui lòng mô tả chi tiết sự cố.');
+    if (!selectedTask) return;
+
+    setIssueSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append('rentalId', selectedTask.rentalId);
+      formData.append('issueType', issueForm.issueType);
+      formData.append('description', issueForm.description.trim());
+      issueForm.files.forEach(file => formData.append('images', file));
+
+      await createStaffDeliveryIssue(formData);
+
+      // Xóa task khỏi danh sách vì đơn đã chuyển sang INSPECTING
+      setTasks(prev => prev.filter(t => t.id !== selectedTask.id));
+      setShowIssueModal(false);
+      setSelectedTask(null);
+      resetIssueForm();
+      alert('Biên bản sự cố đã được lưu. Đơn hàng chuyển sang trạng thái Kiểm tra.');
+    } catch (err) {
+      console.error('Lỗi lưu biên bản:', err);
+      alert(err?.response?.data?.message || 'Không thể lưu biên bản sự cố.');
+    } finally {
+      setIssueSubmitting(false);
     }
   };
 
@@ -280,12 +322,14 @@ export default function TasksTab() {
             </div>
 
             <div className="p-4 border-t border-slate-200 bg-white flex flex-col md:flex-row gap-3 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] shrink-0">
-              <button
-                onClick={() => setShowIssueModal(true)}
-                className="w-full md:w-auto px-6 py-3.5 bg-red-50 text-red-600 rounded-xl font-bold flex justify-center items-center gap-2 active:bg-red-100 transition-colors"
-              >
-                <AlertTriangle size={18} /> Ghi nhận sự cố
-              </button>
+              {selectedTask?.rentalData?.pickedUpAt && (
+                <button
+                  onClick={handleOpenIssueModal}
+                  className="w-full md:w-auto px-6 py-3.5 bg-red-50 text-red-600 rounded-xl font-bold flex justify-center items-center gap-2 active:bg-red-100 transition-colors"
+                >
+                  <AlertTriangle size={18} /> Ghi nhận sự cố
+                </button>
+              )}
               {selectedTask?.type === 'delivery' && !selectedTask?.rentalData?.pickedUpAt && (
                 <button
                   onClick={handleConfirmPickup}
@@ -340,12 +384,16 @@ export default function TasksTab() {
                 <label className="block text-sm font-bold text-slate-700 mb-2">
                   Phân loại <span className="text-red-500">*</span>
                 </label>
-                <select className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-[15px] focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-shadow appearance-none">
+                <select
+                  value={issueForm.issueType}
+                  onChange={e => setIssueForm(f => ({ ...f, issueType: e.target.value }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-[15px] focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-shadow appearance-none"
+                >
                   <option value="">-- Chọn hiện trạng --</option>
-                  <option value="missing">Mất / Thiếu phụ kiện</option>
-                  <option value="damage">Trầy xước / Rơi vỡ / Cấn móp</option>
-                  <option value="software">Lỗi kỹ thuật / Không lên nguồn</option>
-                  <option value="reject">Khách từ chối nhận</option>
+                  <option value="MISSING">Mất / Thiếu phụ kiện</option>
+                  <option value="DAMAGED">Trầy xước / Rơi vỡ / Cấn móp</option>
+                  <option value="OTHER">Lỗi kỹ thuật / Không lên nguồn</option>
+                  <option value="WRONG_ITEM">Khách từ chối nhận</option>
                 </select>
               </div>
 
@@ -355,34 +403,77 @@ export default function TasksTab() {
                 </label>
                 <textarea
                   rows="3"
+                  value={issueForm.description}
+                  onChange={e => setIssueForm(f => ({ ...f, description: e.target.value }))}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-[15px] focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-shadow resize-none"
                   placeholder="Ghi rõ tình trạng thực tế..."
-                ></textarea>
+                />
               </div>
 
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">
-                  Ảnh thực tế / Video <span className="text-red-500">*</span>
+                  Ảnh thực tế / Video
                 </label>
-                <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 flex flex-col items-center justify-center text-slate-500 active:bg-slate-50 transition-colors">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  multiple
+                  className="hidden"
+                  onChange={e => {
+                    const newFiles = Array.from(e.target.files || []);
+                    setIssueForm(f => ({ ...f, files: [...f.files, ...newFiles] }));
+                    e.target.value = '';
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full border-2 border-dashed border-slate-300 rounded-xl p-6 flex flex-col items-center justify-center text-slate-500 hover:bg-slate-50 active:bg-slate-100 transition-colors"
+                >
                   <div className="p-3 bg-red-50 text-red-500 rounded-full mb-3">
                     <Camera size={26} />
                   </div>
-                  <p className="text-[15px] font-bold text-slate-700">Mở Camera</p>
+                  <p className="text-[15px] font-bold text-slate-700">Chọn ảnh / video</p>
                   <p className="text-xs mt-1 text-slate-400 text-center">Chụp cận cảnh vết xước hoặc serial</p>
-                </div>
+                </button>
+                {issueForm.files.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {issueForm.files.map((file, idx) => (
+                      <div key={idx} className="relative group">
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt="preview"
+                          className="w-16 h-16 object-cover rounded-xl border border-slate-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setIssueForm(f => ({ ...f, files: f.files.filter((_, i) => i !== idx) }))}
+                          className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <XCircle size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="p-5 border-t border-slate-100 bg-white flex gap-3 shrink-0">
               <button
-                onClick={() => setShowIssueModal(false)}
-                className="flex-1 py-3.5 bg-slate-100 text-slate-700 rounded-xl font-bold active:bg-slate-200 transition-colors"
+                onClick={() => { setShowIssueModal(false); resetIssueForm(); }}
+                disabled={issueSubmitting}
+                className="flex-1 py-3.5 bg-slate-100 text-slate-700 rounded-xl font-bold active:bg-slate-200 transition-colors disabled:opacity-50"
               >
                 Hủy
               </button>
-              <button className="flex-1 py-3.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 active:scale-95 transition-all shadow-md shadow-red-600/20">
-                Lưu biên bản
+              <button
+                onClick={handleSubmitIssue}
+                disabled={issueSubmitting}
+                className="flex-1 py-3.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 active:scale-95 transition-all shadow-md shadow-red-600/20 disabled:opacity-60"
+              >
+                {issueSubmitting ? 'Đang lưu...' : 'Lưu biên bản'}
               </button>
             </div>
           </div>

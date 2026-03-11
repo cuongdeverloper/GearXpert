@@ -75,3 +75,60 @@ exports.getDeliveryIssueByRental = async (req, res) => {
   }).populate("deviceId");
   res.json(reports);
 };
+
+// ── Staff báo cáo sự cố lúc giao hàng ──────────────────────────────────────
+exports.createStaffDeliveryIssue = async (req, res) => {
+  try {
+    const { rentalId, issueType, description } = req.body;
+    const staffId = req.user.id;
+
+    const rental = await Rental.findById(rentalId);
+    if (!rental) return res.status(404).json({ message: "Rental not found" });
+
+    // Lấy tất cả rental items của đơn
+    const items = await RentalItem.find({ rentalId });
+    const rentalItemIds = items.map((i) => i._id);
+    const deviceIds = items.map((i) => i.deviceId);
+
+    const images = req.files?.map((file) => file.path) || [];
+
+    const report = await DeliveryIssueReport.create({
+      rentalId,
+      rentalItemIds,
+      deviceIds,
+      staffId,
+      reportedBy: "STAFF",
+      issueType,
+      description,
+      images,
+    });
+
+    // Chuyển trạng thái đơn sang INSPECTING để dừng luồng giao hàng
+    rental.status = "INSPECTING";
+    await rental.save();
+
+    res.status(201).json({
+      message: "Biên bản sự cố đã được lưu. Đơn hàng chuyển sang trạng thái Kiểm tra.",
+      data: report,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Lấy tất cả sự cố do staff báo cáo (cho ReportsTab)
+exports.getStaffDeliveryIssues = async (req, res) => {
+  try {
+    const staffId = req.user.id;
+    const reports = await DeliveryIssueReport.find({ staffId, reportedBy: "STAFF" })
+      .populate({ path: "rentalId", select: "customerId phoneNumber", populate: { path: "customerId", select: "fullName" } })
+      .populate({ path: "deviceIds", select: "name images" })
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json({ reports });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+};
