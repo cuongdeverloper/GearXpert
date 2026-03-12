@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
 import { getBlogDetail, getBlogs } from "../../service/ApiService/BlogApi";
@@ -31,6 +32,42 @@ export default function BlogDetailPage() {
     const [blog, setBlog] = useState(null);
     const [relatedBlogs, setRelatedBlogs] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [viewerOpen, setViewerOpen] = useState(false);
+    const [currentImgIdx, setCurrentImgIdx] = useState(0);
+
+    const allImages = blog?.images?.length > 0 ? blog.images : (blog?.coverImage ? [blog.coverImage] : []);
+
+    const openViewer = (index) => {
+        setCurrentImgIdx(index);
+        setViewerOpen(true);
+        document.body.style.overflow = "hidden";
+    };
+
+    const closeViewer = () => {
+        setViewerOpen(false);
+        document.body.style.overflow = "auto";
+    };
+
+    const nextImg = useCallback((e) => {
+        e?.stopPropagation();
+        setCurrentImgIdx((prev) => (prev + 1) % allImages.length);
+    }, [allImages.length]);
+
+    const prevImg = useCallback((e) => {
+        e?.stopPropagation();
+        setCurrentImgIdx((prev) => (prev - 1 + allImages.length) % allImages.length);
+    }, [allImages.length]);
+
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (!viewerOpen) return;
+            if (e.key === "Escape") closeViewer();
+            if (e.key === "ArrowRight") nextImg();
+            if (e.key === "ArrowLeft") prevImg();
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [viewerOpen, nextImg, prevImg]);
 
     useEffect(() => {
         const fetchBlog = async () => {
@@ -158,16 +195,74 @@ export default function BlogDetailPage() {
                                     <span className="material-symbols-outlined text-sm">schedule</span>
                                     {blog.readTime} min read
                                 </span>
+                                <span className="flex items-center gap-1">
+                                    <span className="material-symbols-outlined text-sm">visibility</span>
+                                    {blog.views || 0} views
+                                </span>
                             </div>
                         </div>
                     </div>
 
-                    {/* Cover Image */}
-                    <div className="rounded-xl overflow-hidden mb-10 shadow-sm" style={{ border: "1px solid rgba(99,102,241,0.05)" }}>
-                        <div
-                            className="w-full h-[300px] md:h-[450px] bg-cover bg-center"
-                            style={{ backgroundImage: `url('${blog.coverImage}')` }}
-                        />
+                    {/* Facebook-style Image Grid */}
+                    <div className="rounded-xl overflow-hidden mb-10 shadow-sm border border-slate-200 bg-white">
+                        {(!blog.images || blog.images.length <= 1) ? (
+                            <div
+                                className="w-full h-[300px] md:h-[500px] bg-cover bg-center cursor-pointer hover:opacity-95 transition-opacity"
+                                style={{ backgroundImage: `url('${blog.coverImage}')` }}
+                                onClick={() => openViewer(0)}
+                            />
+                        ) : (
+                            <div 
+                                className={`grid gap-1 bg-slate-200 transition-all duration-300 ${
+                                    blog.images.length === 2 ? "grid-cols-2 h-[300px] md:h-[400px]" : 
+                                    "grid-cols-4 h-[400px] md:h-[550px]"
+                                }`}
+                            >
+                                {blog.images.length === 2 && blog.images.map((img, idx) => (
+                                    <div 
+                                        key={idx} 
+                                        className="h-full bg-cover bg-center hover:brightness-90 transition-all cursor-pointer"
+                                        style={{ backgroundImage: `url('${img}')` }}
+                                        onClick={() => openViewer(idx)}
+                                    />
+                                ))}
+
+                                {blog.images.length >= 3 && (
+                                    <>
+                                        {/* Left Side: Large Image */}
+                                        <div 
+                                            className="col-span-3 h-full bg-cover bg-center hover:brightness-90 transition-all cursor-pointer"
+                                            style={{ backgroundImage: `url('${blog.images[0]}')` }}
+                                            onClick={() => openViewer(0)}
+                                        />
+                                        
+                                        {/* Right Side: Stacked Images */}
+                                        <div className={`col-span-1 grid gap-1 h-full ${
+                                            blog.images.length === 3 ? "grid-rows-2" : "grid-rows-3"
+                                        }`}>
+                                            {[1, 2, 3].map((idx) => (
+                                                blog.images[idx] && (
+                                                    <div 
+                                                        key={idx} 
+                                                        className="relative h-full bg-cover bg-center hover:brightness-90 transition-all cursor-pointer overflow-hidden"
+                                                        style={{ backgroundImage: `url('${blog.images[idx]}')` }}
+                                                        onClick={() => openViewer(idx)}
+                                                    >
+                                                        {idx === 3 && blog.images.length > 4 && (
+                                                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center backdrop-blur-[2px]">
+                                                                <span className="text-white text-3xl font-black">
+                                                                    +{blog.images.length - 4}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Content */}
@@ -244,6 +339,90 @@ export default function BlogDetailPage() {
             </main>
 
             <Footer />
+
+            {/* Premium Fullscreen Lightbox */}
+            <AnimatePresence>
+                {viewerOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-md"
+                        onClick={closeViewer}
+                    >
+                        {/* Close Button */}
+                        <button
+                            className="absolute top-6 right-6 z-[210] flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-all hover:rotate-90"
+                            onClick={closeViewer}
+                        >
+                            <span className="material-symbols-outlined text-3xl">close</span>
+                        </button>
+
+                        {/* Navigation - Left */}
+                        {allImages.length > 1 && (
+                            <button
+                                className="absolute left-6 z-[210] flex h-14 w-14 items-center justify-center rounded-full bg-white/5 text-white hover:bg-white/20 transition-all group"
+                                onClick={prevImg}
+                            >
+                                <span className="material-symbols-outlined text-4xl group-hover:-translate-x-1 transition-transform">chevron_left</span>
+                            </button>
+                        )}
+
+                        {/* Navigation - Right */}
+                        {allImages.length > 1 && (
+                            <button
+                                className="absolute right-6 z-[210] flex h-14 w-14 items-center justify-center rounded-full bg-white/5 text-white hover:bg-white/20 transition-all group"
+                                onClick={nextImg}
+                            >
+                                <span className="material-symbols-outlined text-4xl group-hover:translate-x-1 transition-transform">chevron_right</span>
+                            </button>
+                        )}
+
+                        {/* Image Container */}
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="relative max-w-[90vw] max-h-[85vh] flex flex-col items-center"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <img
+                                src={allImages[currentImgIdx]}
+                                alt={`View ${currentImgIdx + 1}`}
+                                className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl select-none"
+                            />
+                            
+                            {/* Counter & Info */}
+                            <div className="mt-6 flex flex-col items-center gap-2">
+                                <div className="px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/10 text-white text-sm font-bold tracking-widest uppercase">
+                                    Photo {currentImgIdx + 1} / {allImages.length}
+                                </div>
+                                <p className="text-white/60 text-xs font-medium uppercase tracking-[0.2em]">{blog.title}</p>
+                            </div>
+                        </motion.div>
+
+                        {/* Thumbnails Strip */}
+                        {allImages.length > 1 && (
+                            <div 
+                                className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3 px-4 py-3 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                {allImages.map((img, idx) => (
+                                    <div
+                                        key={idx}
+                                        onClick={() => setCurrentImgIdx(idx)}
+                                        className={`h-14 w-14 rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${
+                                            currentImgIdx === idx ? "border-primary scale-110 shadow-lg shadow-primary/20" : "border-transparent opacity-40 hover:opacity-100"
+                                        }`}
+                                    >
+                                        <img src={img} className="h-full w-full object-cover" alt="thumb" />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

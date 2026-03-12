@@ -120,9 +120,72 @@ const accountStatusChangeTemplate = (fullName, newStatus) => {
     `);
 };
 
+/**
+ * Blog Status Templates
+ */
+const blogStatusTemplate = (authorName, postTitle, status, reason = "") => {
+    let title = "";
+    let color = "";
+    let message = "";
+    let buttonHtml = "";
+    let reasonHtml = "";
+
+    if (status === "approved") {
+        title = "Bài viết đã được xuất bản!";
+        color = "#16a34a"; // emerald-600
+        message = `Chúc mừng! Bài viết "<strong>${postTitle}</strong>" của bạn đã chính thức được phê duyệt và xuất bản trên GearXpert. Bây giờ mọi người đã có thể đọc và tương tác với bài viết của bạn.`;
+        buttonHtml = `
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="${process.env.FRONTEND_URL}/blog" style="background: #16a34a; color: #ffffff; padding: 14px 30px; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 16px; display: inline-block; box-shadow: 0 4px 6px rgba(22, 163, 74, 0.2);">Xem bài viết ngay</a>
+            </div>
+        `;
+    } else if (status === "rejected") {
+        title = "Kết quả duyệt bài viết";
+        color = "#dc2626"; // red-600
+        message = `Chào ${authorName}, bài viết "<strong>${postTitle}</strong>" của bạn đã được quản trị viên xem xét, nhưng rất tiếc nó chưa đáp ứng đủ tiêu chuẩn để xuất bản tại thời điểm này.`;
+        reasonHtml = `
+            <div style="background-color: #fef2f2; padding: 20px; border-radius: 12px; border-left: 5px solid #ef4444; margin: 25px 0;">
+                <p style="margin: 0; font-weight: bold; color: #991b1b; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Lý do từ chối:</p>
+                <p style="margin: 10px 0 0 0; color: #333; line-height: 1.5;">${reason}</p>
+            </div>
+            <p style="font-size: 14px; color: #666;">Bạn có thể chỉnh sửa lại nội dung dựa trên lý do trên và gửi lại yêu cầu duyệt bài.</p>
+        `;
+    } else if (status === "deleted") {
+        title = "Thông báo gỡ bài viết";
+        color = "#e11d48"; // rose-600
+        message = `Chúng tôi rất tiếc phải thông báo rằng bài viết "<strong>${postTitle}</strong>" của bạn đã bị gỡ khỏi hệ thống GearXpert do vi phạm chính sách nội dung hoặc yêu cầu từ quản trị viên.`;
+        reasonHtml = `
+            <div style="background-color: #fff1f2; padding: 20px; border-radius: 12px; border-left: 5px solid #fb7185; margin: 25px 0;">
+                <p style="margin: 0; font-weight: bold; color: #881337; font-size: 14px;">Lý do gỡ bài:</p>
+                <p style="margin: 10px 0 0 0; color: #333; line-height: 1.5;">${reason}</p>
+            </div>
+        `;
+    }
+
+    return baseTemplate(`
+        <div style="text-align: center; margin-bottom: 30px;">
+            <div style="display: inline-block; padding: 12px 24px; border-radius: 50px; background: ${color}15; color: ${color}; font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">
+                ${status === 'approved' ? '✓ Success' : status === 'rejected' ? '✕ Review' : '⚠ Alert'}
+            </div>
+            <h2 style="color: #1a1a1a; margin: 15px 0 0; font-size: 24px;">${title}</h2>
+        </div>
+        
+        <p>Xin chào <strong>${authorName}</strong>,</p>
+        <p style="color: #4b5563;">${message}</p>
+        
+        ${reasonHtml}
+        ${buttonHtml}
+        
+        <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #f3f4f6; font-size: 13px; color: #9ca3af;">
+            Nếu bạn có bất kỳ thắc mắc nào về quyết định này, vui lòng liên hệ với ban quản trị qua trung tâm hỗ trợ của chúng tôi.
+        </p>
+    `);
+};
+
 module.exports = {
     registrationTemplate,
     passwordResetTemplate,
     otpPasswordChangeTemplate,
-    accountStatusChangeTemplate
+    accountStatusChangeTemplate,
+    blogStatusTemplate
 };

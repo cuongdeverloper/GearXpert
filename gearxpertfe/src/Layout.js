@@ -38,6 +38,7 @@ import ReportsPage from "./pages/Admin/ReportsPage";
 import SettingsPage from "./pages/Admin/SettingsPage";
 import AdminVouchersPage from "./pages/Admin/AdminVouchersPage";
 import AdminAdsPage from "./pages/Admin/AdminAdsPage";
+import BlogManagement from "./pages/Admin/BlogManagement";
 
 // pages
 import RentalCheckout from "./pages/Rental/RentalCheckout";
@@ -205,6 +206,7 @@ export default function Layout() {
             <Route path="settings" element={<SettingsPage />} />
             <Route path="vouchers" element={<AdminVouchersPage />} />
             <Route path="advertisements" element={<AdminAdsPage />} />
+            <Route path="blogs" element={<BlogManagement />} />
           </Route>
 
           <Route path="/privacy" element={<PrivacyPolicyPage />} />

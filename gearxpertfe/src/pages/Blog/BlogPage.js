@@ -2,9 +2,10 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
+import { motion, AnimatePresence } from "framer-motion";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
-import { getBlogs, getFeaturedBlog } from "../../service/ApiService/BlogApi";
+import { getBlogs, getFeaturedBlog, deleteBlog, toggleSaveBlog } from "../../service/ApiService/BlogApi";
 import { CATEGORY_MAP, formatDate } from "./BlogConstants";
 import SubmitBlogModal from "./SubmitBlogModal";
 
@@ -13,6 +14,7 @@ import SubmitBlogModal from "./SubmitBlogModal";
 export default function BlogPage() {
     const navigate = useNavigate();
     const [blogs, setBlogs] = useState([]);
+    const [trendingBlogs, setTrendingBlogs] = useState([]);
     const [featuredBlog, setFeaturedBlog] = useState(null);
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -28,6 +30,21 @@ export default function BlogPage() {
     // Submission Form State
     const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
     const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+    const [editingBlog, setEditingBlog] = useState(null);
+    const currentUser = useSelector((state) => state.user.account);
+    const [activeMenuId, setActiveMenuId] = useState(null);
+    const menuRef = useRef(null);
+
+    // Close menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (menuRef.current && !menuRef.current.contains(e.target)) {
+                setActiveMenuId(null);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     useEffect(() => {
         blogsLengthRef.current = blogs.length;
@@ -37,23 +54,41 @@ export default function BlogPage() {
         try {
             const res = await getFeaturedBlog();
             setFeaturedBlog(res);
-        } catch {
+        } catch (error) {
+            console.error("Error fetching featured blog:", error);
             setFeaturedBlog(null);
+        }
+    }, []);
+
+    const fetchTrending = useCallback(async () => {
+        try {
+            const res = await getBlogs({ limit: 3, sort: "popular" });
+            setTrendingBlogs(res.blogs || []);
+        } catch (error) {
+            console.error("Error fetching trending blogs:", error);
+            setTrendingBlogs([]);
         }
     }, []);
 
     const fetchBlogs = useCallback(async () => {
         try {
-            // Only show big loader if we have NO blogs or it's a reset (page 1 with no slice)
-            // If we are just refreshing/collapsing, keep the current blogs visible
             if (page === 1 && blogsLengthRef.current === 0) setLoading(true);
             else if (page > 1) setLoadingMore(true);
 
             const limit = page === 1 ? 4 : 2;
-            const backendPage = page === 1 ? 1 : (page + 1); // For page 2, uses backend page 3 to skip first 4
+            const backendPage = page === 1 ? 1 : (page + 1);
 
             const params = { page: backendPage, limit };
-            if (selectedCategory) params.category = selectedCategory;
+            
+            if (selectedCategory === "MY_POSTS") {
+                params.authorName = currentUser.username || currentUser.email;
+            } else if (selectedCategory === "SAVED_POSTS") {
+                params.authorName = currentUser.username || currentUser.email;
+                params.isSaved = true; 
+            } else if (selectedCategory) {
+                params.category = selectedCategory;
+            }
+
             if (searchTerm) params.search = searchTerm;
 
             const res = await getBlogs(params);
@@ -71,18 +106,28 @@ export default function BlogPage() {
             setLoading(false);
             setLoadingMore(false);
         }
-    }, [page, selectedCategory, searchTerm]);
+    }, [page, selectedCategory, searchTerm, currentUser.username, currentUser.email]);
 
     useEffect(() => {
         fetchFeatured();
-    }, [fetchFeatured]);
+        fetchTrending();
+    }, [fetchFeatured, fetchTrending]);
 
     useEffect(() => {
         fetchBlogs();
     }, [fetchBlogs]);
 
+    // Debounce Search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setSearchTerm(searchInput);
+            setPage(1);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchInput]);
+
     const handleSearch = (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         setSearchTerm(searchInput);
         setPage(1);
     };
@@ -117,8 +162,6 @@ export default function BlogPage() {
 
     // Use all blogs for the grid
     const gridBlogs = blogs;
-    // Trending = first 3 for sidebar
-    const trendingBlogs = gridBlogs.slice(0, 3);
 
     const handleOpenSubmitModal = () => {
         if (!isAuthenticated) {
@@ -134,6 +177,66 @@ export default function BlogPage() {
         return category === "AI_TECH"
             ? "group-hover:text-accent-cyan"
             : "group-hover:text-primary";
+    };
+
+    const handleEditBlog = (e, blog) => {
+        e.stopPropagation();
+        setEditingBlog(blog);
+        setIsSubmitModalOpen(true);
+        setActiveMenuId(null);
+    };
+
+    const handleDeleteBlog = async (e, blogId) => {
+        e.stopPropagation();
+        if (window.confirm("Bạn có chắc chắn muốn xóa bài viết này?")) {
+            try {
+                await deleteBlog(blogId);
+                toast.success("Xóa bài viết thành công!");
+                fetchBlogs();
+            } catch (err) {
+                toast.error("Lỗi khi xóa bài viết");
+            }
+        }
+        setActiveMenuId(null);
+    };
+
+    const handleSaveBlog = async (e, blogId) => {
+        e.stopPropagation();
+        if (!isAuthenticated) {
+            toast.error("Vui lòng đăng nhập để lưu bài viết!");
+            navigate("/signin");
+            return;
+        }
+
+        try {
+            const userName = currentUser.username || currentUser.email;
+            const res = await toggleSaveBlog(blogId, userName);
+            
+            // Update local state to reflect the change immediately
+            if (selectedCategory === "SAVED_POSTS" && !res.isSaved) {
+                setBlogs(prev => prev.filter(blog => blog._id !== blogId));
+            } else {
+                setBlogs(prev => prev.map(blog => {
+                    if (blog._id === blogId) {
+                        return res.blog;
+                    }
+                    return blog;
+                }));
+            }
+
+            if (res.isSaved) {
+                toast.success("Đã lưu bài viết vào danh sách yêu thích!");
+            } else {
+                toast.info("Đã bỏ lưu bài viết.");
+            }
+        } catch (err) {
+            toast.error("Lỗi khi thực hiện thao tác lưu");
+        }
+    };
+
+    const toggleMenu = (e, blogId) => {
+        e.stopPropagation();
+        setActiveMenuId(activeMenuId === blogId ? null : blogId);
     };
 
     return (
@@ -370,10 +473,63 @@ export default function BlogPage() {
                                                             className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
                                                             style={{ backgroundImage: `url('${blog.coverImage}')` }}
                                                         />
-                                                        <div className="absolute top-4 left-4">
+                                                        <div className="absolute top-4 left-4 flex gap-2">
                                                             <span className={`rounded-lg ${catInfo.color} px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white`}>
                                                                 {catInfo.label}
                                                             </span>
+                                                        </div>
+
+                                                        {/* Actions Menu */}
+                                                        <div className="absolute top-4 right-4 z-20">
+                                                            {blog.author?.name === (currentUser.username || currentUser.email) ? (
+                                                                <div className="relative" ref={activeMenuId === blog._id ? menuRef : null}>
+                                                                    <button
+                                                                        onClick={(e) => toggleMenu(e, blog._id)}
+                                                                        className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 backdrop-blur-md text-white hover:bg-white/40 transition-all"
+                                                                    >
+                                                                        <span className="material-symbols-outlined text-xl">more_horiz</span>
+                                                                    </button>
+                                                                    
+                                                                    <AnimatePresence>
+                                                                        {activeMenuId === blog._id && (
+                                                                            <motion.div
+                                                                                initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                                                                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                                                exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                                                                                className="absolute right-0 mt-2 w-32 rounded-xl bg-white shadow-xl border border-slate-100 py-1 overflow-hidden"
+                                                                            >
+                                                                                <button
+                                                                                    onClick={(e) => handleEditBlog(e, blog)}
+                                                                                    className="flex w-full items-center gap-2 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-primary transition-colors"
+                                                                                >
+                                                                                    <span className="material-symbols-outlined text-sm">edit</span>
+                                                                                    Edit
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={(e) => handleDeleteBlog(e, blog._id)}
+                                                                                    className="flex w-full items-center gap-2 px-4 py-2.5 text-xs font-bold text-red-500 hover:bg-red-50/50 transition-colors"
+                                                                                >
+                                                                                    <span className="material-symbols-outlined text-sm">delete</span>
+                                                                                    Delete
+                                                                                </button>
+                                                                            </motion.div>
+                                                                        )}
+                                                                    </AnimatePresence>
+                                                                </div>
+                                                            ) : (
+                                                                <button
+                                                                    onClick={(e) => handleSaveBlog(e, blog._id)}
+                                                                    className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition-all ${
+                                                                        blog.savedBy?.includes(currentUser.username || currentUser.email)
+                                                                            ? "bg-amber-500 text-white"
+                                                                            : "bg-white/20 text-white hover:bg-white/40"
+                                                                    }`}
+                                                                >
+                                                                    <span className={`material-symbols-outlined text-xl ${
+                                                                        blog.savedBy?.includes(currentUser.username || currentUser.email) ? "fill-current" : ""
+                                                                    }`}>bookmark</span>
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </div>
                                                     <div className="flex flex-1 flex-col p-6">
@@ -405,6 +561,10 @@ export default function BlogPage() {
                                                             <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(76,77,154,0.6)" }}>
                                                                 {blog.readTime} min read
                                                             </span>
+                                                            <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(76,77,154,0.6)" }}>
+                                                                <span className="material-symbols-outlined text-xs">visibility</span>
+                                                                {blog.views || 0}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </article>
@@ -435,6 +595,59 @@ export default function BlogPage() {
                                                             <span className={`rounded-lg ${catInfo.color} px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white`}>
                                                                 {catInfo.label}
                                                             </span>
+                                                        </div>
+
+                                                        {/* Quick Action for List View */}
+                                                        <div className="absolute top-3 right-3 z-20">
+                                                            {blog.author?.name === (currentUser.username || currentUser.email) ? (
+                                                                <div className="relative" ref={activeMenuId === blog._id ? menuRef : null}>
+                                                                    <button
+                                                                        onClick={(e) => toggleMenu(e, blog._id)}
+                                                                        className="flex h-7 w-7 items-center justify-center rounded-full bg-black/20 backdrop-blur-md text-white hover:bg-black/40 transition-all"
+                                                                    >
+                                                                        <span className="material-symbols-outlined text-lg">more_horiz</span>
+                                                                    </button>
+                                                                    
+                                                                    <AnimatePresence>
+                                                                        {activeMenuId === blog._id && (
+                                                                            <motion.div
+                                                                                initial={{ opacity: 0, scale: 0.95, x: 10 }}
+                                                                                animate={{ opacity: 1, scale: 1, x: 0 }}
+                                                                                exit={{ opacity: 0, scale: 0.95, x: 10 }}
+                                                                                className="absolute left-full ml-2 top-0 w-32 rounded-xl bg-white shadow-xl border border-slate-100 py-1 overflow-hidden"
+                                                                            >
+                                                                                <button
+                                                                                    onClick={(e) => handleEditBlog(e, blog)}
+                                                                                    className="flex w-full items-center gap-2 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-primary transition-colors"
+                                                                                >
+                                                                                    <span className="material-symbols-outlined text-sm">edit</span>
+                                                                                    Edit
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={(e) => handleDeleteBlog(e, blog._id)}
+                                                                                    className="flex w-full items-center gap-2 px-4 py-2.5 text-xs font-bold text-red-500 hover:bg-red-50/50 transition-colors"
+                                                                                >
+                                                                                    <span className="material-symbols-outlined text-sm">delete</span>
+                                                                                    Delete
+                                                                                </button>
+                                                                            </motion.div>
+                                                                        )}
+                                                                    </AnimatePresence>
+                                                                </div>
+                                                            ) : (
+                                                                <button
+                                                                    onClick={(e) => handleSaveBlog(e, blog._id)}
+                                                                    className={`flex h-7 w-7 items-center justify-center rounded-full backdrop-blur-md transition-all ${
+                                                                        blog.savedBy?.includes(currentUser.username || currentUser.email)
+                                                                            ? "bg-amber-500 text-white"
+                                                                            : "bg-black/20 text-white hover:bg-black/40"
+                                                                    }`}
+                                                                >
+                                                                    <span className={`material-symbols-outlined text-lg ${
+                                                                        blog.savedBy?.includes(currentUser.username || currentUser.email) ? "fill-current" : ""
+                                                                    }`}>bookmark</span>
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </div>
 
@@ -473,9 +686,15 @@ export default function BlogPage() {
                                                                     {blog.author?.name}
                                                                 </span>
                                                             </div>
-                                                            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(76,77,154,0.6)" }}>
-                                                                {blog.readTime} min read
-                                                            </span>
+                                                            <div className="flex items-center gap-4">
+                                                                <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(76,77,154,0.6)" }}>
+                                                                    {blog.readTime} min read
+                                                                </span>
+                                                                <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(76,77,154,0.6)" }}>
+                                                                    <span className="material-symbols-outlined text-xs">visibility</span>
+                                                                    {blog.views || 0}
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </article>
@@ -553,6 +772,33 @@ export default function BlogPage() {
                                     );
                                 })}
                             </div>
+
+                            {/* Separator */}
+                            <div className="my-6 border-t border-slate-100" />
+
+                            {/* Personal Filters */}
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    onClick={() => handleCategoryFilter("MY_POSTS")}
+                                    className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition-all ${selectedCategory === "MY_POSTS"
+                                        ? "bg-slate-900 text-white"
+                                        : "bg-slate-100 text-slate-600 hover:bg-slate-900 hover:text-white"
+                                        }`}
+                                >
+                                    <span className="material-symbols-outlined text-sm">person</span>
+                                    Của tôi
+                                </button>
+                                <button
+                                    onClick={() => handleCategoryFilter("SAVED_POSTS")}
+                                    className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition-all ${selectedCategory === "SAVED_POSTS"
+                                        ? "bg-amber-500 text-white"
+                                        : "bg-slate-100 text-slate-600 hover:bg-amber-500 hover:text-white"
+                                        }`}
+                                >
+                                    <span className="material-symbols-outlined text-sm">bookmark</span>
+                                    Đã lưu
+                                </button>
+                            </div>
                         </div>
 
                         {/* Trending Now */}
@@ -582,12 +828,18 @@ export default function BlogPage() {
                                                     <h4 className="text-sm font-bold group-hover:text-primary transition-colors line-clamp-2 leading-snug" style={{ color: "#0d0e1b" }}>
                                                         {blog.title}
                                                     </h4>
-                                                    <span
-                                                        className="text-[10px] mt-1 uppercase font-bold tracking-tighter"
-                                                        style={{ color: isTech ? "#22D3EE" : "#4c4d9a" }}
-                                                    >
-                                                        {catInfo.label}
-                                                    </span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span
+                                                                className="text-[10px] mt-1 uppercase font-bold tracking-tighter"
+                                                                style={{ color: isTech ? "#22D3EE" : "#4c4d9a" }}
+                                                            >
+                                                                {catInfo.label}
+                                                            </span>
+                                                            <div className="flex items-center gap-0.5 text-[9px] mt-1 font-bold opacity-60">
+                                                                <span className="material-symbols-outlined text-[10px]">visibility</span>
+                                                                {blog.views || 0}
+                                                            </div>
+                                                        </div>
                                                 </div>
                                             </div>
                                         );
@@ -676,8 +928,12 @@ export default function BlogPage() {
 
             <SubmitBlogModal
                 isOpen={isSubmitModalOpen}
-                onClose={() => setIsSubmitModalOpen(false)}
+                onClose={() => {
+                    setIsSubmitModalOpen(false);
+                    setEditingBlog(null);
+                }}
                 onSuccess={fetchBlogs}
+                initialData={editingBlog}
             />
         </div>
     );
