@@ -1,5 +1,6 @@
 const Voucher = require("../../models/Voucher");
 const Cart = require("../../models/Cart");
+const { notifyFollowers } = require("../Supplier/SupplierController");
 
 exports.validateVoucher = async (req, res) => {
   const { code, cartType } = req.body;
@@ -304,6 +305,17 @@ exports.createVoucherBySupplier = async (req, res) => {
     });
 
     await newVoucher.save();
+
+    // Notify followers about new voucher
+    notifyFollowers(
+      supplierId,
+      "notifyVoucher",
+      "STORE_VOUCHER",
+      "Voucher mới",
+      `Mã ${newVoucher.code} – Giảm ${discountValue}${discountType === 'PERCENT' ? '%' : 'đ'}`,
+      `/vouchers`,
+      req
+    ).catch(() => {});
 
     res.status(201).json({
       success: true,
