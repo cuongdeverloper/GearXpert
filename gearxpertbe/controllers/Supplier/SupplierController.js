@@ -638,12 +638,7 @@ exports.notifyFollowers = async (supplierId, notifyField, type, title, message, 
     // Lấy tên + avatar cửa hàng để ghi rõ trong thông báo
     const profile = await SupplierProfile.findOne({ userId: supplierId }).select('businessName businessAvatar').lean();
     const storeName = profile?.businessName || "Cửa hàng";
-    let storeImage = profile?.businessAvatar || "";
-    // Fallback: nếu chưa có businessAvatar, dùng avatar cá nhân của supplier
-    if (!storeImage) {
-      const supplierUser = await User.findById(supplierId).select('image').lean();
-      storeImage = supplierUser?.image || "";
-    }
+    const storeImage = profile?.businessAvatar || "";
 
     const fullTitle = `${storeName} · ${title}`;
 
