@@ -20,10 +20,6 @@ const sections = [
     icon: FiHome,
     items: [
       { to: "/supplier/dashboard", label: "Dashboard" },
-      { label: "Monthly Revenue", muted: true },
-      { label: "Rental Volume", muted: true },
-      { label: "Active Listings", muted: true },
-      { label: "New Rental Requests", muted: true },
     ],
   },
   {
@@ -35,18 +31,13 @@ const sections = [
       { to: "/supplier/devices/new", label: "Add New Product" },
       { to: "/supplier/inventory", label: "Inventory Management" },
       { to: "/supplier/vouchers", label: "Vouchers" },
-      { label: "Status: Draft / Pending / Live / Hidden", muted: true },
     ],
   },
   {
     id: "calendar",
     title: "Availability Calendar",
     icon: FiCalendar,
-    items: [
-      { label: "Day / Week / Month View", muted: true },
-      { label: "Block Busy Dates", muted: true },
-      { label: "See Booked Devices", muted: true },
-    ],
+    items: [],
   },
   {
     id: "bookings",
@@ -54,22 +45,13 @@ const sections = [
     icon: FiClipboard,
     items: [
       { to: "/supplier/rental-requests", label: "Booking Requests" },
-      { label: "Pending Confirmation", muted: true },
-      { label: "Confirmed", muted: true },
-      { label: "Renting", muted: true },
-      { label: "Returned", muted: true },
-      { label: "Canceled / Disputes", muted: true },
     ],
   },
   {
     id: "delivery",
     title: "Delivery",
     icon: FiTruck,
-    items: [
-      { label: "Pickup & Delivery Schedule", muted: true },
-      { label: "Handover Checklist", muted: true },
-      { label: "Condition Photos (Before / After)", muted: true },
-    ],
+    items: [],
   },
   {
     id: "finance",
@@ -77,9 +59,6 @@ const sections = [
     icon: FiDollarSign,
     items: [
       { to: "/supplier/revenue", label: "Revenue" },
-      { label: "Deposits Held", muted: true },
-      { label: "Platform Fees", muted: true },
-      { label: "Withdrawals", muted: true },
     ],
   },
   {
@@ -87,9 +66,7 @@ const sections = [
     title: "Profile & Verification",
     icon: FiShield,
     items: [
-      { label: "KYC Verification", muted: true },
-      { label: "Address", muted: true },
-      { label: "Bank Account", muted: true },
+      { to: "/supplier/profile/edit", label: "Shop Profile" },
     ],
   },
 ];
