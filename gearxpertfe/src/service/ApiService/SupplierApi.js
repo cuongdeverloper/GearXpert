@@ -55,6 +55,18 @@ const getFollowStatus = async (supplierId) => {
   return res;
 };
 
+// ===== Customer: followed stores management =====
+
+const getMyFollowedStores = async () => {
+  const res = await axios.get("/api/suppliers/me/followed-stores");
+  return res;
+};
+
+const updateFollowPrefs = async (followId, prefs) => {
+  const res = await axios.patch(`/api/suppliers/me/follow-prefs/${followId}`, prefs);
+  return res;
+};
+
 export {
   getSupplierProfile,
   updateSupplierProfile,
@@ -64,4 +76,6 @@ export {
   getSupplierStorefrontVouchers,
   toggleFollowStore,
   getFollowStatus,
+  getMyFollowedStores,
+  updateFollowPrefs,
 };
