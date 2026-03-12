@@ -19,6 +19,11 @@ import {
   Check,
   Heart,
   Users,
+  Bell,
+  BellRing,
+  BellOff,
+  ChevronDown,
+  UserMinus,
 } from "lucide-react";
 import {
   getSupplierStorefront,
@@ -26,6 +31,7 @@ import {
   getSupplierStorefrontVouchers,
   toggleFollowStore,
   getFollowStatus,
+  updateFollowPrefs,
 } from "../../service/ApiService/SupplierApi";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
@@ -62,6 +68,9 @@ export default function SupplierPublicProfile() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   const [followLoading, setFollowLoading] = useState(false);
+  const [followData, setFollowData] = useState(null); // { followId, notifyVoucher, notifyNewDevice, notifyPost }
+  const [showFollowMenu, setShowFollowMenu] = useState(false);
+  const followMenuRef = useRef(null);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -116,13 +125,25 @@ export default function SupplierPublicProfile() {
       if (res?.success) {
         setIsFollowing(res.data.isFollowing);
         setFollowerCount(res.data.followerCount);
+        setFollowData(res.data.followData || null);
       }
     } catch {
       // silent
     }
   }, [id]);
 
-  const handleToggleFollow = async () => {
+  // Close follow menu on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (followMenuRef.current && !followMenuRef.current.contains(e.target)) {
+        setShowFollowMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleFollow = async () => {
     if (!isAuthenticated) {
       toast.info("Vui lòng đăng nhập để theo dõi cửa hàng");
       navigate("/signin");
@@ -134,13 +155,56 @@ export default function SupplierPublicProfile() {
       if (res?.success) {
         setIsFollowing(res.data.isFollowing);
         setFollowerCount(res.data.followerCount);
-        toast.success(res.data.isFollowing ? "Đã theo dõi cửa hàng!" : "Đã bỏ theo dõi");
+        if (res.data.isFollowing) {
+          toast.success("Đã theo dõi cửa hàng!");
+          // Re-fetch to get followData with prefs
+          fetchFollowStatus();
+        } else {
+          toast.success("Đã bỏ theo dõi");
+          setFollowData(null);
+          setShowFollowMenu(false);
+        }
       }
     } catch {
       toast.error("Không thể thực hiện, thử lại sau");
     } finally {
       setFollowLoading(false);
     }
+  };
+
+  // Compute current notification level from prefs
+  const getNotifLevel = () => {
+    if (!followData) return "all";
+    const { notifyVoucher, notifyNewDevice, notifyPost } = followData;
+    if (notifyVoucher && notifyNewDevice && notifyPost) return "all";
+    if (!notifyVoucher && !notifyNewDevice && !notifyPost) return "none";
+    return "personalized";
+  };
+
+  const handleSetNotifLevel = async (level) => {
+    if (!followData?.followId) return;
+    let prefs;
+    if (level === "all") {
+      prefs = { notifyVoucher: true, notifyNewDevice: true, notifyPost: true };
+    } else if (level === "none") {
+      prefs = { notifyVoucher: false, notifyNewDevice: false, notifyPost: false };
+    } else {
+      // personalized = only new devices (default personalized choice)
+      prefs = { notifyVoucher: false, notifyNewDevice: true, notifyPost: false };
+    }
+    try {
+      await updateFollowPrefs(followData.followId, prefs);
+      setFollowData((prev) => ({ ...prev, ...prefs }));
+      toast.success("Đã cập nhật thông báo");
+    } catch {
+      toast.error("Cập nhật thất bại");
+    }
+    setShowFollowMenu(false);
+  };
+
+  const handleUnfollow = async () => {
+    setShowFollowMenu(false);
+    await handleFollow(); // toggleFollowStore will unfollow
   };
 
   useEffect(() => {
@@ -196,9 +260,12 @@ export default function SupplierPublicProfile() {
     const el = voucherScrollRef.current;
     if (!el) return;
     checkVoucherScroll();
+    // Recheck after DOM paint to ensure scroll dimensions are calculated
+    const timer = setTimeout(checkVoucherScroll, 100);
     el.addEventListener("scroll", checkVoucherScroll, { passive: true });
     window.addEventListener("resize", checkVoucherScroll);
     return () => {
+      clearTimeout(timer);
       el.removeEventListener("scroll", checkVoucherScroll);
       window.removeEventListener("resize", checkVoucherScroll);
     };
@@ -273,9 +340,9 @@ export default function SupplierPublicProfile() {
 
         {/* ===== SHOP HEADER ===== */}
         <div className="max-w-[1440px] mx-auto px-6 py-8">
-          <div className="bg-white rounded-[28px] border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-[28px] border border-slate-200 shadow-sm">
             {/* Top gradient accent bar */}
-            <div className="h-2 bg-gradient-to-r from-indigo-600 via-violet-500 to-cyan-500" />
+            <div className="h-2 bg-gradient-to-r from-indigo-600 via-violet-500 to-cyan-500 rounded-t-[28px]" />
 
             <div className="p-8 flex flex-col lg:flex-row items-center lg:items-start gap-8">
               {/* Avatar */}
@@ -338,18 +405,70 @@ export default function SupplierPublicProfile() {
 
               {/* Contact & Follow buttons */}
               <div className="flex flex-col gap-3 flex-shrink-0">
-                <button
-                  onClick={handleToggleFollow}
-                  disabled={followLoading}
-                  className={`inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all shadow-sm ${
-                    isFollowing
-                      ? "bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100"
-                      : "bg-indigo-600 text-white hover:bg-indigo-700"
-                  } ${followLoading ? "opacity-60 cursor-not-allowed" : ""}`}
-                >
-                  <Heart className={`w-4 h-4 ${isFollowing ? "fill-rose-500" : ""}`} />
-                  {followLoading ? "..." : isFollowing ? "Following" : "Follow"}
-                </button>
+                {/* YouTube-style follow button */}
+                {!isFollowing ? (
+                  <button
+                    onClick={handleFollow}
+                    disabled={followLoading}
+                    className={`inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full font-semibold text-sm bg-slate-900 text-white hover:bg-slate-800 transition-all shadow-sm ${followLoading ? "opacity-60 cursor-not-allowed" : ""}`}
+                  >
+                    <Heart className="w-4 h-4" />
+                    {followLoading ? "..." : "Theo dõi"}
+                  </button>
+                ) : (
+                  <div className="relative" ref={followMenuRef}>
+                    <button
+                      onClick={() => setShowFollowMenu(!showFollowMenu)}
+                      disabled={followLoading}
+                      className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full font-semibold text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all border border-slate-200"
+                    >
+                      {getNotifLevel() === "none" ? (
+                        <BellOff className="w-4 h-4" />
+                      ) : getNotifLevel() === "all" ? (
+                        <BellRing className="w-4 h-4" />
+                      ) : (
+                        <Bell className="w-4 h-4" />
+                      )}
+                      Đã theo dõi
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Dropdown menu */}
+                    {showFollowMenu && (
+                      <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50">
+                        {[
+                          { level: "all", icon: BellRing, label: "Tất cả", desc: "Nhận mọi thông báo" },
+                          { level: "personalized", icon: Bell, label: "Dành riêng cho bạn", desc: "Chỉ thiết bị mới" },
+                          { level: "none", icon: BellOff, label: "Không nhận thông báo", desc: "" },
+                        ].map(({ level, icon: Icon, label, desc }) => (
+                          <button
+                            key={level}
+                            onClick={() => handleSetNotifLevel(level)}
+                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left"
+                          >
+                            <Icon className="w-5 h-5 text-slate-500 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-slate-800">{label}</p>
+                              {desc && <p className="text-xs text-slate-400">{desc}</p>}
+                            </div>
+                            {getNotifLevel() === level && (
+                              <Check className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                            )}
+                          </button>
+                        ))}
+
+                        <div className="border-t border-slate-100" />
+                        <button
+                          onClick={handleUnfollow}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition-colors text-left"
+                        >
+                          <UserMinus className="w-5 h-5 text-red-400 flex-shrink-0" />
+                          <p className="text-sm font-semibold text-red-500">Hủy theo dõi</p>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {supplier.contactPhone && (
                   <a
                     href={`tel:${supplier.contactPhone}`}
