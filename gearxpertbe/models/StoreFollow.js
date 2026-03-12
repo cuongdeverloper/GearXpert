@@ -11,6 +11,10 @@ const storeFollowSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
+  // Tùy chỉnh nhận thông báo
+  notifyVoucher: { type: Boolean, default: true },
+  notifyNewDevice: { type: Boolean, default: true },
+  notifyPost: { type: Boolean, default: true },
 }, { timestamps: true });
 
 // Mỗi user chỉ follow 1 supplier 1 lần
