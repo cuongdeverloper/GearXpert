@@ -208,7 +208,7 @@ export default function Header() {
           </button>
           <button
             className="flex items-center gap-1.5 text-sm font-bold text-primary bg-indigo-50 px-4 py-2 rounded-full border border-indigo-100 cursor-pointer bg-transparent"
-            onClick={() => { }}
+            onClick={() => handleRestrictedNavigation('/smartgear')}
           >
             <span className="material-symbols-outlined text-[18px] fill-current">auto_awesome</span>
             AI Discovery

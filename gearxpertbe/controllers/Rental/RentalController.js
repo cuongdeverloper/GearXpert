@@ -315,6 +315,7 @@ exports.checkoutRental = async (req, res) => {
     /* ================= GỬI NOTIFICATION (CHỈ WALLET) ================= */
     if (walletSuccess) {
       for (const rental of createdRentals) {
+        // Thông báo cho Supplier
         await sendRentalNotification(
           rental,
           "SUPPLIER",
@@ -322,6 +323,17 @@ exports.checkoutRental = async (req, res) => {
           `Khách hàng vừa thanh toán thành công ${rental.totalAmount.toLocaleString(
             "vi-VN"
           )}₫`,
+          ""
+        );
+    
+        // Thông báo cho chính Customer
+        await sendRentalNotification(
+          rental,
+          "CUSTOMER",
+          "Đặt thuê thành công",
+          `Bạn đã đặt thuê thành công đơn #${rental._id
+            .toString()
+            .slice(-6)}. Vui lòng chờ nhà cung cấp xác nhận.`,
           ""
         );
       }
@@ -476,6 +488,56 @@ exports.getSupplierRentals = async (req, res) => {
     res.json({ rentals: rentalsWithItems });
   } catch (error) {
     console.error("Error getSupplierRentals:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getDeliveringRentals = async (req, res) => {
+  try {
+    const rentals = await Rental.find({ status: "DELIVERING" })
+      .populate("customerId", "fullName avatar email")
+      .sort({ updatedAt: -1 });
+
+    const rentalsWithItems = await Promise.all(
+      rentals.map(async (rental) => {
+        const rentalItems = await RentalItem.find({
+          rentalId: rental._id,
+        }).populate("deviceId", "name images");
+        return {
+          ...rental.toObject(),
+          rentalItems,
+        };
+      })
+    );
+
+    res.json({ rentals: rentalsWithItems });
+  } catch (error) {
+    console.error("Error getDeliveringRentals:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getReturningRentals = async (req, res) => {
+  try {
+    const rentals = await Rental.find({ status: "RETURNING" })
+      .populate("customerId", "fullName avatar email")
+      .sort({ updatedAt: -1 });
+
+    const rentalsWithItems = await Promise.all(
+      rentals.map(async (rental) => {
+        const rentalItems = await RentalItem.find({
+          rentalId: rental._id,
+        }).populate("deviceId", "name images");
+        return {
+          ...rental.toObject(),
+          rentalItems,
+        };
+      })
+    );
+
+    res.json({ rentals: rentalsWithItems });
+  } catch (error) {
+    console.error("Error getReturningRentals:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -1055,6 +1117,9 @@ exports.confirmReceived = async (req, res) => {
     if (rental.status !== "DELIVERING")
       throw new Error("Đơn hàng chưa ở trạng thái giao hàng");
 
+    if (!rental.deliveredAt)
+      throw new Error("Nhân viên chưa xác nhận đã giao hàng. Vui lòng chờ nhân viên xác nhận.");
+
     // Hoàn thành đơn
     rental.status = "RENTING"; // Hoặc COMPLETED tùy flow của bạn, ở đây chọn RENTING vì khách bắt đầu dùng
     await rental.save({ session });
@@ -1235,6 +1300,90 @@ exports.startDelivery = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+exports.confirmPickup = async (req, res) => {
+  try {
+    const { rentalId } = req.params;
+    const rental = await Rental.findById(rentalId);
+    if (!rental) return res.status(404).json({ message: "Rental not found" });
+    if (rental.status !== "DELIVERING")
+      return res.status(400).json({ message: "Rental is not in DELIVERING status" });
+    if (rental.pickedUpAt)
+      return res.status(400).json({ message: "Pickup already confirmed" });
+
+    rental.pickedUpAt = new Date();
+    await rental.save();
+
+    return res.status(200).json({ message: "Pickup confirmed", pickedUpAt: rental.pickedUpAt });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.confirmReturn = async (req, res) => {
+  try {
+    const { rentalId } = req.params;
+    const rental = await Rental.findById(rentalId);
+    if (!rental) return res.status(404).json({ message: "Rental not found" });
+    if (rental.status !== "RETURNING")
+      return res.status(400).json({ message: "Rental is not in RETURNING status" });
+
+    rental.status = "COMPLETED";
+    await rental.save();
+
+    // Notify customer
+    await sendRentalNotification(
+      rental,
+      "CUSTOMER",
+      "Đơn thuê đã hoàn thành",
+      `Thiết bị của đơn #${rental._id.toString().slice(-6).toUpperCase()} đã được thu hồi thành công. Cảm ơn bạn đã sử dụng dịch vụ!`
+    );
+
+    // Notify supplier
+    await sendRentalNotification(
+      rental,
+      "SUPPLIER",
+      "Thiết bị đã được thu hồi - Đơn hoàn tất",
+      `Đơn thuê #${rental._id.toString().slice(-6).toUpperCase()} đã hoàn tất. Thiết bị đã được thu hồi từ khách hàng.`
+    );
+
+    return res.status(200).json({ message: "Return confirmed, rental is now COMPLETED" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.confirmDelivery = async (req, res) => {
+  try {
+    const { rentalId } = req.params;
+    const rental = await Rental.findById(rentalId);
+    if (!rental) return res.status(404).json({ message: "Rental not found" });
+    if (rental.status !== "DELIVERING")
+      return res.status(400).json({ message: "Rental is not in DELIVERING status" });
+    if (!rental.pickedUpAt)
+      return res.status(400).json({ message: "Please confirm pickup before confirming delivery" });
+    if (rental.deliveredAt)
+      return res.status(400).json({ message: "Delivery already confirmed" });
+
+    rental.deliveredAt = new Date();
+    await rental.save();
+
+    await sendRentalNotification(
+      rental,
+      "CUSTOMER",
+      "Thiết bị đã được giao đến bạn!",
+      "Nhân viên đã xác nhận giao hàng thành công. Vui lòng kiểm tra và xác nhận đã nhận hàng."
+    );
+
+    return res.status(200).json({ message: "Delivery confirmed", deliveredAt: rental.deliveredAt });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 exports.repayRental = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();

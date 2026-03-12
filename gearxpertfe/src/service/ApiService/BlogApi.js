@@ -14,3 +14,15 @@ export const getBlogCategories = () =>
 
 export const createBlog = (blogData) =>
     axios.post(`/api/blogs`, blogData);
+
+export const updateBlog = (id, blogData) =>
+    axios.put(`/api/blogs/${id}`, blogData);
+
+export const deleteBlog = (id, reason) =>
+    axios.delete(`/api/blogs/${id}`, { data: { reason } });
+
+export const toggleSaveBlog = (id, userName) =>
+    axios.post(`/api/blogs/${id}/save`, { userName });
+
+export const manageBlogStatus = (id, status, reason) =>
+    axios.patch(`/api/blogs/${id}/status`, { status, reason });

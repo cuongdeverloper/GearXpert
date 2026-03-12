@@ -33,7 +33,11 @@ const ContractRouter = require("./Routes/ContractRoutes");
 const NotificationRouter = require("./Routes/notificationRoutes");
 const NotificationConfig = require("./configs/NotificationConfig");
 const blogRouter = require("./Routes/BlogRoutes");
+const smartgearRoutes = require("./Routes/SmartGearRoutes");
 const supplierRouter = require("./Routes/SupplierRoutes");
+const operationLogRouter = require("./Routes/OperationLogRoutes");
+const { startAutoConfirmJob } = require("./jobs/autoConfirmDelivery");
+const { startAutoReturnJob } = require("./jobs/autoReturnRentals");
 
 const io = socketIo(server, {
     cors: {
@@ -84,7 +88,9 @@ app.use('/api/advertisements', advertisementRouter);
 app.use('/api/contracts', ContractRouter);
 app.use('/api/notifications', NotificationRouter);
 app.use('/api/blogs', blogRouter);
+app.use("/api/smartgear", smartgearRoutes);
 app.use('/api/suppliers', supplierRouter);
+app.use('/api/operation-logs', operationLogRouter);
 
 app.use('/', googleAuthRouter);
 
@@ -106,6 +112,8 @@ socketHandler(io);
     try {
         await connection();
         doLoginWGoogle();
+        startAutoConfirmJob();
+        startAutoReturnJob();
         server.listen(port, () => {
             console.log(`Backend + Socket listening on port ${port}`);
         });

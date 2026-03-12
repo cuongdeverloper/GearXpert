@@ -29,7 +29,19 @@ const deliveryIssueReportSchema = new mongoose.Schema(
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+    },
+
+    // Khi staff báo cáo sự cố lúc giao hàng
+    staffId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    // CUSTOMER | STAFF
+    reportedBy: {
+      type: String,
+      enum: ["CUSTOMER", "STAFF"],
+      default: "CUSTOMER",
     },
 
     issueType: {
@@ -52,6 +64,13 @@ const deliveryIssueReportSchema = new mongoose.Schema(
     },
 
     resolvedNote: String,
+
+    // DELIVERY = sự cố lúc giao hàng | RETURN = sự cố lúc thu hồi
+    reportContext: {
+      type: String,
+      enum: ["DELIVERY", "RETURN"],
+      default: "DELIVERY",
+    },
   },
   { timestamps: true }
 );

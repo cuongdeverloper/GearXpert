@@ -43,6 +43,8 @@ const AuthCallback = () => {
                         navigate("/admin");
                     } else if (userRole === "SUPPLIER") {
                         navigate("/supplier/dashboard");
+                    } else if (userRole === "OPERATION_STAFF") {
+                        navigate("/staff");
                     } else {
                         // CUSTOMER or other roles -> redirect to homepage
                         navigate("/");

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import {
   Trash2,
   ShoppingBag,
@@ -109,7 +109,9 @@ const CartPage = () => {
       setLoading(false);
     }
   }, [processCartData]);
-
+  useEffect(() => {
+    fetchCartData();
+  }, [fetchCartData]);
   const handleRemove = async (itemId, deviceName) => {
     try {
       await removeCartItem(itemId);

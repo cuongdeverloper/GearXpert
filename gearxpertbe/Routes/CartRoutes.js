@@ -7,4 +7,5 @@
     routerCart.post('/instant', checkAccessToken, cartController.addInstantToCart);
     routerCart.delete('/items/:cartItemId', checkAccessToken, cartController.removeCartItem);
     routerCart.delete('/clear', checkAccessToken, cartController.clearCart);
+    routerCart.post("/combo", checkAccessToken, cartController.addComboToCart);
     module.exports = routerCart;
