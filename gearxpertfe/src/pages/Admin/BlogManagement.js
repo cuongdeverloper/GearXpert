@@ -18,14 +18,14 @@ export default function BlogManagement() {
     const [reasonModal, setReasonModal] = useState({ open: false, type: '', id: '', title: '' });
     const [reasonText, setReasonText] = useState("");
 
-    const fetchBlogs = useCallback(async (isInitial = false) => {
+    const fetchBlogs = useCallback(async (status, search, isInitial = false) => {
         try {
             if (isInitial) dispatch(showAdminLoading());
             setLoading(true);
             const params = {
                 limit: 100,
-                status: statusFilter,
-                search: searchTerm || undefined
+                status: status,
+                search: search || undefined
             };
             const response = await getBlogs(params);
             setBlogs(response.blogs || []);
@@ -39,17 +39,18 @@ export default function BlogManagement() {
             setLoading(false);
             if (isInitial) dispatch(hideAdminLoading());
         }
-    }, [statusFilter, searchTerm, dispatch]);
+    }, [dispatch]);
 
-    // Initial fetch
+    // Initial fetch - Only ONCE on mount
     useEffect(() => {
-        fetchBlogs(true);
-    }, [fetchBlogs]);
+        fetchBlogs(statusFilter, searchTerm, true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Fetch when filter changes (Fast)
     useEffect(() => {
         if (searchTerm === "") {
-            fetchBlogs();
+            fetchBlogs(statusFilter, searchTerm);
         }
     }, [statusFilter, fetchBlogs, searchTerm]);
 
@@ -57,7 +58,7 @@ export default function BlogManagement() {
     useEffect(() => {
         if (searchTerm !== "") {
             const delayDebounceFn = setTimeout(() => {
-                fetchBlogs();
+                fetchBlogs(statusFilter, searchTerm);
             }, 500);
             return () => clearTimeout(delayDebounceFn);
         }
@@ -73,7 +74,7 @@ export default function BlogManagement() {
             dispatch(showAdminLoading());
             await manageBlogStatus(id, status);
             toast.success(`Đã ${status === 'approved' ? 'duyệt' : 'từ chối'} bài viết thành công`);
-            fetchBlogs();
+            fetchBlogs(statusFilter, searchTerm);
         } catch (error) {
             console.error("Error updating status:", error);
             toast.error("Lỗi khi cập nhật trạng thái");
@@ -89,7 +90,7 @@ export default function BlogManagement() {
                     dispatch(showAdminLoading());
                     await deleteBlog(blog._id);
                     toast.success("Đã xóa bài viết thành công");
-                    fetchBlogs();
+                    fetchBlogs(statusFilter, searchTerm);
                 } catch (error) {
                     console.error("Error deleting blog:", error);
                     toast.error("Lỗi khi xóa bài viết");
@@ -119,7 +120,7 @@ export default function BlogManagement() {
             }
             setReasonModal({ open: false, type: '', id: '', title: '' });
             setReasonText("");
-            fetchBlogs();
+            fetchBlogs(statusFilter, searchTerm);
         } catch (error) {
             console.error("Error submitting reason:", error);
             toast.error("Đã có lỗi xảy ra");

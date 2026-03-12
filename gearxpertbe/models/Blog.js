@@ -42,6 +42,18 @@ const blogSchema = new mongoose.Schema(
             default: 0,
         },
         savedBy: [String], // Array of usernames/emails
+        likes: {
+            type: [String], // Array of user emails/usernames
+            default: [],
+        },
+        comments: [
+            {
+                user: { type: String, required: true },
+                avatar: { type: String },
+                text: { type: String, required: true },
+                createdAt: { type: Date, default: Date.now },
+            },
+        ],
         status: {
             type: String,
             enum: ["pending", "approved", "rejected"],

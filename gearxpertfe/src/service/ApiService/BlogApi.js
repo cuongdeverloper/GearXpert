@@ -26,3 +26,21 @@ export const toggleSaveBlog = (id, userName) =>
 
 export const manageBlogStatus = (id, status, reason) =>
     axios.patch(`/api/blogs/${id}/status`, { status, reason });
+
+export const toggleLikeBlog = (id, userName) =>
+    axios.post(`/api/blogs/${id}/like`, { userName });
+
+export const addComment = (id, commentData) =>
+    axios.post(`/api/blogs/${id}/comments`, commentData);
+
+export const updateComment = (id, commentId, commentData) =>
+    axios.put(`/api/blogs/${id}/comments/${commentId}`, commentData);
+
+export const deleteComment = (id, commentId, userName, role) =>
+    axios.delete(`/api/blogs/${id}/comments/${commentId}`, { params: { userName, role } });
+
+// Admin API
+export const getAllComments = () => axios.get('/api/blogs/admin/comments/all');
+export const getSensitiveKeywords = () => axios.get('/api/blogs/admin/keywords');
+export const addSensitiveKeyword = (data) => axios.post('/api/blogs/admin/keywords', data);
+export const deleteSensitiveKeyword = (id) => axios.delete(`/api/blogs/admin/keywords/${id}`);

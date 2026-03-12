@@ -1,9 +1,19 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { toast } from "react-toastify";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
-import { getBlogDetail, getBlogs } from "../../service/ApiService/BlogApi";
+import { 
+    getBlogDetail, 
+    getBlogs, 
+    toggleLikeBlog, 
+    addComment, 
+    updateComment,
+    deleteComment,
+    toggleSaveBlog 
+} from "../../service/ApiService/BlogApi";
 
 const CATEGORY_MAP = {
     CAMERA: { label: "Cameras", color: "bg-primary" },
@@ -34,6 +44,25 @@ export default function BlogDetailPage() {
     const [loading, setLoading] = useState(true);
     const [viewerOpen, setViewerOpen] = useState(false);
     const [currentImgIdx, setCurrentImgIdx] = useState(0);
+
+    // User State
+    const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
+    const currentUser = useSelector((state) => state.user.account);
+
+    // Interaction State
+    const [isLiked, setIsLiked] = useState(false);
+    const [likesCount, setLikesCount] = useState(0);
+    const [isSaved, setIsSaved] = useState(false);
+    const [commentText, setCommentText] = useState("");
+    const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+    
+    // Comment Edit State
+    const [editingCommentId, setEditingCommentId] = useState(null);
+    const [editCommentText, setEditCommentText] = useState("");
+    const [isUpdatingComment, setIsUpdatingComment] = useState(false);
+    
+    // Sensitive Keyword Modal
+    const [sensitiveModal, setSensitiveModal] = useState({ open: false, message: "" });
 
     const allImages = blog?.images?.length > 0 ? blog.images : (blog?.coverImage ? [blog.coverImage] : []);
 
@@ -75,6 +104,14 @@ export default function BlogDetailPage() {
                 setLoading(true);
                 const data = await getBlogDetail(id);
                 setBlog(data);
+                
+                // Initialize interaction states
+                const userKey = currentUser?.username || currentUser?.email;
+                if (userKey) {
+                    setIsLiked(data.likes?.includes(userKey) || false);
+                    setIsSaved(data.savedBy?.includes(userKey) || false);
+                }
+                setLikesCount(data.likes?.length || 0);
 
                 if (data?.category) {
                     const res = await getBlogs({ category: data.category, limit: 4 });
@@ -90,7 +127,111 @@ export default function BlogDetailPage() {
 
         fetchBlog();
         window.scrollTo({ top: 0, behavior: "smooth" });
-    }, [id]);
+    }, [id, currentUser?.username, currentUser?.email]);
+
+    const handleLike = async () => {
+        if (!isAuthenticated) {
+            toast.error("Please login to like this article!");
+            navigate("/signin");
+            return;
+        }
+        try {
+            const userKey = currentUser.username || currentUser.email;
+            const res = await toggleLikeBlog(id, userKey);
+            setIsLiked(res.isLiked);
+            setLikesCount(res.blog.likes?.length || 0);
+        } catch (err) {
+            toast.error("Error liking article");
+        }
+    };
+
+    const handleSave = async () => {
+        if (!isAuthenticated) {
+            toast.error("Please login to save this article!");
+            navigate("/signin");
+            return;
+        }
+        try {
+            const userKey = currentUser.username || currentUser.email;
+            const res = await toggleSaveBlog(id, userKey);
+            setIsSaved(res.isSaved);
+            if (res.isSaved) toast.success("Saved to your collection!");
+            else toast.info("Removed from saved items.");
+        } catch (err) {
+            toast.error("Error saving article");
+        }
+    };
+
+    const handleSubmitComment = async (e) => {
+        e.preventDefault();
+        if (!isAuthenticated) {
+            toast.error("Please login to comment!");
+            navigate("/signin");
+            return;
+        }
+        if (!commentText.trim()) return;
+
+        try {
+            setIsSubmittingComment(true);
+            const commentData = {
+                userName: currentUser.username || currentUser.email,
+                avatar: currentUser.image || "",
+                text: commentText.trim()
+            };
+            const res = await addComment(id, commentData);
+            setBlog(res.blog);
+            setCommentText("");
+        } catch (err) {
+            if (err.response?.status === 400 && err.response?.data?.message?.includes("từ ngữ không phù hợp")) {
+                setSensitiveModal({ open: true, message: err.response.data.message });
+            } else {
+                toast.error("Error posting comment");
+            }
+        } finally {
+            setIsSubmittingComment(false);
+        }
+    };
+
+    const handleEditComment = (comment) => {
+        setEditingCommentId(comment._id);
+        setEditCommentText(comment.text);
+    };
+
+    const handleUpdateComment = async (commentId) => {
+        if (!editCommentText.trim()) return;
+        try {
+            setIsUpdatingComment(true);
+            const res = await updateComment(id, commentId, {
+                userName: currentUser.username || currentUser.email,
+                text: editCommentText.trim()
+            });
+            setBlog(res.blog);
+            setEditingCommentId(null);
+            setEditCommentText("");
+            toast.success("Comment updated!");
+        } catch (err) {
+            if (err.response?.status === 400 && err.response?.data?.message?.includes("từ ngữ không phù hợp")) {
+                setSensitiveModal({ open: true, message: err.response.data.message });
+            } else {
+                toast.error("Error updating comment");
+            }
+        } finally {
+            setIsUpdatingComment(false);
+        }
+    };
+
+    const handleDeleteComment = async (commentId) => {
+        if (!window.confirm("Are you sure you want to delete this comment?")) return;
+        try {
+            const userName = currentUser.username || currentUser.email;
+            const role = currentUser.role;
+            const res = await deleteComment(id, commentId, userName, role);
+            setBlog(res.blog);
+            toast.success("Comment deleted!");
+        } catch (err) {
+            toast.error("Error deleting comment");
+        }
+    };
 
     if (loading) {
         return (
@@ -267,10 +408,174 @@ export default function BlogDetailPage() {
 
                     {/* Content */}
                     <div
-                        className="text-base leading-relaxed blog-content"
+                        className="text-base leading-relaxed blog-content mb-12"
                         style={{ color: "#0d0e1b", lineHeight: "1.9" }}
                         dangerouslySetInnerHTML={{ __html: blog.content }}
                     />
+
+                    {/* Interaction Bar (Like, Comment, Save) */}
+                    <div className="flex items-center justify-between py-4 mb-10 border-y border-slate-200">
+                        <div className="flex items-center gap-6">
+                            <button 
+                                onClick={handleLike}
+                                className={`flex items-center gap-2 text-sm font-bold transition-all px-4 py-2 rounded-xl h-11 ${
+                                    isLiked ? "text-primary bg-primary/10" : "text-slate-500 hover:bg-slate-100"
+                                }`}
+                            >
+                                <span className={`material-symbols-outlined text-2xl ${isLiked ? "fill-current" : ""}`}>
+                                    thumb_up
+                                </span>
+                                <span>{likesCount} Likes</span>
+                            </button>
+                            <button 
+                                onClick={() => document.getElementById('comment-input').focus()}
+                                className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:bg-slate-100 transition-all px-4 py-2 rounded-xl h-11"
+                            >
+                                <span className="material-symbols-outlined text-2xl">
+                                    chat_bubble
+                                </span>
+                                <span>{blog.comments?.length || 0} Comments</span>
+                            </button>
+                        </div>
+                        <button 
+                            onClick={handleSave}
+                            className={`flex items-center gap-2 text-sm font-bold transition-all px-4 py-2 rounded-xl h-11 ${
+                                isSaved ? "text-amber-500 bg-amber-500/10" : "text-slate-500 hover:bg-slate-100"
+                            }`}
+                        >
+                            <span className={`material-symbols-outlined text-2xl ${isSaved ? "fill-current" : ""}`}>
+                                bookmark
+                            </span>
+                            <span>{isSaved ? "Saved" : "Save"}</span>
+                        </button>
+                    </div>
+
+                    {/* Comments Section */}
+                    <section className="mb-16">
+                        <h3 className="font-display text-xl font-bold mb-8" style={{ color: "#0d0e1b" }}>
+                            Discussion ({blog.comments?.length || 0})
+                        </h3>
+
+                        {/* Comment Form */}
+                        <form onSubmit={handleSubmitComment} className="mb-10 flex gap-4">
+                            <div className="h-10 w-10 flex-shrink-0 rounded-full bg-slate-200 overflow-hidden">
+                                {currentUser?.image ? (
+                                    <img src={currentUser.image} alt="Me" className="h-full w-full object-cover" />
+                                ) : (
+                                    <div className="h-full w-full flex items-center justify-center bg-primary/10 text-primary uppercase text-sm font-bold">
+                                        {currentUser?.username?.charAt(0) || "U"}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex-grow flex flex-col gap-3">
+                                <textarea
+                                    id="comment-input"
+                                    value={commentText}
+                                    onChange={(e) => setCommentText(e.target.value)}
+                                    placeholder="Write a comment..."
+                                    className="w-full min-h-[100px] rounded-2xl border border-slate-200 p-4 text-sm focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all outline-none resize-none"
+                                />
+                                <div className="flex justify-end">
+                                    <button
+                                        type="submit"
+                                        disabled={!commentText.trim() || isSubmittingComment}
+                                        className="h-11 px-8 rounded-xl bg-primary text-white text-sm font-bold hover:shadow-lg hover:shadow-primary/30 active:scale-95 disabled:opacity-50 disabled:scale-100 transition-all"
+                                    >
+                                        {isSubmittingComment ? "Posting..." : "Post Comment"}
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+
+                        {/* Comment List */}
+                        <div className="space-y-6">
+                            {(blog.comments || []).slice().reverse().map((comment, index) => (
+                                <div key={index} className="flex gap-4 group">
+                                    <div className="h-10 w-10 flex-shrink-0 rounded-full bg-slate-100 overflow-hidden">
+                                        {comment.avatar ? (
+                                            <img src={comment.avatar} alt={comment.user} className="h-full w-full object-cover" />
+                                        ) : (
+                                            <div className="h-full w-full flex items-center justify-center bg-slate-200 text-slate-500 uppercase text-xs font-bold">
+                                                {comment.user.charAt(0)}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex-grow">
+                                        <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100 relative group/comment">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-bold text-slate-900">{comment.user}</span>
+                                                    {comment.user === (currentUser?.username || currentUser?.email) && (
+                                                        <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-md font-bold uppercase">You</span>
+                                                    )}
+                                                </div>
+                                                <span className="text-[10px] font-medium text-slate-400">
+                                                    {formatDate(comment.createdAt)}
+                                                </span>
+                                            </div>
+                                            
+                                            {editingCommentId === comment._id ? (
+                                                <div className="mt-2 flex flex-col gap-2">
+                                                    <textarea
+                                                        value={editCommentText}
+                                                        onChange={(e) => setEditCommentText(e.target.value)}
+                                                        className="w-full min-h-[60px] text-sm p-3 rounded-xl border border-slate-200 outline-none focus:border-primary transition-all"
+                                                        autoFocus
+                                                    />
+                                                    <div className="flex justify-end gap-2">
+                                                        <button 
+                                                            onClick={() => setEditingCommentId(null)}
+                                                            className="text-xs font-bold text-slate-500 hover:text-slate-700 px-3 py-1.5"
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handleUpdateComment(comment._id)}
+                                                            disabled={isUpdatingComment || !editCommentText.trim()}
+                                                            className="text-xs font-bold bg-primary text-white rounded-lg px-4 py-1.5 hover:shadow-md disabled:opacity-50"
+                                                        >
+                                                            {isUpdatingComment ? "Saving..." : "Save"}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <p className="text-sm text-slate-700 leading-relaxed">
+                                                        {comment.text}
+                                                    </p>
+                                                    {(comment.user === (currentUser?.username || currentUser?.email) || currentUser?.role === "ADMIN") && (
+                                                        <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover/comment:opacity-100 transition-opacity">
+                                                            {comment.user === (currentUser?.username || currentUser?.email) && (
+                                                                <button 
+                                                                    onClick={() => handleEditComment(comment)}
+                                                                    className="h-7 w-7 flex items-center justify-center rounded-lg bg-white border border-slate-100 text-slate-400 hover:text-primary hover:border-primary shadow-sm transition-all"
+                                                                    title="Edit comment"
+                                                                >
+                                                                    <span className="material-symbols-outlined text-sm">edit</span>
+                                                                </button>
+                                                            )}
+                                                            <button 
+                                                                onClick={() => handleDeleteComment(comment._id)}
+                                                                className="h-7 w-7 flex items-center justify-center rounded-lg bg-white border border-slate-100 text-slate-400 hover:text-red-500 hover:border-red-100 shadow-sm transition-all"
+                                                                title="Delete comment"
+                                                            >
+                                                                <span className="material-symbols-outlined text-sm">delete</span>
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            {(blog.comments || []).length === 0 && (
+                                <div className="text-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-300">
+                                    <p className="text-sm text-slate-400">No comments yet. Be the first to share your thoughts!</p>
+                                </div>
+                            )}
+                        </div>
+                    </section>
 
                     {/* Tags */}
                     {blog.tags && blog.tags.length > 0 && (
@@ -421,6 +726,55 @@ export default function BlogDetailPage() {
                             </div>
                         )}
                     </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Sensitive Keyword Popup */}
+            <AnimatePresence>
+                {sensitiveModal.open && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+                            onClick={() => setSensitiveModal({ ...sensitiveModal, open: false })}
+                        />
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            className="relative w-full max-w-md bg-white rounded-[2.5rem] p-10 shadow-2xl overflow-hidden"
+                        >
+                            {/* Decorative background elements */}
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-red-50 rounded-full -mr-16 -mt-16 opacity-50" />
+                            <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary/5 rounded-full -ml-12 -mb-12 opacity-50" />
+                            
+                            <div className="relative text-center">
+                                <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center mx-auto mb-6 text-red-500 shadow-lg shadow-red-100 ring-8 ring-red-50/50">
+                                    <span className="material-symbols-outlined text-4xl">security_update_warning</span>
+                                </div>
+                                <h3 className="text-2xl font-black text-slate-900 mb-4 leading-tight">Phát hiện từ ngữ không phù hợp</h3>
+                                <p className="text-slate-500 text-sm leading-relaxed mb-8 px-2">
+                                    {sensitiveModal.message || "Bình luận của bạn chứa các từ ngữ nằm trong danh sách hạn chế của cộng đồng GearXpert."}
+                                </p>
+                                <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 flex items-start gap-4 mb-8 text-left">
+                                    <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center flex-shrink-0 text-slate-400 border border-slate-100">
+                                        <span className="material-symbols-outlined text-sm">info</span>
+                                    </div>
+                                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
+                                        Vui lòng kiểm tra lại nội dung và sử dụng ngôn từ văn minh để xây dựng cộng đồng tốt đẹp hơn.
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setSensitiveModal({ ...sensitiveModal, open: false })}
+                                    className="w-full py-4 rounded-2xl bg-primary text-white font-black text-xs uppercase tracking-[2px] transition-all hover:shadow-xl hover:shadow-primary/30 active:scale-95 shadow-lg shadow-primary/10"
+                                >
+                                    Tôi đã hiểu
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
                 )}
             </AnimatePresence>
         </div>

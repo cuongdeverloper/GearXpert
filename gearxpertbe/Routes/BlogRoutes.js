@@ -12,5 +12,15 @@ routerBlog.put('/:id', uploadCloud.array('images', 10), blogController.updateBlo
 routerBlog.delete('/:id', blogController.deleteBlog);
 routerBlog.post('/:id/save', blogController.toggleSaveBlog);
 routerBlog.patch('/:id/status', blogController.manageBlogStatus);
+routerBlog.post('/:id/like', blogController.toggleLikeBlog);
+routerBlog.post('/:id/comments', blogController.addComment);
+routerBlog.put('/:id/comments/:commentId', blogController.updateComment);
+routerBlog.delete('/:id/comments/:commentId', blogController.deleteComment);
+
+// Admin Routes
+routerBlog.get('/admin/comments/all', blogController.getAllComments);
+routerBlog.get('/admin/keywords', blogController.getSensitiveKeywords);
+routerBlog.post('/admin/keywords', blogController.addSensitiveKeyword);
+routerBlog.delete('/admin/keywords/:id', blogController.deleteSensitiveKeyword);
 
 module.exports = routerBlog;
