@@ -4,6 +4,7 @@ const User = require("../../models/User");
 const Device = require("../../models/Device");
 const Voucher = require("../../models/Voucher");
 const StoreFollow = require("../../models/StoreFollow");
+const Notification = require("../../models/Notification");
 const { verifyAccessToken } = require("../../middleware/JWTAction");
 
 // =============================================
@@ -453,6 +454,39 @@ exports.toggleFollowStore = async (req, res) => {
     await StoreFollow.create({ userId, supplierId });
     const followerCount = await StoreFollow.countDocuments({ supplierId });
 
+    // Thông báo cho supplier có người mới follow
+    User.findById(userId).select("username image").lean().then((u) => {
+      const name = u?.username || "Một người dùng";
+      const userImage = u?.image || "";
+      Notification.create({
+        senderId: userId,
+        receiverId: supplierId,
+        type: "SYSTEM",
+        title: "Người theo dõi mới",
+        message: `${name} vừa theo dõi cửa hàng của bạn`,
+        image: userImage,
+        link: "",
+      }).then((notif) => {
+        // Real-time push via Socket.IO
+        const io = req.app.get("io");
+        const { getUser } = require("../../utils/socketUser");
+        const supplierSocket = getUser(supplierId);
+        if (io && supplierSocket) {
+          io.to(supplierSocket.socketId).emit("newNotification", {
+            _id: notif._id,
+            senderId: userId,
+            type: "SYSTEM",
+            title: notif.title,
+            message: notif.message,
+            image: notif.image,
+            link: notif.link,
+            isRead: false,
+            createdAt: notif.createdAt,
+          });
+        }
+      });
+    }).catch(() => {});
+
     res.status(200).json({
       success: true,
       errorCode: 0,
@@ -478,6 +512,7 @@ exports.getFollowStatus = async (req, res) => {
 
     // Tự extract token từ header (không cần middleware)
     let isFollowing = false;
+    let followData = null;
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
     if (token) {
@@ -485,16 +520,169 @@ exports.getFollowStatus = async (req, res) => {
       if (decoded?.id) {
         const existing = await StoreFollow.findOne({ userId: decoded.id, supplierId });
         isFollowing = !!existing;
+        if (existing) {
+          followData = {
+            followId: existing._id,
+            notifyVoucher: existing.notifyVoucher,
+            notifyNewDevice: existing.notifyNewDevice,
+            notifyPost: existing.notifyPost,
+          };
+        }
       }
     }
 
     res.status(200).json({
       success: true,
       errorCode: 0,
-      data: { isFollowing, followerCount },
+      data: { isFollowing, followerCount, followData },
     });
   } catch (err) {
     console.error("getFollowStatus error:", err);
     res.status(500).json({ success: false, errorCode: 500, message: "Lỗi server" });
+  }
+};
+
+// =============================================
+// FOLLOWED STORES (Customer side)
+// =============================================
+
+// Lấy danh sách stores mà user đang follow
+exports.getMyFollowedStores = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const follows = await StoreFollow.find({ userId })
+      .populate('supplierId', 'fullName avatar email')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Lấy thêm SupplierProfile cho businessName, businessAvatar
+    const enriched = await Promise.all(
+      follows.map(async (f) => {
+        const profile = await SupplierProfile.findOne({ userId: f.supplierId._id })
+          .select('businessName businessAvatar businessDescription')
+          .lean();
+        const deviceCount = await Device.countDocuments({ supplierId: f.supplierId._id, status: 'AVAILABLE' });
+        return {
+          _id: f._id,
+          supplierId: f.supplierId._id,
+          supplierName: profile?.businessName || f.supplierId.fullName,
+          supplierAvatar: profile?.businessAvatar || f.supplierId.avatar,
+          supplierDescription: profile?.businessDescription || '',
+          deviceCount,
+          followedAt: f.createdAt,
+          notifyVoucher: f.notifyVoucher,
+          notifyNewDevice: f.notifyNewDevice,
+          notifyPost: f.notifyPost,
+        };
+      })
+    );
+
+    res.status(200).json({ success: true, errorCode: 0, data: enriched });
+  } catch (err) {
+    console.error("getMyFollowedStores error:", err);
+    res.status(500).json({ success: false, errorCode: 500, message: "Lỗi server" });
+  }
+};
+
+// Cập nhật notification prefs cho 1 follow
+exports.updateFollowPrefs = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { followId } = req.params;
+    const { notifyVoucher, notifyNewDevice, notifyPost } = req.body;
+
+    const follow = await StoreFollow.findOneAndUpdate(
+      { _id: followId, userId },
+      {
+        ...(notifyVoucher !== undefined && { notifyVoucher }),
+        ...(notifyNewDevice !== undefined && { notifyNewDevice }),
+        ...(notifyPost !== undefined && { notifyPost }),
+      },
+      { new: true }
+    );
+
+    if (!follow) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy" });
+    }
+
+    res.status(200).json({ success: true, errorCode: 0, data: follow });
+  } catch (err) {
+    console.error("updateFollowPrefs error:", err);
+    res.status(500).json({ success: false, errorCode: 500, message: "Lỗi server" });
+  }
+};
+
+// =============================================
+// NOTIFY FOLLOWERS (gọi từ controller khác)
+// =============================================
+
+/**
+ * Gửi notification cho tất cả follower của supplier
+ * @param {string} supplierId - ID supplier
+ * @param {string} notifyField - 'notifyVoucher' | 'notifyNewDevice' | 'notifyPost'
+ * @param {string} type - notification type
+ * @param {string} title
+ * @param {string} message
+ * @param {string} link - optional
+ */
+exports.notifyFollowers = async (supplierId, notifyField, type, title, message, link = "", req = null) => {
+  try {
+    const followers = await StoreFollow.find({
+      supplierId,
+      [notifyField]: true,
+    }).select('userId').lean();
+
+    if (followers.length === 0) return;
+
+    // Lấy tên + avatar cửa hàng để ghi rõ trong thông báo
+    const profile = await SupplierProfile.findOne({ userId: supplierId }).select('businessName businessAvatar').lean();
+    const storeName = profile?.businessName || "Cửa hàng";
+    let storeImage = profile?.businessAvatar || "";
+    // Fallback: nếu chưa có businessAvatar, dùng avatar cá nhân của supplier
+    if (!storeImage) {
+      const supplierUser = await User.findById(supplierId).select('image').lean();
+      storeImage = supplierUser?.image || "";
+    }
+
+    const fullTitle = `${storeName} · ${title}`;
+
+    const notifications = followers.map((f) => ({
+      senderId: supplierId,
+      receiverId: f.userId,
+      type,
+      title: fullTitle,
+      message,
+      image: storeImage,
+      link,
+    }));
+
+    const saved = await Notification.insertMany(notifications);
+
+    // Real-time push via Socket.IO
+    if (req) {
+      const io = req.app.get("io");
+      const { getUser } = require("../../utils/socketUser");
+      if (io) {
+        saved.forEach((notif) => {
+          const userSocket = getUser(notif.receiverId.toString());
+          if (userSocket) {
+            io.to(userSocket.socketId).emit("newNotification", {
+              _id: notif._id,
+              senderId: notif.senderId,
+              type: notif.type,
+              title: notif.title,
+              message: notif.message,
+              image: notif.image,
+              link: notif.link,
+              isRead: false,
+              createdAt: notif.createdAt,
+            });
+          }
+        });
+      }
+    }
+  } catch (err) {
+    console.error("notifyFollowers error:", err);
   }
 };
