@@ -1,8 +1,9 @@
 const Blog = require("../../models/Blog");
 const User = require("../../models/User");
 const { sendMail } = require("../../configs/sendMail");
-const { blogStatusTemplate } = require("../../utils/EmailTemplates");
+const { blogStatusTemplate, commentDeletedTemplate } = require("../../utils/EmailTemplates");
 const mongoose = require("mongoose");
+const SensitiveKeyword = require("../../models/SensitiveKeyword");
 
 // GET /api/blogs — list all blogs with pagination, filters, search
 const getBlogs = async (req, res) => {
@@ -382,6 +383,239 @@ const manageBlogStatus = async (req, res) => {
     }
 };
 
+// POST /api/blogs/:id/like — toggle like status
+const toggleLikeBlog = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { userName } = req.body;
+
+        if (!userName) {
+            return res.status(400).json({ message: "Vui lòng đăng nhập để like bài viết" });
+        }
+
+        const blog = await Blog.findById(id);
+        if (!blog) {
+            return res.status(404).json({ message: "Bài viết không tồn tại" });
+        }
+
+        const likeIndex = blog.likes.indexOf(userName);
+        if (likeIndex > -1) {
+            blog.likes.splice(likeIndex, 1);
+        } else {
+            blog.likes.push(userName);
+        }
+
+        await blog.save();
+
+        return res.status(200).json({
+            message: likeIndex > -1 ? "Đã bỏ thích bài viết" : "Đã thích bài viết thành công!",
+            isLiked: likeIndex === -1,
+            blog
+        });
+    } catch (error) {
+        console.error("Error toggling like:", error);
+        return res.status(500).json({ message: "Lỗi khi thực hiện thao tác like" });
+    }
+};
+
+// POST /api/blogs/:id/comments — add a comment
+const addComment = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { userName, avatar, text } = req.body;
+
+        if (!userName || !text) {
+            return res.status(400).json({ message: "Thông tin bình luận không đầy đủ" });
+        }
+
+        const blog = await Blog.findById(id);
+        if (!blog) {
+            return res.status(404).json({ message: "Bài viết không tồn tại" });
+        }
+
+        // Check for sensitive keywords
+        const blockedKeywords = await SensitiveKeyword.find().select("keyword");
+        const containsSensitive = blockedKeywords.some(bk => 
+            text.toLowerCase().includes(bk.keyword.toLowerCase())
+        );
+
+        if (containsSensitive) {
+            return res.status(400).json({ 
+                message: "Bình luận chứa từ ngữ không phù hợp và đã bị chặn tự động." 
+            });
+        }
+
+        const newComment = {
+            user: userName,
+            avatar: avatar || "",
+            text: text,
+            createdAt: new Date(),
+        };
+
+        blog.comments.push(newComment);
+        await blog.save();
+
+        return res.status(200).json({
+            message: "Đã thêm bình luận thành công!",
+            blog
+        });
+    } catch (error) {
+        console.error("Error adding comment:", error);
+        return res.status(500).json({ message: "Lỗi khi gửi bình luận" });
+    }
+};
+
+// PUT /api/blogs/:id/comments/:commentId — edit a comment
+const updateComment = async (req, res) => {
+    try {
+        const { id, commentId } = req.params;
+        const { userName, text } = req.body;
+
+        const blog = await Blog.findById(id);
+        if (!blog) return res.status(404).json({ message: "Bài viết không tồn tại" });
+
+        const comment = blog.comments.id(commentId);
+        if (!comment) return res.status(404).json({ message: "Bình luận không tồn tại" });
+
+        if (comment.user !== userName) {
+            return res.status(403).json({ message: "Bạn không có quyền sửa bình luận này" });
+        }
+
+        // Check for sensitive keywords
+        const blockedKeywords = await SensitiveKeyword.find().select("keyword");
+        const containsSensitive = blockedKeywords.some(bk => 
+            text.toLowerCase().includes(bk.keyword.toLowerCase())
+        );
+
+        if (containsSensitive) {
+            return res.status(400).json({ 
+                message: "Nội dung chỉnh sửa chứa từ ngữ không phù hợp và đã bị chặn." 
+            });
+        }
+
+        comment.text = text;
+        await blog.save();
+
+        return res.status(200).json({ message: "Đã cập nhật bình luận", blog });
+    } catch (error) {
+        console.error("Error updating comment:", error);
+        return res.status(500).json({ message: "Lỗi khi cập nhật bình luận" });
+    }
+};
+
+// DELETE /api/blogs/:id/comments/:commentId — delete a comment
+const deleteComment = async (req, res) => {
+    try {
+        const { id, commentId } = req.params;
+        const { userName, role } = req.query; // Get userName and role from query params
+
+        const blog = await Blog.findById(id);
+        if (!blog) return res.status(404).json({ message: "Bài viết không tồn tại" });
+
+        const comment = blog.comments.id(commentId);
+        if (!comment) return res.status(404).json({ message: "Bình luận không tồn tại" });
+
+        const isAdmin = role === "ADMIN";
+        const isOwner = comment.user === userName;
+
+        if (!isAdmin && !isOwner) {
+            return res.status(403).json({ message: "Bạn không có quyền xóa bình luận này" });
+        }
+
+        // Send email if deleted by admin (not owner)
+        if (isAdmin && !isOwner) {
+            // Find user email by username (or email field if that's what's stored)
+            // Assuming comment.user stores the unique identifier (email or username)
+            const targetUser = await User.findOne({ 
+                $or: [{ email: comment.user }, { fullName: comment.user }] 
+            });
+
+            if (targetUser && targetUser.email) {
+                const subject = "Thông báo: Bình luận của bạn đã bị gỡ bỏ";
+                const html = commentDeletedTemplate(
+                    targetUser.fullName || comment.user, 
+                    blog.title, 
+                    comment.text,
+                    "Vi phạm tiêu chuẩn cộng đồng hoặc nội dung không phù hợp."
+                );
+                await sendMail(targetUser.email, subject, html);
+            }
+        }
+
+        blog.comments.pull(commentId);
+        await blog.save();
+
+        return res.status(200).json({ message: "Đã xóa bình luận", blog });
+    } catch (error) {
+        console.error("Error deleting comment:", error);
+        return res.status(500).json({ message: "Lỗi khi xóa bình luận" });
+    }
+};
+
+// Admin: Get all comments across all blogs
+const getAllComments = async (req, res) => {
+    try {
+        const blogs = await Blog.find({}, 'title comments').lean();
+        let allComments = [];
+        
+        blogs.forEach(blog => {
+            const commentsWithBlogInfo = (blog.comments || []).map(c => ({
+                ...c,
+                blogId: blog._id,
+                blogTitle: blog.title
+            }));
+            allComments = [...allComments, ...commentsWithBlogInfo];
+        });
+
+        // Sort by newest first
+        allComments.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        return res.status(200).json(allComments);
+    } catch (error) {
+        console.error("Error fetching all comments:", error);
+        return res.status(500).json({ message: "Lỗi khi lấy danh sách bình luận" });
+    }
+};
+
+// Admin: Sensitive Keywords Management
+const getSensitiveKeywords = async (req, res) => {
+    try {
+        const keywords = await SensitiveKeyword.find().sort({ createdAt: -1 });
+        return res.status(200).json(keywords);
+    } catch (error) {
+        return res.status(500).json({ message: "Lỗi khi lấy danh sách từ nhạy cảm" });
+    }
+};
+
+const addSensitiveKeyword = async (req, res) => {
+    try {
+        const { keyword, adminName } = req.body;
+        if (!keyword) return res.status(400).json({ message: "Vui lòng nhập từ khóa" });
+
+        const existing = await SensitiveKeyword.findOne({ keyword: keyword.toLowerCase() });
+        if (existing) return res.status(400).json({ message: "Từ khóa này đã tồn tại" });
+
+        const newKeyword = new SensitiveKeyword({
+            keyword: keyword.toLowerCase(),
+            createdBy: adminName || "Admin"
+        });
+        await newKeyword.save();
+        return res.status(201).json(newKeyword);
+    } catch (error) {
+        return res.status(500).json({ message: "Lỗi khi thêm từ khóa" });
+    }
+};
+
+const deleteSensitiveKeyword = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await SensitiveKeyword.findByIdAndDelete(id);
+        return res.status(200).json({ message: "Đã xóa từ khóa thành công" });
+    } catch (error) {
+        return res.status(500).json({ message: "Lỗi khi xóa từ khóa" });
+    }
+};
+
 module.exports = {
     getBlogs,
     getFeaturedBlog,
@@ -392,4 +626,12 @@ module.exports = {
     deleteBlog,
     toggleSaveBlog,
     manageBlogStatus,
+    toggleLikeBlog,
+    addComment,
+    updateComment,
+    deleteComment,
+    getAllComments,
+    getSensitiveKeywords,
+    addSensitiveKeyword,
+    deleteSensitiveKeyword,
 };
