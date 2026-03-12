@@ -3,6 +3,8 @@ const SupplierProfile = require("../../models/SupplierProfile");
 const User = require("../../models/User");
 const Device = require("../../models/Device");
 const Voucher = require("../../models/Voucher");
+const StoreFollow = require("../../models/StoreFollow");
+const { verifyAccessToken } = require("../../middleware/JWTAction");
 
 // =============================================
 // ORIGINAL FUNCTIONS — DO NOT MODIFY
@@ -22,16 +24,28 @@ exports.getSupplierProfile = async (req, res) => {
       });
     }
 
-    const profile = await SupplierProfile.findOne({
+    // Tìm profile, nếu chưa có và user là SUPPLIER thì tự khởi tạo
+    let profile = await SupplierProfile.findOne({
       userId: new mongoose.Types.ObjectId(supplierId),
     }).populate("userId", "fullName phone avatar email");
 
     if (!profile) {
-      return res.status(404).json({
-        success: false,
-        errorCode: 404,
-        message: "Không tìm thấy profile nhà cung cấp",
-      });
+      // Kiểm tra user có tồn tại và là SUPPLIER không
+      const targetUser = await User.findById(supplierId);
+      if (!targetUser || targetUser.role !== "SUPPLIER") {
+        return res.status(404).json({
+          success: false,
+          errorCode: 404,
+          message: "Không tìm thấy profile nhà cung cấp",
+        });
+      }
+
+      // Tự khởi tạo profile cho supplier (dùng static helper có default businessName)
+      profile = await SupplierProfile.createForUser(supplierId);
+      profile = await SupplierProfile.findById(profile._id).populate(
+        "userId",
+        "fullName phone avatar email"
+      );
     }
 
     const deviceCount = await Device.countDocuments({
@@ -73,10 +87,10 @@ exports.updateSupplierProfile = async (req, res) => {
       });
     }
 
-    // Tìm hoặc tạo profile
+    // Tìm hoặc tạo profile (dùng static helper có default businessName)
     let profile = await SupplierProfile.findOne({ userId });
     if (!profile) {
-      profile = await SupplierProfile.create({ userId });
+      profile = await SupplierProfile.createForUser(userId);
     }
 
     // Các field được phép cập nhật
@@ -97,6 +111,20 @@ exports.updateSupplierProfile = async (req, res) => {
       }
     });
 
+    // Xử lý warehouseAddress dạng dot-notation (warehouseAddress.street, ...)
+    const addressFields = ['street', 'district', 'city', 'fullAddress'];
+    const hasAddressDotKeys = addressFields.some(
+      (f) => req.body[`warehouseAddress.${f}`] !== undefined
+    );
+    if (hasAddressDotKeys) {
+      updateData.warehouseAddress = {};
+      addressFields.forEach((f) => {
+        if (req.body[`warehouseAddress.${f}`] !== undefined) {
+          updateData.warehouseAddress[f] = req.body[`warehouseAddress.${f}`];
+        }
+      });
+    }
+
     // Xử lý upload businessAvatar (multer hoặc cloudinary)
     if (req.files && req.files.businessAvatar) {
       updateData.businessAvatar = req.files.businessAvatar[0].path;
@@ -106,7 +134,7 @@ exports.updateSupplierProfile = async (req, res) => {
     const updated = await SupplierProfile.findByIdAndUpdate(
       profile._id,
       { $set: updateData },
-      { new: true, runValidators: true }
+      { new: true }
     );
 
     res.status(200).json({
@@ -146,7 +174,9 @@ exports.getSupplierDevices = async (req, res) => {
     };
 
     if (category) query.category = category;
-    if (search) query.$text = { $search: search };
+    if (search) {
+      query.name = { $regex: search, $options: "i" };
+    }
 
     const devices = await Device.find(query)
       .select(
@@ -296,7 +326,9 @@ exports.getSupplierStorefrontDevices = async (req, res) => {
     };
 
     if (category) query.category = category;
-    if (search) query.$text = { $search: search };
+    if (search) {
+      query.name = { $regex: search, $options: "i" };
+    }
 
     let sortQuery = { createdAt: -1 };
     if (sort === "price-asc") sortQuery = { "rentPrice.perDay": 1 };
@@ -384,5 +416,85 @@ exports.getSupplierStorefrontVouchers = async (req, res) => {
       errorCode: 500,
       message: "Server error",
     });
+  }
+};
+
+// =============================================
+// FOLLOW STORE
+// =============================================
+
+// Toggle follow/unfollow store
+exports.toggleFollowStore = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { supplierId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(supplierId)) {
+      return res.status(400).json({ success: false, message: "supplierId không hợp lệ" });
+    }
+
+    if (userId === supplierId) {
+      return res.status(400).json({ success: false, message: "Không thể follow chính mình" });
+    }
+
+    const existing = await StoreFollow.findOne({ userId, supplierId });
+
+    if (existing) {
+      await StoreFollow.deleteOne({ _id: existing._id });
+      const followerCount = await StoreFollow.countDocuments({ supplierId });
+      return res.status(200).json({
+        success: true,
+        errorCode: 0,
+        message: "Đã bỏ theo dõi",
+        data: { isFollowing: false, followerCount },
+      });
+    }
+
+    await StoreFollow.create({ userId, supplierId });
+    const followerCount = await StoreFollow.countDocuments({ supplierId });
+
+    res.status(200).json({
+      success: true,
+      errorCode: 0,
+      message: "Đã theo dõi cửa hàng",
+      data: { isFollowing: true, followerCount },
+    });
+  } catch (err) {
+    console.error("toggleFollowStore error:", err);
+    res.status(500).json({ success: false, errorCode: 500, message: "Lỗi server" });
+  }
+};
+
+// Kiểm tra follow status + số follower (public nếu có user, anonymous thì isFollowing = false)
+exports.getFollowStatus = async (req, res) => {
+  try {
+    const { supplierId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(supplierId)) {
+      return res.status(400).json({ success: false, message: "supplierId không hợp lệ" });
+    }
+
+    const followerCount = await StoreFollow.countDocuments({ supplierId });
+
+    // Tự extract token từ header (không cần middleware)
+    let isFollowing = false;
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (token) {
+      const decoded = verifyAccessToken(token);
+      if (decoded?.id) {
+        const existing = await StoreFollow.findOne({ userId: decoded.id, supplierId });
+        isFollowing = !!existing;
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      errorCode: 0,
+      data: { isFollowing, followerCount },
+    });
+  } catch (err) {
+    console.error("getFollowStatus error:", err);
+    res.status(500).json({ success: false, errorCode: 500, message: "Lỗi server" });
   }
 };

@@ -43,6 +43,18 @@ const getSupplierStorefrontVouchers = async (supplierId) => {
   return res;
 };
 
+// ===== Follow Store =====
+
+const toggleFollowStore = async (supplierId) => {
+  const res = await axios.post(`/api/suppliers/${supplierId}/follow`);
+  return res;
+};
+
+const getFollowStatus = async (supplierId) => {
+  const res = await axios.get(`/api/suppliers/${supplierId}/follow-status`);
+  return res;
+};
+
 export {
   getSupplierProfile,
   updateSupplierProfile,
@@ -50,4 +62,6 @@ export {
   getSupplierStorefront,
   getSupplierStorefrontDevices,
   getSupplierStorefrontVouchers,
+  toggleFollowStore,
+  getFollowStatus,
 };

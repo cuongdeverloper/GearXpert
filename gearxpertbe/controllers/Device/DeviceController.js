@@ -1,6 +1,7 @@
 const Device = require("../../models/Device");
 const RentalItem = require("../../models/RentalItem"); // Kiểm tra lại đường dẫn model của bạn
 const Review = require("../../models/Review");
+const SupplierProfile = require("../../models/SupplierProfile");
 
 /**
  * POST /devices
@@ -254,8 +255,25 @@ exports.getDeviceDetail = async (req, res) => {
         quantity: item.quantity,
       }));
 
-    // 4. Hợp nhất dữ liệu trả về
+    // 4. Lấy thông tin SupplierProfile (store name, store avatar)
+    let supplierProfile = null;
+    if (device.supplierId?._id) {
+      supplierProfile = await SupplierProfile.findOne({ userId: device.supplierId._id })
+        .select('businessName businessAvatar')
+        .lean();
+    }
+
+    // 5. Hợp nhất dữ liệu trả về
     const deviceData = device.toObject();
+
+    // Merge store info vào supplierId
+    if (supplierProfile) {
+      deviceData.supplierId = {
+        ...deviceData.supplierId,
+        businessName: supplierProfile.businessName,
+        businessAvatar: supplierProfile.businessAvatar,
+      };
+    }
 
     res.json({
       ...deviceData,

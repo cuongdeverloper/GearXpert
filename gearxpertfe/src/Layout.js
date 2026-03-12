@@ -158,10 +158,6 @@ export default function Layout() {
           <Route path="/user/cart" element={<CartPage />} />
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/cancel" element={<PaymentCancel />} />
-          <Route
-            path="/supplier/profile/edit"
-            element={<SupplierProfileEdit />}
-          />
           <Route path="/supplier/:id" element={<SupplierPublicProfile />} />
           <Route path="/supplier" element={<SupplierLayout />}>
             <Route
@@ -184,6 +180,7 @@ export default function Layout() {
             <Route path="maintenance" element={<SupplierMaintenance />} />
             <Route path="revenue" element={<SupplierRevenue />} />
             <Route path="vouchers" element={<SupplierVouchersPage />} />
+            <Route path="profile/edit" element={<SupplierProfileEdit />} />
           </Route>
 
           <Route path="/admin" element={<AdminLayout />}>

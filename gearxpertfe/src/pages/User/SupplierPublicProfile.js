@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import {
   Star,
@@ -16,11 +17,15 @@ import {
   Ticket,
   Copy,
   Check,
+  Heart,
+  Users,
 } from "lucide-react";
 import {
   getSupplierStorefront,
   getSupplierStorefrontDevices,
   getSupplierStorefrontVouchers,
+  toggleFollowStore,
+  getFollowStatus,
 } from "../../service/ApiService/SupplierApi";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
@@ -36,6 +41,7 @@ const SORT_OPTIONS = [
 export default function SupplierPublicProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const isAuthenticated = useSelector((state) => state.user?.isAuthenticated || false);
   const [supplier, setSupplier] = useState(null);
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -53,115 +59,9 @@ export default function SupplierPublicProfile() {
   const voucherScrollRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
-
-  const MOCK_VOUCHERS = [
-    {
-      _id: "mock1",
-      code: "NEWSHOP20",
-      description: "20% off for new customers",
-      discountType: "PERCENT",
-      discountValue: 20,
-      minOrderValue: 200000,
-      maxDiscount: 100000,
-      expiredAt: new Date(Date.now() + 30 * 86400000).toISOString(),
-      type: "SUPPLIER",
-    },
-    {
-      _id: "mock2",
-      code: "SAVE50K",
-      description: "50,000đ off orders over 500k",
-      discountType: "FIXED",
-      discountValue: 50000,
-      minOrderValue: 500000,
-      expiredAt: new Date(Date.now() + 14 * 86400000).toISOString(),
-      type: "SUPPLIER",
-    },
-    {
-      _id: "mock3",
-      code: "GEAR10",
-      description: "10% off all gear rentals",
-      discountType: "PERCENT",
-      discountValue: 10,
-      minOrderValue: 100000,
-      maxDiscount: 50000,
-      expiredAt: new Date(Date.now() + 60 * 86400000).toISOString(),
-      type: "GLOBAL",
-    },
-    {
-      _id: "mock4",
-      code: "WELCOME15",
-      description: "15% welcome discount",
-      discountType: "PERCENT",
-      discountValue: 15,
-      minOrderValue: 150000,
-      maxDiscount: 80000,
-      expiredAt: new Date(Date.now() + 7 * 86400000).toISOString(),
-      type: "SUPPLIER",
-    },
-    {
-      _id: "mock5",
-      code: "FLASH100K",
-      description: "100k off — flash sale today only",
-      discountType: "FIXED",
-      discountValue: 100000,
-      minOrderValue: 800000,
-      expiredAt: new Date(Date.now() + 1 * 86400000).toISOString(),
-      type: "SUPPLIER",
-    },
-    {
-      _id: "mock6",
-      code: "WEEKEND30",
-      description: "30% weekend special",
-      discountType: "PERCENT",
-      discountValue: 30,
-      minOrderValue: 300000,
-      maxDiscount: 150000,
-      expiredAt: new Date(Date.now() + 3 * 86400000).toISOString(),
-      type: "SUPPLIER",
-    },
-    {
-      _id: "mock7",
-      code: "GXFREE25K",
-      description: "25,000đ off — platform gift",
-      discountType: "FIXED",
-      discountValue: 25000,
-      minOrderValue: 100000,
-      expiredAt: new Date(Date.now() + 45 * 86400000).toISOString(),
-      type: "GLOBAL",
-    },
-    {
-      _id: "mock8",
-      code: "CAMERA5",
-      description: "5% off camera gear",
-      discountType: "PERCENT",
-      discountValue: 5,
-      minOrderValue: 50000,
-      maxDiscount: 30000,
-      expiredAt: new Date(Date.now() + 90 * 86400000).toISOString(),
-      type: "SUPPLIER",
-    },
-    {
-      _id: "mock9",
-      code: "LOYAL200K",
-      description: "200k off for loyal customers",
-      discountType: "FIXED",
-      discountValue: 200000,
-      minOrderValue: 1500000,
-      expiredAt: new Date(Date.now() + 21 * 86400000).toISOString(),
-      type: "SUPPLIER",
-    },
-    {
-      _id: "mock10",
-      code: "GXPLATINUM",
-      description: "40% platinum member exclusive",
-      discountType: "PERCENT",
-      discountValue: 40,
-      minOrderValue: 500000,
-      maxDiscount: 250000,
-      expiredAt: new Date(Date.now() + 10 * 86400000).toISOString(),
-      type: "GLOBAL",
-    },
-  ];
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [followLoading, setFollowLoading] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -200,14 +100,48 @@ export default function SupplierPublicProfile() {
   const fetchVouchers = useCallback(async () => {
     try {
       const res = await getSupplierStorefrontVouchers(id);
-      const real = res?.success && Array.isArray(res.data) ? res.data : [];
-      const realCodes = new Set(real.map((v) => v.code));
-      const fillers = MOCK_VOUCHERS.filter((m) => !realCodes.has(m.code));
-      setVouchers([...real, ...fillers]);
+      if (res?.success && Array.isArray(res.data)) {
+        setVouchers(res.data);
+      } else {
+        setVouchers([]);
+      }
     } catch {
-      setVouchers(MOCK_VOUCHERS);
+      setVouchers([]);
     }
   }, [id]);
+
+  const fetchFollowStatus = useCallback(async () => {
+    try {
+      const res = await getFollowStatus(id);
+      if (res?.success) {
+        setIsFollowing(res.data.isFollowing);
+        setFollowerCount(res.data.followerCount);
+      }
+    } catch {
+      // silent
+    }
+  }, [id]);
+
+  const handleToggleFollow = async () => {
+    if (!isAuthenticated) {
+      toast.info("Vui lòng đăng nhập để theo dõi cửa hàng");
+      navigate("/signin");
+      return;
+    }
+    setFollowLoading(true);
+    try {
+      const res = await toggleFollowStore(id);
+      if (res?.success) {
+        setIsFollowing(res.data.isFollowing);
+        setFollowerCount(res.data.followerCount);
+        toast.success(res.data.isFollowing ? "Đã theo dõi cửa hàng!" : "Đã bỏ theo dõi");
+      }
+    } catch {
+      toast.error("Không thể thực hiện, thử lại sau");
+    } finally {
+      setFollowLoading(false);
+    }
+  };
 
   useEffect(() => {
     const init = async () => {
@@ -216,7 +150,8 @@ export default function SupplierPublicProfile() {
       setLoading(false);
     };
     init();
-  }, [fetchProfile]);
+    fetchFollowStatus();
+  }, [fetchProfile, fetchFollowStatus]);
 
   useEffect(() => {
     fetchVouchers();
@@ -350,7 +285,7 @@ export default function SupplierPublicProfile() {
                     src={
                       supplier.businessAvatar ||
                       supplier.userId?.avatar ||
-                      "https://via.placeholder.com/128"
+                      "/default-shop.jpg"
                     }
                     alt={supplier.businessName}
                     className="w-full h-full object-cover"
@@ -384,11 +319,7 @@ export default function SupplierPublicProfile() {
                     value={(supplier.supplierRating || 0).toFixed(1)}
                     label={`${supplier.supplierReviewCount || 0} reviews`}
                   />
-                  <StatItem
-                    icon={<MessageCircle className="w-4 h-4" />}
-                    value="98%"
-                    label="Response rate"
-                  />
+
                   {memberSince && (
                     <StatItem
                       icon={<Clock className="w-4 h-4" />}
@@ -397,11 +328,28 @@ export default function SupplierPublicProfile() {
                       isText
                     />
                   )}
+                  <StatItem
+                    icon={<Users className="w-4 h-4" />}
+                    value={followerCount}
+                    label="Followers"
+                  />
                 </div>
               </div>
 
-              {/* Contact buttons */}
+              {/* Contact & Follow buttons */}
               <div className="flex flex-col gap-3 flex-shrink-0">
+                <button
+                  onClick={handleToggleFollow}
+                  disabled={followLoading}
+                  className={`inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all shadow-sm ${
+                    isFollowing
+                      ? "bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100"
+                      : "bg-indigo-600 text-white hover:bg-indigo-700"
+                  } ${followLoading ? "opacity-60 cursor-not-allowed" : ""}`}
+                >
+                  <Heart className={`w-4 h-4 ${isFollowing ? "fill-rose-500" : ""}`} />
+                  {followLoading ? "..." : isFollowing ? "Following" : "Follow"}
+                </button>
                 {supplier.contactPhone && (
                   <a
                     href={`tel:${supplier.contactPhone}`}
@@ -644,69 +592,102 @@ export default function SupplierPublicProfile() {
                   : "This supplier hasn't listed any devices yet."}
               </p>
             </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
-              {devices.map((device) => (
-                <Link
-                  key={device._id}
-                  to={`/device/${device._id}`}
-                  className="group bg-white rounded-2xl overflow-hidden border border-slate-100 hover:border-indigo-200 hover:shadow-lg transition-all duration-300 flex flex-col"
-                >
-                  <div className="relative aspect-square overflow-hidden bg-slate-100">
-                    <img
-                      src={device.images?.[0] || "https://via.placeholder.com/300"}
-                      alt={device.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute top-3 left-3">
-                      <span className="bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg uppercase tracking-wider">
-                        {device.category}
+          ) : (() => {
+            const inStock = devices.filter((d) => d.stockQuantity > 0);
+            const outOfStock = devices.filter((d) => d.stockQuantity <= 0);
+            const DeviceCard = ({ device }) => (
+              <Link
+                to={`/device/${device._id}`}
+                className="group bg-white rounded-2xl overflow-hidden border border-slate-100 hover:border-indigo-200 hover:shadow-lg transition-all duration-300 flex flex-col"
+              >
+                <div className="relative aspect-square overflow-hidden bg-slate-100">
+                  <img
+                    src={device.images?.[0] || "/default-device.jpg"}
+                    alt={device.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute top-3 left-3">
+                    <span className="bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg uppercase tracking-wider">
+                      {device.category}
+                    </span>
+                  </div>
+                  {device.stockQuantity <= 0 && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                      <span className="bg-rose-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg">
+                        Out of Stock
                       </span>
                     </div>
-                    {device.stockQuantity <= 0 && (
-                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                        <span className="bg-rose-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg">
-                          Out of Stock
+                  )}
+                </div>
+
+                <div className="p-4 flex flex-col flex-grow">
+                  <h3 className="font-semibold text-sm text-slate-800 line-clamp-2 mb-2 group-hover:text-indigo-600 transition-colors min-h-[40px]">
+                    {device.name}
+                  </h3>
+
+                  <div className="mt-auto space-y-2">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-lg font-bold text-rose-600">
+                        {device.rentPrice?.perDay?.toLocaleString("vi-VN")}đ
+                      </span>
+                      <span className="text-xs text-slate-400">/ day</span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1">
+                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                        <span className="font-semibold text-slate-700">
+                          {(device.ratingAvg || 0).toFixed(1)}
+                        </span>
+                        <span className="text-slate-400">
+                          ({device.reviewCount || 0})
                         </span>
                       </div>
-                    )}
-                  </div>
-
-                  <div className="p-4 flex flex-col flex-grow">
-                    <h3 className="font-semibold text-sm text-slate-800 line-clamp-2 mb-2 group-hover:text-indigo-600 transition-colors min-h-[40px]">
-                      {device.name}
-                    </h3>
-
-                    <div className="mt-auto space-y-2">
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-lg font-bold text-rose-600">
-                          {device.rentPrice?.perDay?.toLocaleString("vi-VN")}đ
+                      {device.location?.city && (
+                        <span className="text-slate-400 truncate max-w-[80px]">
+                          {device.location.city}
                         </span>
-                        <span className="text-xs text-slate-400">/ day</span>
-                      </div>
-
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-1">
-                          <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                          <span className="font-semibold text-slate-700">
-                            {(device.ratingAvg || 0).toFixed(1)}
-                          </span>
-                          <span className="text-slate-400">
-                            ({device.reviewCount || 0})
-                          </span>
-                        </div>
-                        {device.location?.city && (
-                          <span className="text-slate-400 truncate max-w-[80px]">
-                            {device.location.city}
-                          </span>
-                        )}
-                      </div>
+                      )}
                     </div>
                   </div>
-                </Link>
-              ))}
-            </div>
-          )}
+                </div>
+              </Link>
+            );
+
+            return (
+              <div className="space-y-10">
+                {/* In Stock */}
+                {inStock.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                      <Package className="w-5 h-5 text-emerald-500" />
+                      Available ({inStock.length})
+                    </h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+                      {inStock.map((device) => (
+                        <DeviceCard key={device._id} device={device} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Out of Stock */}
+                {outOfStock.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-400 mb-4 flex items-center gap-2">
+                      <Package className="w-5 h-5 text-slate-300" />
+                      Out of Stock ({outOfStock.length})
+                    </h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5 opacity-70">
+                      {outOfStock.map((device) => (
+                        <DeviceCard key={device._id} device={device} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Pagination */}
           {totalPages > 1 && (
