@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { getDevices } from "../../service/ApiService/DeviceApi";
 import Header from "../../components/navigation/Header";
-import HeroSection from "../../components/homepage/HeroSection";
 import CategoryPills from "../../components/common/CategoryPills";
 import ScrollAnimation from "../../components/common/ScrollAnimation";
 import FeaturedProductsSection from "../../components/homepage/FeaturedProductsSection";
@@ -83,8 +82,8 @@ export default function Homepage() {
       <Header />
 
       <main className="flex-grow w-full max-w-[1440px] mx-auto pb-12">
-        <ScrollAnimation direction="down" duration={0.8}>
-          <HeroSection />
+        <ScrollAnimation effect="fade" delay={0.05}>
+          <SmartGearPromoSection />
         </ScrollAnimation>
 
         <section className="px-6 lg:px-10 mb-12">
@@ -103,10 +102,6 @@ export default function Homepage() {
 
         <ScrollAnimation direction="up" delay={0.1} className="px-6 lg:px-10">
           <TopBannerAds />
-        </ScrollAnimation>
-
-        <ScrollAnimation effect="fade" delay={0.05}>
-          <SmartGearPromoSection />
         </ScrollAnimation>
 
         <ScrollAnimation effect="scale" viewportAmount={0.4}>

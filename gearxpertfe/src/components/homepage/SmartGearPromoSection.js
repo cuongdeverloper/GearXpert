@@ -22,20 +22,29 @@ export default function SmartGearPromoSection() {
   };
 
   return (
-    <section className="px-6 lg:px-10 mb-14">
-      <div className="relative overflow-hidden rounded-[30px] border border-slate-200 bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 shadow-2xl">
+    <section className="px-6 lg:px-10 mt-10 mb-14">
+      <div className="relative overflow-hidden rounded-[30px] border border-slate-200 bg-slate-950 shadow-2xl">
+        {/* Background Image with Overlay */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center opacity-30"
+          style={{
+            backgroundImage: 'url("https://images.unsplash.com/photo-1485846234645-a62644f84728?w=1920&q=80")'
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-950/80 via-slate-900/60 to-cyan-950/80" />
+        
         <div className="absolute -top-20 -left-16 w-72 h-72 bg-cyan-400/20 blur-3xl rounded-full" />
         <div className="absolute -bottom-24 -right-8 w-80 h-80 bg-indigo-500/25 blur-3xl rounded-full" />
 
-        <div className="relative z-10 grid grid-cols-1 xl:grid-cols-12 gap-8 p-6 md:p-8 lg:p-10">
+        <div className="relative z-10 grid grid-cols-1 xl:grid-cols-12 gap-8 p-6 md:p-12 lg:p-16">
           <div className="xl:col-span-7 text-white">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/20 bg-white/10 mb-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/20 bg-white/10 mb-6">
               <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
               <span className="text-[11px] font-black uppercase tracking-[0.16em]">SmartGear AI</span>
             </div>
 
-            <h2 className="text-3xl md:text-4xl font-black leading-tight max-w-2xl">
-              Tư vấn combo thiết bị bằng AI cho đúng bối cảnh quay chụp của bạn.
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-black leading-tight max-w-2xl">
+              Tư vấn combo thiết bị bằng <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">AI</span> thông minh.
             </h2>
 
             <p className="mt-3 text-slate-200 max-w-2xl text-sm md:text-base">
@@ -77,15 +86,15 @@ export default function SmartGearPromoSection() {
               <p className="text-xs uppercase tracking-[0.16em] font-black text-cyan-300">Lợi ích nổi bật</p>
               <div className="mt-4 space-y-3">
                 <div className="rounded-xl border border-white/15 bg-black/20 p-3">
-                  <p className="font-bold">03 gói đề xuất thông minh</p>
+                  <p className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">03 gói đề xuất thông minh</p>
                   <p className="text-sm text-slate-200 mt-1">Cơ bản, tiêu chuẩn, cao cấp theo đúng nhu cầu mô tả.</p>
                 </div>
                 <div className="rounded-xl border border-white/15 bg-black/20 p-3">
-                  <p className="font-bold">Có lý do AI cho từng thiết bị</p>
+                  <p className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">Có lý do AI cho từng thiết bị</p>
                   <p className="text-sm text-slate-200 mt-1">Hiển thị rõ vì sao AI chọn camera, mic, ánh sáng.</p>
                 </div>
                 <div className="rounded-xl border border-white/15 bg-black/20 p-3">
-                  <p className="font-bold">Thêm combo vào giỏ chỉ 1 chạm</p>
+                  <p className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">Thêm combo vào giỏ chỉ 1 chạm</p>
                   <p className="text-sm text-slate-200 mt-1">Không cần chọn từng món, tiết kiệm rất nhiều thời gian.</p>
                 </div>
               </div>

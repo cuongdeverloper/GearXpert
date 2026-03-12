@@ -18,7 +18,7 @@ export default function AdminLayout() {
       <AdminTopbar onMenuOpen={() => setOpenDrawer(true)} me={me} />
 
       {/* Main layout */}
-      <div className="flex flex-1 max-w-[1500px] mx-auto w-full">
+      <div className="flex flex-1 w-full translate-z-0">
         {/* Sidebar (desktop) */}
         <AdminSidebar collapsed={collapsed} onToggleCollapsed={() => setCollapsed(!collapsed)} />
 
@@ -26,11 +26,11 @@ export default function AdminLayout() {
         <AdminMobileDrawer open={openDrawer} onClose={() => setOpenDrawer(false)} />
 
         {/* Main content */}
-        <main className="flex-1 px-6 lg:px-10 py-8 overflow-y-auto">
+        <main className="flex-1 px-4 lg:px-6 py-8 overflow-y-auto">
           <AdminPageHeader />
 
           {/* Content container */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 lg:p-8 shadow-sm">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 lg:p-6 shadow-sm">
             <Outlet />
           </div>
         </main>

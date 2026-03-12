@@ -34,6 +34,7 @@ const navGroups = [
       { to: "/admin/devices", label: "Devices", icon: FiBox },
       { to: "/admin/rentals", label: "Rentals", icon: FiFileText },
       { to: "/admin/vouchers", label: "Vouchers", icon: FiTag },
+      { to: "/admin/blogs", label: "Blog", icon: FiFileText },
       { to: "/admin/reports", label: "Reports", icon: FiBarChart2 },
     ],
   },
