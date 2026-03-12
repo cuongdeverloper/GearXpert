@@ -7,8 +7,7 @@ import {
   updateSupplierProfile,
   getSupplierProfile,
 } from '../../service/ApiService/SupplierApi';
-import Header from '../../components/navigation/Header';
-import Footer from '../../components/homepage/Footer';
+
 
 export default function SupplierProfileEdit() {
   const navigate = useNavigate();
@@ -33,6 +32,7 @@ export default function SupplierProfileEdit() {
 
   const [businessAvatarFile, setBusinessAvatarFile] = useState(null);
   const [previewBusinessAvatar, setPreviewBusinessAvatar] = useState('');
+  const [profileStats, setProfileStats] = useState({ deviceCount: 0, supplierRating: 0, supplierReviewCount: 0 });
 
   useEffect(() => {
     const fetchSupplierProfile = async () => {
@@ -62,6 +62,11 @@ export default function SupplierProfileEdit() {
             },
           });
           if (data.businessAvatar) setPreviewBusinessAvatar(data.businessAvatar);
+          setProfileStats({
+            deviceCount: data.deviceCount || 0,
+            supplierRating: data.supplierRating || 0,
+            supplierReviewCount: data.supplierReviewCount || 0,
+          });
         }
       } catch (err) {
         toast.error('Không thể tải thông tin profile');
@@ -117,8 +122,7 @@ export default function SupplierProfileEdit() {
 
       const res = await updateSupplierProfile(submitData);
       if (res?.success) {
-        toast.success('Cập nhật profile thành công');
-        navigate('/supplier/profile'); // Hoặc dashboard
+        toast.success('Cập nhật profile thành công!');
       } else {
         toast.error(res.message || 'Cập nhật thất bại');
       }
@@ -135,30 +139,14 @@ export default function SupplierProfileEdit() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
-      <Header />
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900 font-display tracking-tight">Shop Profile</h2>
+        <p className="mt-1 text-sm text-slate-600">Cập nhật thông tin kinh doanh, ảnh đại diện và các kênh liên hệ</p>
+      </div>
 
-      <main className="flex-grow pb-12">
-        {/* Hero Section - đồng bộ với ProfilePage */}
-        <section className="relative w-full bg-slate-900 overflow-hidden mb-10 pt-16 pb-32 lg:pt-24 lg:pb-40">
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-900/80 to-slate-900"></div>
-
-          <div className="relative z-10 max-w-[1440px] mx-auto px-6 lg:px-10 text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-panel text-white mb-6 border border-white/10 bg-white/5 backdrop-blur-md">
-              <span className="material-symbols-outlined text-accent-cyan text-[18px] fill-current">storefront</span>
-              <span className="text-xs font-bold tracking-[0.1em] uppercase text-indigo-100">Supplier Dashboard</span>
-            </div>
-
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 font-display tracking-tight">
-              Quản lý <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-cyan to-indigo-400">Profile Cửa hàng</span>
-            </h1>
-            <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto font-light">
-              Cập nhật thông tin kinh doanh, ảnh đại diện cửa hàng và các kênh liên hệ để thu hút khách hàng tốt hơn.
-            </p>
-          </div>
-        </section>
-
-        <div className="max-w-[1440px] mx-auto px-6 lg:px-10 -mt-24 relative z-20">
+      <div className="max-w-5xl">
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Left - Preview Card (giống profile user) */}
             <div className="lg:col-span-1">
@@ -199,12 +187,12 @@ export default function SupplierProfileEdit() {
 
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-slate-600">Sản phẩm đang bán:</span>
-                    <span className="font-semibold text-slate-900">Chưa có dữ liệu</span>
+                    <span className="text-slate-600">Sản phẩm đang cho thuê:</span>
+                    <span className="font-semibold text-slate-900">{profileStats.deviceCount}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600">Đánh giá:</span>
-                    <span className="font-semibold text-slate-900">0.0 (0 đánh giá)</span>
+                    <span className="font-semibold text-slate-900">{profileStats.supplierRating.toFixed(1)} ({profileStats.supplierReviewCount} đánh giá)</span>
                   </div>
                 </div>
               </div>
@@ -377,10 +365,7 @@ export default function SupplierProfileEdit() {
               </div>
             </div>
           </div>
-        </div>
-      </main>
-
-      <Footer />
+      </div>
     </div>
   );
 }
