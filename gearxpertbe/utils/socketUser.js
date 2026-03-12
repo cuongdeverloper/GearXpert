@@ -1,8 +1,11 @@
 let users = [];
 
-// Add a user to the users array
+// Add a user (or update socketId if they reconnect)
 const addUser = (userId, socketId) => {
-  if (!users.some((user) => user.userId === userId)) {
+  const existing = users.find((user) => user.userId === userId);
+  if (existing) {
+    existing.socketId = socketId;
+  } else {
     users.push({ userId, socketId });
   }
 };

@@ -5,7 +5,15 @@ const supplierProfileController = require('../controllers/Supplier/SupplierContr
 const { checkAccessToken } = require('../middleware/JWTAction');
 const uploadCloud = require('../configs/cloudinaryConfig');
 
-// Public storefront routes (new — safe, no overlap with existing)
+// Customer: followed stores (phải đặt trước /:supplierId)
+supplierRouter.get('/me/followed-stores', checkAccessToken, supplierProfileController.getMyFollowedStores);
+supplierRouter.patch('/me/follow-prefs/:followId', checkAccessToken, supplierProfileController.updateFollowPrefs);
+
+// Protected routes (chỉ Supplier)
+supplierRouter.get('/profile', checkAccessToken, supplierProfileController.getSupplierProfile);
+supplierRouter.put('/profile', checkAccessToken, uploadCloud.fields([{ name: 'businessAvatar', maxCount: 1 }]), supplierProfileController.updateSupplierProfile);
+
+// Public storefront routes
 supplierRouter.get('/:supplierId/storefront', supplierProfileController.getSupplierStorefront);
 supplierRouter.get('/:supplierId/storefront/devices', supplierProfileController.getSupplierStorefrontDevices);
 supplierRouter.get('/:supplierId/storefront/vouchers', supplierProfileController.getSupplierStorefrontVouchers);
@@ -17,9 +25,5 @@ supplierRouter.get('/:supplierId/follow-status', supplierProfileController.getFo
 // Existing public routes — DO NOT MODIFY
 supplierRouter.get('/:supplierId', supplierProfileController.getSupplierProfile);
 supplierRouter.get('/:supplierId/devices', supplierProfileController.getSupplierDevices);
-
-// Protected routes (chỉ Supplier)
-supplierRouter.get('/profile', checkAccessToken, supplierProfileController.getSupplierProfile);
-supplierRouter.put('/profile', checkAccessToken, uploadCloud.fields([{ name: 'businessAvatar', maxCount: 1 }]), supplierProfileController.updateSupplierProfile);
 
 module.exports = supplierRouter;

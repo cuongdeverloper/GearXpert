@@ -2,6 +2,7 @@ const Device = require("../../models/Device");
 const RentalItem = require("../../models/RentalItem"); // Kiểm tra lại đường dẫn model của bạn
 const Review = require("../../models/Review");
 const SupplierProfile = require("../../models/SupplierProfile");
+const { notifyFollowers } = require("../Supplier/SupplierController");
 
 /**
  * POST /devices
@@ -104,6 +105,17 @@ exports.createDevice = async (req, res) => {
     });
 
     await newDevice.save();
+
+    // Notify followers about new device
+    notifyFollowers(
+      supplierId,
+      "notifyNewDevice",
+      "STORE_DEVICE",
+      "Thiết bị mới",
+      `${name} vừa được thêm vào cửa hàng`,
+      `/device/${newDevice._id}`,
+      req
+    ).catch(() => {});
 
     res.status(201).json({
       message: "Device created successfully",
