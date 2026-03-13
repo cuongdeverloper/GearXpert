@@ -8,9 +8,9 @@ routerDevice.post('/', checkAccessToken, checkSupplier, uploadCloud.array('image
 
 routerDevice.get('/', deviceController.getDevices);
 routerDevice.get('/supplier/:supplierId', deviceController.getSupplierDevices);
-routerDevice.get('/:id', deviceController.getDeviceDetail);
-routerDevice.get('/:id/addons', deviceController.getDeviceAddons);
-routerDevice.get('/:id/related', deviceController.getRelatedDevices);
+routerDevice.get('/:slug', deviceController.getDeviceDetail);
+routerDevice.get('/:slug/addons', deviceController.getDeviceAddons);
+routerDevice.get('/:slug/related', deviceController.getRelatedDevices);
 
 // Update device
 routerDevice.put('/:id', checkAccessToken, uploadCloud.array('images', 10), deviceController.updateDevice);

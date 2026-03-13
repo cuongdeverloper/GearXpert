@@ -716,7 +716,7 @@ export default function SupplierPublicProfile() {
             const outOfStock = devices.filter((d) => d.stockQuantity <= 0);
             const DeviceCard = ({ device }) => (
               <Link
-                to={`/device/${device._id}`}
+                to={`/device/${device.slug || device._id}`}
                 className="group bg-white rounded-2xl overflow-hidden border border-slate-100 hover:border-indigo-200 hover:shadow-lg transition-all duration-300 flex flex-col"
               >
                 <div className="relative aspect-square overflow-hidden bg-slate-100">

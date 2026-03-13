@@ -552,7 +552,7 @@ exports.getMyRentals = async (req, res) => {
         path: "items",
         populate: {
           path: "deviceId",
-          select: "name images supplierId", // ← THÊM supplierId vào đây
+          select: "name slug images supplierId", // ← THÊM supplierId vào đây
           populate: {
             path: "supplierId", // ← Populate supplier
             select: "fullName avatar phone email", // Chọn field cần thiết (có thể thêm rating, address nếu muốn)
@@ -577,7 +577,7 @@ exports.getMyRentals = async (req, res) => {
               deviceInfo = await mongoose
                 .model("Device")
                 .findById(deviceInfo)
-                .select("name images")
+                .select("name slug images")
                 .lean();
             }
 

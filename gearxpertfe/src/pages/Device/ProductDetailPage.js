@@ -33,7 +33,7 @@ import { addToCart, addInstantToCart } from "../../service/ApiService/CartApi";
 import { hasRentedDevice } from "../../service/ApiService/RentalApi";
 
 export default function ProductDetailPage() {
-  const { id } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
 
   const today = new Date().toISOString().split("T")[0];
@@ -58,18 +58,19 @@ export default function ProductDetailPage() {
       setLoading(true);
 
       const promises = [
-        getDeviceDetail(id),
-        getDeviceAddons(id),
-        getRelatedDevices(id),
+        getDeviceDetail(slug),
+        getDeviceAddons(slug),
+        getRelatedDevices(slug),
       ];
 
-      if (isAuthenticated) {
-        promises.push(hasRentedDevice(id));
-      }
-
       const results = await Promise.all(promises);
-      const [d, a, r, ...rest] = results;
-      const rented = isAuthenticated ? rest[0] : undefined;
+      const [d, a, r] = results;
+
+      // hasRentedDevice cần dùng _id, gọi sau khi có device data
+      let rented;
+      if (isAuthenticated && d?._id) {
+        rented = await hasRentedDevice(d._id);
+      }
 
       setDevice(d);
       setAddonsList(a || []);
@@ -82,7 +83,7 @@ export default function ProductDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id, isAuthenticated]);
+  }, [slug, isAuthenticated]);
 
   useEffect(() => {
     fetchData();
@@ -640,7 +641,7 @@ export default function ProductDetailPage() {
                   <div
                     key={d._id}
                     className="group bg-white rounded-[28px] border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-500 cursor-pointer overflow-hidden"
-                    onClick={() => navigate(`/device/${d._id}`)}
+                    onClick={() => navigate(`/device/${d.slug}`)}
                   >
                     <div className="relative h-64 overflow-hidden">
                       <img

@@ -81,6 +81,8 @@ export default function ProductCard({
   const handleClick = () => {
     if (onClick) {
       onClick(device);
+    } else if (device?.slug) {
+      navigate(`/device/${device.slug}`);
     } else if (deviceId) {
       navigate(`/device/${deviceId}`);
     }

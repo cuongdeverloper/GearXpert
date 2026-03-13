@@ -450,7 +450,7 @@ export default function MyRentals() {
   };
   const handleReRent = (order) => {
     if (order.items && order.items.length > 0) {
-      navigate(`/device/${order.items[0].deviceId?._id || ""}`);
+      navigate(`/device/${order.items[0].deviceId?.slug || order.items[0].deviceId?._id || ""}`);
     } else {
       navigate("/devices");
     }
@@ -811,7 +811,7 @@ export default function MyRentals() {
                               <div
                                 key={i}
                                 onClick={() =>
-                                  navigate(`/device/${item.deviceId?._id}`)
+                                  navigate(`/device/${item.deviceId?.slug || item.deviceId?._id}`)
                                 }
                                 className={`relative flex items-center gap-5 p-4 rounded-[2rem] transition-all cursor-pointer group/item ${
                                   hasReport
