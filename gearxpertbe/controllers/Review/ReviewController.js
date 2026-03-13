@@ -122,3 +122,113 @@ exports.hasReviewed = async (req, res) => {
     res.status(500).json({ message: 'Check failed' });
   }
 };
+// GET /api/devices/:deviceId/my-review
+exports.getMyReview = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { deviceId } = req.params;
+
+    const review = await Review.findOne({
+      userId,
+      deviceId,
+    })
+      .populate('userId', 'fullName avatar')
+      .lean();
+
+    if (!review) {
+      return res.json({ hasReview: false });
+    }
+
+    res.json({
+      hasReview: true,
+      review: {
+        _id: review._id,
+        rating: review.rating,
+        comment: review.comment,
+        images: review.images || [],
+        createdAt: review.createdAt,
+        // có thể thêm rentalId nếu cần
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Không thể lấy review của bạn' });
+  }
+};
+
+// PUT /api/reviews/:reviewId
+exports.updateReview = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { reviewId } = req.params;
+    const { rating, comment } = req.body;
+
+    const review = await Review.findById(reviewId);
+
+    if (!review) {
+      return res.status(404).json({ message: 'Không tìm thấy review' });
+    }
+
+    if (review.userId.toString() !== userId) {
+      return res.status(403).json({ message: 'Không phải review của bạn' });
+    }
+
+    const timeDiff = Date.now() - new Date(review.createdAt).getTime();
+    const hoursDiff = timeDiff / (1000 * 60 * 60);
+
+    if (hoursDiff > 48) {
+      return res.status(403).json({ message: 'Đã quá 48 giờ, không thể chỉnh sửa review' });
+    }
+
+    review.rating = rating;
+    review.comment = comment;
+
+    // Nếu có upload ảnh mới → xử lý tương tự createReview
+    if (req.files && req.files.length > 0) {
+      const newImages = req.files.map(file => file.path);
+      review.images = [...(review.images || []), ...newImages];
+    }
+
+    await review.save();
+
+    // Cập nhật lại rating trung bình thiết bị (đã có post save hook rồi)
+    res.json({ message: 'Cập nhật review thành công', review });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Cập nhật thất bại' });
+  }
+};
+
+// DELETE /api/reviews/:reviewId
+exports.deleteReview = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { reviewId } = req.params;
+
+    const review = await Review.findById(reviewId);
+
+    if (!review) {
+      return res.status(404).json({ message: 'Không tìm thấy review' });
+    }
+
+    if (review.userId.toString() !== userId) {
+      return res.status(403).json({ message: 'Không phải review của bạn' });
+    }
+
+    const timeDiff = Date.now() - new Date(review.createdAt).getTime();
+    const hoursDiff = timeDiff / (1000 * 60 * 60);
+
+    if (hoursDiff > 48) {
+      return res.status(403).json({ message: 'Đã quá 48 giờ, không thể xóa review' });
+    }
+
+    await Review.findByIdAndDelete(reviewId);
+
+    // Rating trung bình sẽ tự cập nhật nhờ post hook (nếu bạn xóa thì cần trigger lại hoặc để hook xử lý)
+
+    res.json({ message: 'Đã xóa review thành công' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Xóa thất bại' });
+  }
+};
