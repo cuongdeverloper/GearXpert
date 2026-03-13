@@ -113,7 +113,7 @@ exports.createDevice = async (req, res) => {
       "STORE_DEVICE",
       "Thiết bị mới",
       `${name} vừa được thêm vào cửa hàng`,
-      `/device/${newDevice._id}`,
+      `/device/${newDevice.slug}`,
       req
     ).catch(() => {});
 
@@ -176,7 +176,7 @@ exports.getDevices = async (req, res) => {
 
     const devicesRaw = await Device.find(query)
       .select(
-        "name description rentPrice ratingAvg reviewCount location images category status stockQuantity rentedQuantity depositAmount supplierId createdAt"
+        "name slug description rentPrice ratingAvg reviewCount location images category status stockQuantity rentedQuantity depositAmount supplierId createdAt"
       )
       .populate("supplierId", "fullName")
       .limit(parseInt(limit))
@@ -207,15 +207,18 @@ exports.getDevices = async (req, res) => {
 };
 
 /**
- * GET /devices/:id
+ * GET /devices/:slug
+ * Supports both slug and ObjectId for backward compatibility
  */
 exports.getDeviceDetail = async (req, res) => {
   try {
-    // 1. Lấy thông tin thiết bị và thông tin Supplier
-    const device = await Device.findById(req.params.id).populate(
-      "supplierId",
-      "fullName avatar email phone"
-    );
+    const param = req.params.slug;
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(param);
+
+    // 1. Lấy thông tin thiết bị và thông tin Supplier (slug hoặc _id)
+    const device = await Device.findOne(
+      isObjectId ? { _id: param } : { slug: param }
+    ).populate("supplierId", "fullName avatar email phone");
 
     if (!device) {
       return res.status(404).json({ message: "Device not found" });
@@ -304,24 +307,35 @@ exports.getDeviceDetail = async (req, res) => {
   }
 };
 /**
- * GET /devices/:id/addons
+ * GET /devices/:slug/addons
+ * Supports both slug and ObjectId
  */
 exports.getDeviceAddons = async (req, res) => {
-  const deviceId = req.params.id;
+  const param = req.params.slug;
+  const isObjectId = /^[0-9a-fA-F]{24}$/.test(param);
+  const device = await Device.findOne(
+    isObjectId ? { _id: param } : { slug: param }
+  ).select("_id");
+  if (!device) return res.status(404).json({ message: "Device not found" });
 
   const addons = await Device.find({
     isAddon: true,
-    compatibleWith: deviceId,
+    compatibleWith: device._id,
     status: "AVAILABLE",
   }).select("name rentPrice images");
 
   res.json(addons);
 };
 /**
- * GET /devices/:id/related
+ * GET /devices/:slug/related
+ * Supports both slug and ObjectId
  */
 exports.getRelatedDevices = async (req, res) => {
-  const device = await Device.findById(req.params.id);
+  const param = req.params.slug;
+  const isObjectId = /^[0-9a-fA-F]{24}$/.test(param);
+  const device = await Device.findOne(
+    isObjectId ? { _id: param } : { slug: param }
+  );
   if (!device) return res.status(404).json({ message: "Device not found" });
 
   const related = await Device.find({
@@ -330,7 +344,7 @@ exports.getRelatedDevices = async (req, res) => {
     status: "AVAILABLE",
   })
     .limit(4)
-    .select("name rentPrice ratingAvg location images");
+    .select("name slug rentPrice ratingAvg location images");
 
   res.json(related);
 };
@@ -429,33 +443,21 @@ exports.updateDevice = async (req, res) => {
       return res.status(400).json({ message: "depositAmount must be > 0" });
     }
 
-    const updatePayload = {
-      name,
-      description,
-      category,
-      rentPrice,
-      depositAmount,
-      location,
-      stockQuantity,
-      images,
-    };
-
-    if (status) {
-      updatePayload.status = status;
-    }
-
-    if (specs && typeof specs === "object") {
-      updatePayload.specs = specs;
-    }
-
-    const device = await Device.findByIdAndUpdate(id, updatePayload, {
-      new: true,
-      runValidators: true,
-    });
+    // Use findById + save to trigger slug regeneration on name change
+    const device = await Device.findById(id);
 
     if (!device) {
       return res.status(404).json({ message: "Device not found" });
     }
+
+    Object.assign(device, {
+      name, description, category, rentPrice, depositAmount,
+      location, stockQuantity, images,
+    });
+    if (status) device.status = status;
+    if (specs && typeof specs === "object") device.specs = specs;
+
+    await device.save();
 
     res.json({
       message: "Device updated successfully",
@@ -541,7 +543,7 @@ exports.getSupplierDevices = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const devices = await Device.find(query)
       .select(
-        "name description rentPrice ratingAvg reviewCount location images category status stockQuantity depositAmount"
+        "name slug description rentPrice ratingAvg reviewCount location images category status stockQuantity depositAmount"
       )
       .limit(parseInt(limit))
       .skip(skip)

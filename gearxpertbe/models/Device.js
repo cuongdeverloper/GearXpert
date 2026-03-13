@@ -11,6 +11,8 @@ const deviceSchema = new mongoose.Schema(
 
     name: { type: String, required: true, index: true },
 
+    slug: { type: String, unique: true, index: true },
+
     description: String,
 
     category: {
@@ -99,6 +101,34 @@ const deviceSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+/* ===== SLUG GENERATION ===== */
+function generateSlug(name) {
+  return name
+    .toLowerCase()
+    .normalize("NFD")                     // tách dấu tiếng Việt
+    .replace(/[\u0300-\u036f]/g, "")      // xoá dấu
+    .replace(/đ/g, "d").replace(/Đ/g, "d")
+    .replace(/[^a-z0-9]+/g, "-")          // ký tự đặc biệt → gạch ngang
+    .replace(/^-+|-+$/g, "");             // trim gạch đầu/cuối
+}
+
+deviceSchema.pre("save", async function (next) {
+  if (!this.isModified("name") && this.slug) return next();
+
+  const base = generateSlug(this.name);
+  let slug = base;
+  let suffix = 1;
+
+  // Tìm slug unique — bỏ qua chính document này (khi update)
+  const Device = mongoose.model("Device");
+  while (await Device.exists({ slug, _id: { $ne: this._id } })) {
+    slug = `${base}-${suffix}`;
+    suffix++;
+  }
+  this.slug = slug;
+  next();
+});
 
 // Virtual (tính availableQuantity)
 deviceSchema.virtual('availableQuantity').get(function () {

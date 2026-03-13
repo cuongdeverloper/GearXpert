@@ -4,11 +4,13 @@ const {
   getMyNotifications,
   markAsRead,
   markAllAsRead,
+  broadcastNotification,
 } = require('../controllers/Notification/NotificationController');
-const { checkAccessToken } = require('../middleware/JWTAction');
+const { checkAccessToken, checkAdmin } = require('../middleware/JWTAction');
 
 NotificationRouter.get('/', checkAccessToken, getMyNotifications);
 NotificationRouter.patch('/:id/read', checkAccessToken, markAsRead);
 NotificationRouter.patch('/mark-all-read', checkAccessToken, markAllAsRead);
+NotificationRouter.post('/broadcast', checkAccessToken, checkAdmin, broadcastNotification);
 
 module.exports = NotificationRouter;

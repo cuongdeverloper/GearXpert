@@ -104,7 +104,9 @@ export default function Header() {
   };
 
   const menuItems = [
-    { label: 'Trang chủ', icon: 'home', path: '/' },
+    ...(userAccount?.role === 'SUPPLIER'
+      ? [{ label: 'Dashboard', icon: 'dashboard', path: '/supplier/dashboard' }]
+      : []),
     { label: 'Đơn thuê của tôi', icon: 'description', path: '/user/myrental' },
     { label: 'Vouchers', icon: 'local_activity', path: '/vouchers' },
     { label: 'Yêu thích', icon: 'favorite', path: '/favorites' },

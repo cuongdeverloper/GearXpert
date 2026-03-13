@@ -339,7 +339,7 @@ exports.getSupplierStorefrontDevices = async (req, res) => {
 
     const devices = await Device.find(query)
       .select(
-        "name images rentPrice depositAmount category stockQuantity rentedQuantity ratingAvg reviewCount status location createdAt"
+        "name slug images rentPrice depositAmount category stockQuantity rentedQuantity ratingAvg reviewCount status location createdAt"
       )
       .sort(sortQuery)
       .skip((Number(page) - 1) * Number(limit))
