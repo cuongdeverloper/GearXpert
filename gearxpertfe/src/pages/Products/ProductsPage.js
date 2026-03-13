@@ -84,7 +84,17 @@ export default function ProductsPage() {
 
   useEffect(() => {
     applyFiltersAndSort();
-  }, [applyFiltersAndSort]);
+
+    // Track search queries for AI suggestions
+    if (searchQuery.trim().length > 2) {
+      const timer = setTimeout(() => {
+        const searches = JSON.parse(localStorage.getItem("searchQueries") || "[]");
+        const updated = [searchQuery.trim(), ...searches.filter(s => s !== searchQuery.trim())].slice(0, 5);
+        localStorage.setItem("searchQueries", JSON.stringify(updated));
+      }, 1500); // 1.5s delay to avoid tracking every keystroke
+      return () => clearTimeout(timer);
+    }
+  }, [applyFiltersAndSort, searchQuery]);
 
   // Compare logic
   const handleToggleCompare = (device) => {
