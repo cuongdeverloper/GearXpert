@@ -40,7 +40,7 @@ import {
 } from "../../service/ApiService/ReviewApi";
 
 export default function ProductDetailPage() {
-  const { id } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
 
   const today = new Date().toISOString().split("T")[0];
@@ -75,18 +75,19 @@ export default function ProductDetailPage() {
       setLoading(true);
 
       const promises = [
-        getDeviceDetail(id),
-        getDeviceAddons(id),
-        getRelatedDevices(id),
+        getDeviceDetail(slug),
+        getDeviceAddons(slug),
+        getRelatedDevices(slug),
       ];
 
-      if (isAuthenticated) {
-        promises.push(hasRentedDevice(id));
-      }
-
       const results = await Promise.all(promises);
-      const [d, a, r, ...rest] = results;
-      const rented = isAuthenticated ? rest[0] : undefined;
+      const [d, a, r] = results;
+
+      // hasRentedDevice cần dùng _id, gọi sau khi có device data
+      let rented;
+      if (isAuthenticated && d?._id) {
+        rented = await hasRentedDevice(d._id);
+      }
 
       setDevice(d);
       setAddonsList(a || []);
@@ -99,13 +100,13 @@ export default function ProductDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id, isAuthenticated]);
+  }, [slug, isAuthenticated]);
 
   const fetchMyReview = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !device?._id) return;
 
     try {
-      const data = await getMyReview(id);
+      const data = await getMyReview(device._id);
       if (data.hasReview) {
         setMyReview(data.review);
         setHasMyReview(true);
@@ -115,13 +116,16 @@ export default function ProductDetailPage() {
     } catch (err) {
       console.log("Không có review của bạn hoặc lỗi:", err);
     }
-  }, [id, isAuthenticated]);
+  }, [device?._id, isAuthenticated]);
 
   useEffect(() => {
     fetchData();
-    fetchMyReview();
     window.scrollTo(0, 0);
-  }, [fetchData, fetchMyReview]);
+  }, [fetchData]);
+
+  useEffect(() => {
+    fetchMyReview();
+  }, [fetchMyReview]);
 
   const validateRental = () => {
     if (!startDate || !endDate) {
@@ -445,7 +449,7 @@ export default function ProductDetailPage() {
                                 <img
                                   key={idx}
                                   src={img}
-                                  alt={`Review image ${idx + 1}`}
+                                  alt={`Review ${idx + 1}`}
                                   className="w-28 h-28 object-cover rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-[1.03]"
                                 />
                               ))}
@@ -934,7 +938,7 @@ export default function ProductDetailPage() {
                   <div
                     key={d._id}
                     className="group bg-white rounded-[28px] border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-500 cursor-pointer overflow-hidden"
-                    onClick={() => navigate(`/device/${d._id}`)}
+                    onClick={() => navigate(`/device/${d.slug}`)}
                   >
                     <div className="relative h-64 overflow-hidden">
                       <img

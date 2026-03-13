@@ -31,7 +31,7 @@ export default function TrendingNowSection({ device = null }) {
           <h4 className="text-4xl font-bold text-white mb-3 font-display leading-tight">{trendingDevice.name}</h4>
           <p className="text-slate-300 mb-8 max-w-sm font-medium">{trendingDevice.description}</p>
           <button
-            onClick={() => trendingDevice._id && navigate(`/device/${trendingDevice._id}`)}
+            onClick={() => trendingDevice.slug && navigate(`/device/${trendingDevice.slug}`)}
             className="bg-white text-slate-900 font-bold px-8 py-3.5 rounded-2xl hover:bg-slate-100 transition-all flex items-center gap-2"
           >
             View Now
