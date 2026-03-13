@@ -103,10 +103,10 @@ export default function ProductDetailPage() {
   }, [slug, isAuthenticated]);
 
   const fetchMyReview = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !device?._id) return;
 
     try {
-      const data = await getMyReview(id);
+      const data = await getMyReview(device._id);
       if (data.hasReview) {
         setMyReview(data.review);
         setHasMyReview(true);
@@ -116,13 +116,16 @@ export default function ProductDetailPage() {
     } catch (err) {
       console.log("Không có review của bạn hoặc lỗi:", err);
     }
-  }, [id, isAuthenticated]);
+  }, [device?._id, isAuthenticated]);
 
   useEffect(() => {
     fetchData();
-    fetchMyReview();
     window.scrollTo(0, 0);
-  }, [fetchData, fetchMyReview]);
+  }, [fetchData]);
+
+  useEffect(() => {
+    fetchMyReview();
+  }, [fetchMyReview]);
 
   const validateRental = () => {
     if (!startDate || !endDate) {
@@ -446,7 +449,7 @@ export default function ProductDetailPage() {
                                 <img
                                   key={idx}
                                   src={img}
-                                  alt={`Review image ${idx + 1}`}
+                                  alt={`Review ${idx + 1}`}
                                   className="w-28 h-28 object-cover rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-[1.03]"
                                 />
                               ))}

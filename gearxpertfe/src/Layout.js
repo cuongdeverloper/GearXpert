@@ -162,7 +162,6 @@ export default function Layout() {
           <Route path="/wallet/success" element={<WalletSuccess />} />
           <Route path="/wallet/cancel" element={<WalletCancel />} />
           <Route path="/rental/checkout" element={<RentalCheckout />} />
-          <Route path="/device/" element={<ProductDetailPage />} />
           <Route
             path="/rental/checkout/review"
             element={<RentalReviewPage />}
