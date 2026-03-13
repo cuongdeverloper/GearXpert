@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const advertisementController = require("../controllers/Advertisement/AdvertisementController");
-const { checkAccessToken, checkAdmin } = require("../middleware/JWTAction");
+const { checkAccessToken, checkAdmin, checkSupplier } = require("../middleware/JWTAction");
 const uploadCloud = require("../configs/cloudinaryConfig");
 
 router.get(
@@ -17,6 +17,7 @@ router.get(
 router.post(
     "/",
     checkAccessToken,
+    checkSupplier,
     uploadCloud.single("image"),
     advertisementController.createAdvertisement
 );
@@ -24,12 +25,14 @@ router.post(
 router.get(
     "/my-ads",
     checkAccessToken,
+    checkSupplier,
     advertisementController.getMyAdvertisements
 );
 
 router.delete(
     "/:id",
     checkAccessToken,
+    checkSupplier,
     advertisementController.deleteAdvertisement
 );
 

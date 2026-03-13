@@ -121,7 +121,14 @@ export default function ProductDetailPage() {
   useEffect(() => {
     fetchData();
     window.scrollTo(0, 0);
-  }, [fetchData]);
+
+    // Track viewed devices for AI suggestions
+    if (id) {
+      const viewed = JSON.parse(localStorage.getItem("viewedDevices") || "[]");
+      const updated = [id, ...viewed.filter(vId => vId !== id)].slice(0, 10);
+      localStorage.setItem("viewedDevices", JSON.stringify(updated));
+    }
+  }, [fetchData, id]);
 
   useEffect(() => {
     fetchMyReview();
