@@ -40,7 +40,7 @@ import {
 } from "../../service/ApiService/ReviewApi";
 
 export default function ProductDetailPage() {
-  const { slug } = useParams();
+  const { id } = useParams();
   const navigate = useNavigate();
 
   const today = new Date().toISOString().split("T")[0];
@@ -75,9 +75,9 @@ export default function ProductDetailPage() {
       setLoading(true);
 
       const promises = [
-        getDeviceDetail(slug),
-        getDeviceAddons(slug),
-        getRelatedDevices(slug),
+        getDeviceDetail(id),
+        getDeviceAddons(id),
+        getRelatedDevices(id),
       ];
 
       const results = await Promise.all(promises);
@@ -100,7 +100,7 @@ export default function ProductDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [slug, isAuthenticated]);
+  }, [id, isAuthenticated]);
 
   const fetchMyReview = useCallback(async () => {
     if (!isAuthenticated || !device?._id) return;
@@ -945,7 +945,7 @@ export default function ProductDetailPage() {
                   <div
                     key={d._id}
                     className="group bg-white rounded-[28px] border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-500 cursor-pointer overflow-hidden"
-                    onClick={() => navigate(`/device/${d.slug}`)}
+                    onClick={() => navigate(`/device/${d._id}`)}
                   >
                     <div className="relative h-64 overflow-hidden">
                       <img
