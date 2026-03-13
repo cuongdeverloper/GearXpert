@@ -38,6 +38,7 @@ const supplierRouter = require("./Routes/SupplierRoutes");
 const operationLogRouter = require("./Routes/OperationLogRoutes");
 const { startAutoConfirmJob } = require("./jobs/autoConfirmDelivery");
 const { startAutoReturnJob } = require("./jobs/autoReturnRentals");
+const routerReview = require("./Routes/ReviewRoutes");
 
 const io = socketIo(server, {
     cors: {
@@ -91,6 +92,7 @@ app.use('/api/blogs', blogRouter);
 app.use("/api/smartgear", smartgearRoutes);
 app.use('/api/suppliers', supplierRouter);
 app.use('/api/operation-logs', operationLogRouter);
+app.use('/api/reviews', routerReview);
 
 app.use('/', googleAuthRouter);
 

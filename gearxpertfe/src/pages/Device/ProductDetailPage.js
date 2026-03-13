@@ -16,6 +16,8 @@ import {
   Minus,
   Plus,
   User,
+  Edit,
+  Trash2,
 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import { useParams, useNavigate } from "react-router-dom";
@@ -31,13 +33,20 @@ import {
 } from "../../service/ApiService/DeviceApi";
 import { addToCart, addInstantToCart } from "../../service/ApiService/CartApi";
 import { hasRentedDevice } from "../../service/ApiService/RentalApi";
+import {
+  getMyReview,
+  updateReview,
+  deleteReview,
+} from "../../service/ApiService/ReviewApi";
 
 export default function ProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
   const today = new Date().toISOString().split("T")[0];
-  const isAuthenticated = useSelector((state) => state.user?.isAuthenticated || false);
+  const isAuthenticated = useSelector(
+    (state) => state.user?.isAuthenticated || false
+  );
 
   const [device, setDevice] = useState(null);
   const [addonsList, setAddonsList] = useState([]);
@@ -52,6 +61,14 @@ export default function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const [addons, setAddons] = useState([]);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  const [myReview, setMyReview] = useState(null);
+  const [hasMyReview, setHasMyReview] = useState(false);
+  const [isEditingReview, setIsEditingReview] = useState(false);
+  const [editRating, setEditRating] = useState(5);
+  const [editComment, setEditComment] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -84,10 +101,27 @@ export default function ProductDetailPage() {
     }
   }, [id, isAuthenticated]);
 
+  const fetchMyReview = useCallback(async () => {
+    if (!isAuthenticated) return;
+
+    try {
+      const data = await getMyReview(id);
+      if (data.hasReview) {
+        setMyReview(data.review);
+        setHasMyReview(true);
+        setEditRating(data.review.rating);
+        setEditComment(data.review.comment || "");
+      }
+    } catch (err) {
+      console.log("Không có review của bạn hoặc lỗi:", err);
+    }
+  }, [id, isAuthenticated]);
+
   useEffect(() => {
     fetchData();
+    fetchMyReview();
     window.scrollTo(0, 0);
-  }, [fetchData]);
+  }, [fetchData, fetchMyReview]);
 
   const validateRental = () => {
     if (!startDate || !endDate) {
@@ -161,31 +195,83 @@ export default function ProductDetailPage() {
         addons: addons.map((a) => a._id),
       });
 
-      console.log('[handleBuyNow] Response from addInstantToCart:', response.data);
+      console.log("[handleBuyNow] Response:", response.data);
 
       toast.success("Đã thêm vào giỏ INSTANT!", { id: toastId });
       navigate("/rental/checkout", {
         state: { cartType: "INSTANT" },
       });
     } catch (err) {
-      console.error('[handleBuyNow] Error:', err);
+      console.error("[handleBuyNow] Error:", err);
       toast.error("Thuê ngay thất bại", { id: toastId });
+    }
+  };
+
+  const handleUpdateReview = async () => {
+    if (!editComment.trim()) {
+      toast.error("Vui lòng nhập nội dung nhận xét");
+      return;
+    }
+
+    setIsSubmittingReview(true);
+    const toastId = toast.loading("Đang cập nhật review...");
+
+    try {
+      await updateReview(myReview._id, {
+        rating: editRating,
+        comment: editComment,
+      });
+
+      toast.success("Cập nhật review thành công!", { id: toastId });
+      setMyReview((prev) => ({
+        ...prev,
+        rating: editRating,
+        comment: editComment,
+      }));
+      setIsEditingReview(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Cập nhật review thất bại", {
+        id: toastId,
+      });
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
+  const handleDeleteReview = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteReview = async () => {
+    setShowDeleteConfirm(false);
+    const toastId = toast.loading("Đang xóa review...");
+
+    try {
+      await deleteReview(myReview._id);
+      toast.success("Đã xóa review thành công", { id: toastId });
+      setMyReview(null);
+      setHasMyReview(false);
+      // fetchData(); // nếu muốn reload toàn bộ reviews
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Xóa review thất bại", {
+        id: toastId,
+      });
     }
   };
 
   const days =
     startDate && endDate
       ? Math.max(
-        1,
-        Math.ceil((new Date(endDate) - new Date(startDate)) / 86400000)
-      )
+          1,
+          Math.ceil((new Date(endDate) - new Date(startDate)) / 86400000)
+        )
       : 0;
 
   const totalPrice = device
     ? days *
-    (device.rentPrice.perDay +
-      addons.reduce((s, a) => s + a.rentPrice.perDay, 0)) *
-    quantity
+      (device.rentPrice.perDay +
+        addons.reduce((s, a) => s + a.rentPrice.perDay, 0)) *
+      quantity
     : 0;
 
   if (loading) {
@@ -239,10 +325,15 @@ export default function ProductDetailPage() {
                   />
                   <div className="absolute top-6 left-6">
                     <span
-                      className={`text-white text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest shadow-lg ${device.stockQuantity > 0 ? "bg-indigo-600" : "bg-rose-500"
-                        }`}
+                      className={`text-white text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest shadow-lg ${
+                        device.stockQuantity > 0
+                          ? "bg-indigo-600"
+                          : "bg-rose-500"
+                      }`}
                     >
-                      {device.stockQuantity > 0 ? device.status : "Out of Stock"}
+                      {device.stockQuantity > 0
+                        ? device.status
+                        : "Out of Stock"}
                     </span>
                   </div>
                 </div>
@@ -252,12 +343,17 @@ export default function ProductDetailPage() {
                     <button
                       key={i}
                       onClick={() => setSelectedImage(i)}
-                      className={`relative min-w-[120px] h-24 rounded-2xl overflow-hidden border-2 transition-all ${selectedImage === i
-                        ? "border-indigo-600 scale-95 shadow-lg"
-                        : "border-transparent opacity-60 hover:opacity-100"
-                        }`}
+                      className={`relative min-w-[120px] h-24 rounded-2xl overflow-hidden border-2 transition-all ${
+                        selectedImage === i
+                          ? "border-indigo-600 scale-95 shadow-lg"
+                          : "border-transparent opacity-60 hover:opacity-100"
+                      }`}
                     >
-                      <img src={img} className="w-full h-full object-cover" alt="thumb" />
+                      <img
+                        src={img}
+                        className="w-full h-full object-cover"
+                        alt="thumb"
+                      />
                     </button>
                   ))}
                 </div>
@@ -273,6 +369,173 @@ export default function ProductDetailPage() {
                   {device.description}
                 </p>
               </div>
+
+              {/* MY REVIEW SECTION - Đã nâng cấp */}
+              {isAuthenticated && (
+                <div className="mt-12 bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm">
+                  <h3 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-3">
+                    <User className="w-6 h-6 text-indigo-600" />
+                    Review của tôi
+                  </h3>
+
+                  {hasMyReview ? (
+                    <div className="space-y-6">
+                      {!isEditingReview ? (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <div className="flex">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    className={`w-6 h-6 ${
+                                      i < myReview.rating
+                                        ? "fill-amber-400 text-amber-400"
+                                        : "text-slate-200"
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                              <span className="text-sm text-slate-500 font-medium">
+                                {new Date(
+                                  myReview.createdAt
+                                ).toLocaleDateString("vi-VN")}
+                              </span>
+                            </div>
+
+                            {(() => {
+                              const hoursDiff =
+                                (Date.now() -
+                                  new Date(myReview.createdAt).getTime()) /
+                                (1000 * 60 * 60);
+                              const canEdit = hoursDiff <= 48;
+
+                              return canEdit ? (
+                                <div className="flex gap-3">
+                                  <button
+                                    onClick={() => setIsEditingReview(true)}
+                                    className="flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 hover:border-indigo-300 rounded-xl transition-all shadow-sm hover:shadow"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                    Chỉnh sửa
+                                  </button>
+                                  <button
+                                    onClick={handleDeleteReview}
+                                    className="flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 hover:border-rose-300 rounded-xl transition-all shadow-sm hover:shadow"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                    Xóa
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-xs italic px-4 py-2 bg-slate-100 text-slate-500 rounded-full">
+                                  Đã quá 48 giờ (không thể chỉnh sửa/xóa)
+                                </span>
+                              );
+                            })()}
+                          </div>
+
+                          <p className="text-slate-700 leading-relaxed text-[15px] font-medium">
+                            {myReview.comment}
+                          </p>
+
+                          {myReview.images?.length > 0 && (
+                            <div className="flex gap-4 flex-wrap mt-4">
+                              {myReview.images.map((img, idx) => (
+                                <img
+                                  key={idx}
+                                  src={img}
+                                  alt={`Review image ${idx + 1}`}
+                                  className="w-28 h-28 object-cover rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-[1.03]"
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 space-y-6">
+                          <div>
+                            <label className="block text-sm font-semibold text-slate-700 mb-3">
+                              Đánh giá của bạn
+                            </label>
+                            <div className="flex gap-1">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <button
+                                  key={star}
+                                  type="button"
+                                  onClick={() => setEditRating(star)}
+                                  className="focus:outline-none transition-transform hover:scale-110"
+                                >
+                                  <Star
+                                    className={`w-9 h-9 transition-all ${
+                                      star <= editRating
+                                        ? "fill-amber-400 text-amber-400 drop-shadow-sm"
+                                        : "text-slate-300 hover:text-amber-300"
+                                    }`}
+                                  />
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-semibold text-slate-700 mb-3">
+                              Nhận xét
+                            </label>
+                            <textarea
+                              value={editComment}
+                              onChange={(e) => setEditComment(e.target.value)}
+                              className="w-full h-40 p-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none text-slate-700 placeholder-slate-400"
+                              placeholder="Chia sẻ trải nghiệm của bạn..."
+                            />
+                          </div>
+
+                          <div className="flex gap-4 justify-end pt-2">
+                            <button
+                              onClick={() => setIsEditingReview(false)}
+                              disabled={isSubmittingReview}
+                              className="px-6 py-3 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors"
+                            >
+                              Hủy
+                            </button>
+                            <button
+                              onClick={handleUpdateReview}
+                              disabled={
+                                isSubmittingReview || !editComment.trim()
+                              }
+                              className={`min-w-[140px] px-6 py-3 rounded-xl text-white font-medium flex items-center justify-center gap-2 transition-all ${
+                                isSubmittingReview
+                                  ? "bg-indigo-400 cursor-not-allowed"
+                                  : "bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98]"
+                              }`}
+                            >
+                              {isSubmittingReview ? (
+                                <>
+                                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                  Đang lưu...
+                                </>
+                              ) : (
+                                "Lưu thay đổi"
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                      <p className="text-slate-600 font-medium">
+                        Bạn chưa đánh giá sản phẩm này
+                      </p>
+                      {hasRented && (
+                        <p className="mt-3 text-sm text-indigo-600">
+                          (Bạn có thể đánh giá vì đã từng thuê thiết bị này)
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* REVIEWS */}
               <div className="space-y-8">
@@ -303,7 +566,11 @@ export default function ProductDetailPage() {
                                 {Array.from({ length: 5 }).map((_, i) => (
                                   <Star
                                     key={i}
-                                    className={`w-3.5 h-3.5 ${i < r.rating ? "fill-amber-400 text-amber-400" : "text-slate-200"}`}
+                                    className={`w-3.5 h-3.5 ${
+                                      i < r.rating
+                                        ? "fill-amber-400 text-amber-400"
+                                        : "text-slate-200"
+                                    }`}
                                   />
                                 ))}
                               </div>
@@ -381,7 +648,11 @@ export default function ProductDetailPage() {
                   <div className="flex items-center gap-4">
                     <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-indigo-100 group-hover:border-indigo-300 transition-colors">
                       <img
-                        src={supplier.businessAvatar || supplier.avatar || "/default-shop.jpg"}
+                        src={
+                          supplier.businessAvatar ||
+                          supplier.avatar ||
+                          "/default-shop.jpg"
+                        }
                         alt={supplier.businessName || supplier.fullName}
                         className="w-full h-full object-cover"
                       />
@@ -443,7 +714,8 @@ export default function ProductDetailPage() {
                         value={startDate}
                         onChange={(e) => {
                           setStartDate(e.target.value);
-                          if (endDate && e.target.value > endDate) setEndDate("");
+                          if (endDate && e.target.value > endDate)
+                            setEndDate("");
                         }}
                         className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                       />
@@ -488,14 +760,21 @@ export default function ProductDetailPage() {
                       onChange={(e) => {
                         const val = parseInt(e.target.value);
                         if (!isNaN(val)) {
-                          setQuantity(Math.min(Math.max(1, val), device.stockQuantity || 1));
+                          setQuantity(
+                            Math.min(
+                              Math.max(1, val),
+                              device.stockQuantity || 1
+                            )
+                          );
                         }
                       }}
                       className="w-12 text-center bg-transparent border-none text-lg font-black text-slate-900 outline-none select-none"
                     />
                     <button
                       onClick={() =>
-                        setQuantity(Math.min(device.stockQuantity || 1, quantity + 1))
+                        setQuantity(
+                          Math.min(device.stockQuantity || 1, quantity + 1)
+                        )
                       }
                       className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-900 flex items-center justify-center text-white hover:bg-indigo-600 hover:border-indigo-600 transition-all active:scale-90 disabled:opacity-50"
                       disabled={quantity >= (device.stockQuantity || 1)}
@@ -513,20 +792,26 @@ export default function ProductDetailPage() {
                   </label>
                   <div className="space-y-3">
                     {addonsList.map((a) => {
-                      const isSelected = addons.find((item) => item._id === a._id);
+                      const isSelected = addons.find(
+                        (item) => item._id === a._id
+                      );
                       return (
                         <button
                           key={a._id}
                           onClick={() => toggleAddon(a)}
-                          className={`w-full flex justify-between items-center p-4 rounded-2xl border-2 transition-all ${isSelected
-                            ? "border-indigo-600 bg-indigo-50 shadow-sm"
-                            : "border-slate-100 hover:border-slate-200 bg-white"
-                            }`}
+                          className={`w-full flex justify-between items-center p-4 rounded-2xl border-2 transition-all ${
+                            isSelected
+                              ? "border-indigo-600 bg-indigo-50 shadow-sm"
+                              : "border-slate-100 hover:border-slate-200 bg-white"
+                          }`}
                         >
                           <div className="text-left">
                             <p
-                              className={`font-bold text-sm ${isSelected ? "text-indigo-700" : "text-slate-700"
-                                }`}
+                              className={`font-bold text-sm ${
+                                isSelected
+                                  ? "text-indigo-700"
+                                  : "text-slate-700"
+                              }`}
                             >
                               {a.name}
                             </p>
@@ -580,9 +865,18 @@ export default function ProductDetailPage() {
 
               {/* TRUST CRITERIA */}
               <div className="grid grid-cols-3 gap-4">
-                <Criteria icon={<Shield className="w-5 h-5" />} text="Pro Insurance" />
-                <Criteria icon={<Package className="w-5 h-5" />} text="Same-day Delivery" />
-                <Criteria icon={<CheckCircle className="w-5 h-5" />} text="Tech Inspected" />
+                <Criteria
+                  icon={<Shield className="w-5 h-5" />}
+                  text="Pro Insurance"
+                />
+                <Criteria
+                  icon={<Package className="w-5 h-5" />}
+                  text="Same-day Delivery"
+                />
+                <Criteria
+                  icon={<CheckCircle className="w-5 h-5" />}
+                  text="Tech Inspected"
+                />
               </div>
             </div>
           </div>
@@ -661,7 +955,9 @@ export default function ProductDetailPage() {
                         </h4>
                         <div className="flex items-center gap-1">
                           <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                          <span className="text-xs font-bold">{d.ratingAvg}</span>
+                          <span className="text-xs font-bold">
+                            {d.ratingAvg}
+                          </span>
                         </div>
                       </div>
                       <div className="flex justify-between items-center pt-4 border-t border-slate-50">
@@ -683,11 +979,45 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </main>
+
       <Footer />
+
       <AuthRequirementModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
       />
+
+      {/* MODAL XÁC NHẬN XÓA */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-[90%] mx-4 shadow-2xl border border-slate-100 transform transition-all scale-100">
+            <div className="flex items-center gap-3 mb-4">
+              <AlertCircle className="w-7 h-7 text-rose-500" />
+              <h3 className="text-xl font-bold text-slate-900">
+                Xác nhận xóa review
+              </h3>
+            </div>
+            <p className="text-slate-600 mb-8 leading-relaxed">
+              Bạn có chắc chắn muốn xóa đánh giá này? Hành động này không thể
+              hoàn tác.
+            </p>
+            <div className="flex gap-4 justify-end">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-6 py-3 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={confirmDeleteReview}
+                className="px-6 py-3 bg-rose-600 text-white font-medium rounded-xl hover:bg-rose-700 transition-colors active:scale-95 shadow-sm"
+              >
+                Xóa review
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
