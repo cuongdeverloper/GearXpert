@@ -12,6 +12,12 @@ export default function ProductsPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [sortBy, setSortBy] = useState('featured'); // featured, price_asc, price_desc, newest
 
+    const notifyChatbotSearch = useCallback((query) => {
+        const q = String(query || '').trim();
+        if (!q) return;
+        window.dispatchEvent(new CustomEvent('gearxpert:product-search', { detail: { query: q } }));
+    }, []);
+
     const categories = [
         { name: 'All Gear', id: null, icon: 'grid_view' },
         { name: 'Cinematography', id: 'CAMERA', icon: 'videocam' },
@@ -111,8 +117,14 @@ export default function ProductsPage() {
                                     className="flex-1 bg-transparent border-none text-white placeholder-white/50 focus:ring-0 text-lg h-12"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') notifyChatbotSearch(searchQuery);
+                                    }}
                                 />
-                                <button className="px-6 py-3 bg-white text-slate-900 font-bold rounded-xl hover:bg-indigo-50 transition-colors">
+                                <button
+                                    onClick={() => notifyChatbotSearch(searchQuery)}
+                                    className="px-6 py-3 bg-white text-slate-900 font-bold rounded-xl hover:bg-indigo-50 transition-colors"
+                                >
                                     Search
                                 </button>
                             </div>
