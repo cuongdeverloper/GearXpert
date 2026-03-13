@@ -39,6 +39,14 @@ const RouteHandler = () => {
     }, [isAuthenticated, account, dispatch, location]);
 
     useEffect(() => {
+        if (isAuthenticated && account?.role === 'OPERATION_STAFF') {
+            if (!location.pathname.startsWith('/staff')) {
+                navigate('/staff', { replace: true });
+            }
+        }
+    }, [isAuthenticated, account?.role, location.pathname, navigate]);
+
+    useEffect(() => {
 
 
         if (location.pathname === '/') {

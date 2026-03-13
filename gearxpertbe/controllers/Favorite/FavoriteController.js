@@ -71,7 +71,7 @@ exports.getUserFavorites = async (req, res) => {
         const favorites = await Favorite.find({ userId })
             .populate({
                 path: 'deviceId',
-                select: 'name rentPrice ratingAvg reviewCount location images category status'
+                select: 'name slug rentPrice ratingAvg reviewCount location images category status'
             })
             .skip(skip)
             .limit(parseInt(limit))

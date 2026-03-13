@@ -1,8 +1,98 @@
-import { Search, ShoppingCart, Bell, User, Sparkles, MapPin } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { useSelector } from 'react-redux'
+import { useNavigate } from 'react-router-dom'
+import { Search, ShoppingCart, Bell, User, Sparkles, MapPin, Check, Store } from 'lucide-react'
+import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '../../service/ApiService/notificationApi'
+import { useSocket } from '../../SocketContext'
+
+const timeAgo = (date) => {
+  if (!date) return ''
+  const s = Math.floor((Date.now() - new Date(date)) / 1000)
+  if (s < 60) return 'Vừa xong'
+  const m = Math.floor(s / 60)
+  if (m < 60) return `${m} phút trước`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h} giờ trước`
+  const d = Math.floor(h / 24)
+  if (d < 30) return `${d} ngày trước`
+  return new Date(date).toLocaleDateString('vi-VN')
+}
 
 export function TopNavbar({ onNavigate = () => {} }) {
-  const cartCount = 2
-  const notifications = 3
+  const navigate = useNavigate()
+  const { isAuthenticated, account } = useSelector((state) => state.user)
+  const { socket } = useSocket()
+  const [cartCount] = useState(0)
+  const [notifications, setNotifications] = useState([])
+  const [showNotifPanel, setShowNotifPanel] = useState(false)
+  const panelRef = useRef(null)
+
+  const unreadCount = notifications.filter((n) => !n.isRead).length
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchNotifications()
+    }
+  }, [isAuthenticated])
+
+  // Real-time: listen for new notifications via Socket.IO
+  useEffect(() => {
+    if (!socket) return
+
+    const handleNewNotif = (notif) => {
+      setNotifications((prev) => [notif, ...prev])
+    }
+
+    socket.on('newNotification', handleNewNotif)
+    return () => socket.off('newNotification', handleNewNotif)
+  }, [socket])
+
+  // Close panel on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (panelRef.current && !panelRef.current.contains(e.target)) {
+        setShowNotifPanel(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await getNotifications()
+      const list = Array.isArray(res) ? res : (res?.data?.notifications || res?.notifications || [])
+      setNotifications(list)
+    } catch {
+      // silent
+    }
+  }
+
+  const handleMarkRead = async (notifId) => {
+    try {
+      await markNotificationAsRead(notifId)
+      setNotifications((prev) =>
+        prev.map((n) => (n._id === notifId ? { ...n, isRead: true } : n))
+      )
+    } catch {
+      // silent
+    }
+  }
+
+  const handleMarkAllRead = async () => {
+    try {
+      await markAllNotificationsAsRead()
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
+    } catch {
+      // silent
+    }
+  }
+
+  const handleNotifClick = (notif) => {
+    if (!notif.isRead) handleMarkRead(notif._id)
+    if (notif.link) navigate(notif.link)
+    setShowNotifPanel(false)
+  }
 
   return (
     <header className="sticky top-0 z-40 px-8 py-4 bg-white/70 backdrop-blur-xl border-b border-slate-100">
@@ -36,12 +126,71 @@ export function TopNavbar({ onNavigate = () => {} }) {
         <div className="flex items-center gap-4">
           
           {/* Notification - Bo góc 2xl */}
-          <button className="relative w-12 h-12 flex items-center justify-center rounded-2xl bg-white border border-slate-100 text-slate-500 hover:text-indigo-600 hover:shadow-md transition-all group">
-            <Bell size={22} className="group-hover:shake" />
-            {notifications > 0 && (
-              <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full" />
+          <div className="relative" ref={panelRef}>
+            <button
+              onClick={() => setShowNotifPanel(!showNotifPanel)}
+              className="relative w-12 h-12 flex items-center justify-center rounded-2xl bg-white border border-slate-100 text-slate-500 hover:text-indigo-600 hover:shadow-md transition-all group"
+            >
+              <Bell size={22} className="group-hover:shake" />
+              {unreadCount > 0 && (
+                <span className="absolute top-2 right-2 min-w-[18px] h-[18px] px-1 bg-red-500 text-[10px] font-bold text-white rounded-full flex items-center justify-center border-2 border-white">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {/* Notification dropdown */}
+            {showNotifPanel && (
+              <div className="absolute right-0 top-14 w-80 max-h-[420px] bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                  <span className="font-bold text-sm text-slate-800">Thông báo</span>
+                  {unreadCount > 0 && (
+                    <button onClick={handleMarkAllRead} className="text-xs text-indigo-600 font-semibold hover:underline flex items-center gap-1">
+                      <Check size={12} /> Đọc tất cả
+                    </button>
+                  )}
+                </div>
+
+                <div className="overflow-y-auto max-h-[340px]">
+                  {notifications.length === 0 ? (
+                    <p className="text-center text-sm text-slate-400 py-10">Không có thông báo</p>
+                  ) : (
+                    notifications.map((n) => (
+                      <button
+                        key={n._id}
+                        onClick={() => handleNotifClick(n)}
+                        className={`w-full text-left px-4 py-3 flex gap-3 hover:bg-slate-50 transition-colors border-b border-slate-50 ${!n.isRead ? 'bg-indigo-50/40' : ''}`}
+                      >
+                        {n.image ? (
+                          <img src={n.image} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0 mt-0.5" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <Bell size={16} className="text-slate-400" />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-slate-800 truncate">{n.title}</p>
+                          <p className="text-xs text-slate-500 line-clamp-2">{n.message}</p>
+                          <p className="text-[10px] text-slate-400 mt-1">{timeAgo(n.createdAt)}</p>
+                        </div>
+                        {!n.isRead && <div className="w-2 h-2 rounded-full bg-indigo-500 flex-shrink-0 mt-2" />}
+                      </button>
+                    ))
+                  )}
+                </div>
+
+                {/* Footer: link to followed stores */}
+                <div className="border-t border-slate-100 px-4 py-2">
+                  <button
+                    onClick={() => { navigate('/user/followed-stores'); setShowNotifPanel(false) }}
+                    className="w-full text-center text-xs text-indigo-600 font-semibold hover:underline flex items-center justify-center gap-1 py-1"
+                  >
+                    <Store size={12} /> Cửa hàng đang theo dõi
+                  </button>
+                </div>
+              </div>
             )}
-          </button>
+          </div>
 
           {/* Cart - Bo góc 2xl */}
           <button

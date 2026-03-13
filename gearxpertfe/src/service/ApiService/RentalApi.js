@@ -98,6 +98,32 @@ const cancelPayRental = async (rentalId) => {
   const res = await axios.post(`/api/rentals/${rentalId}/cancelpay`); // Hoặc PATCH nếu bạn dùng PATCH
   return res.data;
 };
+
+// Lấy danh sách đơn đang giao (DELIVERING) cho Staff
+const getDeliveringRentals = () => {
+  return axios.get("/api/rentals/delivering");
+};
+
+// Lấy danh sách đơn đang thu hồi (RETURNING) cho Staff
+const getReturningRentals = () => {
+  return axios.get("/api/rentals/returning");
+};
+
+// Staff xác nhận đã lấy hàng từ kho supplier
+const confirmPickup = (rentalId) => {
+  return axios.post(`/api/rentals/${rentalId}/confirm-pickup`);
+};
+
+// Staff xác nhận đã giao hàng đến tay customer
+const confirmDelivery = (rentalId) => {
+  return axios.post(`/api/rentals/${rentalId}/confirm-delivery`);
+};
+
+// Staff xác nhận đã thu hồi thiết bị từ customer
+const confirmReturn = (rentalId) => {
+  return axios.post(`/api/rentals/${rentalId}/confirm-return`);
+};
+
 export { 
   checkout, 
   hasRentedDevice, 
@@ -113,5 +139,13 @@ export {
   reportDamage,
   extendRental,
   hasReviewedRental,
-  getDeviceReviews,repayRental,cancelPayRental,repaySingleRental
+  getDeviceReviews,
+  repayRental,
+  cancelPayRental,
+  repaySingleRental,
+  getDeliveringRentals,
+  getReturningRentals,
+  confirmPickup,
+  confirmDelivery,
+  confirmReturn
 };

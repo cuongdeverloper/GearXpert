@@ -100,7 +100,7 @@ exports.getCart = async (req, res) => {
     // Trả về
     res.json({
       ...cart.toObject(),
-      cleaned, // Flag để frontend toast warning
+      cleaned, 
       message: cleaned
         ? `Đã tự động xóa ${invalidItemIds.length} sản phẩm hết hàng hoặc không khả dụng`
         : "Giỏ hàng hiện tại",

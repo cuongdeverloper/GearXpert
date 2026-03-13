@@ -24,6 +24,7 @@ import {
   ArrowLeft,
   Search,
   CreditCard,
+  PackageCheck,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
@@ -35,6 +36,7 @@ const STATUS_TABS = [
   { id: "PENDING", label: "Chờ duyệt" },
   { id: "DELIVERING", label: "Đang giao" },
   { id: "RENTING", label: "Đang thuê" },
+  { id: "RETURNING", label: "Thu hồi" },
   { id: "COMPLETED", label: "Hoàn thành" },
   { id: "CANCELLED", label: "Đã hủy" },
 ];
@@ -448,7 +450,7 @@ export default function MyRentals() {
   };
   const handleReRent = (order) => {
     if (order.items && order.items.length > 0) {
-      navigate(`/device/${order.items[0].deviceId?._id || ""}`);
+      navigate(`/device/${order.items[0].deviceId?.slug || order.items[0].deviceId?._id || ""}`);
     } else {
       navigate("/devices");
     }
@@ -726,15 +728,27 @@ export default function MyRentals() {
                         className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm ${
                           order.status === "PENDING"
                             ? "bg-amber-100 text-amber-600"
+                            : order.status === "DELIVERING" && order.deliveredAt
+                            ? "bg-teal-100 text-teal-600"
                             : order.status === "DELIVERING"
                             ? "bg-blue-100 text-blue-600"
                             : order.status === "RENTING"
                             ? "bg-emerald-100 text-emerald-600"
+                            : order.status === "RETURNING"
+                            ? "bg-orange-100 text-orange-600"
+                            : order.status === "INSPECTING"
+                            ? "bg-slate-100 text-slate-600"
                             : "bg-gray-100 text-gray-500"
                         }`}
                       >
                         {order.status === "APPROVED"
                           ? "Đã duyệt"
+                          : order.status === "DELIVERING" && order.deliveredAt
+                          ? "Đã giao · Chờ xác nhận"
+                          : order.status === "RETURNING"
+                          ? "Thu hồi"
+                          : order.status === "INSPECTING"
+                          ? "Đang kiểm tra"
                           : order.status}
                       </div>
                       {order.paymentStatus === "UNPAID" && (
@@ -797,7 +811,7 @@ export default function MyRentals() {
                               <div
                                 key={i}
                                 onClick={() =>
-                                  navigate(`/device/${item.deviceId?._id}`)
+                                  navigate(`/device/${item.deviceId?.slug || item.deviceId?._id}`)
                                 }
                                 className={`relative flex items-center gap-5 p-4 rounded-[2rem] transition-all cursor-pointer group/item ${
                                   hasReport
@@ -1079,15 +1093,25 @@ export default function MyRentals() {
                             {/* DELIVERING: Báo cáo giao hàng + Xác nhận nhận */}
                             {order.status === "DELIVERING" && (
                               <>
-                                <button
-                                  onClick={() =>
-                                    handleOpenModal("CONFIRM", order._id)
-                                  }
-                                  className="w-full py-4 rounded-2xl bg-indigo-600 text-white text-[11px] font-black uppercase italic shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
-                                >
-                                  <CheckCircle2 size={16} /> Xác nhận đã nhận
-                                  hàng
-                                </button>
+                                {order.deliveredAt ? (
+                                  <>
+                                    <div className="w-full py-3 px-4 rounded-2xl bg-teal-50 border border-teal-200 text-teal-700 text-[11px] font-black uppercase italic flex items-center justify-center gap-2">
+                                      <Truck size={14} /> Giao hàng thành công · Vui lòng xác nhận nhận hàng
+                                    </div>
+                                    <button
+                                      onClick={() =>
+                                        handleOpenModal("CONFIRM", order._id)
+                                      }
+                                      className="w-full py-4 rounded-2xl bg-indigo-600 text-white text-[11px] font-black uppercase italic shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+                                    >
+                                      <CheckCircle2 size={16} /> Xác nhận đã nhận hàng
+                                    </button>
+                                  </>
+                                ) : (
+                                  <div className="w-full py-3 px-4 rounded-2xl bg-blue-50 border border-blue-200 text-blue-700 text-[11px] font-black uppercase italic flex items-center justify-center gap-2">
+                                    <Truck size={14} /> Đang trên đường giao đến bạn...
+                                  </div>
+                                )}
                                 <button
                                   onClick={() =>
                                     setTrackingModal({ isOpen: true, order })
@@ -1152,6 +1176,38 @@ export default function MyRentals() {
                                   <Wrench size={14} /> Báo cáo sự cố / hư hỏng
                                 </button>
                               </>
+                            )}
+
+                            {/* RETURNING: Chờ nhân viên thu hồi */}
+                            {order.status === "RETURNING" && (
+                              <div className="w-full py-4 px-4 rounded-2xl bg-orange-50 border border-orange-200 text-orange-700 text-[11px] font-black uppercase italic flex items-center justify-center gap-2">
+                                <PackageCheck size={14} /> Đang chờ thu hồi thiết bị · Vui lòng chuẩn bị bàn giao
+                              </div>
+                            )}
+
+                            {/* INSPECTING — giao hàng: Hoàn tiền + Đổi trả */}
+                            {order.status === "INSPECTING" && order.inspectedContext !== "RETURN" && (
+                              <>
+                                <button
+                                  className="w-full py-4 rounded-2xl bg-amber-50 text-amber-700 text-[11px] font-black uppercase italic border border-amber-200 flex items-center justify-center gap-2"
+                                >
+                                  <RefreshCcw size={14} /> Hoàn tiền
+                                </button>
+                                <button
+                                  className="w-full py-4 rounded-2xl bg-blue-50 text-blue-600 text-[11px] font-black uppercase italic border border-blue-100 flex items-center justify-center gap-2"
+                                >
+                                  <ArrowLeft size={14} /> Yêu cầu đổi trả
+                                </button>
+                              </>
+                            )}
+
+                            {/* INSPECTING — thu hồi: Liên hệ với shop */}
+                            {order.status === "INSPECTING" && order.inspectedContext === "RETURN" && (
+                              <button
+                                className="w-full py-4 rounded-2xl bg-slate-900 text-white text-[11px] font-black uppercase italic flex items-center justify-center gap-2 hover:bg-slate-700 transition-colors"
+                              >
+                                <Send size={14} /> Liên hệ với shop
+                              </button>
                             )}
 
                             {/* COMPLETED / CANCELLED */}
@@ -1384,62 +1440,75 @@ export default function MyRentals() {
               </button>
             </div>
             <div className="space-y-8">
-              {[
-                {
-                  label: "Đơn hàng đã đặt",
-                  time: "10:30, 20/01/2026",
-                  done: true,
-                },
-                {
-                  label: "Đã xác nhận & Đóng gói",
-                  time: "14:20, 20/01/2026",
-                  done: true,
-                },
-                {
-                  label: "Đang trên đường giao đến bạn",
-                  time: "08:15, 21/01/2026",
-                  done: true,
-                  active: true,
-                },
-                {
-                  label: "Giao hàng thành công",
-                  time: "Dự kiến chiều nay",
-                  done: false,
-                },
-              ].map((step, idx, arr) => (
-                <div key={idx} className="flex gap-4 relative">
-                  {idx !== arr.length - 1 && (
+              {(() => {
+                const order = trackingModal.order;
+                const pickedUpAt = order?.pickedUpAt;
+                const steps = [
+                  {
+                    label: "Đơn hàng đã đặt",
+                    time: order?.createdAt
+                      ? new Date(order.createdAt).toLocaleString("vi-VN")
+                      : "",
+                    done: true,
+                  },
+                  {
+                    label: "Đã xác nhận & Đóng gói",
+                    time: order?.updatedAt
+                      ? new Date(order.updatedAt).toLocaleString("vi-VN")
+                      : "",
+                    done: true,
+                  },
+                  ...(pickedUpAt
+                    ? [
+                        {
+                          label: "Đang trên đường giao đến bạn",
+                          time: new Date(pickedUpAt).toLocaleString("vi-VN"),
+                          done: true,
+                          active: true,
+                        },
+                      ]
+                    : []),
+                  {
+                    label: "Giao hàng thành công",
+                    time: "Dự kiến sớm nhất",
+                    done: false,
+                  },
+                ];
+                return steps.map((step, idx, arr) => (
+                  <div key={idx} className="flex gap-4 relative">
+                    {idx !== arr.length - 1 && (
+                      <div
+                        className={`absolute left-[11px] top-6 w-[2px] h-12 ${
+                          step.done ? "bg-indigo-600" : "bg-gray-100"
+                        }`}
+                      />
+                    )}
                     <div
-                      className={`absolute left-[11px] top-6 w-[2px] h-12 ${
-                        step.done ? "bg-indigo-600" : "bg-gray-100"
-                      }`}
-                    />
-                  )}
-                  <div
-                    className={`w-6 h-6 rounded-full flex items-center justify-center z-10 ${
-                      step.active
-                        ? "bg-indigo-600 ring-4 ring-indigo-100"
-                        : step.done
-                        ? "bg-indigo-600"
-                        : "bg-gray-100"
-                    }`}
-                  >
-                    <CheckCircle2 size={14} className="text-white" />
-                  </div>
-                  <div>
-                    <p
-                      className={`text-[12px] font-black uppercase italic ${
-                        step.active ? "text-indigo-600" : "text-gray-900"
+                      className={`w-6 h-6 rounded-full flex items-center justify-center z-10 ${
+                        step.active
+                          ? "bg-indigo-600 ring-4 ring-indigo-100"
+                          : step.done
+                          ? "bg-indigo-600"
+                          : "bg-gray-100"
                       }`}
                     >
-                      {step.label}
-                    </p>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                      {step.time}
-                    </p>
+                      <CheckCircle2 size={14} className="text-white" />
+                    </div>
+                    <div>
+                      <p
+                        className={`text-[12px] font-black uppercase italic ${
+                          step.active ? "text-indigo-600" : "text-gray-900"
+                        }`}
+                      >
+                        {step.label}
+                      </p>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                        {step.time}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ));
+              })()}
             </div>
             <button
               className="w-full mt-10 py-4 bg-gray-900 text-white rounded-2xl text-[11px] font-black uppercase italic"

@@ -36,12 +36,33 @@ const blogSchema = new mongoose.Schema(
             type: Boolean,
             default: false,
         },
-        tags: [String],
         images: [String],
+        views: {
+            type: Number,
+            default: 0,
+        },
+        savedBy: [String], // Array of usernames/emails
+        likes: {
+            type: [String], // Array of user emails/usernames
+            default: [],
+        },
+        comments: [
+            {
+                user: { type: String, required: true },
+                avatar: { type: String },
+                text: { type: String, required: true },
+                createdAt: { type: Date, default: Date.now },
+            },
+        ],
+        status: {
+            type: String,
+            enum: ["pending", "approved", "rejected"],
+            default: "pending",
+        },
     },
     { timestamps: true }
 );
 
-blogSchema.index({ title: "text", description: "text", category: "text" });
+blogSchema.index({ title: "text", description: "text", category: "text", status: "text" });
 
 module.exports = mongoose.model("Blog", blogSchema);

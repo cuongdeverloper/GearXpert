@@ -6,6 +6,7 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
+import { useSelector } from "react-redux";
 import { ToastContainer } from "react-toastify";
 import Aos from "aos";
 
@@ -37,6 +38,9 @@ import ReportsPage from "./pages/Admin/ReportsPage";
 import SettingsPage from "./pages/Admin/SettingsPage";
 import AdminVouchersPage from "./pages/Admin/AdminVouchersPage";
 import AdminAdsPage from "./pages/Admin/AdminAdsPage";
+import BlogManagement from "./pages/Admin/BlogManagement";
+import CommentManagement from "./pages/Admin/CommentManagement";
+import AdminBroadcastPage from "./pages/Admin/AdminBroadcastPage";
 
 // pages
 import RentalCheckout from "./pages/Rental/RentalCheckout";
@@ -71,11 +75,11 @@ import ContactPage from "./pages/Contact/ContactPage";
 import BlogPage from "./pages/Blog/BlogPage";
 import BlogDetailPage from "./pages/Blog/BlogDetailPage";
 import ChatWindowManager from "./components/Message Socket/MiniChat/ChatWindowManager";
-import OperationStaffDashboard from "./pages/OperationStaff/OperationStaffDashboard";
-import StaffLayout from "./components/layout/StaffLayout";
+import StaffLayout from "./pages/OperationStaff/StaffLayout";
 import SmartGearPage from "./pages/SmartGear/SmartGearPage";
 import SupplierProfileEdit from "./pages/Supplier/SupplierProfileEdit";
 import SupplierPublicProfile from "./pages/User/SupplierPublicProfile";
+import FollowedStoresPage from "./pages/User/FollowedStoresPage";
 
 const ChatbotWrapper = () => {
   const location = useLocation();
@@ -91,6 +95,14 @@ const ChatbotWrapper = () => {
   }
 
   return <Chatbot />;
+};
+
+const StaffRoute = ({ children }) => {
+  const { account, isAuthenticated } = useSelector((state) => state.user);
+  if (!isAuthenticated) return <Navigate to="/signin" replace />;
+  if (account.role !== "OPERATION_STAFF")
+    return <Navigate to="/" replace />;
+  return children;
 };
 
 const ChatWindowWrapper = () => {
@@ -145,24 +157,20 @@ export default function Layout() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-account" element={<VerifyAccount />} />
 
-          <Route path="/device/:id" element={<ProductDetailPage />} />
+          <Route path="/device/:slug" element={<ProductDetailPage />} />
           <Route path="/user/wallet" element={<WalletPage />} />
           <Route path="/wallet/success" element={<WalletSuccess />} />
           <Route path="/wallet/cancel" element={<WalletCancel />} />
           <Route path="/rental/checkout" element={<RentalCheckout />} />
-          <Route path="/device/" element={<ProductDetailPage />} />
           <Route
             path="/rental/checkout/review"
             element={<RentalReviewPage />}
           />
           <Route path="/user/myrental" element={<MyRentals />} />
           <Route path="/user/cart" element={<CartPage />} />
+          <Route path="/user/followed-stores" element={<FollowedStoresPage />} />
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/cancel" element={<PaymentCancel />} />
-          <Route
-            path="/supplier/profile/edit"
-            element={<SupplierProfileEdit />}
-          />
           <Route path="/supplier/:id" element={<SupplierPublicProfile />} />
           <Route path="/supplier" element={<SupplierLayout />}>
             <Route
@@ -185,6 +193,7 @@ export default function Layout() {
             <Route path="maintenance" element={<SupplierMaintenance />} />
             <Route path="revenue" element={<SupplierRevenue />} />
             <Route path="vouchers" element={<SupplierVouchersPage />} />
+            <Route path="profile/edit" element={<SupplierProfileEdit />} />
           </Route>
 
           <Route path="/admin" element={<AdminLayout />}>
@@ -197,6 +206,9 @@ export default function Layout() {
             <Route path="settings" element={<SettingsPage />} />
             <Route path="vouchers" element={<AdminVouchersPage />} />
             <Route path="advertisements" element={<AdminAdsPage />} />
+            <Route path="blogs" element={<BlogManagement />} />
+            <Route path="comments" element={<CommentManagement />} />
+            <Route path="notifications" element={<AdminBroadcastPage />} />
           </Route>
 
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
@@ -205,9 +217,14 @@ export default function Layout() {
           <Route path="/about" element={<AboutPage />} />
           <Route path="/faq" element={<FAQPage />} />
           <Route path="/contact" element={<ContactPage />} />
-          <Route path="/staff" element={<StaffLayout />}>
-            <Route index element={<OperationStaffDashboard />} />
-          </Route>
+          <Route
+            path="/staff"
+            element={
+              <StaffRoute>
+                <StaffLayout />
+              </StaffRoute>
+            }
+          />
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/blog" element={<BlogPage />} />

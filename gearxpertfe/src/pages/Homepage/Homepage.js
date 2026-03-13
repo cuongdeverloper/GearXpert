@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
-import { getDevices } from "../../service/ApiService/DeviceApi";
+import { getDevices, getDeviceDetail } from "../../service/ApiService/DeviceApi";
 import Header from "../../components/navigation/Header";
-import HeroSection from "../../components/homepage/HeroSection";
 import CategoryPills from "../../components/common/CategoryPills";
 import ScrollAnimation from "../../components/common/ScrollAnimation";
 import FeaturedProductsSection from "../../components/homepage/FeaturedProductsSection";
@@ -15,6 +14,7 @@ import SmartGearPromoSection from "../../components/homepage/SmartGearPromoSecti
 
 export default function Homepage() {
   const [devices, setDevices] = useState([]);
+  const [suggestedDevices, setSuggestedDevices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [trendingDevice, setTrendingDevice] = useState(null);
@@ -37,6 +37,47 @@ export default function Homepage() {
       const newestDevices = newestResponse.devices || [];
 
       setDevices(popularDevices);
+
+      // Handle AI Suggested Section (Personalized)
+      const viewedIds = JSON.parse(localStorage.getItem("viewedDevices") || "[]");
+      const searches = JSON.parse(localStorage.getItem("searchQueries") || "[]");
+
+      let finalSuggestions = [];
+
+      if (viewedIds.length > 0) {
+        // Fetch up to 3 most recently viewed
+        try {
+          const viewedDetails = await Promise.all(
+            viewedIds.slice(0, 3).map(id => getDeviceDetail(id).catch(() => null))
+          );
+          finalSuggestions = viewedDetails.filter(d => d).map(d => ({ ...d, match: 95 }));
+        } catch (err) {
+          console.error("Viewed fetch error:", err);
+        }
+      }
+
+      // If less than 3, fill with search matches
+      if (finalSuggestions.length < 3 && searches.length > 0) {
+        try {
+          const searchRes = await getDevices({ search: searches[0], limit: 3 });
+          const searchDevices = (searchRes.devices || [])
+            .filter(d => !finalSuggestions.some(s => s._id === d._id))
+            .map(d => ({ ...d, match: 88 }));
+          
+          finalSuggestions = [...finalSuggestions, ...searchDevices].slice(0, 3);
+        } catch (err) {
+          console.error("Search fetch error:", err);
+        }
+      }
+
+      // Fallback to general popular devices
+      if (finalSuggestions.length < 3) {
+        const fallbacks = popularDevices.slice(6, 9)
+          .filter(d => !finalSuggestions.some(s => s._id === d._id));
+        finalSuggestions = [...finalSuggestions, ...fallbacks].slice(0, 3);
+      }
+
+      setSuggestedDevices(finalSuggestions);
 
       // Set trending device (first popular device)
       if (popularDevices.length > 0) {
@@ -83,8 +124,8 @@ export default function Homepage() {
       <Header />
 
       <main className="flex-grow w-full max-w-[1440px] mx-auto pb-12">
-        <ScrollAnimation direction="down" duration={0.8}>
-          <HeroSection />
+        <ScrollAnimation effect="fade" delay={0.05}>
+          <SmartGearPromoSection />
         </ScrollAnimation>
 
         <section className="px-6 lg:px-10 mb-12">
@@ -105,12 +146,8 @@ export default function Homepage() {
           <TopBannerAds />
         </ScrollAnimation>
 
-        <ScrollAnimation effect="fade" delay={0.05}>
-          <SmartGearPromoSection />
-        </ScrollAnimation>
-
         <ScrollAnimation effect="scale" viewportAmount={0.4}>
-          <AISuggestedSection devices={devices.slice(6, 9)} />
+          <AISuggestedSection devices={suggestedDevices} />
         </ScrollAnimation>
 
         <section className="px-6 lg:px-10">

@@ -18,3 +18,9 @@ export const markAllNotificationsAsRead = () =>
   axios.patch("/api/notifications/mark-all-read", {}, {
     headers: { 'Content-Type': 'application/json' },
   });
+
+// Admin: Gửi thông báo broadcast cho toàn hệ thống
+export const broadcastNotification = (data) =>
+  axios.post("/api/notifications/broadcast", data, {
+    headers: { 'Content-Type': 'application/json' },
+  });
