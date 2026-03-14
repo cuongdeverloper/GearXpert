@@ -40,7 +40,7 @@ import {
 } from "../../service/ApiService/ReviewApi";
 
 export default function ProductDetailPage() {
-  const { id } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
 
   const today = new Date().toISOString().split("T")[0];
@@ -75,9 +75,9 @@ export default function ProductDetailPage() {
       setLoading(true);
 
       const promises = [
-        getDeviceDetail(id),
-        getDeviceAddons(id),
-        getRelatedDevices(id),
+        getDeviceDetail(slug),
+        getDeviceAddons(slug),
+        getRelatedDevices(slug),
       ];
 
       const results = await Promise.all(promises);
@@ -100,7 +100,7 @@ export default function ProductDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id, isAuthenticated]);
+  }, [slug, isAuthenticated]);
 
   const fetchMyReview = useCallback(async () => {
     if (!isAuthenticated || !device?._id) return;
@@ -123,12 +123,12 @@ export default function ProductDetailPage() {
     window.scrollTo(0, 0);
 
     // Track viewed devices for AI suggestions
-    if (id) {
+    if (slug) {
       const viewed = JSON.parse(localStorage.getItem("viewedDevices") || "[]");
-      const updated = [id, ...viewed.filter(vId => vId !== id)].slice(0, 10);
+      const updated = [slug, ...viewed.filter(vId => vId !== slug)].slice(0, 10);
       localStorage.setItem("viewedDevices", JSON.stringify(updated));
     }
-  }, [fetchData, id]);
+  }, [fetchData, slug]);
 
   useEffect(() => {
     fetchMyReview();
