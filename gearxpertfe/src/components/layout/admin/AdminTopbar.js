@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { performLogout } from "../../../utils/logout";
+import logo from "../../../assets/logoGearXpert.png";
 
 export default function AdminTopbar({ onMenuOpen, me }) {
   const dispatch = useDispatch();
@@ -34,9 +35,7 @@ export default function AdminTopbar({ onMenuOpen, me }) {
 
           {/* Brand */}
           <div className="flex items-center gap-3">
-            <div className="bg-gradient-to-br from-primary to-primary-dark p-2 rounded-2xl shadow-lg shadow-primary/20 shrink-0">
-              <span className="text-white font-bold text-lg">GX</span>
-            </div>
+            <img src={logo} alt="GearXpert Logo" className="h-9 w-auto object-contain" />
             <div className="hidden sm:block">
               <div className="text-sm font-bold text-slate-900 font-display">GearXpert</div>
               <div className="text-xs text-slate-500 font-medium">Admin Portal</div>

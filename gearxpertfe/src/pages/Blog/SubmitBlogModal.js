@@ -399,9 +399,9 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                                                 init={{
                                                     height: 480,
                                                     menubar: false,
-                                                    plugins: "advlist autolink lists link image charmap print preview anchor searchreplace visualblocks code fullscreen insertdatetime media table paste code help wordcount",
+                                                    plugins: "advlist autolink lists link image charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime media table code help wordcount",
                                                     toolbar:
-                                                        "undo redo | formatselect | bold italic | " +
+                                                        "undo redo | blocks | bold italic | " +
                                                         "alignleft aligncenter alignright | " +
                                                         "bullist numlist | removeformat",
                                                     content_style: `
@@ -415,8 +415,11 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                                                         p { margin-bottom: 1em; }
                                                     `,
                                                     skin: "oxide",
-                                                    toolbar_sticky: true,
+                                                    toolbar_sticky: false,
+                                                    promotion: false,
+                                                    branding: false,
                                                     statusbar: false,
+                                                    toolbar_location: 'top',
                                                 }}
                                                 value={submitFormData.content}
                                                 onEditorChange={handleEditorChange}

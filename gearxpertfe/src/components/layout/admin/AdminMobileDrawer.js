@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { FiX, FiHome, FiUsers, FiUserCheck, FiBox, FiFileText, FiBarChart2, FiSettings } from "react-icons/fi";
+import logo from "../../../assets/logoGearXpert.png";
 
 const navGroups = [
   {
@@ -44,9 +45,12 @@ export default function AdminMobileDrawer({ open, onClose }) {
       <div className="absolute left-0 top-0 h-full w-[280px] bg-white shadow-2xl overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-          <div>
-            <div className="text-sm font-bold text-slate-900 font-display">GearXpert</div>
-            <div className="text-xs text-slate-500 font-medium">Admin</div>
+          <div className="flex items-center gap-3">
+            <img src={logo} alt="GearXpert Logo" className="h-9 w-auto object-contain" />
+            <div>
+              <div className="text-sm font-bold text-slate-900 font-display">GearXpert</div>
+              <div className="text-xs text-slate-500 font-medium">Admin</div>
+            </div>
           </div>
           <button
             className="flex items-center justify-center w-9 h-9 rounded-xl hover:bg-slate-100 text-slate-600 transition-colors"
