@@ -4,7 +4,7 @@ const notificationSchema = new mongoose.Schema(
   {
     senderId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     receiverId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, 
-    type: { type: String, enum: ["ORDER", "SYSTEM", "CHAT", "PAYMENT", "STORE_VOUCHER", "STORE_DEVICE", "STORE_POST", "ADMIN_BROADCAST"], default: "SYSTEM" },
+    type: { type: String, enum: ["ORDER", "SYSTEM", "CHAT", "PAYMENT", "STORE_VOUCHER", "STORE_DEVICE", "STORE_POST", "ADMIN_BROADCAST", "LIKE", "COMMENT"], default: "SYSTEM" },
     title: { type: String, required: true },
     message: { type: String, required: true },
     image: { type: String, default: "" },

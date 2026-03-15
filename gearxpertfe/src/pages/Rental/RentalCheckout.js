@@ -55,9 +55,9 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(lat1 * (Math.PI / 180)) *
-      Math.cos(lat2 * (Math.PI / 180)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };
@@ -268,8 +268,7 @@ export default function CheckoutPage() {
         setVoucherCode(voucherData.code);
 
         toast.success(
-          `Đã tự động áp dụng mã ${
-            voucherData.code
+          `Đã tự động áp dụng mã ${voucherData.code
           }! Giảm ${voucherData.discount.toLocaleString()}đ`
         );
       } catch (err) {
@@ -458,7 +457,7 @@ export default function CheckoutPage() {
       if (err.response?.status === 403 && errData?.code === "EKYC_REQUIRED") {
         toast.error(
           errData.message ||
-            "Vui lòng hoàn tất xác thực eKYC trước khi thanh toán",
+          "Vui lòng hoàn tất xác thực eKYC trước khi thanh toán",
           { autoClose: false }
         );
         // Tự động redirect sau 3 giây hoặc có nút bấm
@@ -530,11 +529,10 @@ export default function CheckoutPage() {
               <button
                 onClick={fillDefaultUserInfo}
                 disabled={!account?.username}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm ${
-                  account?.username
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm ${account?.username
                     ? "bg-indigo-600 text-white hover:bg-indigo-700"
                     : "bg-slate-200 text-slate-400 cursor-not-allowed opacity-70"
-                }`}
+                  }`}
               >
                 <User size={18} />
                 Sử dụng thông tin mặc định
@@ -692,11 +690,10 @@ export default function CheckoutPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <label
-                className={`relative flex items-center gap-4 p-6 rounded-3xl border-2 transition-all cursor-pointer group ${
-                  selectedPayment === "BANK"
+                className={`relative flex items-center gap-4 p-6 rounded-3xl border-2 transition-all cursor-pointer group ${selectedPayment === "BANK"
                     ? "border-indigo-600 bg-indigo-50/50"
                     : "border-slate-100 bg-slate-50 hover:border-slate-200"
-                }`}
+                  }`}
               >
                 <input
                   type="radio"
@@ -705,11 +702,10 @@ export default function CheckoutPage() {
                   onChange={() => setSelectedPayment("BANK")}
                 />
                 <div
-                  className={`p-3 rounded-2xl transition-all ${
-                    selectedPayment === "BANK"
+                  className={`p-3 rounded-2xl transition-all ${selectedPayment === "BANK"
                       ? "bg-indigo-600 text-white"
                       : "bg-white text-slate-400 group-hover:text-slate-600"
-                  }`}
+                    }`}
                 >
                   <CreditCard size={24} />
                 </div>
@@ -727,11 +723,10 @@ export default function CheckoutPage() {
               </label>
 
               <label
-                className={`relative flex items-center gap-4 p-6 rounded-3xl border-2 transition-all cursor-pointer group ${
-                  selectedPayment === "WALLET"
+                className={`relative flex items-center gap-4 p-6 rounded-3xl border-2 transition-all cursor-pointer group ${selectedPayment === "WALLET"
                     ? "border-indigo-600 bg-indigo-50/50"
                     : "border-slate-100 bg-slate-50 hover:border-slate-200"
-                }`}
+                  }`}
               >
                 <input
                   type="radio"
@@ -740,11 +735,10 @@ export default function CheckoutPage() {
                   onChange={() => setSelectedPayment("WALLET")}
                 />
                 <div
-                  className={`p-3 rounded-2xl transition-all ${
-                    selectedPayment === "WALLET"
+                  className={`p-3 rounded-2xl transition-all ${selectedPayment === "WALLET"
                       ? "bg-indigo-600 text-white"
                       : "bg-white text-slate-400 group-hover:text-slate-600"
-                  }`}
+                    }`}
                 >
                   <Wallet size={24} />
                 </div>
@@ -754,11 +748,10 @@ export default function CheckoutPage() {
                       Ví GearXpert
                     </p>
                     <span
-                      className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
-                        wallet?.balance >= total
+                      className={`text-[10px] font-black px-2 py-0.5 rounded-md ${wallet?.balance >= total
                           ? "bg-emerald-100 text-emerald-600"
                           : "bg-red-100 text-red-600"
-                      }`}
+                        }`}
                     >
                       {wallet?.balance?.toLocaleString() || 0}đ
                     </span>

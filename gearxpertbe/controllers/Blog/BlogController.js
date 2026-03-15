@@ -4,6 +4,8 @@ const { sendMail } = require("../../configs/sendMail");
 const { blogStatusTemplate, commentDeletedTemplate } = require("../../utils/EmailTemplates");
 const mongoose = require("mongoose");
 const SensitiveKeyword = require("../../models/SensitiveKeyword");
+const NotificationConfig = require("../../configs/NotificationConfig");
+
 
 // GET /api/blogs — list all blogs with pagination, filters, search
 const getBlogs = async (req, res) => {
@@ -399,10 +401,31 @@ const toggleLikeBlog = async (req, res) => {
         }
 
         const likeIndex = blog.likes.indexOf(userName);
-        if (likeIndex > -1) {
-            blog.likes.splice(likeIndex, 1);
-        } else {
+        if (likeIndex === -1) {
             blog.likes.push(userName);
+            
+            // Send notification to author
+            try {
+                 const [senderUser, receiverUser] = await Promise.all([
+                    User.findOne({ fullName: userName }),
+                    User.findOne({ fullName: blog.author.name })
+                ]);
+
+                if (senderUser && receiverUser && senderUser._id.toString() !== receiverUser._id.toString()) {
+                    await NotificationConfig.sendNotification({
+                        senderId: senderUser._id,
+                        receiverId: receiverUser._id,
+                        title: "Lượt thích mới",
+                        message: `${userName} đã thích bài viết "${blog.title}" của bạn.`,
+                        link: `/blog/${blog._id}`,
+                        type: "LIKE"
+                    });
+                }
+            } catch (notifyError) {
+                console.error("Error sending like notification:", notifyError);
+            }
+        } else {
+            blog.likes.splice(likeIndex, 1);
         }
 
         await blog.save();
@@ -454,6 +477,27 @@ const addComment = async (req, res) => {
 
         blog.comments.push(newComment);
         await blog.save();
+
+        // Send notification to author
+        try {
+            const [senderUser, receiverUser] = await Promise.all([
+                User.findOne({ fullName: userName }),
+                User.findOne({ fullName: blog.author.name })
+            ]);
+
+            if (senderUser && receiverUser && senderUser._id.toString() !== receiverUser._id.toString()) {
+                await NotificationConfig.sendNotification({
+                    senderId: senderUser._id,
+                    receiverId: receiverUser._id,
+                    title: "Bình luận mới",
+                    message: `${userName} đã bình luận về bài viết "${blog.title}" của bạn.`,
+                    link: `/blog/${blog._id}`,
+                    type: "COMMENT"
+                });
+            }
+        } catch (notifyError) {
+            console.error("Error sending comment notification:", notifyError);
+        }
 
         return res.status(200).json({
             message: "Đã thêm bình luận thành công!",
