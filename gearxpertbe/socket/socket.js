@@ -56,6 +56,16 @@ const socketHandler = (io) => {
         io.to(user.socketId).emit("messageSeen", { conversationId });
       }
     });
+
+    socket.on("joinRoom", (roomId) => {
+      socket.join(roomId);
+      console.log(`[SOCKET] User ${socket.id} joined room: ${roomId}`);
+    });
+
+    socket.on("leaveRoom", (roomId) => {
+      socket.leave(roomId);
+      console.log(`[SOCKET] User ${socket.id} left room: ${roomId}`);
+    });
   });
 };
 

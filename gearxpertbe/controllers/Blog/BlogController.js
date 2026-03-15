@@ -430,6 +430,12 @@ const toggleLikeBlog = async (req, res) => {
 
         await blog.save();
 
+        // Emit realtime update to the blog room
+        const io = req.app.get("io");
+        if (io) {
+            io.to(`blog_${id}`).emit("blogUpdate", { type: "LIKE", blog });
+        }
+
         return res.status(200).json({
             message: likeIndex > -1 ? "Đã bỏ thích bài viết" : "Đã thích bài viết thành công!",
             isLiked: likeIndex === -1,
@@ -477,6 +483,12 @@ const addComment = async (req, res) => {
 
         blog.comments.push(newComment);
         await blog.save();
+
+        // Emit realtime update to the blog room
+        const io = req.app.get("io");
+        if (io) {
+            io.to(`blog_${id}`).emit("blogUpdate", { type: "COMMENT_ADD", blog });
+        }
 
         // Send notification to author
         try {
@@ -540,6 +552,12 @@ const updateComment = async (req, res) => {
         comment.text = text;
         await blog.save();
 
+        // Emit realtime update to the blog room
+        const io = req.app.get("io");
+        if (io) {
+            io.to(`blog_${id}`).emit("blogUpdate", { type: "COMMENT_EDIT", blog });
+        }
+
         return res.status(200).json({ message: "Đã cập nhật bình luận", blog });
     } catch (error) {
         console.error("Error updating comment:", error);
@@ -588,6 +606,12 @@ const deleteComment = async (req, res) => {
 
         blog.comments.pull(commentId);
         await blog.save();
+
+        // Emit realtime update to the blog room
+        const io = req.app.get("io");
+        if (io) {
+            io.to(`blog_${id}`).emit("blogUpdate", { type: "COMMENT_DELETE", blog });
+        }
 
         return res.status(200).json({ message: "Đã xóa bình luận", blog });
     } catch (error) {

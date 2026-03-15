@@ -23,6 +23,7 @@ import { toast, Toaster } from "sonner";
 import { useParams, useNavigate } from "react-router-dom";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
+import { useSocket } from "../../SocketContext";
 import AuthRequirementModal from "../../components/common/AuthRequirementModal";
 
 /* ===== API ===== */
@@ -69,6 +70,8 @@ export default function ProductDetailPage() {
   const [editComment, setEditComment] = useState("");
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const { socket } = useSocket();
 
   const fetchData = useCallback(async () => {
     try {
@@ -133,6 +136,26 @@ export default function ProductDetailPage() {
   useEffect(() => {
     fetchMyReview();
   }, [fetchMyReview]);
+
+  // Socket Realtime Review Updates
+  useEffect(() => {
+    if (!socket || !device?._id) return;
+
+    console.log(`[SOCKET] Joining device room: device_${device._id}`);
+    socket.emit("joinRoom", `device_${device._id}`);
+
+    socket.on("deviceReviewUpdate", (data) => {
+      console.log("[SOCKET] Received deviceReviewUpdate:", data);
+      // Re-fetch device detail to get updated reviews and ratingAvg
+      fetchData();
+    });
+
+    return () => {
+      console.log(`[SOCKET] Leaving device room: device_${device._id}`);
+      socket.emit("leaveRoom", `device_${device._id}`);
+      socket.off("deviceReviewUpdate");
+    };
+  }, [socket, device?._id, fetchData]);
 
   const validateRental = () => {
     if (!startDate || !endDate) {

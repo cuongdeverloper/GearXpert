@@ -6,6 +6,8 @@ import { toast } from 'react-toastify';
 import { performLogout } from '../../utils/logout';
 import MessengerPopup from '../Message Socket/MessengerPopup/MessengerPopup';
 
+import logo from '../../assets/logoGearXpert.png';
+
 import {
   getNotifications,
   markNotificationAsRead,
@@ -174,16 +176,19 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full glass-panel bg-white/70 border-b border-slate-200">
-      <div className="max-w-[1440px] mx-auto px-6 lg:px-10 h-[72px] flex items-center justify-between">
+      <div className="max-w-[1440px] mx-auto px-6 lg:px-10 h-24 flex items-center justify-between relative">
         {/* Logo */}
         <div
-          className="flex items-center gap-3 cursor-pointer group"
+          className="flex items-center cursor-pointer group relative z-10"
           onClick={() => handleRestrictedNavigation('/')}
         >
-          <div className="bg-primary rounded-xl p-2 text-white shadow-lg shadow-indigo-200">
-            <span className="material-symbols-outlined text-[24px] block">videocam</span>
-          </div>
-          <h2 className="text-xl font-bold tracking-tight text-slate-900 font-display">GearXpert</h2>
+          <img 
+            src={logo} 
+            alt="GearXpert Logo" 
+            className="h-32 w-auto object-contain transition-transform group-hover:scale-110 absolute top-1/2 -translate-y-1/2 left-0 drop-shadow-lg" 
+          />
+          {/* Container for alignment spacing */}
+          <div className="w-60 h-1"></div>
         </div>
 
         {/* Navigation - Desktop */}
