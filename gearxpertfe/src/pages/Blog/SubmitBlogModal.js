@@ -399,11 +399,7 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                                                 init={{
                                                     height: 480,
                                                     menubar: false,
-                                                    plugins: [
-                                                        "advlist autolink lists link image charmap print preview anchor",
-                                                        "searchreplace visualblocks code fullscreen",
-                                                        "insertdatetime media table paste code help wordcount"
-                                                    ],
+                                                    plugins: "advlist autolink lists link image charmap print preview anchor searchreplace visualblocks code fullscreen insertdatetime media table paste code help wordcount",
                                                     toolbar:
                                                         "undo redo | formatselect | bold italic | " +
                                                         "alignleft aligncenter alignright | " +

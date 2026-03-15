@@ -22,7 +22,7 @@ export default function Header() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
   const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
   const [loadingNotifications, setLoadingNotifications] = useState(false);
 
   const messengerRef = useRef(null);
@@ -41,8 +41,6 @@ export default function Header() {
       const res = await getNotifications();
       const data = res || [];
       setNotifications(data);
-      const unread = data.filter((n) => !n.isRead).length;
-      setUnreadCount(unread);
     } catch (err) {
       console.error('Fetch notifications error:', err);
       toast.error('Không thể tải danh sách thông báo');
@@ -63,9 +61,11 @@ export default function Header() {
     if (!socketConnection) return;
 
     const handleNewNotification = (newNotif) => {
-      toast.info(newNotif.message || newNotif.title, { autoClose: 6000 });
+      // Bỏ thông báo toast cho LIKE và COMMENT, các loại khác (như ORDER) vẫn hiện
+      if (newNotif.type !== 'LIKE' && newNotif.type !== 'COMMENT') {
+        toast.info(newNotif.message || newNotif.title, { autoClose: 6000 });
+      }
       setNotifications((prev) => [newNotif, ...prev]);
-      setUnreadCount((prev) => prev + 1);
     };
 
     socketConnection.on('getNotification', handleNewNotification);
@@ -158,7 +158,6 @@ export default function Header() {
       setNotifications((prev) =>
         prev.map((n) => (n._id === notifId ? { ...n, isRead: true } : n))
       );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (err) {
       console.error('Mark as read error:', err);
     }
@@ -168,7 +167,6 @@ export default function Header() {
     try {
       await markAllNotificationsAsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      setUnreadCount(0);
     } catch (err) {
       console.error('Mark all as read error:', err);
     }
@@ -291,11 +289,20 @@ export default function Header() {
                           >
                             <div className="flex items-start gap-3">
                               <div
-                                className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${notif.type === 'ORDER' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-600'
-                                  }`}
+                                className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                  notif.type === 'ORDER' ? 'bg-indigo-100 text-indigo-600' : 
+                                  notif.type === 'LIKE' ? 'bg-pink-100 text-pink-600' :
+                                  notif.type === 'COMMENT' ? 'bg-blue-100 text-blue-600' :
+                                  'bg-slate-100 text-slate-600'
+                                }`}
                               >
                                 <span className="material-symbols-outlined text-[20px]">
-                                  {notif.type === 'ORDER' ? 'inventory_2' : 'notifications'}
+                                  {
+                                    notif.type === 'ORDER' ? 'inventory_2' : 
+                                    notif.type === 'LIKE' ? 'favorite' :
+                                    notif.type === 'COMMENT' ? 'comment' :
+                                    'notifications'
+                                  }
                                 </span>
                               </div>
                               <div className="flex-1 min-w-0">

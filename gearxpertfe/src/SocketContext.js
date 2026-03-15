@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { io } from "socket.io-client";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { toast } from "react-toastify";
+import { setSocketConnection } from "./redux/action/userAction";
 
 const SocketContext = createContext();
 
@@ -10,6 +11,7 @@ export const useSocket = () => useContext(SocketContext);
 export const SocketProvider = ({ children }) => {
   const tutorId = useSelector(state => state.user.account?.id);
   const [socket, setSocket] = useState(null);
+  const dispatch = useDispatch();
 
   useEffect(() => {
     if (!tutorId) return;
@@ -25,15 +27,14 @@ export const SocketProvider = ({ children }) => {
       reconnectionDelay: 1000,
     });
 
-    // ── THÊM TOÀN BỘ ĐOẠN LOG DEBUG Ở ĐÂY ──
     newSocket.on("connect", () => {
       console.log("[SOCKET] Connected successfully! ID:", newSocket.id);
       newSocket.emit("addUser", tutorId);
+      dispatch(setSocketConnection(newSocket));
     });
 
     newSocket.on("connect_error", (error) => {
       console.error("[SOCKET] Connection error:", error.message);
-      console.error("[SOCKET] Error details:", error);
     });
 
     newSocket.on("error", (err) => {
@@ -42,11 +43,7 @@ export const SocketProvider = ({ children }) => {
 
     newSocket.on("disconnect", (reason) => {
       console.log("[SOCKET] Disconnected:", reason);
-    });
-    // ──────────────────────────────────────
-
-    newSocket.on("getNotification", (notification) => {
-      toast.info(notification.message);
+      dispatch(setSocketConnection(null));
     });
 
     newSocket.on("getMessage", (data) => {
@@ -59,8 +56,9 @@ export const SocketProvider = ({ children }) => {
 
     return () => {
       newSocket.disconnect();
+      dispatch(setSocketConnection(null));
     };
-  }, [tutorId]);
+  }, [tutorId, dispatch]);
 
   return (
     <SocketContext.Provider value={{ socket, connected: !!socket }}>
