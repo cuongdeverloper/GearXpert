@@ -325,7 +325,7 @@ exports.checkoutRental = async (req, res) => {
           )}₫`,
           ""
         );
-    
+
         // Thông báo cho chính Customer
         await sendRentalNotification(
           rental,
@@ -1118,7 +1118,9 @@ exports.confirmReceived = async (req, res) => {
       throw new Error("Đơn hàng chưa ở trạng thái giao hàng");
 
     if (!rental.deliveredAt)
-      throw new Error("Nhân viên chưa xác nhận đã giao hàng. Vui lòng chờ nhân viên xác nhận.");
+      throw new Error(
+        "Nhân viên chưa xác nhận đã giao hàng. Vui lòng chờ nhân viên xác nhận."
+      );
 
     // Hoàn thành đơn
     rental.status = "RENTING"; // Hoặc COMPLETED tùy flow của bạn, ở đây chọn RENTING vì khách bắt đầu dùng
@@ -1307,14 +1309,18 @@ exports.confirmPickup = async (req, res) => {
     const rental = await Rental.findById(rentalId);
     if (!rental) return res.status(404).json({ message: "Rental not found" });
     if (rental.status !== "DELIVERING")
-      return res.status(400).json({ message: "Rental is not in DELIVERING status" });
+      return res
+        .status(400)
+        .json({ message: "Rental is not in DELIVERING status" });
     if (rental.pickedUpAt)
       return res.status(400).json({ message: "Pickup already confirmed" });
 
     rental.pickedUpAt = new Date();
     await rental.save();
 
-    return res.status(200).json({ message: "Pickup confirmed", pickedUpAt: rental.pickedUpAt });
+    return res
+      .status(200)
+      .json({ message: "Pickup confirmed", pickedUpAt: rental.pickedUpAt });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
@@ -1327,7 +1333,9 @@ exports.confirmReturn = async (req, res) => {
     const rental = await Rental.findById(rentalId);
     if (!rental) return res.status(404).json({ message: "Rental not found" });
     if (rental.status !== "RETURNING")
-      return res.status(400).json({ message: "Rental is not in RETURNING status" });
+      return res
+        .status(400)
+        .json({ message: "Rental is not in RETURNING status" });
 
     rental.status = "COMPLETED";
     await rental.save();
@@ -1337,7 +1345,10 @@ exports.confirmReturn = async (req, res) => {
       rental,
       "CUSTOMER",
       "Đơn thuê đã hoàn thành",
-      `Thiết bị của đơn #${rental._id.toString().slice(-6).toUpperCase()} đã được thu hồi thành công. Cảm ơn bạn đã sử dụng dịch vụ!`
+      `Thiết bị của đơn #${rental._id
+        .toString()
+        .slice(-6)
+        .toUpperCase()} đã được thu hồi thành công. Cảm ơn bạn đã sử dụng dịch vụ!`
     );
 
     // Notify supplier
@@ -1345,10 +1356,15 @@ exports.confirmReturn = async (req, res) => {
       rental,
       "SUPPLIER",
       "Thiết bị đã được thu hồi - Đơn hoàn tất",
-      `Đơn thuê #${rental._id.toString().slice(-6).toUpperCase()} đã hoàn tất. Thiết bị đã được thu hồi từ khách hàng.`
+      `Đơn thuê #${rental._id
+        .toString()
+        .slice(-6)
+        .toUpperCase()} đã hoàn tất. Thiết bị đã được thu hồi từ khách hàng.`
     );
 
-    return res.status(200).json({ message: "Return confirmed, rental is now COMPLETED" });
+    return res
+      .status(200)
+      .json({ message: "Return confirmed, rental is now COMPLETED" });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
@@ -1361,9 +1377,13 @@ exports.confirmDelivery = async (req, res) => {
     const rental = await Rental.findById(rentalId);
     if (!rental) return res.status(404).json({ message: "Rental not found" });
     if (rental.status !== "DELIVERING")
-      return res.status(400).json({ message: "Rental is not in DELIVERING status" });
+      return res
+        .status(400)
+        .json({ message: "Rental is not in DELIVERING status" });
     if (!rental.pickedUpAt)
-      return res.status(400).json({ message: "Please confirm pickup before confirming delivery" });
+      return res
+        .status(400)
+        .json({ message: "Please confirm pickup before confirming delivery" });
     if (rental.deliveredAt)
       return res.status(400).json({ message: "Delivery already confirmed" });
 
@@ -1377,7 +1397,9 @@ exports.confirmDelivery = async (req, res) => {
       "Nhân viên đã xác nhận giao hàng thành công. Vui lòng kiểm tra và xác nhận đã nhận hàng."
     );
 
-    return res.status(200).json({ message: "Delivery confirmed", deliveredAt: rental.deliveredAt });
+    return res
+      .status(200)
+      .json({ message: "Delivery confirmed", deliveredAt: rental.deliveredAt });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
@@ -1590,5 +1612,104 @@ exports.repaySingleRental = async (req, res) => {
     });
   } finally {
     session.endSession();
+  }
+};
+const fs = require("fs/promises");
+const path = require("path");
+const { PDFDocument } = require("pdf-lib");
+const fontkit = require("@pdf-lib/fontkit");
+
+exports.previewContract = async (req, res) => {
+  try {
+    const {
+      deliveryAddress,
+      phoneNumber,
+      cartItems,
+      totalDeposit,
+      total,
+      currentDate,
+      signatureDataUrl,
+    } = req.body;
+
+    const templatePath = path.join(
+      __dirname,
+      "../../templatesContract/hop-dong-mau.pdf"
+    );
+    const fontPath = path.join(__dirname, "../../fonts/DejaVuSans.ttf");
+
+    const pdfBytes = await fs.readFile(templatePath);
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+
+    pdfDoc.registerFontkit(fontkit);
+    const font = await pdfDoc.embedFont(await fs.readFile(fontPath));
+
+    const form = pdfDoc.getForm();
+    const page = pdfDoc.getPages()[0];
+
+    // Điền text
+    const safeSetText = (name, value) => {
+      try {
+        form.getTextField(name)?.setText(value || "");
+      } catch (e) {}
+    };
+
+    safeSetText("receiverName", deliveryAddress?.receiverName);
+    safeSetText("phoneNumber", phoneNumber);
+    safeSetText("fullAddress", deliveryAddress?.fullAddress);
+    safeSetText("rentalDate", currentDate);
+
+    const itemsText =
+      cartItems
+        ?.map(
+          (item, i) =>
+            `${i + 1}. ${item.deviceName} x${item.quantity} (${
+              item.totalDays
+            } ngày)`
+        )
+        .join("\n") || "Không có thiết bị";
+
+    safeSetText("itemsList", itemsText);
+    safeSetText("totalAmount", `${(total || 0).toLocaleString("vi-VN")} đ`);
+    safeSetText(
+      "depositAmount",
+      `${(totalDeposit || 0).toLocaleString("vi-VN")} đ`
+    );
+
+    form.getFields().forEach((field) => {
+      if (field.constructor.name === "PDFTextField")
+        field.updateAppearances(font);
+    });
+
+    // ==================== CHỮ KÝ (drawImage - không cần button field) ====================
+    if (signatureDataUrl) {
+      const base64Data = signatureDataUrl.replace(
+        /^data:image\/\w+;base64,/,
+        ""
+      );
+      const signatureBytes = Buffer.from(base64Data, "base64");
+      const signatureImage = await pdfDoc.embedPng(signatureBytes);
+
+      page.drawImage(signatureImage, {
+        x: 340, // đã chỉnh chuẩn theo template của bạn
+        y: 70, // vị trí đúng phần "BEN THUE"
+        width: 165,
+        height: 68,
+      });
+      console.log("✅ Chữ ký đã được embed thành công (drawImage)");
+    } else {
+      console.log("❌ Không có chữ ký trong payload");
+    }
+
+    const resultPdf = await pdfDoc.save();
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      'inline; filename="preview-hop-dong.pdf"'
+    );
+    res.send(Buffer.from(resultPdf));
+  } catch (err) {
+    console.error("Preview contract error:", err);
+    res.status(500).json({ message: "Lỗi tạo preview", error: err.message });
   }
 };
