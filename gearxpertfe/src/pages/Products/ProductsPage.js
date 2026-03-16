@@ -24,6 +24,36 @@ export default function ProductsPage() {
   const [compareSearchQuery, setCompareSearchQuery] = useState("");
   const [compareError, setCompareError] = useState("");
 
+  const notifyChatbotSearch = useCallback((query) => {
+    const q = String(query || "").trim();
+    if (!q) return;
+    window.dispatchEvent(
+      new CustomEvent("gearxpert:product-search", { detail: { query: q } })
+    );
+  }, []);
+
+  const triggerAIFromCurrentFilters = useCallback(() => {
+    const q = String(searchQuery || "").trim();
+    if (q) {
+      notifyChatbotSearch(q);
+      return;
+    }
+
+    // If user only filters by category, still allow AI to suggest within that category.
+    const categoryHintMap = {
+      CAMERA: "camera",
+      LIGHTING: "lighting",
+      AUDIO: "audio",
+      ACCESSORY: "gimbal",
+      DRONE: "drone",
+      OTHER: "gear",
+    };
+
+    if (selectedCategory && categoryHintMap[selectedCategory]) {
+      notifyChatbotSearch(categoryHintMap[selectedCategory]);
+    }
+  }, [notifyChatbotSearch, searchQuery, selectedCategory]);
+
   const categories = [
     { name: "All Gear", id: null, icon: "grid_view" },
     { name: "Cinematography", id: "CAMERA", icon: "videocam" },
@@ -84,7 +114,17 @@ export default function ProductsPage() {
 
   useEffect(() => {
     applyFiltersAndSort();
-  }, [applyFiltersAndSort]);
+
+    // Track search queries for AI suggestions
+    if (searchQuery.trim().length > 2) {
+      const timer = setTimeout(() => {
+        const searches = JSON.parse(localStorage.getItem("searchQueries") || "[]");
+        const updated = [searchQuery.trim(), ...searches.filter(s => s !== searchQuery.trim())].slice(0, 5);
+        localStorage.setItem("searchQueries", JSON.stringify(updated));
+      }, 1500); // 1.5s delay to avoid tracking every keystroke
+      return () => clearTimeout(timer);
+    }
+  }, [applyFiltersAndSort, searchQuery]);
 
   // Compare logic
   const handleToggleCompare = (device) => {
@@ -185,8 +225,16 @@ export default function ProductsPage() {
                   className="flex-1 bg-transparent border-none text-white placeholder-white/50 focus:ring-0 text-lg h-12"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      triggerAIFromCurrentFilters();
+                    }
+                  }}
                 />
-                <button className="px-6 py-3 bg-white text-slate-900 font-bold rounded-xl hover:bg-indigo-50 transition-colors">
+                <button
+                  onClick={triggerAIFromCurrentFilters}
+                  className="px-6 py-3 bg-white text-slate-900 font-bold rounded-xl hover:bg-indigo-50 transition-colors"
+                >
                   Search
                 </button>
               </div>
@@ -371,15 +419,23 @@ export default function ProductsPage() {
                   <p className="text-slate-500 max-w-md mx-auto mb-8">
                     We couldn't find any productions matching your search "{searchQuery}". Try adjusting your filters or search terms.
                   </p>
-                  <button
-                    onClick={() => {
-                      setSearchQuery("");
-                      setSelectedCategory(null);
-                    }}
-                    className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-primary transition-colors cursor-pointer"
-                  >
-                    Clear Filters
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      onClick={triggerAIFromCurrentFilters}
+                      className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors cursor-pointer"
+                    >
+                      Ask GearXpert AI
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSearchQuery("");
+                        setSelectedCategory(null);
+                      }}
+                      className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-primary transition-colors cursor-pointer"
+                    >
+                      Clear Filters
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

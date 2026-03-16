@@ -6,6 +6,8 @@ import { toast } from 'react-toastify';
 import { performLogout } from '../../utils/logout';
 import MessengerPopup from '../Message Socket/MessengerPopup/MessengerPopup';
 
+import logo from '../../assets/logoGearXpert.png';
+
 import {
   getNotifications,
   markNotificationAsRead,
@@ -22,7 +24,7 @@ export default function Header() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
   const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
   const [loadingNotifications, setLoadingNotifications] = useState(false);
 
   const messengerRef = useRef(null);
@@ -41,8 +43,6 @@ export default function Header() {
       const res = await getNotifications();
       const data = res || [];
       setNotifications(data);
-      const unread = data.filter((n) => !n.isRead).length;
-      setUnreadCount(unread);
     } catch (err) {
       console.error('Fetch notifications error:', err);
       toast.error('Không thể tải danh sách thông báo');
@@ -63,9 +63,11 @@ export default function Header() {
     if (!socketConnection) return;
 
     const handleNewNotification = (newNotif) => {
-      toast.info(newNotif.message || newNotif.title, { autoClose: 6000 });
+      // Bỏ thông báo toast cho LIKE và COMMENT, các loại khác (như ORDER) vẫn hiện
+      if (newNotif.type !== 'LIKE' && newNotif.type !== 'COMMENT') {
+        toast.info(newNotif.message || newNotif.title, { autoClose: 6000 });
+      }
       setNotifications((prev) => [newNotif, ...prev]);
-      setUnreadCount((prev) => prev + 1);
     };
 
     socketConnection.on('getNotification', handleNewNotification);
@@ -104,7 +106,9 @@ export default function Header() {
   };
 
   const menuItems = [
-    { label: 'Trang chủ', icon: 'home', path: '/' },
+    ...(userAccount?.role === 'SUPPLIER'
+      ? [{ label: 'Dashboard', icon: 'dashboard', path: '/supplier/dashboard' }]
+      : []),
     { label: 'Đơn thuê của tôi', icon: 'description', path: '/user/myrental' },
     { label: 'Vouchers', icon: 'local_activity', path: '/vouchers' },
     { label: 'Yêu thích', icon: 'favorite', path: '/favorites' },
@@ -156,7 +160,6 @@ export default function Header() {
       setNotifications((prev) =>
         prev.map((n) => (n._id === notifId ? { ...n, isRead: true } : n))
       );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (err) {
       console.error('Mark as read error:', err);
     }
@@ -166,7 +169,6 @@ export default function Header() {
     try {
       await markAllNotificationsAsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      setUnreadCount(0);
     } catch (err) {
       console.error('Mark all as read error:', err);
     }
@@ -174,16 +176,19 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full glass-panel bg-white/70 border-b border-slate-200">
-      <div className="max-w-[1440px] mx-auto px-6 lg:px-10 h-[72px] flex items-center justify-between">
+      <div className="max-w-[1440px] mx-auto px-6 lg:px-10 h-24 flex items-center justify-between relative">
         {/* Logo */}
         <div
-          className="flex items-center gap-3 cursor-pointer group"
+          className="flex items-center cursor-pointer group relative z-10"
           onClick={() => handleRestrictedNavigation('/')}
         >
-          <div className="bg-primary rounded-xl p-2 text-white shadow-lg shadow-indigo-200">
-            <span className="material-symbols-outlined text-[24px] block">videocam</span>
-          </div>
-          <h2 className="text-xl font-bold tracking-tight text-slate-900 font-display">GearXpert</h2>
+          <img 
+            src={logo} 
+            alt="GearXpert Logo" 
+            className="h-32 w-auto object-contain transition-transform group-hover:scale-110 absolute top-1/2 -translate-y-1/2 left-0 drop-shadow-lg" 
+          />
+          {/* Container for alignment spacing */}
+          <div className="w-60 h-1"></div>
         </div>
 
         {/* Navigation - Desktop */}
@@ -289,11 +294,20 @@ export default function Header() {
                           >
                             <div className="flex items-start gap-3">
                               <div
-                                className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${notif.type === 'ORDER' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-600'
-                                  }`}
+                                className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                  notif.type === 'ORDER' ? 'bg-indigo-100 text-indigo-600' : 
+                                  notif.type === 'LIKE' ? 'bg-pink-100 text-pink-600' :
+                                  notif.type === 'COMMENT' ? 'bg-blue-100 text-blue-600' :
+                                  'bg-slate-100 text-slate-600'
+                                }`}
                               >
                                 <span className="material-symbols-outlined text-[20px]">
-                                  {notif.type === 'ORDER' ? 'inventory_2' : 'notifications'}
+                                  {
+                                    notif.type === 'ORDER' ? 'inventory_2' : 
+                                    notif.type === 'LIKE' ? 'favorite' :
+                                    notif.type === 'COMMENT' ? 'comment' :
+                                    'notifications'
+                                  }
                                 </span>
                               </div>
                               <div className="flex-1 min-w-0">

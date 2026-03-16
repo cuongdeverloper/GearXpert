@@ -16,14 +16,14 @@ export const getDevices = (params = {}) =>
 export const getSupplierDevices = (supplierId, params = {}) =>
   axios.get(`/api/devices/supplier/${supplierId}`, { params });
 
-export const getDeviceDetail = (id) =>
-  axios.get(`/api/devices/${id}`);
+export const getDeviceDetail = (slug) =>
+  axios.get(`/api/devices/${slug}`);
 
-export const getDeviceAddons = (id) =>
-  axios.get(`/api/devices/${id}/addons`);
+export const getDeviceAddons = (slug) =>
+  axios.get(`/api/devices/${slug}/addons`);
 
-export const getRelatedDevices = (id) =>
-  axios.get(`/api/devices/${id}/related`);
+export const getRelatedDevices = (slug) =>
+  axios.get(`/api/devices/${slug}/related`);
 
 export const updateDevice = (id, data) => {
   if (data instanceof FormData) {

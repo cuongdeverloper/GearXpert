@@ -23,6 +23,7 @@ import { toast, Toaster } from "sonner";
 import { useParams, useNavigate } from "react-router-dom";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
+import { useSocket } from "../../SocketContext";
 import AuthRequirementModal from "../../components/common/AuthRequirementModal";
 
 /* ===== API ===== */
@@ -40,7 +41,7 @@ import {
 } from "../../service/ApiService/ReviewApi";
 
 export default function ProductDetailPage() {
-  const { id } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
 
   const today = new Date().toISOString().split("T")[0];
@@ -70,23 +71,26 @@ export default function ProductDetailPage() {
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  const { socket } = useSocket();
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
 
       const promises = [
-        getDeviceDetail(id),
-        getDeviceAddons(id),
-        getRelatedDevices(id),
+        getDeviceDetail(slug),
+        getDeviceAddons(slug),
+        getRelatedDevices(slug),
       ];
 
-      if (isAuthenticated) {
-        promises.push(hasRentedDevice(id));
-      }
-
       const results = await Promise.all(promises);
-      const [d, a, r, ...rest] = results;
-      const rented = isAuthenticated ? rest[0] : undefined;
+      const [d, a, r] = results;
+
+      // hasRentedDevice cần dùng _id, gọi sau khi có device data
+      let rented;
+      if (isAuthenticated && d?._id) {
+        rented = await hasRentedDevice(d._id);
+      }
 
       setDevice(d);
       setAddonsList(a || []);
@@ -99,13 +103,13 @@ export default function ProductDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id, isAuthenticated]);
+  }, [slug, isAuthenticated]);
 
   const fetchMyReview = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !device?._id) return;
 
     try {
-      const data = await getMyReview(id);
+      const data = await getMyReview(device._id);
       if (data.hasReview) {
         setMyReview(data.review);
         setHasMyReview(true);
@@ -115,13 +119,43 @@ export default function ProductDetailPage() {
     } catch (err) {
       console.log("Không có review của bạn hoặc lỗi:", err);
     }
-  }, [id, isAuthenticated]);
+  }, [device?._id, isAuthenticated]);
 
   useEffect(() => {
     fetchData();
-    fetchMyReview();
     window.scrollTo(0, 0);
-  }, [fetchData, fetchMyReview]);
+
+    // Track viewed devices for AI suggestions
+    if (slug) {
+      const viewed = JSON.parse(localStorage.getItem("viewedDevices") || "[]");
+      const updated = [slug, ...viewed.filter(vId => vId !== slug)].slice(0, 10);
+      localStorage.setItem("viewedDevices", JSON.stringify(updated));
+    }
+  }, [fetchData, slug]);
+
+  useEffect(() => {
+    fetchMyReview();
+  }, [fetchMyReview]);
+
+  // Socket Realtime Review Updates
+  useEffect(() => {
+    if (!socket || !device?._id) return;
+
+    console.log(`[SOCKET] Joining device room: device_${device._id}`);
+    socket.emit("joinRoom", `device_${device._id}`);
+
+    socket.on("deviceReviewUpdate", (data) => {
+      console.log("[SOCKET] Received deviceReviewUpdate:", data);
+      // Re-fetch device detail to get updated reviews and ratingAvg
+      fetchData();
+    });
+
+    return () => {
+      console.log(`[SOCKET] Leaving device room: device_${device._id}`);
+      socket.emit("leaveRoom", `device_${device._id}`);
+      socket.off("deviceReviewUpdate");
+    };
+  }, [socket, device?._id, fetchData]);
 
   const validateRental = () => {
     if (!startDate || !endDate) {
@@ -445,7 +479,7 @@ export default function ProductDetailPage() {
                                 <img
                                   key={idx}
                                   src={img}
-                                  alt={`Review image ${idx + 1}`}
+                                  alt={`Review ${idx + 1}`}
                                   className="w-28 h-28 object-cover rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-[1.03]"
                                 />
                               ))}

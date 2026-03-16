@@ -40,6 +40,7 @@ import AdminVouchersPage from "./pages/Admin/AdminVouchersPage";
 import AdminAdsPage from "./pages/Admin/AdminAdsPage";
 import BlogManagement from "./pages/Admin/BlogManagement";
 import CommentManagement from "./pages/Admin/CommentManagement";
+import AdminBroadcastPage from "./pages/Admin/AdminBroadcastPage";
 
 // pages
 import RentalCheckout from "./pages/Rental/RentalCheckout";
@@ -156,12 +157,11 @@ export default function Layout() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-account" element={<VerifyAccount />} />
 
-          <Route path="/device/:id" element={<ProductDetailPage />} />
+          <Route path="/device/:slug" element={<ProductDetailPage />} />
           <Route path="/user/wallet" element={<WalletPage />} />
           <Route path="/wallet/success" element={<WalletSuccess />} />
           <Route path="/wallet/cancel" element={<WalletCancel />} />
           <Route path="/rental/checkout" element={<RentalCheckout />} />
-          <Route path="/device/" element={<ProductDetailPage />} />
           <Route
             path="/rental/checkout/review"
             element={<RentalReviewPage />}
@@ -208,6 +208,7 @@ export default function Layout() {
             <Route path="advertisements" element={<AdminAdsPage />} />
             <Route path="blogs" element={<BlogManagement />} />
             <Route path="comments" element={<CommentManagement />} />
+            <Route path="notifications" element={<AdminBroadcastPage />} />
           </Route>
 
           <Route path="/privacy" element={<PrivacyPolicyPage />} />

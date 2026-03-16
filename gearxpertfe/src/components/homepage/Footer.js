@@ -1,4 +1,5 @@
 import { useNavigate, Link } from "react-router-dom";
+import logo from "../../assets/logoGearXpert.png";
 
 export default function Footer() {
   const navigate = useNavigate();
@@ -35,21 +36,14 @@ export default function Footer() {
           {/* Brand */}
           <div className="md:col-span-5">
             <div
-              className="flex items-center gap-3 cursor-pointer w-fit"
+              className="flex items-center gap-3 cursor-pointer w-fit group"
               onClick={() => navigate("/")}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => e.key === "Enter" && navigate("/")}
               aria-label="Go to homepage"
             >
-              <div className="bg-slate-200 rounded-lg p-1 text-slate-600">
-                <span className="material-symbols-outlined text-[20px] block">
-                  videocam
-                </span>
-              </div>
-              <h2 className="text-lg font-bold text-slate-900 font-display">
-                GearXpert
-              </h2>
+              <img src={logo} alt="GearXpert Logo" className="h-40 w-auto object-contain transition-transform group-hover:scale-110" />
             </div>
 
             <p className="mt-3 text-sm text-slate-500 leading-relaxed max-w-md">
