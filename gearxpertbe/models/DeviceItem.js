@@ -1,0 +1,203 @@
+const mongoose = require("mongoose");
+
+const deviceItemSchema = new mongoose.Schema(
+  {
+    deviceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Device",
+      required: true,
+      index: true,
+    },
+
+    serialNumber: {
+      type: String,
+      sparse: true,
+      index: { unique: true, sparse: true },
+    },
+
+    internalCode: { type: String, sparse: true }, // CAM-001, CAM-002...
+
+    status: {
+      type: String,
+      enum: [
+        "AVAILABLE",
+        "RENTED",
+        "RESERVED",
+        "MAINTENANCE",
+        "REPAIR",
+        "DAMAGED",
+        "LOST",
+        "RETIRED",
+      ],
+      default: "AVAILABLE",
+      index: true,
+    },
+
+    condition: {
+      type: String,
+      enum: ["NEW", "GOOD", "FAIR", "NEEDS_REPAIR", "DAMAGED"],
+      default: "GOOD",
+      index: true,
+    },
+
+    location: {
+      warehouse: String,
+      city: String,
+      note: String,
+    },
+
+    lastMaintenance: {
+      at: Date,
+      note: String,
+      cost: Number,
+    },
+
+    nextMaintenanceDue: Date,
+
+    images: [String],
+
+    activeIssueId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "IssueReport",
+      sparse: true,
+    },
+  },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
+);
+
+// === DEBUG LOG ===
+// Mỗi khi hook chạy, sẽ log ra console để bạn kiểm tra xem có trigger không
+
+// 1. Hook khi save từng document
+deviceItemSchema.post("save", async function (doc) {
+  console.log(
+    `[HOOK SAVE] DeviceItem ${doc._id} saved - status: ${doc.status}, deviceId: ${doc.deviceId}`
+  );
+  if (this.isNew || this.isModified("status") || this.isModified("condition")) {
+    await updateDeviceCounts(doc.deviceId);
+  }
+});
+
+// 2. Hook cho findOneAndUpdate / updateOne
+deviceItemSchema.post("findOneAndUpdate", async function (doc) {
+  console.log("[HOOK findOneAndUpdate] Triggered");
+
+  if (!doc) {
+    console.log("[HOOK] No document found → skip update counts");
+    return;
+  }
+
+  const update = this.getUpdate() || {};
+  const setOps = update.$set || update;
+
+  const statusChanged =
+    setOps.status !== undefined || update.status !== undefined;
+  const conditionChanged =
+    setOps.condition !== undefined || update.condition !== undefined;
+
+  if (statusChanged || conditionChanged) {
+    console.log(
+      `[HOOK] Status/Condition changed for ${doc._id} → updating counts`
+    );
+    await updateDeviceCounts(doc.deviceId);
+  } else {
+    console.log("[HOOK] No relevant change detected → skip");
+  }
+});
+
+// 3. Hook cho updateMany (bulk update status)
+deviceItemSchema.post("updateMany", async function () {
+  console.log("[HOOK updateMany] Triggered");
+
+  const filter = this.getFilter();
+  const update = this.getUpdate() || {};
+
+  const hasStatusChange = update.$set?.status || update.status;
+  if (filter.deviceId && hasStatusChange) {
+    console.log(
+      `[HOOK updateMany] Status changed on deviceId ${filter.deviceId} → updating counts`
+    );
+    await updateDeviceCounts(filter.deviceId);
+  }
+});
+
+// 4. Hook cho insertMany (bulk create)
+deviceItemSchema.post("insertMany", async function (docs) {
+  if (docs && docs.length > 0) {
+    const deviceId = docs[0].deviceId;
+    console.log(
+      `[HOOK insertMany] ${docs.length} items inserted → updating counts for ${deviceId}`
+    );
+    await updateDeviceCounts(deviceId);
+  }
+});
+
+// Hàm helper đồng bộ counts (thêm log chi tiết để debug)
+async function updateDeviceCounts(deviceId) {
+  console.log(
+    `[CACHE] Bắt đầu cập nhật cache cho deviceId: ${deviceId.toString()}`
+  );
+
+  const DeviceItem = mongoose.model("DeviceItem");
+
+  // Bước 1: Aggregation đếm
+  const counts = await DeviceItem.aggregate([
+    { $match: { deviceId: new mongoose.Types.ObjectId(deviceId) } },
+    {
+      $group: {
+        _id: null,
+        total: { $sum: 1 },
+        rented: {
+          $sum: {
+            $cond: [{ $in: ["$status", ["RENTED", "RESERVED"]] }, 1, 0],
+          },
+        },
+        maintenance: {
+          $sum: { $cond: [{ $eq: ["$status", "MAINTENANCE"] }, 1, 0] },
+        },
+        damaged: {
+          $sum: { $cond: [{ $eq: ["$status", "DAMAGED"] }, 1, 0] },
+        },
+      },
+    },
+  ]).exec();
+
+  const result = counts[0] || {
+    total: 0,
+    rented: 0,
+    maintenance: 0,
+    damaged: 0,
+  };
+
+  console.log(`[CACHE] Kết quả đếm thực tế:`, result);
+
+  // Bước 2: Update Device
+  const updateResult = await mongoose.model("Device").updateOne(
+    { _id: new mongoose.Types.ObjectId(deviceId) }, // đảm bảo ObjectId
+    {
+      $set: {
+        stockQuantity: result.total,
+        rentedQuantity: result.rented,
+        availableQuantity: result.total - result.rented,
+        maintenanceCount: result.maintenance,
+        damagedCount: result.damaged,
+      },
+    }
+  );
+
+  console.log(`[CACHE] Kết quả update Device:`, updateResult);
+
+  if (updateResult.modifiedCount === 0) {
+    console.warn(
+      `[CACHE WARNING] Không update được Device ${deviceId} - có thể document không thay đổi hoặc không tồn tại`
+    );
+  } else {
+    console.log(`[CACHE SUCCESS] Đã cập nhật cache cho Device ${deviceId}`);
+  }
+}
+
+module.exports = mongoose.model("DeviceItem", deviceItemSchema);
