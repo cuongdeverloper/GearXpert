@@ -112,9 +112,9 @@ export default function MyRentals() {
   const handlePayNow = async (order) => {
     try {
       toast.info("Đang tạo link thanh toán...");
-  
+
       const res = await rentalService.repaySingleRental(order._id);
-  
+
       if (res?.success && res?.paymentLink) {
         window.location.href = res.paymentLink;
       } else {
@@ -127,15 +127,13 @@ export default function MyRentals() {
       );
     }
   };
-  const toggleItemSelection = (rentalItemId) => {
-    // FIX: Sử dụng rentalItemId (item._id) thay vì deviceId
-    const currentSelected = DeliReportModal.selectedItems || [];
-    const nextSelected = currentSelected.includes(rentalItemId)
-      ? currentSelected.filter((id) => id !== rentalItemId)
-      : [...currentSelected, rentalItemId];
-    setDeliReportModal({
-      ...DeliReportModal,
-      selectedItems: nextSelected,
+  const toggleSerialSelection = (deviceItemId, modalSetter, modalState) => {
+    modalSetter((prev) => {
+      const current = prev.selectedItems || [];
+      const next = current.includes(deviceItemId)
+        ? current.filter((id) => id !== deviceItemId)
+        : [...current, deviceItemId];
+      return { ...prev, selectedItems: next };
     });
   };
 
@@ -226,26 +224,40 @@ export default function MyRentals() {
       return toast.warning("Vui lòng chọn lý do");
     }
     if (!DeliReportModal.selectedItems.length) {
-      return toast.warning("Vui lòng chọn ít nhất một item");
+      return toast.warning("Vui lòng chọn ít nhất một serial hoặc sản phẩm");
     }
+
     try {
       const formData = new FormData();
       formData.append("rentalId", DeliReportModal.rentalId);
-      // FIX: Append array selectedItems (rentalItemIds) thay vì một rentalItemId
-      DeliReportModal.selectedItems.forEach((rentalItemId) => {
-        formData.append("rentalItemIds[]", rentalItemId); // Dạng array cho backend (hoặc JSON.stringify nếu backend yêu cầu)
+
+      // Gửi mảng deviceItemIds[] (serial cụ thể)
+      DeliReportModal.selectedItems.forEach((id) => {
+        formData.append("deviceItemIds[]", id);
       });
-      // FIX: Nếu cần deviceIds, loop tương tự (dựa trên selectedItems map ra deviceId từ order.items)
-      // Ví dụ: const selectedDevices = DeliReportModal.order.items.filter(item => DeliReportModal.selectedItems.includes(item._id)).map(item => item.deviceId?._id);
-      // selectedDevices.forEach(id => formData.append("deviceIds[]", id));
+
+      // Vẫn gửi rentalItemIds[] nếu backend cần (lấy từ các item có serial được chọn)
+      const selectedRentalItemIds = new Set();
+      DeliReportModal.order?.items?.forEach((item) => {
+        if (
+          item.deviceItemIds?.some((devId) =>
+            DeliReportModal.selectedItems.includes(devId.toString())
+          )
+        ) {
+          selectedRentalItemIds.add(item._id.toString());
+        }
+      });
+      selectedRentalItemIds.forEach((id) =>
+        formData.append("rentalItemIds[]", id)
+      );
+
       formData.append(
         "issueType",
         REPORT_REASON_MAP[DeliReportModal.reasonType]
       );
       formData.append("description", DeliReportModal.description);
-      DeliReportModal.files.forEach((file) => {
-        formData.append("images", file);
-      });
+      DeliReportModal.files.forEach((file) => formData.append("images", file));
+
       await rentalService.reportDeliveryIssue(formData);
       toast.success("Báo cáo đã được gửi");
       setDeliReportModal({
@@ -255,7 +267,7 @@ export default function MyRentals() {
         reasonType: "",
         description: "",
         files: [],
-        order: null, // FIX: Reset order
+        order: null,
       });
     } catch (err) {
       toast.error(err.response?.data?.message || "Gửi báo cáo thất bại");
@@ -450,7 +462,11 @@ export default function MyRentals() {
   };
   const handleReRent = (order) => {
     if (order.items && order.items.length > 0) {
-      navigate(`/device/${order.items[0].deviceId?.slug || order.items[0].deviceId?._id || ""}`);
+      navigate(
+        `/device/${
+          order.items[0].deviceId?.slug || order.items[0].deviceId?._id || ""
+        }`
+      );
     } else {
       navigate("/devices");
     }
@@ -811,7 +827,11 @@ export default function MyRentals() {
                               <div
                                 key={i}
                                 onClick={() =>
-                                  navigate(`/device/${item.deviceId?.slug || item.deviceId?._id}`)
+                                  navigate(
+                                    `/device/${
+                                      item.deviceId?.slug || item.deviceId?._id
+                                    }`
+                                  )
                                 }
                                 className={`relative flex items-center gap-5 p-4 rounded-[2rem] transition-all cursor-pointer group/item ${
                                   hasReport
@@ -876,7 +896,11 @@ export default function MyRentals() {
                                       x{item.quantity}
                                     </span>
                                   </div>
-
+                                  {item.serialNumbers?.length > 0 && (
+                                    <div className="mt-1 text-[10px] text-gray-600">
+                                      Serial: {item.serialNumbers.join(", ")}
+                                    </div>
+                                  )}
                                   {hasReport && reportStatusLabel && (
                                     <div className="mt-2">
                                       <span
@@ -893,7 +917,7 @@ export default function MyRentals() {
                                 </div>
 
                                 {/* Button hành động */}
-                                
+
                                 {(order.status === "DELIVERING" ||
                                   order.status === "RENTING") &&
                                   reportType && (
@@ -1046,14 +1070,14 @@ export default function MyRentals() {
                               </span>
                             )}
                             {order.paymentStatus === "UNPAID" &&
-                                  order.status === "PENDING" && (
-                                    <button
-                                      onClick={() => handlePayNow(order)}
-                                      className="w-full py-4 rounded-2xl bg-green-600 text-white text-[11px] font-black uppercase italic shadow-lg shadow-green-200 hover:bg-green-700 transition-all flex items-center justify-center gap-2"
-                                    >
-                                      <CreditCard size={16} /> Thanh toán ngay
-                                    </button>
-                                  )}
+                              order.status === "PENDING" && (
+                                <button
+                                  onClick={() => handlePayNow(order)}
+                                  className="w-full py-4 rounded-2xl bg-green-600 text-white text-[11px] font-black uppercase italic shadow-lg shadow-green-200 hover:bg-green-700 transition-all flex items-center justify-center gap-2"
+                                >
+                                  <CreditCard size={16} /> Thanh toán ngay
+                                </button>
+                              )}
                             {order.status === "PENDING" && (
                               <button
                                 onClick={() =>
@@ -1096,7 +1120,8 @@ export default function MyRentals() {
                                 {order.deliveredAt ? (
                                   <>
                                     <div className="w-full py-3 px-4 rounded-2xl bg-teal-50 border border-teal-200 text-teal-700 text-[11px] font-black uppercase italic flex items-center justify-center gap-2">
-                                      <Truck size={14} /> Giao hàng thành công · Vui lòng xác nhận nhận hàng
+                                      <Truck size={14} /> Giao hàng thành công ·
+                                      Vui lòng xác nhận nhận hàng
                                     </div>
                                     <button
                                       onClick={() =>
@@ -1104,12 +1129,14 @@ export default function MyRentals() {
                                       }
                                       className="w-full py-4 rounded-2xl bg-indigo-600 text-white text-[11px] font-black uppercase italic shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
                                     >
-                                      <CheckCircle2 size={16} /> Xác nhận đã nhận hàng
+                                      <CheckCircle2 size={16} /> Xác nhận đã
+                                      nhận hàng
                                     </button>
                                   </>
                                 ) : (
                                   <div className="w-full py-3 px-4 rounded-2xl bg-blue-50 border border-blue-200 text-blue-700 text-[11px] font-black uppercase italic flex items-center justify-center gap-2">
-                                    <Truck size={14} /> Đang trên đường giao đến bạn...
+                                    <Truck size={14} /> Đang trên đường giao đến
+                                    bạn...
                                   </div>
                                 )}
                                 <button
@@ -1181,34 +1208,31 @@ export default function MyRentals() {
                             {/* RETURNING: Chờ nhân viên thu hồi */}
                             {order.status === "RETURNING" && (
                               <div className="w-full py-4 px-4 rounded-2xl bg-orange-50 border border-orange-200 text-orange-700 text-[11px] font-black uppercase italic flex items-center justify-center gap-2">
-                                <PackageCheck size={14} /> Đang chờ thu hồi thiết bị · Vui lòng chuẩn bị bàn giao
+                                <PackageCheck size={14} /> Đang chờ thu hồi
+                                thiết bị · Vui lòng chuẩn bị bàn giao
                               </div>
                             )}
 
                             {/* INSPECTING — giao hàng: Hoàn tiền + Đổi trả */}
-                            {order.status === "INSPECTING" && order.inspectedContext !== "RETURN" && (
-                              <>
-                                <button
-                                  className="w-full py-4 rounded-2xl bg-amber-50 text-amber-700 text-[11px] font-black uppercase italic border border-amber-200 flex items-center justify-center gap-2"
-                                >
-                                  <RefreshCcw size={14} /> Hoàn tiền
-                                </button>
-                                <button
-                                  className="w-full py-4 rounded-2xl bg-blue-50 text-blue-600 text-[11px] font-black uppercase italic border border-blue-100 flex items-center justify-center gap-2"
-                                >
-                                  <ArrowLeft size={14} /> Yêu cầu đổi trả
-                                </button>
-                              </>
-                            )}
+                            {order.status === "INSPECTING" &&
+                              order.inspectedContext !== "RETURN" && (
+                                <>
+                                  <button className="w-full py-4 rounded-2xl bg-amber-50 text-amber-700 text-[11px] font-black uppercase italic border border-amber-200 flex items-center justify-center gap-2">
+                                    <RefreshCcw size={14} /> Hoàn tiền
+                                  </button>
+                                  <button className="w-full py-4 rounded-2xl bg-blue-50 text-blue-600 text-[11px] font-black uppercase italic border border-blue-100 flex items-center justify-center gap-2">
+                                    <ArrowLeft size={14} /> Yêu cầu đổi trả
+                                  </button>
+                                </>
+                              )}
 
                             {/* INSPECTING — thu hồi: Liên hệ với shop */}
-                            {order.status === "INSPECTING" && order.inspectedContext === "RETURN" && (
-                              <button
-                                className="w-full py-4 rounded-2xl bg-slate-900 text-white text-[11px] font-black uppercase italic flex items-center justify-center gap-2 hover:bg-slate-700 transition-colors"
-                              >
-                                <Send size={14} /> Liên hệ với shop
-                              </button>
-                            )}
+                            {order.status === "INSPECTING" &&
+                              order.inspectedContext === "RETURN" && (
+                                <button className="w-full py-4 rounded-2xl bg-slate-900 text-white text-[11px] font-black uppercase italic flex items-center justify-center gap-2 hover:bg-slate-700 transition-colors">
+                                  <Send size={14} /> Liên hệ với shop
+                                </button>
+                              )}
 
                             {/* COMPLETED / CANCELLED */}
                             {(order.status === "COMPLETED" ||
@@ -1327,6 +1351,11 @@ export default function MyRentals() {
                           <p className="text-[10px] text-gray-400 font-bold uppercase">
                             x{item.quantity} thiết bị
                           </p>
+                          {item.serialNumbers?.length > 0 && (
+                            <p className="text-[9px] text-gray-600 mt-1">
+                              Serial: {item.serialNumbers.join(", ")}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="text-right">
@@ -1550,29 +1579,100 @@ export default function MyRentals() {
                   {DeliReportModal.selectedItems?.length || 0})
                 </label>
                 <div className="grid gap-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
-                  {DeliReportModal.order?.items?.map((item, idx) => {
-                    // FIX: Sử dụng DeliReportModal.order (đã set)
-                    const isSelected = DeliReportModal.selectedItems?.includes(
-                      item._id // FIX: Sử dụng item._id (rentalItemId)
-                    );
+                  {DeliReportModal.order?.items?.flatMap((item) => {
+                    // Nếu có serial → hiển thị từng serial riêng
+                    if (
+                      item.serialNumbers?.length > 0 &&
+                      item.deviceItemIds?.length > 0
+                    ) {
+                      return item.serialNumbers.map((serial, idx) => {
+                        const deviceItemId =
+                          item.deviceItemIds[idx]?.toString();
+                        if (!deviceItemId) return null;
+
+                        const isSelected =
+                          DeliReportModal.selectedItems?.includes(deviceItemId);
+
+                        return (
+                          <div
+                            key={`${item._id}-${serial}`}
+                            onClick={() =>
+                              toggleSerialSelection(
+                                deviceItemId,
+                                setDeliReportModal,
+                                DeliReportModal
+                              )
+                            }
+                            className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all cursor-pointer ${
+                              isSelected
+                                ? "border-amber-500 bg-amber-50"
+                                : "border-gray-100 bg-white hover:border-gray-200"
+                            }`}
+                          >
+                            <div
+                              className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                isSelected
+                                  ? "bg-amber-500 border-amber-500"
+                                  : "border-gray-300"
+                              }`}
+                            >
+                              {isSelected && (
+                                <Check
+                                  size={12}
+                                  className="text-white"
+                                  strokeWidth={4}
+                                />
+                              )}
+                            </div>
+                            <img
+                              src={item.deviceId?.images?.[0]}
+                              className="w-10 h-10 rounded-lg object-cover bg-gray-100"
+                              alt=""
+                            />
+                            <div className="flex-1">
+                              <p className="text-[11px] font-black text-gray-800 line-clamp-1">
+                                {item.deviceId?.name} - {serial}
+                              </p>
+                              <p className="text-[9px] text-gray-400">
+                                Serial cụ thể (1 chiếc)
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      });
+                    }
+
+                    // Fallback nếu không có serial
                     return (
                       <div
-                        key={idx}
-                        onClick={() => toggleItemSelection(item._id)} // FIX: Toggle rentalItemId
+                        key={item._id}
+                        onClick={() =>
+                          toggleSerialSelection(
+                            item._id.toString(),
+                            setDeliReportModal,
+                            DeliReportModal
+                          )
+                        }
                         className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all cursor-pointer ${
-                          isSelected
+                          DeliReportModal.selectedItems?.includes(
+                            item._id.toString()
+                          )
                             ? "border-amber-500 bg-amber-50"
                             : "border-gray-100 bg-white hover:border-gray-200"
                         }`}
                       >
                         <div
-                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                            isSelected
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            DeliReportModal.selectedItems?.includes(
+                              item._id.toString()
+                            )
                               ? "bg-amber-500 border-amber-500"
                               : "border-gray-300"
                           }`}
                         >
-                          {isSelected && (
+                          {DeliReportModal.selectedItems?.includes(
+                            item._id.toString()
+                          ) && (
                             <Check
                               size={12}
                               className="text-white"
@@ -1590,7 +1690,7 @@ export default function MyRentals() {
                             {item.deviceId?.name}
                           </p>
                           <p className="text-[9px] text-gray-400 font-bold uppercase">
-                            Số lượng: {item.quantity}
+                            Số lượng: {item.quantity} (không có serial)
                           </p>
                         </div>
                       </div>
@@ -2198,40 +2298,104 @@ export default function MyRentals() {
 
               <div className="space-y-2 mb-6">
                 <label className="text-xs font-bold text-gray-700 ml-3 uppercase tracking-wider">
-                  Chọn thiết bị bị hỏng (
+                  Chọn thiết bị/serial bị hỏng (
                   {damageReportModal.selectedItems?.length || 0})
                 </label>
                 <div className="grid gap-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
-                  {damageReportModal.order?.items?.map((item, idx) => {
-                    const isSelected =
-                      damageReportModal.selectedItems?.includes(item._id);
+                  {damageReportModal.order?.items?.flatMap((item) => {
+                    if (
+                      item.serialNumbers?.length > 0 &&
+                      item.deviceItemIds?.length > 0
+                    ) {
+                      return item.serialNumbers.map((serial, idx) => {
+                        const deviceItemId =
+                          item.deviceItemIds[idx]?.toString();
+                        if (!deviceItemId) return null;
+                        const isSelected =
+                          damageReportModal.selectedItems?.includes(
+                            deviceItemId
+                          );
+
+                        return (
+                          <div
+                            key={`${item._id}-${serial}`}
+                            onClick={() =>
+                              toggleSerialSelection(
+                                deviceItemId,
+                                setDamageReportModal,
+                                damageReportModal
+                              )
+                            }
+                            className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all cursor-pointer ${
+                              isSelected
+                                ? "border-red-500 bg-red-50"
+                                : "border-gray-100 bg-white hover:border-gray-200"
+                            }`}
+                          >
+                            <div
+                              className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                isSelected
+                                  ? "bg-red-500 border-red-500"
+                                  : "border-gray-300"
+                              }`}
+                            >
+                              {isSelected && (
+                                <Check
+                                  size={12}
+                                  className="text-white"
+                                  strokeWidth={4}
+                                />
+                              )}
+                            </div>
+                            <img
+                              src={item.deviceId?.images?.[0]}
+                              className="w-10 h-10 rounded-lg object-cover bg-gray-100"
+                              alt=""
+                            />
+                            <div className="flex-1">
+                              <p className="text-[11px] font-black text-gray-800 line-clamp-1">
+                                {item.deviceId?.name} - {serial}
+                              </p>
+                              <p className="text-[9px] text-gray-400">
+                                Serial cụ thể (1 chiếc)
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      });
+                    }
+
+                    // Fallback không serial
                     return (
                       <div
-                        key={idx}
-                        onClick={() => {
-                          const current = damageReportModal.selectedItems || [];
-                          const next = current.includes(item._id)
-                            ? current.filter((id) => id !== item._id)
-                            : [...current, item._id];
-                          setDamageReportModal({
-                            ...damageReportModal,
-                            selectedItems: next,
-                          });
-                        }}
+                        key={item._id}
+                        onClick={() =>
+                          toggleSerialSelection(
+                            item._id.toString(),
+                            setDamageReportModal,
+                            damageReportModal
+                          )
+                        }
                         className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all cursor-pointer ${
-                          isSelected
+                          damageReportModal.selectedItems?.includes(
+                            item._id.toString()
+                          )
                             ? "border-red-500 bg-red-50"
                             : "border-gray-100 bg-white hover:border-gray-200"
                         }`}
                       >
                         <div
                           className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                            isSelected
+                            damageReportModal.selectedItems?.includes(
+                              item._id.toString()
+                            )
                               ? "bg-red-500 border-red-500"
                               : "border-gray-300"
                           }`}
                         >
-                          {isSelected && (
+                          {damageReportModal.selectedItems?.includes(
+                            item._id.toString()
+                          ) && (
                             <Check
                               size={12}
                               className="text-white"
@@ -2249,7 +2413,7 @@ export default function MyRentals() {
                             {item.deviceId?.name}
                           </p>
                           <p className="text-[9px] text-gray-400 font-bold uppercase">
-                            Số lượng: {item.quantity}
+                            Số lượng: {item.quantity} (không có serial)
                           </p>
                         </div>
                       </div>
@@ -2258,8 +2422,8 @@ export default function MyRentals() {
                 </div>
               </div>
 
+              {/* Severity + Description + Files */}
               <div className="space-y-4">
-                {/* Severity */}
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-700 ml-3">
                     Mức độ nghiêm trọng
@@ -2280,7 +2444,6 @@ export default function MyRentals() {
                   </select>
                 </div>
 
-                {/* Description */}
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-700 ml-3">
                     Mô tả chi tiết
@@ -2299,7 +2462,6 @@ export default function MyRentals() {
                   />
                 </div>
 
-                {/* File Upload */}
                 <div>
                   <label className="text-xs font-bold text-gray-700 ml-3 mb-2 block">
                     Hình ảnh/Video minh chứng
@@ -2355,6 +2517,7 @@ export default function MyRentals() {
                 >
                   Đóng
                 </button>
+
                 <button
                   disabled={
                     !damageReportModal.selectedItems?.length ||
@@ -2364,46 +2527,89 @@ export default function MyRentals() {
                     if (!damageReportModal.description.trim()) {
                       return toast.warning("Vui lòng mô tả chi tiết");
                     }
+                    if (damageReportModal.selectedItems.length === 0) {
+                      return toast.warning(
+                        "Vui lòng chọn ít nhất một serial hoặc sản phẩm"
+                      );
+                    }
+
+                    // DEBUG: In ra selectedItems và mapping với item
+                    console.log(
+                      "Selected deviceItemIds trước khi gửi:",
+                      damageReportModal.selectedItems
+                    );
+
+                    damageReportModal.order?.items?.forEach((item) => {
+                      console.log(
+                        "Item:",
+                        item._id,
+                        "deviceItemIds:",
+                        item.deviceItemIds
+                      );
+                      console.log("Serials:", item.serialNumbers);
+                    });
 
                     try {
                       const formData = new FormData();
-
                       formData.append("rentalId", damageReportModal.rentalId);
 
-                      // Vì backend yêu cầu SINGLE rentalItemId → chỉ lấy item đầu tiên (hoặc sửa backend nếu muốn multiple)
-                      if (damageReportModal.selectedItems.length === 0) {
-                        return toast.warning(
-                          "Vui lòng chọn ít nhất một thiết bị"
-                        );
+                      // Chỉ gửi deviceItemIds (string)
+                      damageReportModal.selectedItems.forEach((id) => {
+                        formData.append("deviceItemIds[]", id.toString()); // đảm bảo string
+                      });
+
+                      // Tìm rentalItemId đúng (từ item có serial được chọn)
+                      let rentalItemIdToSend = "";
+                      let foundItem = null;
+                      for (const item of damageReportModal.order?.items || []) {
+                        if (
+                          item.deviceItemIds?.some((devId) =>
+                            damageReportModal.selectedItems.includes(
+                              devId.toString()
+                            )
+                          )
+                        ) {
+                          foundItem = item;
+                          rentalItemIdToSend = item._id.toString();
+                          break; // Lấy item đầu tiên có serial khớp
+                        }
                       }
-                      formData.append(
-                        "rentalItemId",
+
+                      if (
+                        !rentalItemIdToSend &&
                         damageReportModal.selectedItems[0]
-                      ); // SINGLE
-
-                      // Lấy deviceId từ order.items (phải có order trong state)
-                      const selectedItem = damageReportModal.order?.items?.find(
-                        (it) => it._id === damageReportModal.selectedItems[0]
-                      );
-
-                      if (!selectedItem?.deviceId?._id) {
-                        return toast.error("Không tìm thấy thông tin thiết bị");
+                      ) {
+                        // Fallback nếu chọn item không serial
+                        rentalItemIdToSend = damageReportModal.selectedItems[0];
                       }
-                      formData.append("deviceId", selectedItem.deviceId._id);
+
+                      formData.append("rentalItemId", rentalItemIdToSend);
+
+                      // deviceId
+                      if (foundItem?.deviceId?._id) {
+                        formData.append("deviceId", foundItem.deviceId._id);
+                      }
 
                       formData.append(
                         "description",
                         damageReportModal.description
                       );
                       formData.append("severity", damageReportModal.severity);
+                      damageReportModal.files.forEach((file) =>
+                        formData.append("images", file)
+                      );
 
-                      damageReportModal.files.forEach((file) => {
-                        formData.append("images", file);
-                      });
+                      // Log FormData
+                      console.log("FormData gửi đi:");
+                      for (let [key, value] of formData.entries()) {
+                        console.log(`${key}: ${value}`);
+                      }
 
-                      await rentalService.reportDamage(formData);
+                      const res = await rentalService.reportDamage(formData);
+                      console.log("Response thành công:", res);
+
                       toast.success("Báo cáo sự cố thành công!");
-                      fetchRentals(); // refresh danh sách
+                      fetchRentals();
                       setDamageReportModal({
                         isOpen: false,
                         rentalId: null,
@@ -2414,6 +2620,11 @@ export default function MyRentals() {
                         order: null,
                       });
                     } catch (err) {
+                      console.error("Lỗi gửi damage report:", {
+                        message: err.message,
+                        response: err.response?.data,
+                        status: err.response?.status,
+                      });
                       toast.error(
                         err.response?.data?.message || "Gửi báo cáo thất bại"
                       );
