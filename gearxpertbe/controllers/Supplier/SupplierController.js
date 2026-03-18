@@ -113,7 +113,7 @@ exports.updateSupplierProfile = async (req, res) => {
     });
 
     // Xử lý warehouseAddress dạng dot-notation (warehouseAddress.street, ...)
-    const addressFields = ['street', 'district', 'city', 'fullAddress'];
+    const addressFields = ['street', 'district', 'city', 'fullAddress', 'lat', 'lng'];
     const hasAddressDotKeys = addressFields.some(
       (f) => req.body[`warehouseAddress.${f}`] !== undefined
     );
@@ -679,5 +679,57 @@ exports.notifyFollowers = async (supplierId, notifyField, type, title, message, 
     }
   } catch (err) {
     console.error("notifyFollowers error:", err);
+  }
+};
+exports.getPublicSuppliers = async (req, res) => {
+  try {
+    const { search, district } = req.query;
+
+    // 1. Chỉ lấy danh sách trực tiếp từ SupplierProfile
+    const profileQuery = {
+      status: 'ACTIVE' 
+    };
+
+    if (district) {
+      profileQuery['warehouseAddress.district'] = { $regex: district, $options: 'i' };
+    }
+
+    if (search) {
+      profileQuery.$or = [
+        { businessName: { $regex: search, $options: 'i' } },
+        { businessDescription: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const profiles = await SupplierProfile.find(profileQuery)
+      .populate('userId', 'fullName avatar email phone')
+      .select('businessName businessDescription businessAvatar warehouseAddress supplierRating supplierReviewCount userId status')
+      .sort({ supplierRating: -1 })
+      .lean();
+
+    // 2. Tính toán số lượng thiết bị đang AVAILABLE cho mỗi Shop
+    const finalData = await Promise.all(profiles.map(async (profile) => {
+      const deviceCount = await Device.countDocuments({
+        supplierId: profile.userId._id,
+        status: "AVAILABLE"
+      });
+      
+      return {
+        ...profile,
+        deviceCount: deviceCount
+      };
+    }));
+
+    return res.status(200).json({
+      success: true,
+      data: finalData
+    });
+
+  } catch (error) {
+    console.error("getPublicSuppliers internal error:", error);
+    return res.status(500).json({ 
+      success: false, 
+      message: "Lỗi hệ thống khi tải danh sách đối tác" 
+    });
   }
 };

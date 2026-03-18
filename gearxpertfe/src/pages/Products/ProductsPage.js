@@ -4,8 +4,8 @@ import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
 import ProductCard from "../../components/common/ProductCard";
 
-// Headless UI cho modal
-import { Dialog, Transition } from "@headlessui/react";
+// Headless UI cho modal & dropdown
+import { Dialog, Transition, Popover } from "@headlessui/react";
 import { Fragment } from "react";
 
 export default function ProductsPage() {
@@ -15,6 +15,7 @@ export default function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("featured");
+  const [priceRange, setPriceRange] = useState([0, 10000000]);
 
   // Compare states
   const [selectedForCompare, setSelectedForCompare] = useState([]); // max 2 _id
@@ -44,6 +45,8 @@ export default function ProductsPage() {
       CAMERA: "camera",
       LIGHTING: "lighting",
       AUDIO: "audio",
+      OFFICE: "office",
+      GAMING: "gaming",
       ACCESSORY: "gimbal",
       DRONE: "drone",
       OTHER: "gear",
@@ -56,11 +59,13 @@ export default function ProductsPage() {
 
   const categories = [
     { name: "All Gear", id: null, icon: "grid_view" },
-    { name: "Cinematography", id: "CAMERA", icon: "videocam" },
-    { name: "Lighting Kits", id: "LIGHTING", icon: "lightbulb" },
-    { name: "Audio Gear", id: "AUDIO", icon: "mic" },
-    { name: "Gimbal & Grip", id: "ACCESSORY", icon: "handyman" },
-    { name: "Aerial / Drones", id: "DRONE", icon: "flight" },
+    { name: "Camera", id: "CAMERA", icon: "videocam" },
+    { name: "Lighting", id: "LIGHTING", icon: "lightbulb" },
+    { name: "Audio", id: "AUDIO", icon: "mic" },
+    { name: "Office", id: "OFFICE", icon: "business_center" },
+    { name: "Gaming", id: "GAMING", icon: "sports_esports" },
+    { name: "Accessories", id: "ACCESSORY", icon: "handyman" },
+    { name: "Drone", id: "DRONE", icon: "flight" },
     { name: "Other", id: "OTHER", icon: "category" },
   ];
 
@@ -91,6 +96,13 @@ export default function ProductsPage() {
       );
     }
 
+    // Price Filter
+    result = result.filter(
+      (device) =>
+        (device.rentPrice?.perDay || 0) >= priceRange[0] &&
+        (device.rentPrice?.perDay || 0) <= priceRange[1]
+    );
+
     switch (sortBy) {
       case "price_asc":
         result.sort((a, b) => (a.rentPrice?.perDay || 0) - (b.rentPrice?.perDay || 0));
@@ -106,7 +118,7 @@ export default function ProductsPage() {
     }
 
     setFilteredDevices(result);
-  }, [devices, searchQuery, sortBy]);
+  }, [devices, searchQuery, sortBy, priceRange]);
 
   useEffect(() => {
     fetchDevices();
@@ -124,7 +136,7 @@ export default function ProductsPage() {
       }, 1500); // 1.5s delay to avoid tracking every keystroke
       return () => clearTimeout(timer);
     }
-  }, [applyFiltersAndSort, searchQuery]);
+  }, [applyFiltersAndSort, searchQuery, priceRange]);
 
   // Compare logic
   const handleToggleCompare = (device) => {
@@ -248,31 +260,155 @@ export default function ProductsPage() {
             <aside className="w-full lg:w-72 flex-shrink-0">
               <div className="bg-white/80 backdrop-blur-xl rounded-[24px] p-6 shadow-xl border border-white/60 sticky top-24">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Filter By Category</h3>
-                <div className="space-y-2">
-                  {categories.map((cat) => (
-                    <button
-                      key={cat.name}
-                      onClick={() => setSelectedCategory(cat.id)}
-                      className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all text-left relative overflow-hidden group ${selectedCategory === cat.id
-                        ? "bg-slate-900 text-white shadow-lg shadow-indigo-200/50"
-                        : "text-slate-600 hover:bg-white hover:shadow-md hover:text-indigo-600"
-                        }`}
-                    >
-                      <span
-                        className={`material-symbols-outlined text-[20px] transition-colors ${selectedCategory === cat.id ? "text-accent-cyan" : "text-slate-400 group-hover:text-indigo-500"
-                          }`}
-                      >
-                        {cat.icon}
+                
+                <Popover as="div" className="relative">
+                  <Popover.Button className="w-full flex items-center justify-between gap-3 px-5 py-4 rounded-2xl bg-slate-900 shadow-xl shadow-slate-200/50 text-white transition-all hover:bg-slate-800">
+                    <div className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-accent-cyan text-[22px]">
+                        {categories.find(c => c.id === selectedCategory)?.icon || "grid_view"}
                       </span>
-                      <span className="font-bold text-sm tracking-tight">{cat.name}</span>
-                      {selectedCategory === cat.id && (
-                        <div className="absolute right-4 w-2 h-2 rounded-full bg-accent-cyan shadow-[0_0_10px_rgba(34,211,238,0.8)]"></div>
-                      )}
-                    </button>
-                  ))}
+                      <span className="font-bold tracking-tight">
+                        {categories.find(c => c.id === selectedCategory)?.name || "All Gear"}
+                      </span>
+                    </div>
+                    <span className="material-symbols-outlined text-slate-400">unfold_more</span>
+                  </Popover.Button>
+
+                  <Transition
+                    as={Fragment}
+                    enter="transition ease-out duration-100"
+                    enterFrom="transform opacity-0 scale-95"
+                    enterTo="transform opacity-100 scale-100"
+                    leave="transition ease-in duration-75"
+                    leaveFrom="transform opacity-100 scale-100"
+                    leaveTo="transform opacity-0 scale-95"
+                  >
+                    <Popover.Panel className="absolute left-0 right-0 mt-3 p-2 origin-top rounded-2xl bg-white border border-slate-100 shadow-2xl focus:outline-none z-50 max-h-[70vh] overflow-y-auto">
+                        {({ close }) => (
+                          <div className="space-y-1">
+                            {categories.map((cat) => (
+                              <div key={cat.name}>
+                                <button
+                                  onClick={() => {
+                                    setSelectedCategory(cat.id);
+                                    close();
+                                  }}
+                                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left ${
+                                    selectedCategory === cat.id
+                                      ? "bg-slate-100 text-slate-900 font-bold"
+                                      : "hover:bg-slate-50 text-slate-600 hover:text-indigo-600"
+                                  }`}
+                                >
+                                  <span className={`material-symbols-outlined text-[20px] ${
+                                    selectedCategory === cat.id ? "text-accent-cyan" : "text-slate-400"
+                                  }`}>
+                                    {cat.icon}
+                                  </span>
+                                  <span className="text-sm">{cat.name}</span>
+                                  {selectedCategory === cat.id && (
+                                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-accent-cyan"></div>
+                                  )}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                    </Popover.Panel>
+                  </Transition>
+                </Popover>
+
+                <div className="mt-10 border-t border-slate-100 pt-8">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Price Range</h3>
+                    <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">VND / Day</span>
+                  </div>
+                  
+                  <div className="px-2">
+                    <div className="relative h-2 w-full bg-slate-100 rounded-full mb-8">
+                      {/* Track highlight */}
+                      <div 
+                        className="absolute h-full bg-indigo-500 rounded-full transition-all duration-75"
+                        style={{
+                          left: `${(priceRange[0] / 10000000) * 100}%`,
+                          right: `${100 - (priceRange[1] / 10000000) * 100}%`
+                        }}
+                      />
+                      
+                      <input
+                        type="range"
+                        min="0"
+                        max="10000000"
+                        step="100000"
+                        value={priceRange[0]}
+                        onChange={(e) => {
+                          const val = Math.min(Number(e.target.value), priceRange[1] - 500000);
+                          setPriceRange([val, priceRange[1]]);
+                        }}
+                        className="absolute w-full h-2 bg-transparent appearance-none pointer-events-none cursor-pointer z-30 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-indigo-600 [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:active:cursor-grabbing"
+                      />
+                      <input
+                        type="range"
+                        min="0"
+                        max="10000000"
+                        step="100000"
+                        value={priceRange[1]}
+                        onChange={(e) => {
+                          const val = Math.max(Number(e.target.value), priceRange[0] + 500000);
+                          setPriceRange([priceRange[0], val]);
+                        }}
+                        className="absolute w-full h-2 bg-transparent appearance-none pointer-events-none cursor-pointer z-30 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-indigo-600 [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:active:cursor-grabbing"
+                      />
+                    </div>
+                    
+                    <div className="flex justify-between items-center gap-4">
+                      <div className="flex-1">
+                        <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Min Price</p>
+                        <div className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700">
+                          {priceRange[0].toLocaleString('vi-VN')}đ
+                        </div>
+                      </div>
+                      <div className="flex-1 text-right">
+                        <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Max Price</p>
+                        <div className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700">
+                          {priceRange[1].toLocaleString('vi-VN')}đ
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="mt-8 p-6 bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl text-white relative overflow-hidden">
+                <div className="mt-10 border-t border-slate-100 pt-8">
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Sort By</h3>
+                  <div className="grid grid-cols-1 gap-2">
+                    {[
+                      { id: "featured", label: "Featured", icon: "auto_awesome" },
+                      { id: "newest", label: "Newest Arrivals", icon: "new_releases" },
+                      { id: "price_asc", label: "Price: Low to High", icon: "trending_up" },
+                      { id: "price_desc", label: "Price: High to Low", icon: "trending_down" },
+                    ].map((option) => (
+                      <button
+                        key={option.id}
+                        onClick={() => setSortBy(option.id)}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left text-sm ${
+                          sortBy === option.id
+                            ? "bg-indigo-50 text-indigo-700 font-bold border border-indigo-100"
+                            : "text-slate-600 hover:bg-slate-50 border border-transparent"
+                        }`}
+                      >
+                        <span className={`material-symbols-outlined text-[18px] ${
+                          sortBy === option.id ? "text-indigo-600" : "text-slate-400"
+                        }`}>
+                          {option.icon}
+                        </span>
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+
+
+                <div className="mt-10 p-6 bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl text-white relative overflow-hidden">
                   <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
                   <h4 className="font-bold font-display text-lg mb-2 relative z-10">Need a Bundle?</h4>
                   <p className="text-xs text-indigo-100 mb-4 relative z-10 leading-relaxed">Get 15% off when you rent a complete camera kit.</p>
@@ -291,62 +427,42 @@ export default function ProductsPage() {
                   Showing <span className="text-slate-900">{filteredDevices.length}</span> results
                 </h2>
 
-                <div className="flex items-center gap-3 flex-wrap">
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-slate-500">Sort by:</span>
-                    <div className="relative">
-                      <select
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value)}
-                        className="appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-bold py-2.5 pl-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer shadow-sm hover:border-indigo-300 transition-colors"
-                      >
-                        <option value="featured">Featured</option>
-                        <option value="newest">Newest Arrivals</option>
-                        <option value="price_asc">Price: Low to High</option>
-                        <option value="price_desc">Price: High to Low</option>
-                      </select>
-                      <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[18px]">
-                        expand_more
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    {selectedForCompare.length > 0 && (
-                      <div className="flex gap-2">
-                        {selectedForCompare.map((id) => {
-                          const dev = devices.find((d) => d._id === id);
-                          return dev ? (
-                            <div
-                              key={id}
-                              className="bg-indigo-100 px-3 py-1 rounded-full text-sm flex items-center gap-2 shadow-sm"
+                <div className="flex items-center gap-4">
+                  {selectedForCompare.length > 0 && (
+                    <div className="flex gap-2">
+                      {selectedForCompare.map((id) => {
+                        const dev = devices.find((d) => d._id === id);
+                        return dev ? (
+                          <div
+                            key={id}
+                            className="bg-indigo-100 px-3 py-1 rounded-full text-xs flex items-center gap-2 shadow-sm border border-indigo-200"
+                          >
+                            <span className="font-semibold text-indigo-700 truncate max-w-[120px]">{dev.name}</span>
+                            <button
+                              onClick={() => handleToggleCompare(dev)}
+                              className="text-red-500 hover:text-red-700 font-bold text-lg leading-none"
                             >
-                              <span className="font-medium truncate max-w-[140px]">{dev.name}</span>
-                              <button
-                                onClick={() => handleToggleCompare(dev)}
-                                className="text-red-600 hover:text-red-800 text-lg leading-none"
-                              >
-                                ×
-                              </button>
-                            </div>
-                          ) : null;
-                        })}
-                      </div>
-                    )}
+                              ×
+                            </button>
+                          </div>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
 
+                  <div className="flex flex-col items-end">
                     <button
                       onClick={fetchCompareData}
                       disabled={selectedForCompare.length !== 2 || loadingCompare}
-                      className={`px-6 py-2.5 rounded-xl font-bold text-white transition-colors ${
+                      className={`px-8 py-2.5 rounded-xl font-extrabold text-white transition-all transform active:scale-95 shadow-md ${
                         selectedForCompare.length === 2 && !loadingCompare
-                          ? "bg-indigo-600 hover:bg-indigo-700"
-                          : "bg-indigo-400 cursor-not-allowed"
+                          ? "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200"
+                          : "bg-slate-300 cursor-not-allowed"
                       }`}
                     >
-                      {loadingCompare ? "Loading..." : "Compare"}
+                      {loadingCompare ? "Loading..." : "Compare Gear"}
                     </button>
-
-                    {compareError && <p className="text-red-600 text-sm">{compareError}</p>}
+                    {compareError && <p className="text-red-600 text-[10px] mt-1 font-bold">{compareError}</p>}
                   </div>
                 </div>
               </div>
@@ -430,6 +546,7 @@ export default function ProductsPage() {
                       onClick={() => {
                         setSearchQuery("");
                         setSelectedCategory(null);
+                        setPriceRange([0, 10000000]);
                       }}
                       className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-primary transition-colors cursor-pointer"
                     >
