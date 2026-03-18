@@ -8,27 +8,30 @@ const rentalItemSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+
     deviceId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Device",
       required: true,
       index: true,
     },
-    deviceItemId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "DeviceItem",
-      required: true,
-      index: true,
-    },
 
-    // Snapshot tại thời điểm tạo
+    // Mảng các DeviceItem được allocate cho item này (thay vì chỉ 1 deviceItemId)
+    deviceItemIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "DeviceItem",
+        required: true,
+      },
+    ],
+
+    // Snapshot chung cho loại thiết bị (không cần serial vì có mảng deviceItemIds)
     deviceSnapshot: {
       name: String,
-      serialNumber: String,
       images: [String],
     },
 
-    quantity: { type: Number, default: 1, min: 1 },
+    quantity: { type: Number, required: true, min: 1 }, // số lượng thực tế từ giỏ hàng
 
     rentalStartDate: { type: Date, required: true },
     rentalEndDate: { type: Date, required: true },
@@ -36,8 +39,8 @@ const rentalItemSchema = new mongoose.Schema(
 
     isAddon: { type: Boolean, default: false },
 
-    rentPrice: { type: Number, required: true },
-    depositAmount: { type: Number, required: true },
+    rentPrice: { type: Number, required: true }, // giá thuê cho 1 chiếc
+    depositAmount: { type: Number, required: true }, // cọc cho 1 chiếc
 
     status: {
       type: String,
@@ -78,6 +81,7 @@ const rentalItemSchema = new mongoose.Schema(
   }
 );
 
+// Virtuals báo cáo vẫn dùng _id của RentalItem (1 RentalItem đại diện cho cả lô)
 rentalItemSchema.virtual("deliveryIssues", {
   ref: "DeliveryIssueReport",
   localField: "_id",
@@ -92,7 +96,7 @@ rentalItemSchema.virtual("damageReports", {
   justOne: false,
 });
 
-// Ngăn duplicate item trong cùng rental
-rentalItemSchema.index({ rentalId: 1, deviceItemId: 1 }, { unique: true });
+// Index chống duplicate cùng rental + deviceId (vì gộp theo deviceId)
+rentalItemSchema.index({ rentalId: 1, deviceId: 1 }, { unique: true });
 
 module.exports = mongoose.model("RentalItem", rentalItemSchema);

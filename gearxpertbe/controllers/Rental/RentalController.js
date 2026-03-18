@@ -45,6 +45,7 @@ const sendRentalNotification = async (
     type: "ORDER",
   });
 };
+
 exports.checkoutRental = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -84,7 +85,6 @@ exports.checkoutRental = async (req, res) => {
       const device = item.deviceId;
       if (!device) throw new Error("Thiết bị không tồn tại");
 
-      // Kiểm tra khả dụng thực tế từ DeviceItem (thay vì stockQuantity)
       const availableCount = await DeviceItem.countDocuments({
         deviceId: device._id,
         status: "AVAILABLE",
@@ -154,12 +154,11 @@ exports.checkoutRental = async (req, res) => {
           voucherDiscount = Math.round(
             (group.rentPriceTotal * appliedVoucher.discountValue) / 100
           );
-          if (appliedVoucher.maxDiscount) {
+          if (appliedVoucher.maxDiscount)
             voucherDiscount = Math.min(
               voucherDiscount,
               appliedVoucher.maxDiscount
             );
-          }
         } else if (appliedVoucher.discountType === "FIXED") {
           voucherDiscount = Math.min(
             appliedVoucher.discountValue,
@@ -189,7 +188,7 @@ exports.checkoutRental = async (req, res) => {
       grandTotalAmount += totalAmount;
     }
 
-    // 5. Allocate DeviceItem (thay cho trừ stock)
+    // 5. Allocate DeviceItem
     const allocatedData = [];
     for (const data of rentalCreationData) {
       const allocatedItems = [];
@@ -212,9 +211,8 @@ exports.checkoutRental = async (req, res) => {
       const wallet = await Wallet.findOne({ user: customerId }).session(
         session
       );
-      if (!wallet || wallet.balance < grandTotalAmount) {
+      if (!wallet || wallet.balance < grandTotalAmount)
         throw new Error("Số dư ví không đủ");
-      }
 
       const balanceBefore = wallet.balance;
       wallet.balance -= grandTotalAmount;
@@ -248,15 +246,14 @@ exports.checkoutRental = async (req, res) => {
           { $inc: { usedCount: 1 } },
           { session }
         );
-        if (updated.modifiedCount === 0) {
+        if (updated.modifiedCount === 0)
           throw new Error(
             "Mã giảm giá đã hết lượt sử dụng ngay lúc thanh toán"
           );
-        }
       }
     }
 
-    // 7. Tạo Rentals & RentalItems
+    // 7. Tạo Rentals & RentalItems (gộp theo deviceId)
     const createdRentals = [];
     for (const data of allocatedData) {
       const rentalData = {
@@ -287,19 +284,17 @@ exports.checkoutRental = async (req, res) => {
 
       const rentalItemsData = [];
       for (const item of data.items) {
-        item.deviceItemIds.forEach((deviceItemId) => {
-          rentalItemsData.push({
-            rentalId: rental._id,
-            deviceItemId,
-            deviceId: item.deviceId,
-            quantity: 1,
-            rentalStartDate: item.rentalStartDate,
-            rentalEndDate: item.rentalEndDate,
-            totalDays: item.totalDays,
-            rentPrice: item.rentPrice / item.quantity,
-            depositAmount: item.depositAmount / item.quantity,
-            isAddon: false,
-          });
+        rentalItemsData.push({
+          rentalId: rental._id,
+          deviceId: item.deviceId,
+          deviceItemIds: item.deviceItemIds, // mảng IDs
+          quantity: item.quantity,
+          rentalStartDate: item.rentalStartDate,
+          rentalEndDate: item.rentalEndDate,
+          totalDays: item.totalDays,
+          rentPrice: item.rentPrice / item.quantity, // giá 1 chiếc
+          depositAmount: item.depositAmount / item.quantity,
+          isAddon: false,
         });
       }
 
@@ -338,7 +333,7 @@ exports.checkoutRental = async (req, res) => {
       await cart.save({ session });
     }
 
-    /* ================= 9. PAYOS (BANK) ================= */
+    // 10. PayOS cho BANK
     let paymentLink = null;
     if (paymentMethod === "BANK") {
       const orderCode = Number(String(Date.now()).slice(-9));
@@ -379,7 +374,7 @@ exports.checkoutRental = async (req, res) => {
   }
 };
 
-// Helper function (thêm vào file, có thể đặt ngoài exports)
+// Helper allocate (giữ nguyên)
 async function allocateDeviceItems(deviceId, quantity, session) {
   const items = await DeviceItem.find({
     deviceId,
@@ -544,7 +539,6 @@ exports.getMyRentals = async (req, res) => {
   try {
     const customerId = req.user.id;
 
-    // 1. Lấy danh sách Rental cơ bản (không populate items ngay để tránh strict error)
     let rentals = await Rental.find({ customerId })
       .sort({ createdAt: -1 })
       .populate({
@@ -552,12 +546,10 @@ exports.getMyRentals = async (req, res) => {
         match: { status: "PENDING" },
         select: "requestedEndDate requestedDays proposedExtraAmount status",
       })
-      .lean(); // lean để response nhanh
+      .lean();
 
-    // 2. Populate items + deviceId + deviceItemId + reports thủ công
     rentals = await Promise.all(
       rentals.map(async (rental) => {
-        // Lấy tất cả RentalItem của rental này
         const rentalItems = await RentalItem.find({ rentalId: rental._id })
           .populate([
             {
@@ -569,19 +561,19 @@ exports.getMyRentals = async (req, res) => {
               },
             },
             {
-              path: "deviceItemId",
+              path: "deviceItemIds", // populate mảng deviceItemIds
               select:
                 "serialNumber internalCode condition status location images lastMaintenance nextMaintenanceDue",
             },
           ])
           .lean();
 
-        // Thêm deliveryIssues và damageReports cho từng RentalItem
+        // Thêm reports cho từng RentalItem
         const itemsWithReports = await Promise.all(
           rentalItems.map(async (item) => {
             const deliveryIssues = await mongoose
               .model("DeliveryIssueReport")
-              .find({ rentalItemIds: item._id })
+              .find({ rentalItemId: item._id })
               .sort({ createdAt: -1 })
               .select(
                 "issueType description status images resolvedNote createdAt updatedAt"
@@ -601,11 +593,14 @@ exports.getMyRentals = async (req, res) => {
               ...item,
               deliveryIssues,
               damageReports,
+              // Thêm danh sách serial để frontend hiển thị
+              serialNumbers:
+                item.deviceItemIds?.map((d) => d.serialNumber) || [],
+              conditions: item.deviceItemIds?.map((d) => d.condition) || [],
             };
           })
         );
 
-        // Trả về rental với items đã đầy đủ
         return {
           ...rental,
           items: itemsWithReports,
