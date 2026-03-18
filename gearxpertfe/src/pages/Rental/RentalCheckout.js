@@ -1,4 +1,10 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import {
   CreditCard,
   Wallet,
@@ -12,18 +18,21 @@ import {
   PackageCheck,
   Store,
   User,
+  Eye,
+  FileSignature,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import SignatureCanvas from "react-signature-canvas";
 
 import { getCart, removeCartItem } from "../../service/ApiService/CartApi";
 import {
   validateVoucher,
   getAllVouchers,
 } from "../../service/ApiService/VoucherApi.js";
-import { checkout } from "../../service/ApiService/RentalApi";
+import { checkout, previewContract } from "../../service/ApiService/RentalApi";
 import { getMyWallet } from "../../service/ApiService/WalletApi";
 
 // --- MAP IMPORTS ---
@@ -67,6 +76,7 @@ export default function CheckoutPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const CART_TYPE = location.state?.cartType || "NORMAL";
+
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
   const [address, setAddress] = useState({
@@ -78,7 +88,6 @@ export default function CheckoutPage() {
   });
   const [phoneNumber, setPhoneNumber] = useState("");
   const [notes, setNotes] = useState("");
-  const [useInsurance, setUseInsurance] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState("BANK");
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -100,11 +109,18 @@ export default function CheckoutPage() {
 
   const [wallet, setWallet] = useState(null);
 
+  // === CHỮ KÝ ĐIỆN TỬ ===
+  const sigCanvas = useRef(null);
+  const [signatureDataUrl, setSignatureDataUrl] = useState(null);
+
+  // === XEM TRƯỚC HỢP ĐỒNG ===
+  const [previewPdfUrl, setPreviewPdfUrl] = useState(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+
   const { street, district, city } = address;
 
   useEffect(() => {
     const full = [street, district, city].filter(Boolean).join(", ");
-
     setAddress((prev) => {
       if (prev.fullAddress === full) return prev;
       return { ...prev, fullAddress: full };
@@ -122,6 +138,7 @@ export default function CheckoutPage() {
       setLoading(false);
     }
   }, [CART_TYPE]);
+
   const fillDefaultUserInfo = () => {
     if (!account || !account.username) {
       toast.warning("Chưa có thông tin người dùng. Vui lòng đăng nhập lại.");
@@ -129,7 +146,7 @@ export default function CheckoutPage() {
     }
 
     setAddress({
-      receiverName: account.username || "", // ← sửa: dùng username thay vì fullName
+      receiverName: account.username || "",
       street: account.address?.street || "",
       district: account.address?.district || "",
       city: account.address?.city || "Đà Nẵng",
@@ -140,6 +157,7 @@ export default function CheckoutPage() {
 
     toast.success("Đã điền thông tin mặc định từ tài khoản của bạn!");
   };
+
   const fetchWalletData = useCallback(async () => {
     try {
       const res = await getMyWallet();
@@ -268,7 +286,8 @@ export default function CheckoutPage() {
         setVoucherCode(voucherData.code);
 
         toast.success(
-          `Đã tự động áp dụng mã ${voucherData.code
+          `Đã áp dụng mã ${
+            voucherData.code
           }! Giảm ${voucherData.discount.toLocaleString()}đ`
         );
       } catch (err) {
@@ -285,20 +304,16 @@ export default function CheckoutPage() {
     [CART_TYPE, voucherCode]
   );
 
-  // --- GROUP BY SUPPLIER FOR DISPLAY (đẹp hơn) ---
-  // --- GROUP BY SUPPLIER FOR DISPLAY ---
   const groupedBySupplier = useMemo(() => {
     const map = new Map();
 
     cart.forEach((item) => {
-      // Lấy supplierId từ object populated (_id là string)
       const supplierId = item.deviceId?.supplierId?._id;
       if (!supplierId) return;
 
       if (!map.has(supplierId)) {
         map.set(supplierId, {
           supplierId,
-          // Tên supplier từ fullName (đã populate)
           supplierName:
             item.deviceId?.supplierId?.fullName ||
             `Cửa hàng #${supplierId.slice(-6)}`,
@@ -318,18 +333,18 @@ export default function CheckoutPage() {
     return Array.from(map.values());
   }, [cart]);
 
-  // --- CALCULATION ---
   const subtotal = cart.reduce(
     (sum, item) =>
-      sum + item.deviceId?.rentPrice?.perDay * item.totalDays * item.quantity,
+      sum +
+      (item.deviceId?.rentPrice?.perDay || 0) * item.totalDays * item.quantity,
     0
   );
 
-  // Thêm tính tổng tiền cọc (depositAmount)
   const totalDeposit = cart.reduce(
     (sum, item) => sum + (item.deviceId?.depositAmount || 0) * item.quantity,
     0
   );
+
   const filteredVouchers = useMemo(() => {
     return availableVouchers.filter((v) => {
       if (v.type === "GLOBAL") {
@@ -346,8 +361,6 @@ export default function CheckoutPage() {
     });
   }, [availableVouchers, subtotal, groupedBySupplier]);
 
-  const insuranceFee = useInsurance ? Math.round(subtotal * 0.05) : 0;
-
   // AUTO APPLY BEST VOUCHER
   useEffect(() => {
     if (
@@ -358,7 +371,6 @@ export default function CheckoutPage() {
       !appliedVoucher &&
       !hasAutoApplied
     ) {
-      // Find best voucher
       let bestVoucher = null;
       let maxDiscountVal = 0;
 
@@ -388,7 +400,7 @@ export default function CheckoutPage() {
       });
 
       if (bestVoucher) {
-        setHasAutoApplied(true); // Mark as auto-applied to prevent re-triggering
+        setHasAutoApplied(true);
         handleApplyVoucher(bestVoucher.code);
       }
     }
@@ -404,30 +416,82 @@ export default function CheckoutPage() {
     hasAutoApplied,
     handleApplyVoucher,
   ]);
-  // Phí ship: nếu nhận tại trường thì 0, nếu không thì theo km
+
   const total =
-    subtotal +
-    totalDeposit +
-    deliveryFee +
-    insuranceFee -
-    (appliedVoucher?.discount || 0);
+    subtotal + totalDeposit + deliveryFee - (appliedVoucher?.discount || 0);
+
+  // Xem trước hợp đồng (chưa ký)
+  // Xem trước hợp đồng (chưa ký)
+  const handlePreviewContract = async () => {
+    if (!address.fullAddress || !phoneNumber || !address.receiverName) {
+      return toast.warning(
+        "Vui lòng điền đầy đủ thông tin nhận hàng trước khi xem hợp đồng"
+      );
+    }
+    if (!agreeTerms) {
+      return toast.warning("Bạn cần đồng ý điều khoản trước khi xem hợp đồng");
+    }
+
+    setIsPreviewLoading(true);
+
+    try {
+      const payload = {
+        cartType: CART_TYPE,
+        deliveryAddress: address,
+        phoneNumber,
+        notes,
+        voucherCode: appliedVoucher?.code,
+        shippingFee: deliveryFee,
+        cartItems: cart.map((item) => ({
+          deviceName: item.deviceId?.name || "Thiết bị",
+          quantity: item.quantity,
+          totalDays: item.totalDays,
+          rentPricePerDay: item.deviceId?.rentPrice?.perDay || 0,
+          subtotal:
+            (item.deviceId?.rentPrice?.perDay || 0) *
+            item.totalDays *
+            item.quantity,
+        })),
+        subtotal,
+        totalDeposit,
+        total,
+        currentDate: new Date().toLocaleDateString("vi-VN"),
+        signatureDataUrl: signatureDataUrl, // ← THÊM DÒNG NÀY
+      };
+
+      const blob = await previewContract(payload);
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank");
+
+      toast.success("Đã mở bản xem trước hợp đồng (có chữ ký)!");
+    } catch (err) {
+      toast.error(
+        err.response?.data?.message || "Lỗi khi tạo bản xem trước hợp đồng"
+      );
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  };
 
   const handleCheckout = async () => {
-    if (!address.fullAddress || !phoneNumber)
+    if (!address.fullAddress || !phoneNumber) {
       return toast.warning("Vui lòng điền đủ thông tin nhận hàng");
-    if (!agreeTerms) return toast.warning("Bạn chưa đồng ý điều khoản");
-
-    const phoneRegex = /^(0[3|5|7|8|9])([0-9]{8})$/;
-    if (!phoneRegex.test(phoneNumber)) {
+    }
+    if (!agreeTerms) {
+      return toast.warning("Bạn chưa đồng ý điều khoản");
+    }
+    if (!phoneNumber.match(/^(0[3|5|7|8|9])([0-9]{8})$/)) {
       return toast.error(
         "Số điện thoại không hợp lệ (Phải có 10 số, ví dụ: 0912345678)"
       );
     }
-
     if (selectedPayment === "WALLET") {
       if (!wallet || wallet.balance < total) {
         return toast.error("Số dư ví không đủ để thanh toán đơn hàng này!");
       }
+    }
+    if (!signatureDataUrl) {
+      return toast.error("Vui lòng ký tên điện tử trước khi xác nhận!");
     }
 
     try {
@@ -437,11 +501,16 @@ export default function CheckoutPage() {
         deliveryAddress: address,
         phoneNumber,
         paymentMethod: selectedPayment,
-        useInsurance,
         notes,
         voucherCode: appliedVoucher?.code,
-        shippingFee: deliveryFee, // Gửi phí ship (0 nếu tại trường)
+        shippingFee: deliveryFee,
+        signatureDataUrl,
       });
+
+      if (res.contractPdfUrl) {
+        window.open(res.contractPdfUrl, "_blank");
+        toast.success("Hợp đồng đã được ký và tạo thành công!");
+      }
 
       if (selectedPayment === "BANK" && res.paymentLink) {
         toast.info("Đang chuyển hướng đến trang thanh toán...");
@@ -453,19 +522,16 @@ export default function CheckoutPage() {
     } catch (err) {
       const errData = err.response;
 
-      // Xử lý lỗi EKYC từ backend (403)
       if (err.response?.status === 403 && errData?.code === "EKYC_REQUIRED") {
         toast.error(
           errData.message ||
           "Vui lòng hoàn tất xác thực eKYC trước khi thanh toán",
           { autoClose: false }
         );
-        // Tự động redirect sau 3 giây hoặc có nút bấm
         setTimeout(() => {
           window.location.href = "/profile";
         }, 3000);
       } else {
-        // Các lỗi khác (ví dụ: giỏ hàng trống, số dư không đủ, server error...)
         toast.error(
           errData?.message || "Thanh toán thất bại, vui lòng thử lại"
         );
@@ -514,7 +580,6 @@ export default function CheckoutPage() {
         {/* LEFT: DELIVERY & PAYMENT */}
         <div className="lg:col-span-7 space-y-8">
           <div className="bg-white rounded-[40px] p-10 border border-slate-100 shadow-sm">
-            {/* Header phần thông tin nhận máy + NÚT MỚI */}
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-200">
@@ -525,7 +590,6 @@ export default function CheckoutPage() {
                 </h2>
               </div>
 
-              {/* NÚT SỬ DỤNG THÔNG TIN MẶC ĐỊNH */}
               <button
                 onClick={fillDefaultUserInfo}
                 disabled={!account?.username}
@@ -550,7 +614,7 @@ export default function CheckoutPage() {
                       "Trường Đại học FPT Đà Nẵng, Ngũ Hành Sơn, Đà Nẵng",
                   });
                   setDistance(0);
-                  setDeliveryFee(0); // ← Fix: phí ship = 0đ khi nhận tại trường
+                  setDeliveryFee(0);
                   toast.success("Nhận tại trường - Miễn phí ship 0đ!");
                 }}
                 className="flex items-center justify-center gap-3 bg-slate-50 hover:bg-slate-100 py-4 rounded-2xl border border-slate-200 transition-all font-bold text-slate-700"
@@ -592,6 +656,7 @@ export default function CheckoutPage() {
                   />
                 </div>
               </div>
+
               <div className="space-y-1">
                 <span className="ml-4 text-[10px] font-black text-slate-400 uppercase">
                   Số nhà, tên đường
@@ -631,6 +696,7 @@ export default function CheckoutPage() {
                   )}
                 </div>
               </div>
+
               <div className="space-y-1 mb-4">
                 <span className="ml-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   Tên người nhận máy
@@ -650,6 +716,7 @@ export default function CheckoutPage() {
                   />
                 </div>
               </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="relative">
                   <Phone
@@ -677,7 +744,7 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          {/* Section: Payment Methods */}
+          {/* PHƯƠNG THỨC THANH TOÁN */}
           <div className="bg-white rounded-[40px] p-10 border border-slate-100 shadow-sm">
             <div className="flex items-center gap-4 mb-8">
               <div className="p-3 bg-slate-900 rounded-2xl text-white">
@@ -901,21 +968,8 @@ export default function CheckoutPage() {
                   {deliveryFee.toLocaleString()}đ
                 </span>
               </div>
-              <div className="flex justify-between items-center text-sm font-bold text-slate-400 uppercase tracking-tighter">
-                <label className="flex items-center gap-3 cursor-pointer text-slate-500 hover:text-indigo-600 transition-colors">
-                  <input
-                    type="checkbox"
-                    className="w-5 h-5 rounded-lg border-slate-200 text-indigo-600 focus:ring-indigo-500 transition-all"
-                    checked={useInsurance}
-                    onChange={(e) => setUseInsurance(e.target.checked)}
-                  />
-                  Phí bảo hiểm thiết bị (5%)
-                </label>
-                <span className="text-slate-600">
-                  {insuranceFee.toLocaleString()}đ
-                </span>
-              </div>
 
+              {/* VOUCHER SECTION */}
               <div className="flex gap-2 py-4">
                 <div className="relative flex-1 group">
                   <Ticket
@@ -933,7 +987,6 @@ export default function CheckoutPage() {
                     }
                   />
 
-                  {/* VOUCHER DROPDOWN */}
                   {showVoucherDropdown && filteredVouchers.length > 0 && (
                     <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-3xl shadow-2xl border border-slate-100 z-[70] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300 max-h-[300px] overflow-y-auto scrollbar-hide">
                       <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
@@ -1004,6 +1057,7 @@ export default function CheckoutPage() {
                   {isApplyingVoucher ? "..." : "Áp dụng"}
                 </button>
               </div>
+
               {appliedVoucher && (
                 <div className="flex justify-between items-center bg-emerald-50 text-emerald-700 p-4 rounded-2xl border border-emerald-200 animate-in slide-in-from-top-2">
                   <div className="flex items-center gap-3">
@@ -1049,6 +1103,77 @@ export default function CheckoutPage() {
               </div>
             </div>
 
+            {/* === PHẦN CHỮ KÝ (sử dụng react-signature-canvas - vẽ được ngay) === */}
+            <div className="mt-8 bg-slate-50 rounded-[32px] p-6 border border-slate-200 shadow-inner">
+              <label className="block text-lg font-black text-slate-900 mb-4">
+                Chữ ký điện tử của bạn (vẽ bằng chuột hoặc ngón tay)
+              </label>
+              <div className="border-2 border-slate-300 rounded-2xl overflow-hidden bg-white">
+                <SignatureCanvas
+                  ref={sigCanvas}
+                  penColor="black"
+                  canvasProps={{
+                    width: 500,
+                    height: 180,
+                    className: "w-full touch-none cursor-crosshair",
+                  }}
+                />
+              </div>
+              <div className="mt-3 flex gap-4 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (sigCanvas.current) {
+                      sigCanvas.current.clear();
+                      setSignatureDataUrl(null);
+                    }
+                  }}
+                  className="px-6 py-2.5 bg-red-100 text-red-700 rounded-xl font-bold hover:bg-red-200 transition-colors"
+                >
+                  Xóa chữ ký
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
+                      let canvasToUse;
+                      try {
+                        canvasToUse = sigCanvas.current.getTrimmedCanvas();
+                      } catch (err) {
+                        console.warn(
+                          "getTrimmedCanvas failed, fallback to full canvas:",
+                          err
+                        );
+                        canvasToUse = sigCanvas.current.getCanvas();
+                      }
+                      const dataUrl = canvasToUse.toDataURL("image/png");
+                      setSignatureDataUrl(dataUrl);
+                      toast.success("Đã lưu chữ ký thành công!");
+                    } else {
+                      toast.warning("Vui lòng vẽ chữ ký trước khi xác nhận!");
+                    }
+                  }}
+                  className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors"
+                >
+                  Xác nhận chữ ký
+                </button>
+              </div>
+
+              {signatureDataUrl && (
+                <div className="mt-5 text-center">
+                  <p className="text-sm font-bold text-emerald-700 mb-2">
+                    Chữ ký đã ký:
+                  </p>
+                  <img
+                    src={signatureDataUrl}
+                    alt="Chữ ký điện tử của bạn"
+                    className="border border-slate-300 rounded-xl max-w-full h-auto mx-auto shadow-sm"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Điều khoản */}
             <label className="flex items-center gap-4 mt-8 p-5 bg-slate-50 rounded-[24px] cursor-pointer group hover:bg-slate-100 transition-all">
               <input
                 type="checkbox"
@@ -1069,27 +1194,56 @@ export default function CheckoutPage() {
               </span>
             </label>
 
-            <button
-              disabled={isProcessing || cart.length === 0}
-              onClick={handleCheckout}
-              className="w-full mt-6 bg-slate-900 text-white py-6 rounded-[28px] font-black text-xl uppercase tracking-widest hover:bg-indigo-600 hover:-translate-y-1 transition-all shadow-2xl shadow-indigo-200 active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-3"
-            >
-              {isProcessing ? (
-                <>
-                  <div className="w-5 h-5 border-4 border-white/30 border-t-white rounded-full animate-spin" />{" "}
-                  Đang tạo đơn...
-                </>
-              ) : (
-                <>
-                  <PackageCheck size={24} /> Xác nhận thuê ngay
-                </>
-              )}
-            </button>
+            {/* === NÚT XEM TRƯỚC & XÁC NHẬN === */}
+            <div className="mt-6 flex flex-col gap-4">
+              <button
+                onClick={handlePreviewContract}
+                disabled={
+                  isPreviewLoading ||
+                  isProcessing ||
+                  !address.fullAddress ||
+                  !phoneNumber ||
+                  !address.receiverName ||
+                  !agreeTerms
+                }
+                className="w-full bg-indigo-600 text-white py-5 rounded-[28px] font-black text-xl uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-3"
+              >
+                {isPreviewLoading ? (
+                  <>
+                    <div className="w-5 h-5 border-4 border-white/30 border-t-white rounded-full animate-spin" />
+                    Đang tạo bản xem trước...
+                  </>
+                ) : (
+                  <>
+                    <Eye size={24} /> Xem trước hợp đồng
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={handleCheckout}
+                disabled={
+                  isProcessing || cart.length === 0 || !signatureDataUrl
+                }
+                className="w-full bg-slate-900 text-white py-6 rounded-[28px] font-black text-xl uppercase tracking-widest hover:bg-indigo-600 hover:-translate-y-1 transition-all shadow-2xl shadow-indigo-200 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3"
+              >
+                {isProcessing ? (
+                  <>
+                    <div className="w-5 h-5 border-4 border-white/30 border-t-white rounded-full animate-spin" />
+                    Đang xử lý...
+                  </>
+                ) : (
+                  <>
+                    <FileSignature size={24} /> Xác nhận thuê & Ký hợp đồng
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* MODAL MAP */}
+      {/* MODAL BẢN ĐỒ */}
       {showMapModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-6">
           <div className="bg-white rounded-[48px] w-full max-w-5xl overflow-hidden shadow-2xl border border-white animate-in zoom-in-95 duration-300">
@@ -1115,7 +1269,6 @@ export default function CheckoutPage() {
               </button>
             </div>
 
-            {/* NÚT MỚI: Vị trí hiện tại */}
             <div className="p-4 bg-slate-50 border-b flex justify-center">
               <button
                 onClick={() => {
@@ -1179,7 +1332,6 @@ export default function CheckoutPage() {
                             )}km. Phí ship: ${fee.toLocaleString()}đ`
                           );
 
-                          // Tự động đóng modal sau 1.5 giây
                           setTimeout(() => setShowMapModal(false), 1500);
                         }
                       } catch (err) {

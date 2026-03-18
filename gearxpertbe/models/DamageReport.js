@@ -15,6 +15,15 @@ const damageReportSchema = new mongoose.Schema(
       required: true,
     },
 
+    // THÊM MẢNG NÀY: các serial cụ thể bị hỏng trong RentalItem
+    deviceItemIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "DeviceItem",
+        required: true,
+      },
+    ],
+
     deviceId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Device",

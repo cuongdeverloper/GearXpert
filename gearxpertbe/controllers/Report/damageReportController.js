@@ -1,48 +1,199 @@
 const DamageReport = require("../../models/DamageReport");
 const Rental = require("../../models/Rental");
+const RentalItem = require("../../models/RentalItem");
+const NotificationConfig = require("../../configs/NotificationConfig");  // ← THÊM DÒNG NÀY (điều chỉnh path nếu cần)
 
 exports.createDamageReport = async (req, res) => {
-    try {
-      const {
-        rentalId,
-        rentalItemId,
-        deviceId,
-        description,
-        severity,
-      } = req.body;
-  
-      const rental = await Rental.findById(rentalId);
-      if (!rental) {
-        return res.status(404).json({ message: "Rental not found" });
-      }
-  
-      if (rental.status !== "RENTING") {
+  try {
+    const customerId = req.user?.id;
+    if (!customerId) {
+      return res
+        .status(401)
+        .json({ message: "Không tìm thấy thông tin người dùng" });
+    }
+
+    const {
+      rentalId,
+      rentalItemId,
+      deviceItemIds = [], // mảng _id của DeviceItem (serial bị hỏng)
+      description,
+      severity,
+    } = req.body;
+
+    // 1. Validate input cơ bản
+    if (!rentalId || !rentalItemId) {
+      return res.status(400).json({
+        message: "Thiếu rentalId hoặc rentalItemId",
+      });
+    }
+
+    if (!description?.trim()) {
+      return res.status(400).json({
+        message: "Vui lòng cung cấp mô tả chi tiết về hư hỏng",
+      });
+    }
+
+    // 2. Tìm Rental
+    const rental = await Rental.findById(rentalId);
+    if (!rental) {
+      return res.status(404).json({ message: "Không tìm thấy đơn thuê" });
+    }
+
+    if (rental.customerId.toString() !== customerId) {
+      return res.status(403).json({
+        message: "Bạn không phải là chủ đơn hàng này",
+      });
+    }
+
+    if (rental.status !== "RENTING") {
+      return res.status(400).json({
+        message: `Chỉ được báo cáo hư hỏng khi đơn đang ở trạng thái RENTING (hiện tại: ${rental.status})`,
+      });
+    }
+
+    // 3. Tìm RentalItem
+    const rentalItem = await RentalItem.findById(rentalItemId);
+    if (!rentalItem) {
+      return res.status(404).json({ message: "Không tìm thấy RentalItem" });
+    }
+
+    if (rentalItem.rentalId.toString() !== rentalId) {
+      return res.status(400).json({
+        message: "RentalItem không thuộc đơn thuê này",
+      });
+    }
+
+    // 4. Validate deviceItemIds (nếu có)
+    const hasSerials =
+      Array.isArray(rentalItem.deviceItemIds) &&
+      rentalItem.deviceItemIds.length > 0;
+
+    if (hasSerials) {
+      if (deviceItemIds.length === 0) {
         return res.status(400).json({
-          message: "Damage report only allowed during renting",
+          message: "Vui lòng chọn ít nhất một serial bị hỏng",
         });
       }
-  
-      const images = req.files?.map((file) => file.path) || [];
-  
-      const report = await DamageReport.create({
-        rentalId,
-        rentalItemId,
-        deviceId,
-        customerId: req.user.id,
-        description,
-        severity,
-        images,
+
+      const validDeviceItemIds = rentalItem.deviceItemIds.map((id) =>
+        id.toString()
+      );
+
+      const invalidIds = deviceItemIds.filter((id) => {
+        const strId = id?.toString();
+        return strId && !validDeviceItemIds.includes(strId);
       });
-  
-      res.status(201).json({
-        message: "Damage reported successfully",
-        data: report,
-      });
-    } catch (err) {
-      res.status(500).json({ message: err.message });
+
+      if (invalidIds.length > 0) {
+        console.warn(
+          `[DamageReport] Invalid deviceItemIds from user ${customerId}:`,
+          {
+            rentalItemId,
+            sent: deviceItemIds,
+            valid: validDeviceItemIds,
+            invalid: invalidIds,
+          }
+        );
+
+        return res.status(400).json({
+          message: `Một số serial không thuộc RentalItem này: ${invalidIds.join(
+            ", "
+          )}`,
+          invalidIds,
+          validDeviceItemIds,
+        });
+      }
+    } else {
+      if (deviceItemIds.length > 0) {
+        console.warn(
+          `[DamageReport] Item không có serial nhưng frontend gửi deviceItemIds:`,
+          {
+            rentalItemId,
+            sentDeviceItemIds: deviceItemIds,
+          }
+        );
+      }
     }
-  };
-  
+
+    // 5. Xử lý ảnh
+    const images = req.files?.map((file) => file.path) || [];
+    if (images.length > 10) {
+      return res
+        .status(400)
+        .json({ message: "Chỉ được tải lên tối đa 10 ảnh" });
+    }
+
+    // 6. Tạo DamageReport
+    const report = await DamageReport.create({
+      rentalId,
+      rentalItemId,
+      deviceItemIds: hasSerials ? deviceItemIds : [], // đảm bảo luôn là mảng
+      deviceId: rentalItem.deviceId,
+      customerId,
+      description: description.trim(),
+      severity:
+        severity && ["LOW", "MEDIUM", "HIGH"].includes(severity)
+          ? severity
+          : "MEDIUM",
+      images,
+    });
+
+    // 7. Gửi thông báo cho supplier (SỬA Ở ĐÂY)
+    try {
+      // Lấy supplierId – fallback nếu Rental không có trường supplierId
+      let supplierId = rental.supplierId?.toString();
+      if (!supplierId) {
+        // Fallback: lấy từ RentalItem → Device → supplierId
+        const firstItem = await RentalItem.findOne({
+          rentalId: rental._id,
+        }).populate("deviceId", "supplierId");
+        supplierId = firstItem?.deviceId?.supplierId?.toString();
+      }
+
+      if (supplierId) {
+        await NotificationConfig.sendNotification({
+          senderId: customerId,
+          receiverId: supplierId,
+          title: "Khách hàng báo cáo hư hỏng",
+          message: `Có báo cáo hư hỏng trên đơn #${rental._id
+            .toString()
+            .slice(-6)}. Vui lòng kiểm tra và xử lý.`,
+          link: `/damage-reports/${report._id}`,
+          type: "DAMAGE_REPORT", // hoặc "RENTAL_ISSUE" tùy bạn
+        });
+        console.log(
+          `[Notification] Đã gửi thông báo hư hỏng đến supplier ${supplierId}`
+        );
+      } else {
+        console.warn(
+          `[Notification] Không tìm thấy supplierId cho rental ${rental._id}`
+        );
+      }
+    } catch (notifyErr) {
+      console.error("Lỗi gửi notification khi tạo damage report:", notifyErr);
+      // Không throw lỗi → vẫn trả success cho client
+    }
+
+    // 8. Trả về kết quả
+    return res.status(201).json({
+      success: true,
+      message: "Báo cáo hư hỏng đã được gửi thành công",
+      data: report,
+    });
+  } catch (err) {
+    console.error("Create Damage Report Error:", {
+      message: err.message,
+      stack: err.stack,
+      body: req.body,
+      files: req.files?.length || 0,
+    });
+
+    return res.status(500).json({
+      message:
+        "Lỗi hệ thống khi gửi báo cáo. Vui lòng thử lại sau hoặc liên hệ hỗ trợ.",
+    });
+  }
+};
 
 exports.getDamageReportsByRental = async (req, res) => {
   const reports = await DamageReport.find({

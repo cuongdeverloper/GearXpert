@@ -33,26 +33,32 @@ const deviceSchema = new mongoose.Schema(
 
     stockQuantity: {
       type: Number,
-      default: 1,
+      default: 0, // fix: default 0 hợp lý hơn khi mới tạo
       min: 0,
     },
+
+    rentedQuantity: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    // Thêm để khớp với updateDeviceCounts
+    availableQuantity: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    maintenanceCount: { type: Number, default: 0 },
+    damagedCount: { type: Number, default: 0 },
 
     /* ===== ADD-ON ===== */
     isAddon: { type: Boolean, default: false },
 
-    compatibleWith: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Device",
-      },
-    ],
+    compatibleWith: [{ type: mongoose.Schema.Types.ObjectId, ref: "Device" }],
 
-    requiredAddons: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Device",
-      },
-    ],
+    requiredAddons: [{ type: mongoose.Schema.Types.ObjectId, ref: "Device" }],
 
     images: [String],
 
@@ -65,52 +71,49 @@ const deviceSchema = new mongoose.Schema(
 
     depositAmount: { type: Number, required: true },
 
+    /* ===== TRẠNG THÁI TỔNG QUÁT ===== */
     status: {
       type: String,
-      enum: ["AVAILABLE", "RENTED", "MAINTENANCE", "BROKEN", "STOPPED"],
+      enum: ["AVAILABLE", "SUSPICIOUS", "STOPPED", "DISCONTINUED"],
       default: "AVAILABLE",
       index: true,
     },
-    rentedQuantity: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
-    /* ===== VỊ TRÍ ===== */
+
+    /* ===== VỊ TRÍ KHO CHÍNH ===== */
     location: {
       warehouse: String,
       city: String,
     },
 
     /* ===== SPECS LINH HOẠT ===== */
-    specs: {
-      type: Map,
-      of: mongoose.Schema.Types.Mixed,
-    },
-
-    /* ===== MAINTENANCE SUMMARY ===== */
-    maintenanceSummary: {
-      lastMaintenanceAt: Date,
-      nextMaintenanceAt: Date,
-      totalMaintenanceCount: { type: Number, default: 0 },
-    },
+    specs: { type: Map, of: mongoose.Schema.Types.Mixed },
 
     /* ===== REVIEW STATS ===== */
     ratingAvg: { type: Number, default: 0 },
     reviewCount: { type: Number, default: 0 },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 );
+
+// Virtual availableQuantity (dùng khi không cần cache field)
+deviceSchema.virtual("realAvailable").get(function () {
+  return this.stockQuantity - this.rentedQuantity;
+});
 
 /* ===== SLUG GENERATION ===== */
 function generateSlug(name) {
   return name
     .toLowerCase()
-    .normalize("NFD")                     // tách dấu tiếng Việt
-    .replace(/[\u0300-\u036f]/g, "")      // xoá dấu
-    .replace(/đ/g, "d").replace(/Đ/g, "d")
-    .replace(/[^a-z0-9]+/g, "-")          // ký tự đặc biệt → gạch ngang
-    .replace(/^-+|-+$/g, "");             // trim gạch đầu/cuối
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "d")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 deviceSchema.pre("save", async function (next) {
@@ -120,7 +123,6 @@ deviceSchema.pre("save", async function (next) {
   let slug = base;
   let suffix = 1;
 
-  // Tìm slug unique — bỏ qua chính document này (khi update)
   const Device = mongoose.model("Device");
   while (await Device.exists({ slug, _id: { $ne: this._id } })) {
     slug = `${base}-${suffix}`;
@@ -130,14 +132,8 @@ deviceSchema.pre("save", async function (next) {
   next();
 });
 
-// Virtual (tính availableQuantity)
-deviceSchema.virtual('availableQuantity').get(function () {
-  return this.stockQuantity - this.rentedQuantity;
-});
-
-deviceSchema.set('toJSON', { virtuals: true });
-deviceSchema.set('toObject', { virtuals: true });
-
-
+// Index cho text search và query phổ biến
 deviceSchema.index({ name: "text", description: "text", category: "text" });
+deviceSchema.index({ supplierId: 1, status: 1 });
+
 module.exports = mongoose.model("Device", deviceSchema);
