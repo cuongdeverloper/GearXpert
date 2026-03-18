@@ -42,11 +42,13 @@ export default function ProductCard({
   const name = device?.name || '';
   const getCategoryDisplay = (cat) => {
     const map = {
-      'CAMERA': 'Cinematography',
-      'LIGHTING': 'Lighting Kits',
-      'AUDIO': 'Audio Gear',
-      'ACCESSORY': 'Gimbal & Grip',
-      'DRONE': 'Aerial / Drones',
+      'CAMERA': 'Camera',
+      'LIGHTING': 'Lighting',
+      'AUDIO': 'Audio',
+      'OFFICE': 'Office',
+      'GAMING': 'Gaming',
+      'ACCESSORY': 'Accessories',
+      'DRONE': 'Drone',
       'OTHER': 'Other'
     };
     return map[cat] || 'Other';
@@ -204,7 +206,7 @@ export default function ProductCard({
           </h4>
           <div className="mt-auto pt-2 flex items-center justify-between border-t border-slate-50">
             <p className="text-primary font-bold text-sm">
-              ${price.toLocaleString('vi-VN')}
+              {price.toLocaleString('vi-VN')}đ
               <span className="text-[10px] text-slate-400 font-normal ml-0.5">/day</span>
             </p>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{category}</span>
@@ -217,7 +219,8 @@ export default function ProductCard({
   // Detailed variant
   return (
     <div
-      className={`group relative bg-white rounded-3xl p-1 shadow-lg hover:shadow-glow-cyan transition-all duration-300 border border-slate-100 ${match ? `ring-2 ${getRingColor(match)}` : ''} ${className}`}
+      className={`group relative bg-white rounded-3xl p-1 shadow-lg hover:shadow-glow-cyan transition-all duration-300 border border-slate-100 cursor-pointer ${match ? `ring-2 ${getRingColor(match)}` : ''} ${className}`}
+      onClick={handleClick}
     >
       <div className="bg-white rounded-[22px] overflow-hidden isolate flex flex-col h-full">
         {/* Image Section */}
@@ -292,7 +295,7 @@ export default function ProductCard({
           )}
           <div className="mt-6 flex items-center justify-between">
             <span className="text-2xl font-bold text-slate-900">
-              ${price.toLocaleString('vi-VN')}
+              {price.toLocaleString('vi-VN')}đ
               <span className="text-sm text-slate-400 font-normal">/day</span>
             </span>
             <button

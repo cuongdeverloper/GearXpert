@@ -67,6 +67,11 @@ const updateFollowPrefs = async (followId, prefs) => {
   return res;
 };
 
+const getPublicSuppliers = async (params = {}) => {
+  const res = await axios.get("/api/suppliers/public", { params });
+  return res;
+};
+
 export {
   getSupplierProfile,
   updateSupplierProfile,
@@ -78,4 +83,5 @@ export {
   getFollowStatus,
   getMyFollowedStores,
   updateFollowPrefs,
+  getPublicSuppliers,
 };
