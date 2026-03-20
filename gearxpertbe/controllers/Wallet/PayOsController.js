@@ -80,128 +80,63 @@ exports.handleWebhook = async (req, res) => {
 
     const rentals = await Rental.find({ orderCode });
 
-    // 1. THANH TOÁN THẤT BẠI hoặc HỦY → rollback DeviceItem status
+    // 1. THANH TOÁN THẤT BẠI hoặc HỦY → KHÔNG CANCEL, giữ nguyên UNPAID + PENDING
     if (body.code !== "00" || webhookData.code !== "00") {
-      console.log(`[WEBHOOK] Đơn ${orderCode} thất bại/hủy`);
-
-      if (
-        rentals.length > 0 &&
-        rentals[0].paymentStatus === "UNPAID" &&
-        rentals[0].status !== "CANCELLED"
-      ) {
-        const session = await mongoose.startSession();
-        session.startTransaction();
-        try {
-          await Rental.updateMany(
-            { orderCode },
-            {
-              status: "CANCELLED",
-              cancelledAt: new Date(),
-              cancelReason: "Thanh toán thất bại từ PayOS",
-            },
-            { session }
-          );
-
-          for (const rental of rentals) {
-            const items = await RentalItem.find({
-              rentalId: rental._id,
-            }).session(session);
-            for (const item of items) {
-              if (item.deviceItemId) {
-                await DeviceItem.updateOne(
-                  { _id: item.deviceItemId },
-                  { $set: { status: "AVAILABLE" } },
-                  { session }
-                );
-              }
-            }
-          }
-
-          await session.commitTransaction();
-          session.endSession();
-          return res
-            .status(200)
-            .json({
-              success: true,
-              message: "Cancelled & DeviceItem status restored",
-            });
-        } catch (err) {
-          await session.abortTransaction();
-          session.endSession();
-          console.error("[WEBHOOK CANCEL ERROR]", err);
-          return res.status(500).json({ success: false });
-        }
-      }
+      console.log(`[WEBHOOK] Đơn ${orderCode} thất bại/hủy - Giữ nguyên UNPAID + PENDING, chờ cron restore quantity`);
       return res.status(200).json({ success: true });
     }
 
-    // 2. THANH TOÁN THÀNH CÔNG (BANK) → chỉ update status, không tăng rentedQuantity
+    // 2. THANH TOÁN THÀNH CÔNG (BANK) → update paymentStatus + status + noti + voucher
     if (rentals.length > 0 && rentals[0].paymentStatus !== "PAID") {
-      const session = await mongoose.startSession();
-      session.startTransaction();
+      const customerId = rentals[0].customerId;
+      let voucherCodeToUse = null;
+      const isRepay = rentals.length === 1;
 
-      try {
-        const customerId = rentals[0].customerId;
-        let voucherCodeToUse = null;
-        const isRepay = rentals.length === 1;
+      for (const rental of rentals) {
+        rental.paymentStatus = "PAID";
+        rental.status = "PENDING"; // hoặc "PENDING_DELIVERY" tùy flow của bạn
+        await rental.save();
 
-        for (const rental of rentals) {
-          rental.paymentStatus = "PAID";
-          rental.status = "DELIVERING"; // hoặc "DELIVERING" tùy flow
-          await rental.save({ session });
-
-          if (rental.voucherCode && !voucherCodeToUse) {
-            voucherCodeToUse = rental.voucherCode;
-          }
-
-          const notiTitle = isRepay
-            ? "Đơn thuê đã thanh toán thành công (thanh toán lại)"
-            : "Đơn thuê đã thanh toán thành công";
-
-          const notiMessage = isRepay
-            ? `Khách hàng đã thanh toán lại ${rental.totalAmount.toLocaleString(
-                "vi-VN"
-              )}₫ qua ngân hàng cho đơn này.`
-            : `Khách hàng đã thanh toán ${rental.totalAmount.toLocaleString(
-                "vi-VN"
-              )}₫ qua ngân hàng.`;
-
-          await NotificationConfig.sendNotification({
-            senderId: customerId,
-            receiverId: rental.supplierId,
-            title: notiTitle,
-            message: notiMessage,
-            link: `/supplier/orders/${rental._id}`,
-            type: "ORDER",
-          });
+        if (rental.voucherCode && !voucherCodeToUse) {
+          voucherCodeToUse = rental.voucherCode;
         }
 
-        // Trừ voucher (chỉ 1 lần cho toàn bộ group)
-        let voucherUsed = false;
-        if (voucherCodeToUse) {
-          const updated = await Voucher.updateOne(
-            { code: voucherCodeToUse, status: "ACTIVE" },
-            { $inc: { usedCount: 1 } },
-            { session }
-          );
-          voucherUsed = updated.modifiedCount === 1;
-        }
+        const notiTitle = isRepay
+          ? "Đơn thuê đã thanh toán thành công (thanh toán lại)"
+          : "Đơn thuê đã thanh toán thành công";
 
-        await session.commitTransaction();
-        session.endSession();
+        const notiMessage = isRepay
+          ? `Khách hàng đã thanh toán lại ${rental.totalAmount.toLocaleString(
+              "vi-VN"
+            )}₫ qua ngân hàng cho đơn này.`
+          : `Khách hàng đã thanh toán ${rental.totalAmount.toLocaleString(
+              "vi-VN"
+            )}₫ qua ngân hàng.`;
 
-        console.log(
-          `[WEBHOOK SUCCESS] Đơn ${orderCode} - ${
-            isRepay ? "Repay single" : "Group checkout"
-          } - Voucher used: ${voucherUsed}`
-        );
-        return res.status(200).json({ success: true });
-      } catch (err) {
-        await session.abortTransaction();
-        session.endSession();
-        console.error("[WEBHOOK RENTAL ERROR]", err);
-        return res.status(500).json({ success: false });
+        await NotificationConfig.sendNotification({
+          senderId: customerId,
+          receiverId: rental.supplierId,
+          title: notiTitle,
+          message: notiMessage,
+          link: `/supplier/orders/${rental._id}`,
+          type: "ORDER",
+        });
       }
+
+      // Trừ voucher (chỉ 1 lần cho group)
+      if (voucherCodeToUse) {
+        await Voucher.updateOne(
+          { code: voucherCodeToUse, status: "ACTIVE" },
+          { $inc: { usedCount: 1 } }
+        );
+      }
+
+      console.log(
+        `[WEBHOOK SUCCESS] Đơn ${orderCode} - ${
+          isRepay ? "Repay single" : "Group checkout"
+        } - Voucher used: ${!!voucherCodeToUse}`
+      );
+      return res.status(200).json({ success: true });
     }
 
     // 3. TOP-UP WALLET (giữ nguyên)
@@ -236,7 +171,7 @@ exports.handleWebhook = async (req, res) => {
     return res.status(200).json({ success: true });
   } catch (err) {
     console.error("WEBHOOK GLOBAL ERROR:", err.message);
-    return res.status(200).json({ success: true }); // Luôn trả 200 cho webhook
+    return res.status(200).json({ success: true }); // Luôn trả 200 cho PayOS
   }
 };
 

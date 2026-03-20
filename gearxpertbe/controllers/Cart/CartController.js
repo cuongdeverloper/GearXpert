@@ -395,3 +395,114 @@ exports.addComboToCart = async (req, res) => {
     res.status(500).json({ message: "Lỗi server" });
   }
 };
+/**
+ * PUT /cart/items/:cartItemId
+ * Cập nhật thông tin CartItem (chủ yếu là ngày thuê)
+ * Hiện tại chỉ hỗ trợ update rentalStartDate + rentalEndDate
+ * Có thể mở rộng sau để update quantity nếu cần
+ */
+exports.updateCartItem = async (req, res) => {
+  const customerId = req.user.id;
+  const { cartItemId } = req.params;
+  const { rentalStartDate, rentalEndDate, quantity } = req.body;
+
+  try {
+    // Tìm CartItem
+    const cartItem = await CartItem.findById(cartItemId);
+    if (!cartItem) {
+      return res.status(404).json({ message: "Không tìm thấy sản phẩm trong giỏ" });
+    }
+
+    // Kiểm tra quyền sở hữu qua Cart
+    const cart = await Cart.findOne({
+      _id: cartItem.cartId,
+      customerId,
+    });
+    if (!cart) {
+      return res.status(403).json({ message: "Không có quyền chỉnh sửa giỏ hàng này" });
+    }
+
+    const device = await Device.findById(cartItem.deviceId);
+    if (!device || ["STOPPED", "DISCONTINUED", "SUSPICIOUS"].includes(device.status)) {
+      return res.status(400).json({ message: "Thiết bị hiện không khả dụng" });
+    }
+
+    let updated = false;
+
+    // Update ngày thuê
+    if (rentalStartDate || rentalEndDate) {
+      const start = rentalStartDate ? new Date(rentalStartDate) : cartItem.rentalStartDate;
+      const end = rentalEndDate ? new Date(rentalEndDate) : cartItem.rentalEndDate;
+
+      if (end <= start) {
+        return res.status(400).json({
+          message: "Ngày kết thúc phải sau ngày bắt đầu ít nhất 1 ngày",
+        });
+      }
+
+      // Kiểm tra số lượng khả dụng (có thể cải tiến sau bằng cách check conflict booking)
+      const availableCount = await DeviceItem.countDocuments({
+        deviceId: cartItem.deviceId,
+        status: "AVAILABLE",
+      });
+
+      if (availableCount < cartItem.quantity) {
+        return res.status(400).json({
+          message: `Hiện chỉ còn ${availableCount} thiết bị khả dụng, không đủ để giữ lịch này`,
+        });
+      }
+
+      cartItem.rentalStartDate = start;
+      cartItem.rentalEndDate = end;
+      cartItem.totalDays = Math.max(
+        1,
+        Math.ceil((end - start) / (1000 * 60 * 60 * 24))
+      );
+
+      updated = true;
+    }
+
+    // Update số lượng (nếu gửi lên)
+    if (quantity !== undefined) {
+      if (quantity < 1) {
+        return res.status(400).json({ message: "Số lượng phải lớn hơn 0" });
+      }
+
+      const availableCount = await DeviceItem.countDocuments({
+        deviceId: cartItem.deviceId,
+        status: "AVAILABLE",
+      });
+
+      if (availableCount < quantity) {
+        return res.status(400).json({
+          message: `Chỉ còn ${availableCount} thiết bị khả dụng`,
+        });
+      }
+
+      cartItem.quantity = quantity;
+      updated = true;
+    }
+
+    if (!updated) {
+      return res.status(400).json({ message: "Không có thông tin nào được cập nhật" });
+    }
+
+    await cartItem.save();
+
+    // Trả về cartItem đã update + thông tin device để frontend dễ render
+    const populatedItem = await CartItem.findById(cartItem._id).populate({
+      path: "deviceId",
+      select: "name slug rentPrice depositAmount images status",
+      populate: { path: "supplierId", select: "fullName" },
+    });
+
+    res.json({
+      success: true,
+      message: "Đã cập nhật lịch thuê thành công",
+      cartItem: populatedItem,
+    });
+  } catch (err) {
+    console.error("[updateCartItem] Error:", err);
+    res.status(500).json({ message: "Lỗi server khi cập nhật giỏ hàng" });
+  }
+};

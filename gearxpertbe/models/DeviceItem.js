@@ -137,24 +137,26 @@ deviceItemSchema.post("insertMany", async function (docs) {
 });
 
 // Hàm helper đồng bộ counts (thêm log chi tiết để debug)
-async function updateDeviceCounts(deviceId) {
+// ... toàn bộ schema và hooks giữ nguyên ...
+
+// Chuyển thành static method
+deviceItemSchema.statics.updateDeviceCounts = async function (
+  deviceId,
+  session = null
+) {
   console.log(
     `[CACHE] Bắt đầu cập nhật cache cho deviceId: ${deviceId.toString()}`
   );
 
-  const DeviceItem = mongoose.model("DeviceItem");
-
-  // Bước 1: Aggregation đếm
-  const counts = await DeviceItem.aggregate([
+  const counts = await this.aggregate([
+    // dùng this thay vì mongoose.model("DeviceItem")
     { $match: { deviceId: new mongoose.Types.ObjectId(deviceId) } },
     {
       $group: {
         _id: null,
         total: { $sum: 1 },
         rented: {
-          $sum: {
-            $cond: [{ $in: ["$status", ["RENTED", "RESERVED"]] }, 1, 0],
-          },
+          $sum: { $cond: [{ $in: ["$status", ["RENTED", "RESERVED"]] }, 1, 0] },
         },
         maintenance: {
           $sum: { $cond: [{ $eq: ["$status", "MAINTENANCE"] }, 1, 0] },
@@ -164,7 +166,9 @@ async function updateDeviceCounts(deviceId) {
         },
       },
     },
-  ]).exec();
+  ])
+    .session(session)
+    .exec();
 
   const result = counts[0] || {
     total: 0,
@@ -175,9 +179,8 @@ async function updateDeviceCounts(deviceId) {
 
   console.log(`[CACHE] Kết quả đếm thực tế:`, result);
 
-  // Bước 2: Update Device
   const updateResult = await mongoose.model("Device").updateOne(
-    { _id: new mongoose.Types.ObjectId(deviceId) }, // đảm bảo ObjectId
+    { _id: new mongoose.Types.ObjectId(deviceId) },
     {
       $set: {
         stockQuantity: result.total,
@@ -186,18 +189,19 @@ async function updateDeviceCounts(deviceId) {
         maintenanceCount: result.maintenance,
         damagedCount: result.damaged,
       },
-    }
+    },
+    { session }
   );
 
   console.log(`[CACHE] Kết quả update Device:`, updateResult);
 
   if (updateResult.modifiedCount === 0) {
-    console.warn(
-      `[CACHE WARNING] Không update được Device ${deviceId} - có thể document không thay đổi hoặc không tồn tại`
-    );
+    console.warn(`[CACHE WARNING] Không update được Device ${deviceId}`);
   } else {
     console.log(`[CACHE SUCCESS] Đã cập nhật cache cho Device ${deviceId}`);
   }
-}
+};
+
+
 
 module.exports = mongoose.model("DeviceItem", deviceItemSchema);
