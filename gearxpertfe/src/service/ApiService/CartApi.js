@@ -36,11 +36,13 @@ const removeCartItem = (itemId) => {
 const clearCart = (type = "NORMAL") => {
     return axios.delete(`/api/carts/clear?type=${type}`);
 };
-
+const updateCartItem = (itemId, data) => {
+    return axios.put(`/api/carts/items/${itemId}`, data);
+  };
 export {
     addToCart,
     addInstantToCart,
     getCart,
     removeCartItem,
-    clearCart
+    clearCart,updateCartItem
 };
