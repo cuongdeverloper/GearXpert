@@ -104,11 +104,13 @@ export default function Homepage() {
   };
 
   const categories = [
-    { name: 'Cinematography', id: 'CAMERA', category: 'CAMERA' },
-    { name: 'Lighting Kits', id: 'LIGHTING', category: 'LIGHTING' },
-    { name: 'Audio Gear', id: 'AUDIO', category: 'AUDIO' },
-    { name: 'Gimbal & Grip', id: 'ACCESSORY', category: 'ACCESSORY' },
-    { name: 'Aerial / Drones', id: 'DRONE', category: 'DRONE' },
+    { name: 'Camera', id: 'CAMERA', category: 'CAMERA' },
+    { name: 'Lighting', id: 'LIGHTING', category: 'LIGHTING' },
+    { name: 'Audio', id: 'AUDIO', category: 'AUDIO' },
+    { name: 'Office', id: 'OFFICE', category: 'OFFICE' },
+    { name: 'Gaming', id: 'GAMING', category: 'GAMING' },
+    { name: 'Accessory', id: 'ACCESSORY', category: 'ACCESSORY' },
+    { name: 'Drone', id: 'DRONE', category: 'DRONE' },
   ];
 
   if (loading) {
