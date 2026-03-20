@@ -114,7 +114,7 @@ export default function CheckoutPage() {
   const [signatureDataUrl, setSignatureDataUrl] = useState(null);
 
   // === XEM TRƯỚC HỢP ĐỒNG ===
-  const [previewPdfUrl, setPreviewPdfUrl] = useState(null);
+
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
   const { street, district, city } = address;

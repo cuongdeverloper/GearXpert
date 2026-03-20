@@ -324,14 +324,13 @@ exports.checkoutRental = async (req, res) => {
       }
     }
 
-    // 9. Xóa cart nếu WALLET
-    if (paymentMethod === "WALLET") {
-      await CartItem.deleteMany({
-        _id: { $in: cart.items.map((i) => i._id) },
-      }).session(session);
-      cart.items = [];
-      await cart.save({ session });
-    }
+    // 9. Xóa cart sau khi checkout thành công
+    await CartItem.deleteMany({
+      _id: { $in: cart.items.map((i) => i._id) },
+    }).session(session);
+
+    cart.items = [];
+    await cart.save({ session });
 
     // 10. PayOS cho BANK
     let paymentLink = null;
@@ -389,10 +388,29 @@ async function allocateDeviceItems(deviceId, quantity, session) {
     );
   }
 
+  // Chuyển status sang RENTED
   for (const item of items) {
     item.status = "RENTED";
     await item.save({ session });
   }
+
+  // Trừ trực tiếp rentedQuantity + cập nhật availableQuantity
+  // stockQuantity KHÔNG giảm (vì tổng item vẫn giữ nguyên)
+  const updateResult = await Device.updateOne(
+    { _id: deviceId },
+    {
+      $inc: {
+        rentedQuantity: quantity, // tăng rented
+        stockQuantity: -quantity, // giảm available
+      },
+    },
+    { session }
+  );
+
+  console.log(
+    `[ALLOCATE SUCCESS] Device ${deviceId}: +${quantity} rented, -${quantity} available. ` +
+      `Update result: ${JSON.stringify(updateResult)}`
+  );
 
   return items.map((item) => item._id);
 }
@@ -1050,20 +1068,41 @@ exports.cancelRental = async (req, res) => {
       }
     }
 
-    // Hoàn status DeviceItem
+    // 1. Lấy tất cả RentalItem của đơn
     const items = await RentalItem.find({ rentalId: rental._id }).session(
       session
     );
+
+    // 2. Restore status DeviceItem + quantity trên Device
     for (const item of items) {
-      if (item.deviceItemId) {
-        await DeviceItem.updateOne(
-          { _id: item.deviceItemId },
+      if (item.deviceItemIds && item.deviceItemIds.length > 0) {
+        // Restore status DeviceItem → AVAILABLE
+        await DeviceItem.updateMany(
+          { _id: { $in: item.deviceItemIds } },
           { $set: { status: "AVAILABLE" } },
           { session }
+        );
+
+        // Restore quantity: tăng stock/available, giảm rented
+        await Device.updateOne(
+          { _id: item.deviceId },
+          {
+            $inc: {
+              stockQuantity: item.quantity, // tăng tổng tồn kho (nếu bạn trừ lúc allocate)
+              availableQuantity: item.quantity, // tăng số khả dụng
+              rentedQuantity: -item.quantity, // giảm số đang thuê
+            },
+          },
+          { session }
+        );
+
+        console.log(
+          `[CANCEL RESTORE] Đơn ${rental._id}: +${item.quantity} cho device ${item.deviceId}`
         );
       }
     }
 
+    // 3. Update Rental status
     rental.status = "CANCELLED";
     await sendRentalNotification(
       rental,
@@ -1075,10 +1114,11 @@ exports.cancelRental = async (req, res) => {
 
     await session.commitTransaction();
 
-    res.json({ message: "Hủy đơn và hoàn tiền thành công" });
+    res.json({ message: "Hủy đơn và hoàn tiền + restore quantity thành công" });
   } catch (err) {
     await session.abortTransaction();
-    res.status(400).json({ message: err.message });
+    console.error("Cancel Rental Error:", err);
+    res.status(400).json({ message: err.message || "Hủy đơn thất bại" });
   } finally {
     session.endSession();
   }
