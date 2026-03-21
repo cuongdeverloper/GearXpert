@@ -262,15 +262,16 @@ export default function SupplierListPage() {
                   <div className="space-y-3">
                     {[...suppliersWithCoords]
                       .sort((a, b) => (a.distance || 999) - (b.distance || 999))
-                      .slice(0, 3)
+                      .slice(0, selectedDistrict ? 3 : suppliersWithCoords.length)
                       .map(shop => (
                         <div 
                           key={shop._id}
                           onClick={() => {
-                            if (viewMode === 'map') {
-                              handleFlyTo(shop);
+                            if (viewMode !== 'map') {
+                              setViewMode('map');
+                              setTimeout(() => handleFlyTo(shop), 100);
                             } else {
-                              navigate(`/supplier/${shop.userId._id}`);
+                              handleFlyTo(shop);
                             }
                           }}
                           className={`p-3 rounded-2xl border transition-all cursor-pointer flex gap-3 items-center group/hub ${selectedShop?._id === shop._id && viewMode === 'map' ? 'bg-indigo-600 border-indigo-600 shadow-xl shadow-indigo-500/30 text-white' : 'bg-white border-slate-50 hover:border-indigo-200 hover:shadow-md'}`}
@@ -529,14 +530,87 @@ export default function SupplierListPage() {
               <button onClick={() => setIsFullscreenMap(false)} className="absolute top-10 right-10 z-[1010] w-16 h-16 bg-white rounded-full shadow-2xl flex items-center justify-center hover:rotate-90 transition-all">
                 <X size={32} className="text-slate-900" />
               </button>
-              <Map {...viewState} onMove={evt => setViewState(evt.viewState)} mapStyle={MAPBOX_STYLE} mapboxAccessToken={MAPBOX_TOKEN} style={{ width: '100%', height: '100%' }}>
+              <Map 
+                {...viewState} 
+                onMove={evt => setViewState(evt.viewState)} 
+                mapStyle={MAPBOX_STYLE} 
+                mapboxAccessToken={MAPBOX_TOKEN} 
+                style={{ width: '100%', height: '100%' }}
+                ref={mapRef}
+                reuseMaps
+              >
                 {suppliersWithCoords.map(shop => (
-                  <Marker key={shop._id} latitude={shop.coords.latitude} longitude={shop.coords.longitude} anchor="bottom">
-                    <div className="w-12 h-12 p-1.5 bg-white rounded-2xl shadow-2xl border-2 border-white">
-                      <img src={shop.businessAvatar} className="w-full h-full object-cover rounded-xl" alt="" />
-                    </div>
+                  <Marker 
+                    key={shop._id} 
+                    latitude={shop.coords.latitude} 
+                    longitude={shop.coords.longitude} 
+                    anchor="bottom"
+                    onClick={e => { e.originalEvent.stopPropagation(); handleFlyTo(shop); }}
+                  >
+                    <motion.div className="relative cursor-pointer" whileHover={{ scale: 1.2, zIndex: 10 }}>
+                      <div className={`w-14 h-14 p-1 rounded-2xl bg-white shadow-2xl border-2 transition-all duration-300 ${selectedShop?._id === shop._id ? 'border-indigo-600 shadow-indigo-200' : 'border-white'}`}>
+                        <img src={shop.businessAvatar} className="w-full h-full object-cover rounded-xl" alt="" />
+                      </div>
+                      {selectedShop?._id === shop._id && <div className="absolute inset-0 bg-indigo-500 rounded-full animate-ping opacity-25"></div>}
+                    </motion.div>
                   </Marker>
                 ))}
+
+                {userLocation && (
+                  <Marker
+                    latitude={userLocation.latitude}
+                    longitude={userLocation.longitude}
+                    anchor="center"
+                  >
+                    <div className="relative flex items-center justify-center">
+                      <div className="absolute w-8 h-8 bg-indigo-500 rounded-full animate-ping opacity-30"></div>
+                      <div className="relative w-4 h-4 bg-indigo-600 rounded-full border-2 border-white shadow-lg"></div>
+                    </div>
+                  </Marker>
+                )}
+
+                <AnimatePresence>
+                  {selectedShop && (
+                    <Popup
+                      latitude={selectedShop.coords.latitude}
+                      longitude={selectedShop.coords.longitude}
+                      onClose={() => setSelectedShop(null)}
+                      closeButton={false}
+                      offset={45}
+                      className="premium-popup shadow-none"
+                    >
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                        className="bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl w-60 overflow-hidden"
+                      >
+                         <div className="h-28 w-full relative">
+                            <img src={selectedShop.businessAvatar} className="w-full h-full object-cover" alt="" />
+                         </div>
+                         <div className="p-4">
+                            <h5 className="font-bold text-slate-900 text-sm mb-1">{selectedShop.businessName}</h5>
+                            <p className="text-[10px] text-slate-400 mb-4 flex items-center gap-1"><MapPin size={10} className="text-indigo-500" /> {selectedShop.warehouseAddress?.district}</p>
+                            
+                            <button onClick={() => navigate(`/supplier/${selectedShop.userId._id}`)} className="w-full bg-indigo-600 text-white font-bold text-xs py-3 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20">View Hub Details</button>
+                         </div>
+                      </motion.div>
+                    </Popup>
+                  )}
+                </AnimatePresence>
+
+                {/* Fullscreen Map Controls */}
+                <div className="absolute left-10 top-10 flex flex-col gap-4">
+                   <button 
+                     onClick={handleLocateMe} 
+                     disabled={isLocating}
+                     title="Vị trí của tôi"
+                     className={`w-14 h-14 rounded-2xl shadow-2xl flex items-center justify-center transition-all ${isLocating ? 'bg-slate-200 text-slate-400' : 'bg-white/90 backdrop-blur-md text-indigo-600 border border-indigo-100 hover:bg-indigo-50'}`}
+                   >
+                     <Navigation size={24} className={isLocating ? 'animate-pulse' : ''} />
+                   </button>
+                   <button onClick={() => mapRef.current?.flyTo({ center: [DA_NANG_COORDS.longitude, DA_NANG_COORDS.latitude], zoom: 13, pitch: 45, bearing: 0, duration: 2000 })} title="Về trung tâm Đà Nẵng" className="w-14 h-14 bg-slate-900 text-white rounded-2xl shadow-2xl flex items-center justify-center hover:bg-indigo-600 transition-all font-bold">DN</button>
+                </div>
               </Map>
             </motion.div>
           </motion.div>

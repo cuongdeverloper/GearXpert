@@ -41,6 +41,9 @@ const blogSchema = new mongoose.Schema(
             type: Number,
             default: 0,
         },
+        approvedAt: {
+            type: Date,
+        },
         savedBy: [String], // Array of usernames/emails
         likes: {
             type: [String], // Array of user emails/usernames

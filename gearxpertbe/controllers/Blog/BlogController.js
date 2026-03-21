@@ -107,21 +107,21 @@ const getBlogs = async (req, res) => {
     }
 };
 
-// GET /api/blogs/featured — get featured blog
+// GET /api/blogs/featured — get all featured blogs
 const getFeaturedBlog = async (req, res) => {
     try {
-        const blog = await Blog.findOne({ isFeatured: true, status: "approved" })
-            .sort({ createdAt: -1 })
+        const blogs = await Blog.find({ isFeatured: true, status: "approved" })
+            .sort({ approvedAt: 1, createdAt: 1 })
             .lean();
 
-        if (!blog) {
-            return res.status(404).json({ message: "Không tìm thấy bài viết nổi bật" });
+        if (!blogs || blogs.length === 0) {
+            return res.status(200).json([]); // Return empty array if none
         }
 
-        return res.status(200).json(blog);
+        return res.status(200).json(blogs);
     } catch (error) {
-        console.error("Error fetching featured blog:", error);
-        return res.status(500).json({ message: "Lỗi khi lấy bài viết nổi bật" });
+        console.error("Error fetching featured blogs:", error);
+        return res.status(500).json({ message: "Lỗi khi lấy danh sách bài viết nổi bật" });
     }
 };
 
@@ -356,6 +356,9 @@ const manageBlogStatus = async (req, res) => {
 
         const oldStatus = blog.status;
         blog.status = status;
+        if (status === "approved" && oldStatus !== "approved") {
+            blog.approvedAt = new Date();
+        }
         await blog.save();
 
         // Send email notification for rejection
@@ -684,6 +687,32 @@ const deleteSensitiveKeyword = async (req, res) => {
     }
 };
 
+// Admin: Toggle featured blog
+const toggleFeaturedBlog = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const blog = await Blog.findById(id);
+        if (!blog) {
+            return res.status(404).json({ message: "Bài viết không tồn tại" });
+        }
+
+        if (blog.status !== "approved") {
+            return res.status(400).json({ message: "Chỉ bài viết đã duyệt mới có thể đặt làm nổi bật" });
+        }
+
+        blog.isFeatured = !blog.isFeatured;
+        await blog.save();
+
+        return res.status(200).json({
+            message: `Đã ${blog.isFeatured ? 'đặt làm' : 'gỡ bỏ'} bài viết nổi bật`,
+            blog
+        });
+    } catch (error) {
+        console.error("Error toggling featured status:", error);
+        return res.status(500).json({ message: "Lỗi khi thay đổi trạng thái nổi bật" });
+    }
+};
+
 module.exports = {
     getBlogs,
     getFeaturedBlog,
@@ -702,4 +731,5 @@ module.exports = {
     getSensitiveKeywords,
     addSensitiveKeyword,
     deleteSensitiveKeyword,
+    toggleFeaturedBlog,
 };
