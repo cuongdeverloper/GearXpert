@@ -16,7 +16,6 @@ export default function Homepage() {
   const [devices, setDevices] = useState([]);
   const [suggestedDevices, setSuggestedDevices] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState(null);
   const [trendingDevice, setTrendingDevice] = useState(null);
   const [newArrivals, setNewArrivals] = useState([]);
 
@@ -25,7 +24,6 @@ export default function Homepage() {
       setLoading(true);
       const baseParams = {
         limit: 20,
-        ...(selectedCategory && { category: selectedCategory }),
       };
 
       // Fetch popular devices for Trending/Featured
@@ -93,14 +91,15 @@ export default function Homepage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory]);
+  }, []);
 
   useEffect(() => {
     fetchDevices();
   }, [fetchDevices]);
 
   const handleCategorySelect = (categoryId) => {
-    setSelectedCategory(categoryId === selectedCategory ? null : categoryId);
+    // Chuyển hướng cứng sang trang products với category
+    window.location.href = `/products?category=${categoryId}`;
   };
 
   const categories = [
@@ -134,7 +133,7 @@ export default function Homepage() {
           <ScrollAnimation direction="up" delay={0.2}>
             <CategoryPills
               categories={categories}
-              activeCategory={selectedCategory}
+              activeCategory={null}
               onSelect={handleCategorySelect}
             />
           </ScrollAnimation>
