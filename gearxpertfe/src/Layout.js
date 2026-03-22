@@ -82,6 +82,7 @@ import SmartGearPage from "./pages/SmartGear/SmartGearPage";
 import SupplierProfileEdit from "./pages/Supplier/SupplierProfileEdit";
 import SupplierPublicProfile from "./pages/User/SupplierPublicProfile";
 import FollowedStoresPage from "./pages/User/FollowedStoresPage";
+import SupplierListPage from "./pages/User/SupplierListPage";
 
 const ChatbotWrapper = () => {
   const location = useLocation();
@@ -174,6 +175,7 @@ export default function Layout() {
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/cancel" element={<PaymentCancel />} />
           <Route path="/supplier/:id" element={<SupplierPublicProfile />} />
+          <Route path="/suppliers" element={<SupplierListPage />} />
           <Route path="/supplier" element={<SupplierLayout />}>
             <Route
               index

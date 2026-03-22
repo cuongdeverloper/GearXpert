@@ -2,71 +2,150 @@ const DeliveryIssueReport = require("../../models/DeliveryIssueReport");
 const DamageReport = require("../../models/DamageReport");
 const Rental = require("../../models/Rental");
 const RentalItem = require("../../models/RentalItem");
+const NotificationConfig = require("../../configs/NotificationConfig"); // ← THÊM DÒNG NÀY (điều chỉnh path nếu cần)
+
 exports.createDeliveryIssue = async (req, res) => {
   try {
-    const { rentalId, issueType, description } = req.body;
-
-    // Lấy array từ multipart/form-data (có thể là string "id1,id2" hoặc nhiều field rentalItemIds[])
-    let rentalItemIds = req.body.rentalItemIds;
-console.log(rentalItemIds)
-    // Trường hợp frontend gửi rentalItemIds[] (array trong FormData)
-    if (Array.isArray(rentalItemIds)) {
-      // giữ nguyên
-    }
-    // Trường hợp gửi 1 field string phân cách dấu phẩy
-    else if (typeof rentalItemIds === "string") {
-      rentalItemIds = rentalItemIds.split(",").map((id) => id.trim());
-    } else {
-      rentalItemIds = [];
+    const customerId = req.user?.id;
+    if (!customerId) {
+      return res
+        .status(401)
+        .json({ message: "Không tìm thấy thông tin người dùng" });
     }
 
-    if (!rentalItemIds.length) {
+    const {
+      rentalId,
+      rentalItemIds, // mảng RentalItem _id
+      deviceItemIds = [], // mảng serial (DeviceItem _id)
+      issueType,
+      description,
+    } = req.body;
+
+    // Validate rentalItemIds
+    if (
+      !rentalItemIds ||
+      !Array.isArray(rentalItemIds) ||
+      rentalItemIds.length === 0
+    ) {
       return res
         .status(400)
         .json({ message: "Vui lòng chọn ít nhất một sản phẩm" });
     }
 
-    const rental = await Rental.findById(rentalId);
-    if (!rental) return res.status(404).json({ message: "Rental not found" });
+    if (!description?.trim()) {
+      return res
+        .status(400)
+        .json({ message: "Vui lòng cung cấp mô tả chi tiết" });
+    }
 
-    if (rental.customerId.toString() !== req.user.id) {
+    // Tìm Rental
+    const rental = await Rental.findById(rentalId);
+    if (!rental)
+      return res.status(404).json({ message: "Không tìm thấy đơn thuê" });
+
+    if (rental.customerId.toString() !== customerId) {
       return res
         .status(403)
         .json({ message: "Bạn không phải chủ đơn hàng này" });
     }
 
-    // Kiểm tra trạng thái từng item
-    const items = await RentalItem.find({
+    // Tìm các RentalItem được chọn
+    const selectedItems = await RentalItem.find({
       _id: { $in: rentalItemIds },
-      rentalId: rentalId,
-      status: "DELIVERING", // chỉ cho phép báo cáo khi item đang DELIVERING
-    });
+      rentalId,
+    }).lean();
 
-    if (items.length !== rentalItemIds.length) {
-      return res.status(400).json({
-        message: "Một số sản phẩm không ở trạng thái cho phép báo cáo",
-      });
+    if (selectedItems.length !== rentalItemIds.length) {
+      return res
+        .status(400)
+        .json({
+          message: "Một số sản phẩm không tồn tại hoặc không thuộc đơn",
+        });
     }
 
+    // Validate deviceItemIds nếu có
+    if (deviceItemIds.length > 0) {
+      const itemMap = {};
+      selectedItems.forEach((item) => {
+        itemMap[item._id.toString()] = (item.deviceItemIds || []).map((id) =>
+          id.toString()
+        );
+      });
+
+      for (let i = 0; i < deviceItemIds.length; i++) {
+        const devId = deviceItemIds[i].toString();
+        // Map theo index (giả sử frontend gửi theo thứ tự tương ứng)
+        const rentalItemId = rentalItemIds[i % rentalItemIds.length].toString();
+        const validIds = itemMap[rentalItemId] || [];
+
+        if (!validIds.includes(devId)) {
+          return res.status(400).json({
+            message: `Serial ${devId} không thuộc RentalItem ${rentalItemId}`,
+          });
+        }
+      }
+    }
+
+    // Xử lý ảnh
     const images = req.files?.map((file) => file.path) || [];
 
+    // Tạo report
     const report = await DeliveryIssueReport.create({
       rentalId,
-      rentalItemIds, // array
-      deviceIds: items.map((i) => i.deviceId), // nếu muốn lưu luôn
-      customerId: req.user.id,
+      rentalItemIds,
+      deviceItemIds: deviceItemIds.length > 0 ? deviceItemIds : undefined,
+      deviceIds: selectedItems.map((item) => item.deviceId),
+      customerId,
+      reportedBy: "CUSTOMER",
       issueType,
-      description,
+      description: description.trim(),
       images,
+      status: "OPEN",
+      reportContext: "DELIVERY",
     });
+
+    // Notification cho supplier (SỬA Ở ĐÂY)
+    try {
+      let supplierId = rental.supplierId?.toString();
+      if (!supplierId) {
+        // Fallback: lấy từ RentalItem đầu tiên → Device → supplierId
+        const firstItem = await RentalItem.findOne({
+          rentalId: rental._id,
+        }).populate("deviceId", "supplierId");
+        supplierId = firstItem?.deviceId?.supplierId?.toString();
+      }
+
+      if (supplierId) {
+        await NotificationConfig.sendNotification({
+          senderId: customerId,
+          receiverId: supplierId,
+          title: "Khách hàng báo cáo vấn đề giao hàng",
+          message: `Có khiếu nại giao hàng trên đơn #${rental._id
+            .toString()
+            .slice(-6)}. Vui lòng kiểm tra.`,
+          link: "/delivery-issues",
+          type: "DELIVERY_ISSUE",
+        });
+        console.log(
+          `[Notification] Đã gửi thông báo giao hàng đến supplier ${supplierId}`
+        );
+      } else {
+        console.warn(
+          `[Notification] Không tìm thấy supplierId cho rental ${rental._id}`
+        );
+      }
+    } catch (notifyErr) {
+      console.error("Lỗi gửi notification khi tạo delivery issue:", notifyErr);
+      // Không throw → vẫn trả success
+    }
 
     res.status(201).json({
       message: "Báo cáo vấn đề giao hàng thành công",
       data: report,
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: err.message });
+    console.error("Create Delivery Issue Error:", err);
+    res.status(500).json({ message: err.message || "Gửi báo cáo thất bại" });
   }
 };
 
@@ -84,9 +163,9 @@ exports.createStaffDeliveryIssue = async (req, res) => {
     const staffId = req.user.id;
 
     const rental = await Rental.findById(rentalId);
-    if (!rental) return res.status(404).json({ message: "Rental not found" });
+    if (!rental)
+      return res.status(404).json({ message: "Không tìm thấy đơn thuê" });
 
-    // Lấy tất cả rental items của đơn
     const items = await RentalItem.find({ rentalId });
     const rentalItemIds = items.map((i) => i._id);
     const deviceIds = items.map((i) => i.deviceId);
@@ -100,21 +179,38 @@ exports.createStaffDeliveryIssue = async (req, res) => {
       staffId,
       reportedBy: "STAFF",
       issueType,
-      description,
+      description: description?.trim() || "",
       images,
     });
 
-    // Chuyển trạng thái đơn sang INSPECTING để dừng luồng giao hàng
+    // Chuyển trạng thái đơn sang INSPECTING
     rental.status = "INSPECTING";
     rental.inspectedContext = "DELIVERY";
     await rental.save();
 
+    // Notification cho customer (nếu cần)
+    try {
+      if (rental.customerId) {
+        await NotificationConfig.sendNotification({
+          senderId: staffId,
+          receiverId: rental.customerId.toString(),
+          title: "Có sự cố giao hàng",
+          message: `Đơn hàng của bạn đang được kiểm tra do phát hiện vấn đề trong quá trình giao.`,
+          link: "/my-rentals",
+          type: "DELIVERY_ISSUE",
+        });
+      }
+    } catch (notifyErr) {
+      console.error("Lỗi gửi notification staff delivery:", notifyErr);
+    }
+
     res.status(201).json({
-      message: "Biên bản sự cố đã được lưu. Đơn hàng chuyển sang trạng thái Kiểm tra.",
+      message:
+        "Biên bản sự cố đã được lưu. Đơn hàng chuyển sang trạng thái Kiểm tra.",
       data: report,
     });
   } catch (err) {
-    console.error(err);
+    console.error("Create Staff Delivery Issue Error:", err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -126,15 +222,22 @@ exports.getStaffDeliveryIssues = async (req, res) => {
     const reports = await DeliveryIssueReport.find({
       staffId,
       reportedBy: "STAFF",
-      $or: [{ reportContext: "DELIVERY" }, { reportContext: { $exists: false } }],
+      $or: [
+        { reportContext: "DELIVERY" },
+        { reportContext: { $exists: false } },
+      ],
     })
-      .populate({ path: "rentalId", select: "customerId phoneNumber", populate: { path: "customerId", select: "fullName" } })
+      .populate({
+        path: "rentalId",
+        select: "customerId phoneNumber",
+        populate: { path: "customerId", select: "fullName" },
+      })
       .populate({ path: "deviceIds", select: "name images" })
       .sort({ createdAt: -1 })
       .lean();
     res.json({ reports });
   } catch (err) {
-    console.error(err);
+    console.error("Get Staff Delivery Issues Error:", err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -146,11 +249,13 @@ exports.createStaffReturnIssue = async (req, res) => {
     const staffId = req.user.id;
 
     const rental = await Rental.findById(rentalId);
-    if (!rental) return res.status(404).json({ message: "Rental not found" });
+    if (!rental)
+      return res.status(404).json({ message: "Không tìm thấy đơn thuê" });
 
     if (rental.status !== "RETURNING") {
       return res.status(400).json({
-        message: "Chỉ có thể báo cáo sự cố khi đơn đang ở trạng thái Thu hồi (RETURNING)",
+        message:
+          "Chỉ có thể báo cáo sự cố khi đơn đang ở trạng thái Thu hồi (RETURNING)",
       });
     }
 
@@ -158,8 +263,9 @@ exports.createStaffReturnIssue = async (req, res) => {
     const rentalItemIds = items.map((i) => i._id);
     const deviceIds = items.map((i) => i.deviceId);
 
-    // Normalize req.files: any() gives flat array, array() gives flat array too
-    const files = Array.isArray(req.files) ? req.files : Object.values(req.files || {}).flat();
+    const files = Array.isArray(req.files)
+      ? req.files
+      : Object.values(req.files || {}).flat();
     const images = files.map((file) => file.path);
 
     const report = await DeliveryIssueReport.create({
@@ -170,21 +276,38 @@ exports.createStaffReturnIssue = async (req, res) => {
       reportedBy: "STAFF",
       reportContext: "RETURN",
       issueType,
-      description,
+      description: description?.trim() || "",
       images,
     });
 
-    // Chuyển trạng thái về INSPECTING để dừng luồng hoàn thành
+    // Chuyển trạng thái về INSPECTING
     rental.status = "INSPECTING";
     rental.inspectedContext = "RETURN";
     await rental.save();
 
+    // Notification cho customer
+    try {
+      if (rental.customerId) {
+        await NotificationConfig.sendNotification({
+          senderId: staffId,
+          receiverId: rental.customerId.toString(),
+          title: "Có sự cố khi thu hồi thiết bị",
+          message: `Đơn hàng của bạn đang được kiểm tra do phát hiện vấn đề trong quá trình thu hồi.`,
+          link: "/my-rentals",
+          type: "RETURN_ISSUE",
+        });
+      }
+    } catch (notifyErr) {
+      console.error("Lỗi gửi notification staff return:", notifyErr);
+    }
+
     res.status(201).json({
-      message: "Biên bản sự cố thu hồi đã được lưu. Đơn hàng chuyển sang trạng thái Kiểm tra.",
+      message:
+        "Biên bản sự cố thu hồi đã được lưu. Đơn hàng chuyển sang trạng thái Kiểm tra.",
       data: report,
     });
   } catch (err) {
-    console.error(err);
+    console.error("Create Staff Return Issue Error:", err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -198,13 +321,17 @@ exports.getStaffReturnIssues = async (req, res) => {
       reportedBy: "STAFF",
       reportContext: "RETURN",
     })
-      .populate({ path: "rentalId", select: "customerId phoneNumber", populate: { path: "customerId", select: "fullName" } })
+      .populate({
+        path: "rentalId",
+        select: "customerId phoneNumber",
+        populate: { path: "customerId", select: "fullName" },
+      })
       .populate({ path: "deviceIds", select: "name images" })
       .sort({ createdAt: -1 })
       .lean();
     res.json({ reports });
   } catch (err) {
-    console.error(err);
+    console.error("Get Staff Return Issues Error:", err);
     res.status(500).json({ message: err.message });
   }
 };

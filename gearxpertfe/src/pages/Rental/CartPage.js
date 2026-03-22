@@ -7,17 +7,25 @@ import {
   ArrowRight,
   ArrowLeft,
   Store,
+  Edit,
 } from "lucide-react";
-import { getCart, removeCartItem } from "../../service/ApiService/CartApi";
+import {
+  getCart,
+  removeCartItem,
+  updateCartItem,
+} from "../../service/ApiService/CartApi";
 import { useNavigate } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
 
 const CartPage = () => {
   const [groupedBySupplier, setGroupedBySupplier] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editingBooking, setEditingBooking] = useState(null);
   const navigate = useNavigate();
 
   const DAY = 1000 * 60 * 60 * 24;
@@ -37,7 +45,6 @@ const CartPage = () => {
         return diffDays > 0 ? diffDays : 1;
       };
 
-      // 1. Nhóm theo supplierId
       const supplierGroups = rawCart.items.reduce((acc, item) => {
         const supplierId = item.deviceId?.supplierId?._id;
         const supplierName =
@@ -50,7 +57,7 @@ const CartPage = () => {
           acc[supplierId] = {
             supplierId,
             supplierName,
-            devices: {}, // Nhóm tiếp theo deviceId bên trong supplier
+            devices: {},
           };
         }
 
@@ -74,7 +81,6 @@ const CartPage = () => {
         return acc;
       }, {});
 
-      // 2. Chuyển thành mảng, sắp xếp booking theo ngày
       return Object.values(supplierGroups).map((supplierGroup) => {
         supplierGroup.devices = Object.values(supplierGroup.devices).map(
           (deviceGroup) => {
@@ -94,7 +100,6 @@ const CartPage = () => {
       const processed = processCartData(res);
       setGroupedBySupplier(processed);
 
-      // Hiển thị toast nếu có item bị xóa tự động
       if (res.cleaned) {
         toast.warning(
           res.message ||
@@ -109,9 +114,11 @@ const CartPage = () => {
       setLoading(false);
     }
   }, [processCartData]);
+
   useEffect(() => {
     fetchCartData();
   }, [fetchCartData]);
+
   const handleRemove = async (itemId, deviceName) => {
     try {
       await removeCartItem(itemId);
@@ -119,6 +126,37 @@ const CartPage = () => {
       fetchCartData();
     } catch (err) {
       toast.error("Không thể xóa. Vui lòng thử lại!");
+    }
+  };
+
+  const handleEditBooking = (booking) => {
+    setEditingBooking({
+      id: booking.id,
+      startDate: booking.startDate,
+      endDate: booking.endDate,
+      // quantity: booking.quantity, // nếu sau này muốn sửa cả số lượng
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingBooking) return;
+
+    try {
+      const payload = {
+        rentalStartDate: editingBooking.startDate.toISOString(),
+        rentalEndDate: editingBooking.endDate.toISOString(),
+      };
+
+      await updateCartItem(editingBooking.id, payload);
+      toast.success("Đã cập nhật lịch thuê thành công!");
+      setEditingBooking(null);
+      fetchCartData(); // reload giỏ hàng
+    } catch (err) {
+      console.error("Update cart item error:", err);
+      toast.error(
+        err.response?.data?.message ||
+          "Không thể cập nhật lịch. Vui lòng thử lại!"
+      );
     }
   };
 
@@ -133,21 +171,18 @@ const CartPage = () => {
     }, 1500);
   };
 
-  // Tính tổng tiền thuê + cọc theo supplier
   const calculateTotals = () => {
     let totalRent = 0;
     let totalDeposit = 0;
 
     groupedBySupplier.forEach((supplier) => {
       Object.values(supplier.devices).forEach((deviceGroup) => {
-        // Tiền thuê: tổng tất cả booking
         const rent = deviceGroup.bookings.reduce(
           (sum, b) => sum + b.rentPrice * b.totalDays * b.quantity,
           0
         );
         totalRent += rent;
 
-        // Tiền cọc: max quantity trong tất cả booking của thiết bị này
         const maxQty = Math.max(
           ...deviceGroup.bookings.map((b) => b.quantity),
           0
@@ -248,7 +283,7 @@ const CartPage = () => {
                             {deviceGroup.bookings.map((booking) => (
                               <div
                                 key={booking.id}
-                                className="flex flex-wrap justify-between items-center gap-4 bg-white p-4 rounded-xl border border-slate-200"
+                                className="flex flex-wrap justify-between items-start gap-4 bg-white p-4 rounded-xl border border-slate-200"
                               >
                                 <div className="flex items-center gap-4">
                                   <Calendar
@@ -272,8 +307,15 @@ const CartPage = () => {
                                   </div>
                                 </div>
 
-                                <div className="flex items-center gap-6">
-                                  <p className="font-bold text-indigo-600">
+                                <div className="flex items-center gap-5">
+                                  <button
+                                    onClick={() => handleEditBooking(booking)}
+                                    className="text-indigo-500 hover:text-indigo-700 transition-colors flex items-center gap-1 text-sm font-medium"
+                                  >
+                                    <Edit size={16} /> Sửa
+                                  </button>
+
+                                  <p className="font-bold text-indigo-600 min-w-[90px] text-right">
                                     {(
                                       booking.rentPrice *
                                       booking.totalDays *
@@ -281,6 +323,7 @@ const CartPage = () => {
                                     ).toLocaleString()}
                                     đ
                                   </p>
+
                                   <button
                                     onClick={() =>
                                       handleRemove(
@@ -301,7 +344,7 @@ const CartPage = () => {
                     </div>
                   ))}
 
-                  {/* TỔNG CỦA SUPPLIER NÀY (tùy chọn hiển thị) */}
+                  {/* TỔNG CỦA SUPPLIER */}
                   <div className="mt-6 pt-4 border-t border-slate-100 text-right">
                     <p className="text-sm font-medium text-slate-600">
                       Tạm tính supplier:
@@ -399,6 +442,71 @@ const CartPage = () => {
           </div>
         </div>
       </div>
+
+      {/* MODAL CHỈNH SỬA LỊCH THUÊ */}
+      {editingBooking && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl">
+            <h3 className="text-xl font-bold text-slate-900 mb-6">
+              Chỉnh sửa lịch thuê
+            </h3>
+
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Ngày bắt đầu
+                </label>
+                <DatePicker
+                  selected={editingBooking.startDate}
+                  onChange={(date) =>
+                    setEditingBooking({ ...editingBooking, startDate: date })
+                  }
+                  selectsStart
+                  startDate={editingBooking.startDate}
+                  endDate={editingBooking.endDate}
+                  minDate={new Date()}
+                  dateFormat="dd/MM/yyyy"
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Ngày kết thúc
+                </label>
+                <DatePicker
+                  selected={editingBooking.endDate}
+                  onChange={(date) =>
+                    setEditingBooking({ ...editingBooking, endDate: date })
+                  }
+                  selectsEnd
+                  startDate={editingBooking.startDate}
+                  endDate={editingBooking.endDate}
+                  minDate={editingBooking.startDate || new Date()}
+                  dateFormat="dd/MM/yyyy"
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div className="mt-8 flex gap-3 justify-end">
+              <button
+                onClick={() => setEditingBooking(null)}
+                className="px-6 py-2.5 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium"
+              >
+                Lưu thay đổi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Footer />
     </div>
   );

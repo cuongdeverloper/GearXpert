@@ -23,6 +23,7 @@ import { toast, Toaster } from "sonner";
 import { useParams, useNavigate } from "react-router-dom";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
+import { useSocket } from "../../SocketContext";
 import AuthRequirementModal from "../../components/common/AuthRequirementModal";
 
 /* ===== API ===== */
@@ -70,6 +71,8 @@ export default function ProductDetailPage() {
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  const { socket } = useSocket();
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -83,7 +86,6 @@ export default function ProductDetailPage() {
       const results = await Promise.all(promises);
       const [d, a, r] = results;
 
-      // hasRentedDevice cần dùng _id, gọi sau khi có device data
       let rented;
       if (isAuthenticated && d?._id) {
         rented = await hasRentedDevice(d._id);
@@ -121,11 +123,38 @@ export default function ProductDetailPage() {
   useEffect(() => {
     fetchData();
     window.scrollTo(0, 0);
-  }, [fetchData]);
+
+    if (slug) {
+      const viewed = JSON.parse(localStorage.getItem("viewedDevices") || "[]");
+      const updated = [slug, ...viewed.filter((vId) => vId !== slug)].slice(
+        0,
+        10
+      );
+      localStorage.setItem("viewedDevices", JSON.stringify(updated));
+    }
+  }, [fetchData, slug]);
 
   useEffect(() => {
     fetchMyReview();
   }, [fetchMyReview]);
+
+  useEffect(() => {
+    if (!socket || !device?._id) return;
+
+    console.log(`[SOCKET] Joining device room: device_${device._id}`);
+    socket.emit("joinRoom", `device_${device._id}`);
+
+    socket.on("deviceReviewUpdate", (data) => {
+      console.log("[SOCKET] Received deviceReviewUpdate:", data);
+      fetchData();
+    });
+
+    return () => {
+      console.log(`[SOCKET] Leaving device room: device_${device._id}`);
+      socket.emit("leaveRoom", `device_${device._id}`);
+      socket.off("deviceReviewUpdate");
+    };
+  }, [socket, device?._id, fetchData]);
 
   const validateRental = () => {
     if (!startDate || !endDate) {
@@ -255,7 +284,6 @@ export default function ProductDetailPage() {
       toast.success("Đã xóa review thành công", { id: toastId });
       setMyReview(null);
       setHasMyReview(false);
-      // fetchData(); // nếu muốn reload toàn bộ reviews
     } catch (err) {
       toast.error(err.response?.data?.message || "Xóa review thất bại", {
         id: toastId,
@@ -291,17 +319,17 @@ export default function ProductDetailPage() {
   const supplier = device.supplierId || {};
 
   return (
-    <div className="min-h-screen bg-background-light flex flex-col font-sans">
+    <div className="min-h-screen bg-background-light flex flex-col font-sans text-[15px]">
       <Header />
       <Toaster richColors closeButton expand={true} />
 
       <main className="flex-1">
         {/* HEADER NAV STICKY */}
-        <div className="sticky top-[84px] z-40 mx-6 bg-white/80 backdrop-blur-md border border-slate-200 rounded-[24px] shadow-lg mt-4">
-          <div className="max-w-[1440px] mx-auto px-6 py-3 flex items-center justify-between">
+        <div className="sticky top-[84px] z-40 mx-4 sm:mx-6 bg-white/80 backdrop-blur-md border border-slate-200 rounded-2xl shadow-lg mt-3">
+          <div className="max-w-7xl mx-auto px-5 sm:px-6 py-3 flex items-center justify-between">
             <button
               onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-slate-600 hover:text-indigo-600 transition-colors font-semibold"
+              className="flex items-center gap-2 text-slate-600 hover:text-indigo-600 transition-colors font-semibold text-sm"
             >
               <ArrowLeft className="w-5 h-5" />
               Back to Catalog
@@ -315,21 +343,21 @@ export default function ProductDetailPage() {
         </div>
 
         {/* MAIN CONTENT */}
-        <div className="max-w-[1440px] mx-auto px-6 py-10">
-          <div className="grid lg:grid-cols-12 gap-12">
+        <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 py-8 lg:py-10">
+          <div className="grid lg:grid-cols-12 gap-8 lg:gap-10">
             {/* LEFT: IMAGES & DETAILS */}
-            <div className="lg:col-span-7 space-y-10">
+            <div className="lg:col-span-7 space-y-8">
               {/* IMAGES */}
-              <div className="space-y-6">
-                <div className="relative rounded-[32px] overflow-hidden bg-white shadow-2xl shadow-indigo-100/50 border border-slate-100 group">
+              <div className="space-y-5">
+                <div className="relative rounded-3xl overflow-hidden bg-white shadow-xl shadow-indigo-100/40 border border-slate-100 group">
                   <img
                     src={device.images?.[selectedImage]}
-                    className="w-full h-[600px] object-cover transition-transform duration-700 group-hover:scale-105"
+                    className="w-full h-[420px] sm:h-[480px] lg:h-[520px] object-cover transition-transform duration-700 group-hover:scale-105"
                     alt={device.name}
                   />
-                  <div className="absolute top-6 left-6">
+                  <div className="absolute top-5 left-5">
                     <span
-                      className={`text-white text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest shadow-lg ${
+                      className={`text-white text-xs font-black px-3 py-1 rounded-lg uppercase tracking-widest shadow-md ${
                         device.stockQuantity > 0
                           ? "bg-indigo-600"
                           : "bg-rose-500"
@@ -342,15 +370,15 @@ export default function ProductDetailPage() {
                   </div>
                 </div>
 
-                <div className="flex gap-4 overflow-x-auto pb-2 hide-scroll">
+                <div className="flex gap-3 overflow-x-auto pb-2 hide-scroll">
                   {device.images?.map((img, i) => (
                     <button
                       key={i}
                       onClick={() => setSelectedImage(i)}
-                      className={`relative min-w-[120px] h-24 rounded-2xl overflow-hidden border-2 transition-all ${
+                      className={`relative min-w-[90px] sm:min-w-[100px] h-20 sm:h-24 rounded-2xl overflow-hidden border-2 transition-all ${
                         selectedImage === i
-                          ? "border-indigo-600 scale-95 shadow-lg"
-                          : "border-transparent opacity-60 hover:opacity-100"
+                          ? "border-indigo-600 scale-95 shadow-md"
+                          : "border-transparent opacity-70 hover:opacity-100"
                       }`}
                     >
                       <img
@@ -364,35 +392,35 @@ export default function ProductDetailPage() {
               </div>
 
               {/* OVERVIEW */}
-              <div className="space-y-6">
-                <h2 className="text-3xl font-bold text-slate-900 font-display flex items-center gap-3">
+              <div className="space-y-5">
+                <h2 className="text-2xl font-bold text-slate-900 font-display flex items-center gap-3">
                   Overview
                   <div className="h-1 flex-1 bg-slate-100 rounded-full"></div>
                 </h2>
-                <p className="text-lg text-slate-600 leading-relaxed whitespace-pre-line font-medium">
+                <p className="text-[15px] text-slate-600 leading-relaxed whitespace-pre-line font-medium">
                   {device.description}
                 </p>
               </div>
 
-              {/* MY REVIEW SECTION - Đã nâng cấp */}
+              {/* MY REVIEW SECTION */}
               {isAuthenticated && (
-                <div className="mt-12 bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm">
-                  <h3 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-                    <User className="w-6 h-6 text-indigo-600" />
+                <div className="mt-10 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+                  <h3 className="text-xl font-bold text-slate-900 mb-5 flex items-center gap-3">
+                    <User className="w-5 h-5 text-indigo-600" />
                     Review của tôi
                   </h3>
 
                   {hasMyReview ? (
-                    <div className="space-y-6">
+                    <div className="space-y-5">
                       {!isEditingReview ? (
                         <>
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-3">
                               <div className="flex">
                                 {Array.from({ length: 5 }).map((_, i) => (
                                   <Star
                                     key={i}
-                                    className={`w-6 h-6 ${
+                                    className={`w-5 h-5 ${
                                       i < myReview.rating
                                         ? "fill-amber-400 text-amber-400"
                                         : "text-slate-200"
@@ -418,22 +446,22 @@ export default function ProductDetailPage() {
                                 <div className="flex gap-3">
                                   <button
                                     onClick={() => setIsEditingReview(true)}
-                                    className="flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 hover:border-indigo-300 rounded-xl transition-all shadow-sm hover:shadow"
+                                    className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 hover:border-indigo-300 rounded-xl transition-all"
                                   >
                                     <Edit className="w-4 h-4" />
                                     Chỉnh sửa
                                   </button>
                                   <button
                                     onClick={handleDeleteReview}
-                                    className="flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 hover:border-rose-300 rounded-xl transition-all shadow-sm hover:shadow"
+                                    className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 hover:border-rose-300 rounded-xl transition-all"
                                   >
                                     <Trash2 className="w-4 h-4" />
                                     Xóa
                                   </button>
                                 </div>
                               ) : (
-                                <span className="text-xs italic px-4 py-2 bg-slate-100 text-slate-500 rounded-full">
-                                  Đã quá 48 giờ (không thể chỉnh sửa/xóa)
+                                <span className="text-xs italic px-3 py-1.5 bg-slate-100 text-slate-500 rounded-full">
+                                  Đã quá 48 giờ
                                 </span>
                               );
                             })()}
@@ -444,22 +472,22 @@ export default function ProductDetailPage() {
                           </p>
 
                           {myReview.images?.length > 0 && (
-                            <div className="flex gap-4 flex-wrap mt-4">
+                            <div className="flex gap-3 flex-wrap mt-3">
                               {myReview.images.map((img, idx) => (
                                 <img
                                   key={idx}
                                   src={img}
                                   alt={`Review ${idx + 1}`}
-                                  className="w-28 h-28 object-cover rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-[1.03]"
+                                  className="w-24 h-24 object-cover rounded-xl border border-slate-200 shadow-sm hover:shadow transition-all duration-300"
                                 />
                               ))}
                             </div>
                           )}
                         </>
                       ) : (
-                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 space-y-6">
+                        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-5">
                           <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-3">
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">
                               Đánh giá của bạn
                             </label>
                             <div className="flex gap-1">
@@ -471,7 +499,7 @@ export default function ProductDetailPage() {
                                   className="focus:outline-none transition-transform hover:scale-110"
                                 >
                                   <Star
-                                    className={`w-9 h-9 transition-all ${
+                                    className={`w-8 h-8 transition-all ${
                                       star <= editRating
                                         ? "fill-amber-400 text-amber-400 drop-shadow-sm"
                                         : "text-slate-300 hover:text-amber-300"
@@ -483,22 +511,22 @@ export default function ProductDetailPage() {
                           </div>
 
                           <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-3">
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">
                               Nhận xét
                             </label>
                             <textarea
                               value={editComment}
                               onChange={(e) => setEditComment(e.target.value)}
-                              className="w-full h-40 p-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none text-slate-700 placeholder-slate-400"
+                              className="w-full h-36 p-3.5 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none text-slate-700 placeholder-slate-400 text-[15px]"
                               placeholder="Chia sẻ trải nghiệm của bạn..."
                             />
                           </div>
 
-                          <div className="flex gap-4 justify-end pt-2">
+                          <div className="flex gap-4 justify-end pt-1">
                             <button
                               onClick={() => setIsEditingReview(false)}
                               disabled={isSubmittingReview}
-                              className="px-6 py-3 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors"
+                              className="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors"
                             >
                               Hủy
                             </button>
@@ -507,15 +535,15 @@ export default function ProductDetailPage() {
                               disabled={
                                 isSubmittingReview || !editComment.trim()
                               }
-                              className={`min-w-[140px] px-6 py-3 rounded-xl text-white font-medium flex items-center justify-center gap-2 transition-all ${
+                              className={`min-w-[120px] px-5 py-2.5 rounded-xl text-white font-medium flex items-center justify-center gap-2 transition-all ${
                                 isSubmittingReview
                                   ? "bg-indigo-400 cursor-not-allowed"
-                                  : "bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98]"
+                                  : "bg-indigo-600 hover:bg-indigo-700"
                               }`}
                             >
                               {isSubmittingReview ? (
                                 <>
-                                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                                   Đang lưu...
                                 </>
                               ) : (
@@ -527,12 +555,12 @@ export default function ProductDetailPage() {
                       )}
                     </div>
                   ) : (
-                    <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                    <div className="text-center py-10 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
                       <p className="text-slate-600 font-medium">
                         Bạn chưa đánh giá sản phẩm này
                       </p>
                       {hasRented && (
-                        <p className="mt-3 text-sm text-indigo-600">
+                        <p className="mt-2 text-sm text-indigo-600">
                           (Bạn có thể đánh giá vì đã từng thuê thiết bị này)
                         </p>
                       )}
@@ -542,22 +570,22 @@ export default function ProductDetailPage() {
               )}
 
               {/* REVIEWS */}
-              <div className="space-y-8">
-                <h2 className="text-3xl font-bold text-slate-900 font-display flex items-center gap-3">
+              <div className="space-y-7">
+                <h2 className="text-2xl font-bold text-slate-900 font-display flex items-center gap-3">
                   Production Reviews
                   <div className="h-1 flex-1 bg-slate-100 rounded-full"></div>
                 </h2>
 
-                <div className="space-y-6">
+                <div className="space-y-5">
                   {reviews.length > 0 ? (
                     reviews.map((r) => (
                       <div
                         key={r._id}
-                        className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex gap-6"
+                        className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex gap-5"
                       >
                         <img
                           src={r.userId?.avatar}
-                          className="w-14 h-14 rounded-2xl object-cover ring-4 ring-slate-50"
+                          className="w-12 h-12 rounded-2xl object-cover ring-4 ring-slate-50 flex-shrink-0"
                           alt="avatar"
                         />
                         <div className="flex-1 space-y-2">
@@ -583,14 +611,14 @@ export default function ProductDetailPage() {
                               {new Date(r.createdAt).toLocaleDateString()}
                             </span>
                           </div>
-                          <p className="text-slate-600 font-medium leading-relaxed italic">
+                          <p className="text-slate-600 font-medium leading-relaxed italic text-[15px]">
                             "{r.comment}"
                           </p>
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-12 bg-slate-50 rounded-[32px] border border-dashed border-slate-200">
+                    <div className="text-center py-10 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
                       <AlertCircle className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                       <p className="text-slate-400 font-bold uppercase text-xs tracking-widest">
                         No production reviews yet
@@ -609,18 +637,18 @@ export default function ProductDetailPage() {
             </div>
 
             {/* RIGHT: CONFIG & RENTAL */}
-            <div className="lg:col-span-5 space-y-8">
+            <div className="lg:col-span-5 space-y-7">
               {/* TITLE & RATING */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="flex items-center gap-2 text-indigo-600 font-bold text-sm uppercase tracking-wider">
-                  <div className="w-8 h-[2px] bg-indigo-600"></div>
+                  <div className="w-7 h-[2px] bg-indigo-600"></div>
                   {device.category}
                 </div>
-                <h1 className="text-4xl md:text-5xl font-bold text-slate-900 font-display leading-tight italic">
+                <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 font-display leading-tight italic">
                   {device.name}
                 </h1>
 
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-5">
                   <div className="flex items-center gap-1.5">
                     <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
                     <span className="font-bold text-slate-900">
@@ -643,14 +671,14 @@ export default function ProductDetailPage() {
               {(supplier.businessName || supplier.fullName) && (
                 <div
                   onClick={() => navigate(`/supplier/${supplier._id}`)}
-                  className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm cursor-pointer hover:border-indigo-200 hover:shadow-md transition-all group"
+                  className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm cursor-pointer hover:border-indigo-200 hover:shadow transition-all group"
                 >
                   <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-3">
                     <User size={20} className="text-indigo-600" />
                     Supplier
                   </h3>
                   <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-indigo-100 group-hover:border-indigo-300 transition-colors">
+                    <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-indigo-100 group-hover:border-indigo-300 transition-colors flex-shrink-0">
                       <img
                         src={
                           supplier.businessAvatar ||
@@ -662,37 +690,37 @@ export default function ProductDetailPage() {
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-slate-900 text-lg group-hover:text-indigo-600 transition-colors">
+                      <p className="font-bold text-slate-900 text-base group-hover:text-indigo-600 transition-colors truncate">
                         {supplier.businessName || supplier.fullName}
                       </p>
-                      <p className="text-sm text-slate-500">
+                      <p className="text-sm text-slate-500 truncate">
                         Listed {device.name} on GearXpert
                       </p>
                     </div>
-                    <ArrowLeft className="w-5 h-5 text-slate-300 rotate-180 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
+                    <ArrowLeft className="w-5 h-5 text-slate-300 rotate-180 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all flex-shrink-0" />
                   </div>
                 </div>
               )}
 
               {/* PRICING CARD */}
-              <div className="glass-panel !bg-indigo-600 rounded-[32px] p-8 text-white shadow-xl shadow-indigo-200">
+              <div className="bg-indigo-600 rounded-3xl p-6 text-white shadow-xl shadow-indigo-200/50">
                 <div className="flex justify-between items-end">
                   <div>
-                    <p className="text-indigo-100 text-sm font-bold uppercase tracking-widest mb-1">
+                    <p className="text-indigo-100 text-xs font-bold uppercase tracking-widest mb-1">
                       Rental Rate
                     </p>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-4xl font-bold">
+                      <span className="text-3xl font-bold">
                         {device.rentPrice?.perDay.toLocaleString()}đ
                       </span>
-                      <span className="text-indigo-200">/ day</span>
+                      <span className="text-indigo-200 text-sm">/ day</span>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest mb-1">
                       Security Deposit
                     </p>
-                    <p className="font-bold">
+                    <p className="font-bold text-lg">
                       {device.depositAmount?.toLocaleString()}đ
                     </p>
                   </div>
@@ -700,7 +728,7 @@ export default function ProductDetailPage() {
               </div>
 
               {/* RENTAL FORM */}
-              <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm space-y-6">
+              <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-6">
                 {/* RENTAL PERIOD */}
                 <div className="space-y-4">
                   <label className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wider">
@@ -709,7 +737,7 @@ export default function ProductDetailPage() {
                   </label>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase ml-2">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase ml-1.5">
                         Start Date
                       </p>
                       <input
@@ -721,11 +749,11 @@ export default function ProductDetailPage() {
                           if (endDate && e.target.value > endDate)
                             setEndDate("");
                         }}
-                        className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                        className="w-full bg-slate-50 border-none rounded-2xl p-3.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                       />
                     </div>
                     <div className="space-y-2">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase ml-2">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase ml-1.5">
                         End Date
                       </p>
                       <input
@@ -733,7 +761,7 @@ export default function ProductDetailPage() {
                         min={startDate || today}
                         value={endDate}
                         onChange={(e) => setEndDate(e.target.value)}
-                        className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                        className="w-full bg-slate-50 border-none rounded-2xl p-3.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                       />
                     </div>
                   </div>
@@ -746,14 +774,14 @@ export default function ProductDetailPage() {
                       <Package className="w-4 h-4 text-indigo-600" />
                       Rent Quantity
                     </label>
-                    <span className="text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest border text-indigo-600 bg-indigo-50 border-indigo-100">
+                    <span className="text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-widest border text-indigo-600 bg-indigo-50 border-indigo-100">
                       Available: {device.stockQuantity}
                     </span>
                   </div>
-                  <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-2xl border border-slate-100 w-fit">
+                  <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-2xl border border-slate-100 w-fit">
                     <button
                       onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:text-indigo-600 hover:border-indigo-600 transition-all active:scale-90 disabled:opacity-50"
+                      className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:text-indigo-600 hover:border-indigo-600 transition-all active:scale-95 disabled:opacity-50"
                       disabled={quantity <= 1}
                     >
                       <Minus size={16} strokeWidth={3} />
@@ -772,7 +800,7 @@ export default function ProductDetailPage() {
                           );
                         }
                       }}
-                      className="w-12 text-center bg-transparent border-none text-lg font-black text-slate-900 outline-none select-none"
+                      className="w-10 text-center bg-transparent border-none text-lg font-black text-slate-900 outline-none select-none"
                     />
                     <button
                       onClick={() =>
@@ -780,7 +808,7 @@ export default function ProductDetailPage() {
                           Math.min(device.stockQuantity || 1, quantity + 1)
                         )
                       }
-                      className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-900 flex items-center justify-center text-white hover:bg-indigo-600 hover:border-indigo-600 transition-all active:scale-90 disabled:opacity-50"
+                      className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-900 flex items-center justify-center text-white hover:bg-indigo-600 hover:border-indigo-600 transition-all active:scale-95 disabled:opacity-50"
                       disabled={quantity >= (device.stockQuantity || 1)}
                     >
                       <Plus size={16} strokeWidth={3} />
@@ -803,13 +831,13 @@ export default function ProductDetailPage() {
                         <button
                           key={a._id}
                           onClick={() => toggleAddon(a)}
-                          className={`w-full flex justify-between items-center p-4 rounded-2xl border-2 transition-all ${
+                          className={`w-full flex justify-between items-center p-4 rounded-2xl border-2 transition-all text-left ${
                             isSelected
                               ? "border-indigo-600 bg-indigo-50 shadow-sm"
                               : "border-slate-100 hover:border-slate-200 bg-white"
                           }`}
                         >
-                          <div className="text-left">
+                          <div>
                             <p
                               className={`font-bold text-sm ${
                                 isSelected
@@ -819,11 +847,11 @@ export default function ProductDetailPage() {
                             >
                               {a.name}
                             </p>
-                            <p className="text-[10px] text-slate-400 uppercase font-bold">
+                            <p className="text-[10px] text-slate-400 uppercase font-bold mt-0.5">
                               Compatible Gear
                             </p>
                           </div>
-                          <span className="font-bold text-indigo-600">
+                          <span className="font-bold text-indigo-600 whitespace-nowrap">
                             +{a.rentPrice?.perDay.toLocaleString()}đ
                           </span>
                         </button>
@@ -834,12 +862,12 @@ export default function ProductDetailPage() {
 
                 {/* TOTAL */}
                 {days > 0 && (
-                  <div className="pt-4 border-t border-dashed border-slate-200 animate-in fade-in slide-in-from-top-2">
+                  <div className="pt-4 border-t border-dashed border-slate-200">
                     <div className="flex justify-between items-center">
                       <div className="text-sm font-bold text-slate-500 uppercase tracking-widest">
                         Estimated Total ({days} days)
                       </div>
-                      <div className="text-2xl font-black text-indigo-600">
+                      <div className="text-xl sm:text-2xl font-black text-indigo-600">
                         {totalPrice.toLocaleString()}đ
                       </div>
                     </div>
@@ -847,11 +875,11 @@ export default function ProductDetailPage() {
                 )}
 
                 {/* ACTIONS */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 mt-2">
                   <button
                     onClick={handleAddToCart}
                     disabled={device.stockQuantity === 0}
-                    className="flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-slate-200 text-slate-700 font-bold hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center justify-center gap-2 py-3.5 rounded-2xl border-2 border-slate-200 text-slate-700 font-bold hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                   >
                     <ShoppingCart className="w-5 h-5" />
                     Add to Cart
@@ -859,7 +887,7 @@ export default function ProductDetailPage() {
                   <button
                     onClick={handleBuyNow}
                     disabled={device.stockQuantity === 0}
-                    className="flex items-center justify-center gap-2 py-4 rounded-2xl bg-slate-900 text-white font-bold hover:bg-black shadow-lg shadow-slate-200 transition-all active:scale-95 disabled:bg-slate-400 disabled:shadow-none disabled:cursor-not-allowed"
+                    className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-slate-900 text-white font-bold hover:bg-black shadow-lg shadow-slate-200/50 transition-all active:scale-95 disabled:bg-slate-400 disabled:shadow-none disabled:cursor-not-allowed text-sm"
                   >
                     <Zap className="w-5 h-5 fill-current" />
                     Rent Now
@@ -886,19 +914,19 @@ export default function ProductDetailPage() {
           </div>
 
           {/* SPECS & RELATED */}
-          <div className="mt-20 grid lg:grid-cols-12 gap-12">
+          <div className="mt-16 grid lg:grid-cols-12 gap-8 lg:gap-10">
             {/* SPECS */}
             <div className="lg:col-span-5">
-              <div className="sticky top-28 bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm space-y-6">
-                <h3 className="text-2xl font-bold text-slate-900 font-display">
+              <div className="sticky top-24 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-5">
+                <h3 className="text-xl font-bold text-slate-900 font-display">
                   Technical Specs
                 </h3>
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {device.specs &&
                     Object.entries(device.specs).map(([k, v]) => (
                       <div
                         key={k}
-                        className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl"
+                        className="flex items-center justify-between p-3.5 bg-slate-50 rounded-2xl text-sm"
                       >
                         <div className="flex items-center gap-3">
                           <div className="p-2 bg-white rounded-xl shadow-sm">
@@ -918,60 +946,60 @@ export default function ProductDetailPage() {
             </div>
 
             {/* RELATED DEVICES */}
-            <div className="lg:col-span-7 space-y-10">
+            <div className="lg:col-span-7 space-y-8">
               <div className="flex items-end justify-between">
                 <div>
-                  <h2 className="text-4xl font-bold text-slate-900 font-display">
+                  <h2 className="text-3xl font-bold text-slate-900 font-display">
                     Similar Equipment
                   </h2>
-                  <p className="text-slate-500 font-medium mt-2">
+                  <p className="text-slate-500 font-medium mt-1.5 text-[15px]">
                     Recommended gear based on this production kit.
                   </p>
                 </div>
-                <button className="text-indigo-600 font-bold hover:underline flex items-center gap-2">
+                <button className="text-indigo-600 font-bold hover:underline flex items-center gap-2 text-sm">
                   View All <ArrowLeft className="w-4 h-4 rotate-180" />
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {relatedDevices.slice(0, 6).map((d) => (
                   <div
                     key={d._id}
-                    className="group bg-white rounded-[28px] border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-500 cursor-pointer overflow-hidden"
-                    onClick={() => navigate(`/device/${d.slug}`)}
+                    className="group bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden"
+                    onClick={() => navigate(`/device/${d._id}`)}
                   >
-                    <div className="relative h-64 overflow-hidden">
+                    <div className="relative h-52 sm:h-56 overflow-hidden">
                       <img
                         src={d.images?.[0] || d.image}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                         alt={d.name}
                       />
-                      <div className="absolute bottom-4 left-4">
-                        <div className="glass-panel text-white text-[10px] font-bold px-3 py-1.5 rounded-xl backdrop-blur-md">
+                      <div className="absolute bottom-3 left-3">
+                        <div className="bg-black/60 text-white text-xs font-bold px-2.5 py-1 rounded-xl backdrop-blur-sm">
                           {d.location?.city}
                         </div>
                       </div>
                     </div>
-                    <div className="p-6 space-y-4">
-                      <div className="flex justify-between items-start">
-                        <h4 className="font-bold text-slate-900 line-clamp-1 group-hover:text-indigo-600 transition-colors">
+                    <div className="p-5 space-y-3">
+                      <div className="flex justify-between items-start gap-2">
+                        <h4 className="font-bold text-slate-900 line-clamp-2 group-hover:text-indigo-600 transition-colors text-base">
                           {d.name}
                         </h4>
-                        <div className="flex items-center gap-1">
-                          <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                           <span className="text-xs font-bold">
                             {d.ratingAvg}
                           </span>
                         </div>
                       </div>
-                      <div className="flex justify-between items-center pt-4 border-t border-slate-50">
-                        <div className="text-indigo-600 font-black text-lg">
+                      <div className="flex justify-between items-center pt-3 border-t border-slate-50">
+                        <div className="text-indigo-600 font-black text-base">
                           {d.rentPrice?.perDay.toLocaleString()}đ
                           <span className="text-[10px] text-slate-400 font-bold uppercase ml-1">
                             / day
                           </span>
                         </div>
-                        <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="w-9 h-9 rounded-full bg-slate-900 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
                           <Zap className="w-4 h-4 fill-current" />
                         </div>
                       </div>
@@ -994,27 +1022,27 @@ export default function ProductDetailPage() {
       {/* MODAL XÁC NHẬN XÓA */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white rounded-3xl p-8 max-w-md w-[90%] mx-4 shadow-2xl border border-slate-100 transform transition-all scale-100">
+          <div className="bg-white rounded-3xl p-7 max-w-md w-[90%] mx-4 shadow-2xl border border-slate-100 transform transition-all scale-100">
             <div className="flex items-center gap-3 mb-4">
               <AlertCircle className="w-7 h-7 text-rose-500" />
               <h3 className="text-xl font-bold text-slate-900">
                 Xác nhận xóa review
               </h3>
             </div>
-            <p className="text-slate-600 mb-8 leading-relaxed">
+            <p className="text-slate-600 mb-7 leading-relaxed text-[15px]">
               Bạn có chắc chắn muốn xóa đánh giá này? Hành động này không thể
               hoàn tác.
             </p>
             <div className="flex gap-4 justify-end">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="px-6 py-3 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors"
+                className="px-6 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors"
               >
                 Hủy
               </button>
               <button
                 onClick={confirmDeleteReview}
-                className="px-6 py-3 bg-rose-600 text-white font-medium rounded-xl hover:bg-rose-700 transition-colors active:scale-95 shadow-sm"
+                className="px-6 py-2.5 bg-rose-600 text-white font-medium rounded-xl hover:bg-rose-700 transition-colors active:scale-95 shadow-sm"
               >
                 Xóa review
               </button>
@@ -1027,8 +1055,8 @@ export default function ProductDetailPage() {
 }
 
 const Criteria = ({ icon, text }) => (
-  <div className="bg-white rounded-[24px] p-4 border border-slate-100 shadow-sm text-center flex flex-col items-center gap-2">
-    <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+  <div className="bg-white rounded-3xl p-4 border border-slate-100 shadow-sm text-center flex flex-col items-center gap-2">
+    <div className="w-9 h-9 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
       {icon}
     </div>
     <p className="text-[10px] font-black uppercase tracking-tight text-slate-500 leading-tight">

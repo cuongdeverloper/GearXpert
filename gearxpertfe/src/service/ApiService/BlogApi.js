@@ -27,6 +27,9 @@ export const toggleSaveBlog = (id, userName) =>
 export const manageBlogStatus = (id, status, reason) =>
     axios.patch(`/api/blogs/${id}/status`, { status, reason });
 
+export const toggleFeaturedBlog = (id) =>
+    axios.patch(`/api/blogs/${id}/featured`);
+
 export const toggleLikeBlog = (id, userName) =>
     axios.post(`/api/blogs/${id}/like`, { userName });
 

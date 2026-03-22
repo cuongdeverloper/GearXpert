@@ -123,7 +123,14 @@ const confirmDelivery = (rentalId) => {
 const confirmReturn = (rentalId) => {
   return axios.post(`/api/rentals/${rentalId}/confirm-return`);
 };
+// Trong file ../../service/ApiService/RentalApi.js
+export const previewContract = async (data) => {
+  const res = await axios.post("/api/rentals/preview-contract", data, {
+    responseType: "blob",
+  });
 
+  return res;
+};
 export { 
   checkout, 
   hasRentedDevice, 

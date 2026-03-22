@@ -33,6 +33,8 @@ const supplierProfileSchema = new mongoose.Schema({
     district: String,
     city: String,
     fullAddress: String,
+    lat: Number,
+    lng: Number,
   },
 
   // Thông tin liên hệ công khai

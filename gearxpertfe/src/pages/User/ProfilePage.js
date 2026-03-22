@@ -21,6 +21,7 @@ export default function ProfilePage() {
     const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
 
     const [loading, setLoading] = useState(false);
+    const [isLocating, setIsLocating] = useState(false);
     const [changingPassword, setChangingPassword] = useState(false);
     const [avatarPreview, setAvatarPreview] = useState(null);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -172,10 +173,52 @@ export default function ProfilePage() {
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
+        const cleanValue = name === 'phone' ? value.replace(/\D/g, '') : value;
         setFormData(prev => ({
             ...prev,
-            [name]: value
+            [name]: cleanValue
         }));
+    };
+
+    const handleGetLocation = () => {
+        if (!navigator.geolocation) {
+            toast.error('Trình duyệt của bạn không hỗ trợ định vị');
+            return;
+        }
+
+        setIsLocating(true);
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const { latitude, longitude } = position.coords;
+                try {
+                    const res = await fetch(
+                        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&accept-language=vi`
+                    );
+                    const data = await res.json();
+                    if (data && data.address) {
+                        const addr = data.address;
+                        setFormData(prev => ({
+                            ...prev,
+                            street: addr.road || addr.house_number || prev.street,
+                            district: addr.suburb || addr.district || addr.county || addr.quarter || prev.district,
+                            city: addr.city || addr.province || addr.state || 'Đà Nẵng'
+                        }));
+                        toast.success('Đã cập nhật địa chỉ từ vị trí của bạn');
+                    }
+                } catch (error) {
+                    console.error('Error reverse geocoding:', error);
+                    toast.error('Không thể lấy địa chỉ từ tọa độ');
+                } finally {
+                    setIsLocating(false);
+                }
+            },
+            (error) => {
+                console.error('Error getting location:', error);
+                setIsLocating(false);
+                toast.error('Không thể lấy vị trí. Vui lòng kiểm tra quyền truy cập.');
+            },
+            { enableHighAccuracy: true }
+        );
     };
 
     const handlePasswordChange = (e) => {
@@ -514,14 +557,25 @@ export default function ProfilePage() {
                         <div className="lg:col-span-2 space-y-8">
                             {/* Profile Information Form */}
                             <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-xl hover:shadow-glow-cyan border border-slate-200/50 p-6 md:p-8 transition-all duration-300">
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="w-10 h-10 flex-shrink-0 bg-primary/10 rounded-full flex items-center justify-center shadow-sm">
-                                        <span className="material-symbols-outlined text-primary text-xl">person</span>
+                                    <div className="flex items-center justify-between mb-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 flex-shrink-0 bg-primary/10 rounded-full flex items-center justify-center shadow-sm">
+                                                <span className="material-symbols-outlined text-primary text-xl">person</span>
+                                            </div>
+                                            <h2 className="text-2xl font-bold text-slate-900 font-display">
+                                                Thông tin cá nhân
+                                            </h2>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={handleGetLocation}
+                                            disabled={isLocating}
+                                            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl font-bold text-sm hover:bg-indigo-100 transition-all border border-indigo-100 shadow-sm"
+                                        >
+                                            <span className={`material-symbols-outlined text-[18px] ${isLocating ? 'animate-spin' : ''}`}>my_location</span>
+                                            {isLocating ? 'Đang xác định...' : 'Lấy vị trí hiện tại'}
+                                        </button>
                                     </div>
-                                    <h2 className="text-2xl font-bold text-slate-900 font-display">
-                                        Thông tin cá nhân
-                                    </h2>
-                                </div>
 
                                 <form onSubmit={handleSubmitProfile} className="space-y-6">
                                     {/* Full Name */}
@@ -784,133 +838,135 @@ export default function ProfilePage() {
                             )}
 
                             {/* Advertisement Button Panel */}
-                            <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-xl hover:shadow-[0_20px_50px_rgba(79,70,229,0.2)] border border-slate-200/50 p-6 md:p-8 transition-all duration-500 overflow-hidden relative group">
-                                {/* Decorative elements */}
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full -mr-16 -mt-16 transition-transform group-hover:scale-150 duration-700"></div>
-                                <div className="absolute bottom-0 left-0 w-24 h-24 bg-accent-cyan/5 rounded-tr-full -ml-12 -mb-12 transition-transform group-hover:scale-150 duration-700"></div>
+                            {userAccount?.role === 'SUPPLIER' && (
+                                <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-xl hover:shadow-[0_20px_50px_rgba(79,70,229,0.2)] border border-slate-200/50 p-6 md:p-8 transition-all duration-500 overflow-hidden relative group">
+                                    {/* Decorative elements */}
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full -mr-16 -mt-16 transition-transform group-hover:scale-150 duration-700"></div>
+                                    <div className="absolute bottom-0 left-0 w-24 h-24 bg-accent-cyan/5 rounded-tr-full -ml-12 -mb-12 transition-transform group-hover:scale-150 duration-700"></div>
 
-                                <div className="relative z-10">
-                                    <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                                        <div className="flex items-center gap-4 text-center md:text-left">
-                                            <div className="w-14 h-14 shrink-0 bg-gradient-to-br from-primary to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 rotate-3 group-hover:rotate-0 transition-transform duration-300">
-                                                <span className="material-symbols-outlined text-white text-3xl">campaign</span>
-                                            </div>
-                                            <div>
-                                                <h2 className="text-2xl font-bold text-slate-900 font-display mb-1">
-                                                    Quảng bá tại GearXpert
-                                                </h2>
-                                                <p className="text-slate-500 text-sm max-w-md">
-                                                    Đưa sản phẩm của bạn đến gần hơn với khách hàng bằng cách đăng quảng cáo lên Banner hoặc Popup tại trang chủ.
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        <button
-                                            onClick={() => setShowAdsModal(true)}
-                                            className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 hover:shadow-primary/20 hover:-translate-y-1 active:translate-y-0 flex items-center gap-3 group/btn"
-                                        >
-                                            <span className="material-symbols-outlined text-accent-cyan animate-pulse">add_circle</span>
-                                            Đăng quảng cáo ngay
-                                            <span className="material-symbols-outlined group-hover/btn:translate-x-1 transition-transform">arrow_forward</span>
-                                        </button>
-                                    </div>
-
-                                    {/* Ads List Section */}
-                                    <div className="mt-10 pt-10 border-t border-slate-100">
-                                        <div className="flex items-center justify-between mb-6">
-                                            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                                                <span className="w-2 h-8 bg-primary rounded-full"></span>
-                                                Quảng cáo của bạn
-                                            </h3>
-                                            <span className="text-sm text-slate-400 font-medium">
-                                                {myAds.length} chiến dịch
-                                            </span>
-                                        </div>
-
-                                        {loadingAds ? (
-                                            <div className="flex justify-center py-10">
-                                                <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                                            </div>
-                                        ) : myAds.length > 0 ? (
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                                {myAds.map((ad) => (
-                                                    <motion.div
-                                                        layout
-                                                        key={ad._id}
-                                                        className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden hover:border-primary/30 transition-all group/card"
-                                                    >
-                                                        <div className="relative aspect-video overflow-hidden">
-                                                            <img
-                                                                src={ad.imageUrl}
-                                                                alt={ad.title}
-                                                                className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-500"
-                                                            />
-                                                            <div className="absolute top-2 right-2 flex gap-1">
-                                                                {ad.adsType.map(type => (
-                                                                    <span key={type} className="px-2 py-0.5 bg-black/50 backdrop-blur-md text-white text-[9px] font-bold rounded-lg uppercase">
-                                                                        {type}
-                                                                    </span>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                        <div className="p-4">
-                                                            <div className="flex justify-between items-start mb-2">
-                                                                <h4 className="font-bold text-slate-900 line-clamp-1">{ad.title}</h4>
-                                                                <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 ${ad.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-600' :
-                                                                    ad.status === 'REJECTED' ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-600'
-                                                                    }`}>
-                                                                    {ad.status === 'APPROVED' ? <FiCheck size={10} /> :
-                                                                        ad.status === 'REJECTED' ? <FiXCircle size={10} /> : <FiClock size={10} />}
-                                                                    {ad.status}
-                                                                </div>
-                                                            </div>
-                                                            <p className="text-xs text-slate-500 line-clamp-2 mb-2 h-8">{ad.description}</p>
-
-                                                            <div className="flex flex-col gap-1 mb-4">
-                                                                <div className="flex justify-between text-[10px] text-slate-400">
-                                                                    <span>Ngân sách:</span>
-                                                                    <span className="font-bold text-slate-700">{ad.dailyBudget?.toLocaleString('vi-VN')}₫/ngày</span>
-                                                                </div>
-                                                                <div className="flex justify-between text-[10px] text-slate-400">
-                                                                    <span>Thời gian:</span>
-                                                                    <span className="font-medium text-slate-600">
-                                                                        {new Date(ad.startDate).toLocaleDateString('vi-VN')} - {new Date(ad.endDate).toLocaleDateString('vi-VN')}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="flex items-center gap-2">
-                                                                <a
-                                                                    href={ad.link}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-100 transition-all"
-                                                                >
-                                                                    <FiExternalLink /> Link
-                                                                </a>
-                                                                <button
-                                                                    onClick={() => handleDeleteAd(ad._id)}
-                                                                    className="p-2 bg-white border border-rose-200 text-rose-500 rounded-xl hover:bg-rose-50 transition-all shadow-sm"
-                                                                    title="Xóa quảng cáo"
-                                                                >
-                                                                    <FiTrash2 size={16} />
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    </motion.div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div className="bg-slate-50/50 border border-dashed border-slate-200 rounded-2xl p-10 text-center">
-                                                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 text-slate-300 shadow-sm">
-                                                    <span className="material-symbols-outlined text-4xl">campaign</span>
+                                    <div className="relative z-10">
+                                        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                                            <div className="flex items-center gap-4 text-center md:text-left">
+                                                <div className="w-14 h-14 shrink-0 bg-gradient-to-br from-primary to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 rotate-3 group-hover:rotate-0 transition-transform duration-300">
+                                                    <span className="material-symbols-outlined text-white text-3xl">campaign</span>
                                                 </div>
-                                                <p className="text-slate-500 text-sm">Bạn chưa có chiến dịch quảng cáo nào.</p>
+                                                <div>
+                                                    <h2 className="text-2xl font-bold text-slate-900 font-display mb-1">
+                                                        Quảng bá tại GearXpert
+                                                    </h2>
+                                                    <p className="text-slate-500 text-sm max-w-md">
+                                                        Đưa sản phẩm của bạn đến gần hơn với khách hàng bằng cách đăng quảng cáo lên Banner hoặc Popup tại trang chủ.
+                                                    </p>
+                                                </div>
                                             </div>
-                                        )}
+
+                                            <button
+                                                onClick={() => setShowAdsModal(true)}
+                                                className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 hover:shadow-primary/20 hover:-translate-y-1 active:translate-y-0 flex items-center gap-3 group/btn"
+                                            >
+                                                <span className="material-symbols-outlined text-accent-cyan animate-pulse">add_circle</span>
+                                                Đăng quảng cáo ngay
+                                                <span className="material-symbols-outlined group-hover/btn:translate-x-1 transition-transform">arrow_forward</span>
+                                            </button>
+                                        </div>
+
+                                        {/* Ads List Section */}
+                                        <div className="mt-10 pt-10 border-t border-slate-100">
+                                            <div className="flex items-center justify-between mb-6">
+                                                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                                                    <span className="w-2 h-8 bg-primary rounded-full"></span>
+                                                    Quảng cáo của bạn
+                                                </h3>
+                                                <span className="text-sm text-slate-400 font-medium">
+                                                    {myAds.length} chiến dịch
+                                                </span>
+                                            </div>
+
+                                            {loadingAds ? (
+                                                <div className="flex justify-center py-10">
+                                                    <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                                                </div>
+                                            ) : myAds.length > 0 ? (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                    {myAds.map((ad) => (
+                                                        <motion.div
+                                                            layout
+                                                            key={ad._id}
+                                                            className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden hover:border-primary/30 transition-all group/card"
+                                                        >
+                                                            <div className="relative aspect-video overflow-hidden">
+                                                                <img
+                                                                    src={ad.imageUrl}
+                                                                    alt={ad.title}
+                                                                    className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-500"
+                                                                />
+                                                                <div className="absolute top-2 right-2 flex gap-1">
+                                                                    {ad.adsType.map(type => (
+                                                                        <span key={type} className="px-2 py-0.5 bg-black/50 backdrop-blur-md text-white text-[9px] font-bold rounded-lg uppercase">
+                                                                            {type}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                            <div className="p-4">
+                                                                <div className="flex justify-between items-start mb-2">
+                                                                    <h4 className="font-bold text-slate-900 line-clamp-1">{ad.title}</h4>
+                                                                    <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 ${ad.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-600' :
+                                                                        ad.status === 'REJECTED' ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-600'
+                                                                        }`}>
+                                                                        {ad.status === 'APPROVED' ? <FiCheck size={10} /> :
+                                                                            ad.status === 'REJECTED' ? <FiXCircle size={10} /> : <FiClock size={10} />}
+                                                                        {ad.status}
+                                                                    </div>
+                                                                </div>
+                                                                <p className="text-xs text-slate-500 line-clamp-2 mb-2 h-8">{ad.description}</p>
+
+                                                                <div className="flex flex-col gap-1 mb-4">
+                                                                    <div className="flex justify-between text-[10px] text-slate-400">
+                                                                        <span>Ngân sách:</span>
+                                                                        <span className="font-bold text-slate-700">{ad.dailyBudget?.toLocaleString('vi-VN')}₫/ngày</span>
+                                                                    </div>
+                                                                    <div className="flex justify-between text-[10px] text-slate-400">
+                                                                        <span>Thời gian:</span>
+                                                                        <span className="font-medium text-slate-600">
+                                                                            {new Date(ad.startDate).toLocaleDateString('vi-VN')} - {new Date(ad.endDate).toLocaleDateString('vi-VN')}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="flex items-center gap-2">
+                                                                    <a
+                                                                        href={ad.link}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-100 transition-all"
+                                                                    >
+                                                                        <FiExternalLink /> Link
+                                                                    </a>
+                                                                    <button
+                                                                        onClick={() => handleDeleteAd(ad._id)}
+                                                                        className="p-2 bg-white border border-rose-200 text-rose-500 rounded-xl hover:bg-rose-50 transition-all shadow-sm"
+                                                                        title="Xóa quảng cáo"
+                                                                    >
+                                                                        <FiTrash2 size={16} />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </motion.div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="bg-slate-50/50 border border-dashed border-slate-200 rounded-2xl p-10 text-center">
+                                                    <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 text-slate-300 shadow-sm">
+                                                        <span className="material-symbols-outlined text-4xl">campaign</span>
+                                                    </div>
+                                                    <p className="text-slate-500 text-sm">Bạn chưa có chiến dịch quảng cáo nào.</p>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
                     </div>
                 </div>

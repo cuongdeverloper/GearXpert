@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { FiMenu, FiBell, FiSearch, FiUser, FiLogOut, FiCheck } from "react-icons/fi";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { performLogout } from "../../../utils/logout";
 import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead } from "../../../service/ApiService/notificationApi";
 import { useSocket } from "../../../SocketContext";
+import logo from "../../../assets/logoGearXpert.png";
 
 const timeAgo = (date) => {
   if (!date) return "";
@@ -145,15 +146,13 @@ export default function SupplierTopbar({ onMenuOpen, me }) {
         </button>
 
         {/* Brand */}
-        <div className="flex items-center gap-3">
-          <div className="bg-gradient-to-br from-primary to-primary-dark p-2 rounded-2xl shadow-lg shadow-primary/20">
-            <span className="text-white font-bold text-lg">GX</span>
-          </div>
+        <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+          <img src={logo} alt="GearXpert Logo" className="h-9 w-auto object-contain" />
           <div className="hidden sm:block">
             <div className="text-sm font-bold text-slate-900 font-display">GearXpert</div>
             <div className="text-xs text-slate-500 font-medium">Supplier Portal</div>
           </div>
-        </div>
+        </Link>
 
         {/* Search bar */}
         <div className="ml-auto hidden lg:flex w-full max-w-md items-center gap-2 rounded-2xl bg-slate-50 px-4 py-2.5 border border-slate-200 text-sm text-slate-600 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all">

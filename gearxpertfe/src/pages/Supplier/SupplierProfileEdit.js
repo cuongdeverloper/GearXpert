@@ -3,11 +3,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
+import axios from 'axios';
 import {
   updateSupplierProfile,
   getSupplierProfile,
 } from '../../service/ApiService/SupplierApi';
 
+
+const DISTRICTS = ['Hải Châu', 'Thanh Khê', 'Sơn Trà', 'Ngũ Hành Sơn', 'Liên Chiểu', 'Cẩm Lệ'];
 
 export default function SupplierProfileEdit() {
   const navigate = useNavigate();
@@ -33,6 +36,18 @@ export default function SupplierProfileEdit() {
   const [businessAvatarFile, setBusinessAvatarFile] = useState(null);
   const [previewBusinessAvatar, setPreviewBusinessAvatar] = useState('');
   const [profileStats, setProfileStats] = useState({ deviceCount: 0, supplierRating: 0, supplierReviewCount: 0 });
+  const [isDistrictOpen, setIsDistrictOpen] = useState(false);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.district-dropdown')) {
+        setIsDistrictOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const fetchSupplierProfile = async () => {
@@ -78,6 +93,7 @@ export default function SupplierProfileEdit() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    const cleanValue = name === 'contactPhone' ? value.replace(/\D/g, '') : value;
     if (name.includes('warehouseAddress')) {
       const field = name.split('.')[1];
       setFormData((prev) => ({
@@ -85,7 +101,7 @@ export default function SupplierProfileEdit() {
         warehouseAddress: { ...prev.warehouseAddress, [field]: value },
       }));
     } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
+      setFormData((prev) => ({ ...prev, [name]: cleanValue }));
     }
   };
 
@@ -107,12 +123,39 @@ export default function SupplierProfileEdit() {
     setLoading(true);
 
     try {
+      // 1. Geocoding: Chuyển địa chỉ text sang tọa độ
+      const { street, district, city } = formData.warehouseAddress;
+      const fullAddr = `${street}, ${district}, ${city || 'Đà Nẵng'}, Việt Nam`;
+      
+      let lat = null;
+      let lng = null;
+
+      try {
+        const token = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN;
+        const geoUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(fullAddr)}.json?access_token=${token}&limit=1`;
+        const geoRes = await axios.get(geoUrl);
+        
+        if (geoRes.data?.features?.length > 0) {
+          const [foundLng, foundLat] = geoRes.data.features[0].center;
+          lat = foundLat;
+          lng = foundLng;
+          console.log("Geocoding result:", { lat, lng });
+        }
+      } catch (geoErr) {
+        console.error("Geocoding failed, continuing without coords:", geoErr);
+      }
+
       const submitData = new FormData();
       Object.keys(formData).forEach((key) => {
         if (key === 'warehouseAddress') {
           Object.keys(formData[key]).forEach((subKey) => {
             submitData.append(`warehouseAddress.${subKey}`, formData[key][subKey]);
           });
+          // Thêm tọa độ mới tìm được
+          if (lat && lng) {
+            submitData.set('warehouseAddress.lat', lat);
+            submitData.set('warehouseAddress.lng', lng);
+          }
         } else {
           submitData.append(key, formData[key]);
         }
@@ -256,14 +299,49 @@ export default function SupplierProfileEdit() {
                         placeholder="Số nhà, đường"
                         className="w-full px-4 py-3 border border-slate-200/60 rounded-xl focus:ring-2 focus:ring-accent-cyan focus:border-transparent transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
                       />
-                      <input
-                        type="text"
-                        name="warehouseAddress.district"
-                        value={formData.warehouseAddress.district}
-                        onChange={handleChange}
-                        placeholder="Quận/Huyện"
-                        className="w-full px-4 py-3 border border-slate-200/60 rounded-xl focus:ring-2 focus:ring-accent-cyan focus:border-transparent transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
-                      />
+                      <div className="relative district-dropdown">
+                        <button
+                          type="button"
+                          onClick={() => setIsDistrictOpen(!isDistrictOpen)}
+                          className={`w-full flex items-center justify-between px-4 py-3 border rounded-xl transition-all duration-300 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] ${
+                            isDistrictOpen ? "ring-2 ring-accent-cyan border-transparent" : "border-slate-200/60"
+                          }`}
+                        >
+                          <span className={formData.warehouseAddress.district ? "text-slate-900" : "text-slate-400"}>
+                            {formData.warehouseAddress.district || "Chọn Quận"}
+                          </span>
+                          <span className={`material-symbols-outlined transition-transform duration-300 ${isDistrictOpen ? "rotate-180" : ""}`}>
+                            expand_more
+                          </span>
+                        </button>
+
+                        <div className={`absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-xl border border-slate-100 rounded-xl shadow-2xl z-50 overflow-hidden transition-all duration-300 origin-top ${
+                          isDistrictOpen ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
+                        }`}>
+                          <div className="max-h-60 overflow-y-auto p-1 custom-scrollbar">
+                            {DISTRICTS.map((d) => (
+                              <button
+                                key={d}
+                                type="button"
+                                onClick={() => {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    warehouseAddress: { ...prev.warehouseAddress, district: d }
+                                  }));
+                                  setIsDistrictOpen(false);
+                                }}
+                                className={`w-full px-4 py-2.5 rounded-lg text-left text-sm transition-all ${
+                                  formData.warehouseAddress.district === d 
+                                    ? "bg-accent-cyan/10 text-accent-cyan font-bold" 
+                                    : "text-slate-600 hover:bg-slate-50"
+                                }`}
+                              >
+                                {d}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
                       <input
                         type="text"
                         name="warehouseAddress.city"

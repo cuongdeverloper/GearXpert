@@ -9,7 +9,6 @@ const deliveryIssueReportSchema = new mongoose.Schema(
       index: true,
     },
 
-    // Thay rentalItemId thành array
     rentalItemIds: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -18,7 +17,15 @@ const deliveryIssueReportSchema = new mongoose.Schema(
       },
     ],
 
-    // Có thể giữ deviceIds nếu cần (hoặc populate từ rentalItemIds)
+    // THÊM MẢNG NÀY: map theo thứ tự với rentalItemIds
+    // Ví dụ: deviceItemIds[0] thuộc rentalItemIds[0]
+    deviceItemIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "DeviceItem",
+      },
+    ],
+
     deviceIds: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -31,13 +38,11 @@ const deliveryIssueReportSchema = new mongoose.Schema(
       ref: "User",
     },
 
-    // Khi staff báo cáo sự cố lúc giao hàng
     staffId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
 
-    // CUSTOMER | STAFF
     reportedBy: {
       type: String,
       enum: ["CUSTOMER", "STAFF"],
@@ -90,7 +95,6 @@ const deliveryIssueReportSchema = new mongoose.Schema(
       },
     ],
 
-    // DELIVERY = sự cố lúc giao hàng | RETURN = sự cố lúc thu hồi
     reportContext: {
       type: String,
       enum: ["DELIVERY", "RETURN"],
