@@ -450,6 +450,32 @@ exports.updateDevice = async (req, res) => {
       return res.status(404).json({ message: "Device not found" });
     }
 
+    // Verify device ownership
+    if (device.supplierId.toString() !== req.user.id) {
+      return res.status(403).json({ message: "You are not authorized to edit this device" });
+    }
+
+    // Validate stockQuantity >= rentedQuantity
+    if (stockQuantity < (device.rentedQuantity || 0)) {
+      return res.status(400).json({
+        message: `Cannot reduce stock below rented quantity (${device.rentedQuantity})`,
+      });
+    }
+
+    // Validate status change: cannot set STOPPED/MAINTENANCE if device has active rentals
+    if (status && status !== device.status && ["STOPPED", "MAINTENANCE"].includes(status)) {
+      const busyStatuses = ["PENDING", "PAID", "APPROVED", "DELIVERING", "RENTING", "RETURNING", "INSPECTING"];
+      const activeRental = await RentalItem.findOne({ deviceId: id }).populate({
+        path: "rentalId",
+        select: "status",
+      });
+      if (activeRental && activeRental.rentalId && busyStatuses.includes(activeRental.rentalId.status)) {
+        return res.status(400).json({
+          message: "Cannot change status - device has active rentals",
+        });
+      }
+    }
+
     Object.assign(device, {
       name, description, category, rentPrice, depositAmount,
       location, stockQuantity, images,
@@ -464,15 +490,6 @@ exports.updateDevice = async (req, res) => {
       device,
     });
   } catch (error) {
-    console.error("[BE] Error updating device:", error);
-    if (error && error.stack) {
-      console.error("[BE] Error stack:", error.stack);
-    }
-    try {
-      console.error("[BE] Error (JSON):", JSON.stringify(error));
-    } catch (e) {
-      // ignore
-    }
     res.status(500).json({ message: error.message, error });
   }
 };

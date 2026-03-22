@@ -12,8 +12,8 @@ routerDevice.get('/:slug', deviceController.getDeviceDetail);
 routerDevice.get('/:slug/addons', deviceController.getDeviceAddons);
 routerDevice.get('/:slug/related', deviceController.getRelatedDevices);
 
-// Update device
-routerDevice.put('/:id', checkAccessToken, uploadCloud.array('images', 10), deviceController.updateDevice);
+// Update device (Supplier only)
+routerDevice.put('/:id', checkAccessToken, checkSupplier, uploadCloud.array('images', 5), deviceController.updateDevice);
 
 // Delete device (with rental check)
 routerDevice.delete('/:id', checkAccessToken, deviceController.deleteDevice);
