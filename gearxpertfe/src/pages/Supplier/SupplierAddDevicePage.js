@@ -28,11 +28,37 @@ export default function SupplierAddDevicePage() {
   const [imagePreviews, setImagePreviews] = useState([]);
   const fileInputRef = useRef();
 
-  const handleImageChange = (e) => {
+  const compressImage = (file, maxWidth = 1200, quality = 0.8) =>
+    new Promise((resolve) => {
+      if (!file.type.startsWith("image/")) return resolve(file);
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const scale = Math.min(1, maxWidth / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(
+          (blob) => resolve(new File([blob], file.name, { type: "image/jpeg" })),
+          "image/jpeg",
+          quality
+        );
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(file);
+      };
+      img.src = url;
+    });
+
+  const handleImageChange = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
+    const compressed = await Promise.all(files.map((f) => compressImage(f)));
     setImages((prev) => {
-      const nextImages = [...prev, ...files].slice(0, 5);
+      const nextImages = [...prev, ...compressed].slice(0, 5);
       setImagePreviews(nextImages.map((file) => URL.createObjectURL(file)));
       return nextImages;
     });
