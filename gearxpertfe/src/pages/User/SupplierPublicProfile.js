@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { toast } from "react-toastify";
 import {
   Star,
@@ -35,6 +35,8 @@ import {
 } from "../../service/ApiService/SupplierApi";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
+import { ApiCreateConversation, ApiGetUserByUserId } from "../../components/Message Socket/ApiMessage";
+import { openChatWindow } from "../../redux/reducer/chatWindowReducer";
 
 const SORT_OPTIONS = [
   { value: "newest", label: "Newest" },
@@ -47,6 +49,7 @@ const SORT_OPTIONS = [
 export default function SupplierPublicProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const isAuthenticated = useSelector((state) => state.user?.isAuthenticated || false);
   const [supplier, setSupplier] = useState(null);
   const [devices, setDevices] = useState([]);
@@ -469,15 +472,27 @@ export default function SupplierPublicProfile() {
                     )}
                   </div>
                 )}
-                {supplier.contactPhone && (
-                  <a
-                    href={`tel:${supplier.contactPhone}`}
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 transition-all shadow-sm"
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                    Contact
-                  </a>
-                )}
+                <button
+                  onClick={async () => {
+                    if (!isAuthenticated) {
+                      toast.info("Vui lòng đăng nhập để nhắn tin");
+                      navigate("/signin");
+                      return;
+                    }
+                    try {
+                      const suppUserId = supplier.userId?._id || supplier.userId;
+                      const conversation = await ApiCreateConversation(suppUserId);
+                      const friendInfo = await ApiGetUserByUserId(suppUserId);
+                      dispatch(openChatWindow({ ...conversation, friendInfo }));
+                    } catch (err) {
+                      toast.error("Không thể mở cuộc trò chuyện");
+                    }
+                  }}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 transition-all shadow-sm"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  Nhắn tin
+                </button>
                 {supplier.warehouseAddress?.city && (
                   <div className="flex items-center gap-2 text-sm text-slate-500 justify-center">
                     <MapPin className="w-3.5 h-3.5" />
