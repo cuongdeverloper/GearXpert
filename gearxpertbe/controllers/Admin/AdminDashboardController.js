@@ -2,6 +2,7 @@ const Device = require("../../models/Device");
 const Rental = require("../../models/Rental");
 const RentalItem = require("../../models/RentalItem");
 const User = require("../../models/User");
+const SupplierProfile = require("../../models/SupplierProfile");
 
 const startOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1);
 const endOfMonth = (date) =>
@@ -326,5 +327,114 @@ exports.getAdminDashboardCharts = async (req, res) => {
   } catch (error) {
     console.error("Admin charts error:", error);
     res.status(500).json({ message: "Failed to load dashboard charts" });
+  }
+};
+
+// ── Admin: Paginated device listing ──────────────────────────────────────────
+exports.getAdminDevices = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      search = "",
+      category,
+      status,
+      includeAddons,
+    } = req.query;
+
+    const pageNum = Math.max(1, parseInt(page, 10));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build filter
+    const filter = {};
+
+    // Addon filter
+    if (includeAddons === "true" || includeAddons === true) {
+      // include both
+    } else {
+      // default: only main products (not addons)
+      filter.isAddon = false;
+    }
+
+    // Category filter
+    if (category && category !== "ALL") {
+      filter.category = category;
+    }
+
+    // Status filter
+    if (status && status !== "ALL") {
+      filter.status = status;
+    }
+
+    // Text search (name, slug)
+    if (search.trim()) {
+      const regex = new RegExp(search.trim(), "i");
+      filter.$or = [{ name: regex }, { slug: regex }];
+    }
+
+    const [devices, total] = await Promise.all([
+      Device.find(filter)
+        .populate("supplierId", "fullName")
+        .select(
+          "_id name slug description rentPrice ratingAvg reviewCount location images category status stockQuantity rentedQuantity depositAmount isAddon supplierId"
+        )
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      Device.countDocuments(filter),
+    ]);
+
+    // Attach supplier display name
+    const supplierIds = [
+      ...new Set(
+        devices
+          .map((d) => d.supplierId?._id?.toString())
+          .filter(Boolean)
+      ),
+    ];
+    const profiles = await SupplierProfile.find({
+      userId: { $in: supplierIds },
+    }).lean();
+    const profileMap = profiles.reduce((acc, p) => {
+      acc[p.userId.toString()] = p;
+      return acc;
+    }, {});
+
+    const result = devices.map((device) => {
+      const profile = profileMap[device.supplierId?._id?.toString()];
+      return {
+        _id: device._id,
+        name: device.name,
+        slug: device.slug,
+        description: device.description,
+        rentPrice: device.rentPrice,
+        ratingAvg: device.ratingAvg,
+        reviewCount: device.reviewCount,
+        location: device.location,
+        images: device.images,
+        category: device.category,
+        status: device.status,
+        stockQuantity: device.stockQuantity,
+        rentedQuantity: device.rentedQuantity,
+        depositAmount: device.depositAmount,
+        isAddon: device.isAddon,
+        supplierId: device.supplierId?._id,
+        supplierName:
+          profile?.businessName || device.supplierId?.fullName || "N/A",
+      };
+    });
+
+    res.json({
+      devices: result,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum),
+    });
+  } catch (error) {
+    console.error("Admin devices error:", error);
+    res.status(500).json({ message: "Failed to load devices" });
   }
 };

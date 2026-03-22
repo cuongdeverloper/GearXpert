@@ -11,6 +11,7 @@ import {
   FiTruck,
   FiShield,
   FiChevronDown,
+  FiAlertTriangle,
 } from "react-icons/fi";
 
 const sections = [
@@ -37,7 +38,9 @@ const sections = [
     id: "calendar",
     title: "Availability Calendar",
     icon: FiCalendar,
-    items: [],
+    items: [
+      { to: "/supplier/calendar", label: "Rental Calendar" },
+    ],
   },
   {
     id: "bookings",
@@ -45,6 +48,14 @@ const sections = [
     icon: FiClipboard,
     items: [
       { to: "/supplier/rental-requests", label: "Booking Requests" },
+    ],
+  },
+  {
+    id: "issues",
+    title: "Issue Reports",
+    icon: FiAlertTriangle,
+    items: [
+      { to: "/supplier/issues", label: "All Issues" },
     ],
   },
   {
@@ -81,6 +92,7 @@ export default function SupplierSidebar({ collapsed, onCollapse, me }) {
     products: true,
     calendar: false,
     bookings: true,
+    issues: true,
     delivery: false,
     finance: true,
     verification: true,
@@ -110,6 +122,7 @@ export default function SupplierSidebar({ collapsed, onCollapse, me }) {
                 <NavLink
                   key={item.to}
                   to={item.to}
+                  end
                   className={({ isActive }) =>
                     classNames(
                       "flex items-center justify-center rounded-xl px-2 py-2.5 transition-all group",
@@ -167,6 +180,7 @@ export default function SupplierSidebar({ collapsed, onCollapse, me }) {
                             <NavLink
                               key={item.to}
                               to={item.to}
+                              end
                               className={({ isActive }) =>
                                 classNames(
                                   "block rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all",

@@ -19,3 +19,7 @@ export const createStaffReturnIssue = (formData) =>
 // Lấy tất cả sự cố thu hồi do staff đang đăng nhập báo cáo
 export const getStaffReturnIssues = () =>
   axios.get("/api/reports/staff-return-issues");
+
+// Supplier: lấy tất cả sự cố liên quan đến đơn hàng của supplier
+export const getSupplierIssues = () =>
+  axios.get("/api/reports/supplier-issues");
