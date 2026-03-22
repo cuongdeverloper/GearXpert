@@ -42,7 +42,7 @@ const damageReportSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["OPEN", "VERIFIED", "RESOLVED"],
+      enum: ["OPEN", "PROCESSING", "WAITING_EVIDENCE", "RESOLVED", "REJECTED"],
       default: "OPEN",
     },
 
@@ -50,6 +50,34 @@ const damageReportSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+
+    // Admin assignment
+    assignedAdminId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    // Ghi chú nội bộ
+    internalNotes: [
+      {
+        adminId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        content: String,
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+
+    // Lịch sử thay đổi trạng thái
+    statusHistory: [
+      {
+        status: String,
+        changedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        note: String,
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+
+    // Ghi chú giải quyết
+    resolutionNote: String,
   },
   { timestamps: true }
 );
