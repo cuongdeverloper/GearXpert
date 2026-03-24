@@ -121,7 +121,6 @@ const checkOperationStaff = (req, res, next) => {
 };
 
 const checkSupplier = (req, res, next) => {
-    console.log("Checking supplier role for user:", req.user);
     if (req.user && req.user.role === 'SUPPLIER') {
         next();
     } else {
