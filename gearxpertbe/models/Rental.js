@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const rentalSchema = new mongoose.Schema(
   {
@@ -6,11 +6,13 @@ const rentalSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: true,
     },
     supplierId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: true,
     },
 
     rentalStartDate: Date,
@@ -27,6 +29,7 @@ const rentalSchema = new mongoose.Schema(
       type: String,
       enum: ["UNPAID", "PAID", "REFUNDED"],
       default: "UNPAID",
+      index: true,
     },
 
     status: {
@@ -43,7 +46,9 @@ const rentalSchema = new mongoose.Schema(
         "CANCELLED",
       ],
       default: "PENDING",
+      index: true,
     },
+
     rejectionReason: String,
     rejectionNote: String,
     rejectionMessage: String,
@@ -67,31 +72,34 @@ const rentalSchema = new mongoose.Schema(
 
     orderCode: { type: Number, sparse: true },
 
-    // Context khi chuyển sang INSPECTING: DELIVERY (staff báo cáo lúc giao) | RETURN (staff báo cáo lúc thu hồi)
     inspectedContext: {
       type: String,
       enum: ["DELIVERY", "RETURN"],
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 );
 
 rentalSchema.virtual("items", {
   ref: "RentalItem",
   localField: "_id",
   foreignField: "rentalId",
+  justOne: false,
 });
-rentalSchema.set("toObject", { virtuals: true });
-rentalSchema.set("toJSON", { virtuals: true });
 
 rentalSchema.virtual("extensionRequests", {
   ref: "ExtensionRequest",
   localField: "_id",
   foreignField: "rentalId",
-  justOne: false, // nhiều request cho 1 rental
+  justOne: false,
 });
 
-// Đảm bảo virtual được include khi toObject/toJSON
-rentalSchema.set("toObject", { virtuals: true });
-rentalSchema.set("toJSON", { virtuals: true });
+// Index phổ biến
+rentalSchema.index({ customerId: 1, status: 1 });
+rentalSchema.index({ supplierId: 1, status: 1 });
+
 module.exports = mongoose.model("Rental", rentalSchema);

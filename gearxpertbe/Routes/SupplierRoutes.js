@@ -22,6 +22,9 @@ supplierRouter.get('/:supplierId/storefront/vouchers', supplierProfileController
 supplierRouter.post('/:supplierId/follow', checkAccessToken, supplierProfileController.toggleFollowStore);
 supplierRouter.get('/:supplierId/follow-status', supplierProfileController.getFollowStatus);
 
+// Public search & list routes
+supplierRouter.get('/public', supplierProfileController.getPublicSuppliers);
+
 // Existing public routes — DO NOT MODIFY
 supplierRouter.get('/:supplierId', supplierProfileController.getSupplierProfile);
 supplierRouter.get('/:supplierId/devices', supplierProfileController.getSupplierDevices);

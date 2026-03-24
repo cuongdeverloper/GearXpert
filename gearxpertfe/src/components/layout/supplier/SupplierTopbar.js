@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 import { performLogout } from "../../../utils/logout";
 import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead } from "../../../service/ApiService/notificationApi";
 import { useSocket } from "../../../SocketContext";
+import logo from "../../../assets/logoGearXpert.png";
 
 const timeAgo = (date) => {
   if (!date) return "";
@@ -146,9 +147,7 @@ export default function SupplierTopbar({ onMenuOpen, me }) {
 
         {/* Brand */}
         <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-          <div className="bg-gradient-to-br from-primary to-primary-dark p-2 rounded-2xl shadow-lg shadow-primary/20">
-            <span className="text-white font-bold text-lg">GX</span>
-          </div>
+          <img src={logo} alt="GearXpert Logo" className="h-9 w-auto object-contain" />
           <div className="hidden sm:block">
             <div className="text-sm font-bold text-slate-900 font-display">GearXpert</div>
             <div className="text-xs text-slate-500 font-medium">Supplier Portal</div>

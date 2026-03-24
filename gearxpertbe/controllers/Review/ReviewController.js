@@ -85,6 +85,13 @@ exports.createReview = async (req, res) => {
       createdReviews.push(review._id);
     }
 
+    // Emit realtime update to the device room
+    const io = req.app.get("io");
+    if (io && items.length > 0) {
+      const deviceId = items[0].deviceId;
+      io.to(`device_${deviceId}`).emit("deviceReviewUpdate", { type: "REVIEW_ADD", deviceId });
+    }
+
     res.status(201).json({
       message: `Review submitted successfully for ${createdReviews.length} devices`,
       reviewIds: createdReviews
@@ -191,6 +198,12 @@ exports.updateReview = async (req, res) => {
 
     await review.save();
 
+    // Emit realtime update to the device room
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`device_${review.deviceId}`).emit("deviceReviewUpdate", { type: "REVIEW_UPDATE", deviceId: review.deviceId });
+    }
+
     // Cập nhật lại rating trung bình thiết bị (đã có post save hook rồi)
     res.json({ message: 'Cập nhật review thành công', review });
   } catch (err) {
@@ -222,7 +235,14 @@ exports.deleteReview = async (req, res) => {
       return res.status(403).json({ message: 'Đã quá 48 giờ, không thể xóa review' });
     }
 
+    const deviceId = review.deviceId;
     await Review.findByIdAndDelete(reviewId);
+
+    // Emit realtime update to the device room
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`device_${deviceId}`).emit("deviceReviewUpdate", { type: "REVIEW_DELETE", deviceId });
+    }
 
     // Rating trung bình sẽ tự cập nhật nhờ post hook (nếu bạn xóa thì cần trigger lại hoặc để hook xử lý)
 

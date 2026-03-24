@@ -20,7 +20,8 @@ const {
   getReturningRentals,
   confirmPickup,
   confirmDelivery,
-  confirmReturn
+  confirmReturn,
+  previewContract
 } = require('../controllers/Rental/RentalController');
 const { hasReviewed, createReview, getDeviceReviews, uploadReviewImages } = require('../controllers/Review/ReviewController');  // Thêm getDeviceReviews và uploadReviewImages
 const { checkAccessToken,requireEkyc } = require('../middleware/JWTAction');
@@ -41,7 +42,7 @@ rentalRouter.get('/my-rentals', checkAccessToken, getMyRentals);
 rentalRouter.post('/:rentalId/cancel', checkAccessToken, cancelRental);
 rentalRouter.post('/:rentalId/confirm', checkAccessToken, confirmReceived);
 rentalRouter.post('/:rentalId/extend', checkAccessToken, extendRental);
-
+rentalRouter.post("/preview-contract", checkAccessToken, previewContract);
 // Fix route has-reviewed: Đổi từ /reviews/has-reviewed sang /rentals/:rentalId/has-reviewed để khớp API
 rentalRouter.get('/:rentalId/has-reviewed', checkAccessToken, hasReviewed);
 

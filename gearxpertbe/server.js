@@ -35,6 +35,8 @@ const NotificationConfig = require("./configs/NotificationConfig");
 const blogRouter = require("./Routes/BlogRoutes");
 const smartgearRoutes = require("./Routes/SmartGearRoutes");
 const supplierRouter = require("./Routes/SupplierRoutes");
+const supplierContractRouter = require("./Routes/SupplierContractRoutes");
+
 const io = socketIo(server, {
     cors: {
         origin: '*',
@@ -86,6 +88,7 @@ app.use('/api/notifications', NotificationRouter);
 app.use('/api/blogs', blogRouter);
 app.use("/api/smartgear", smartgearRoutes);
 app.use('/api/suppliers', supplierRouter);
+app.use('/api/suppliers-contract', supplierContractRouter);
 
 app.use('/', googleAuthRouter);
 
@@ -99,7 +102,7 @@ app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).send("Something broke!");
 });
-
+require("./jobs/autoCancelUnpaidRentals");
 NotificationConfig.init(io);
 socketHandler(io);
 

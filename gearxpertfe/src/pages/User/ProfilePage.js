@@ -21,6 +21,7 @@ export default function ProfilePage() {
     const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
 
     const [loading, setLoading] = useState(false);
+    const [isLocating, setIsLocating] = useState(false);
     const [changingPassword, setChangingPassword] = useState(false);
     const [avatarPreview, setAvatarPreview] = useState(null);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -172,10 +173,52 @@ export default function ProfilePage() {
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
+        const cleanValue = name === 'phone' ? value.replace(/\D/g, '') : value;
         setFormData(prev => ({
             ...prev,
-            [name]: value
+            [name]: cleanValue
         }));
+    };
+
+    const handleGetLocation = () => {
+        if (!navigator.geolocation) {
+            toast.error('Trình duyệt của bạn không hỗ trợ định vị');
+            return;
+        }
+
+        setIsLocating(true);
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const { latitude, longitude } = position.coords;
+                try {
+                    const res = await fetch(
+                        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&accept-language=vi`
+                    );
+                    const data = await res.json();
+                    if (data && data.address) {
+                        const addr = data.address;
+                        setFormData(prev => ({
+                            ...prev,
+                            street: addr.road || addr.house_number || prev.street,
+                            district: addr.suburb || addr.district || addr.county || addr.quarter || prev.district,
+                            city: addr.city || addr.province || addr.state || 'Đà Nẵng'
+                        }));
+                        toast.success('Đã cập nhật địa chỉ từ vị trí của bạn');
+                    }
+                } catch (error) {
+                    console.error('Error reverse geocoding:', error);
+                    toast.error('Không thể lấy địa chỉ từ tọa độ');
+                } finally {
+                    setIsLocating(false);
+                }
+            },
+            (error) => {
+                console.error('Error getting location:', error);
+                setIsLocating(false);
+                toast.error('Không thể lấy vị trí. Vui lòng kiểm tra quyền truy cập.');
+            },
+            { enableHighAccuracy: true }
+        );
     };
 
     const handlePasswordChange = (e) => {
@@ -506,6 +549,28 @@ export default function ProfilePage() {
                                             {userAccount.isVerifiedEkyc ? 'Đã xác thực' : 'Chưa xác thực'}
                                         </span>
                                     </div>
+
+                                    {userAccount?.role === 'CUSTOMER' && (
+                                    <div className="mt-6 pt-6 border-t border-slate-200">
+                                        <button
+                                            onClick={() => {
+                                                if (!userAccount.isVerifiedEkyc) {
+                                                    toast.warning('Vui lòng xác thực danh tính (eKYC) trước khi đăng ký Nhà cung cấp!');
+                                                    setShowEkycModal(true);
+                                                } else {
+                                                    navigate('/become-supplier');
+                                                }
+                                            }}
+                                            className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-indigo-600 to-cyan-500 text-white rounded-xl font-bold hover:shadow-lg hover:shadow-indigo-500/30 hover:scale-[1.02] active:scale-95 transition-all duration-300"
+                                        >
+                                            <span className="material-symbols-outlined text-[20px]">storefront</span>
+                                            Nâng cấp Nhà cung cấp
+                                        </button>
+                                        <p className="text-xs text-slate-500 text-center mt-2">
+                                            Cho thuê thiết bị nhàn rỗi để tạo thu nhập
+                                        </p>
+                                    </div>
+                                )}
                                 </div>
                             </div>
                         </div>
@@ -514,14 +579,25 @@ export default function ProfilePage() {
                         <div className="lg:col-span-2 space-y-8">
                             {/* Profile Information Form */}
                             <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-xl hover:shadow-glow-cyan border border-slate-200/50 p-6 md:p-8 transition-all duration-300">
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="w-10 h-10 flex-shrink-0 bg-primary/10 rounded-full flex items-center justify-center shadow-sm">
-                                        <span className="material-symbols-outlined text-primary text-xl">person</span>
+                                    <div className="flex items-center justify-between mb-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 flex-shrink-0 bg-primary/10 rounded-full flex items-center justify-center shadow-sm">
+                                                <span className="material-symbols-outlined text-primary text-xl">person</span>
+                                            </div>
+                                            <h2 className="text-2xl font-bold text-slate-900 font-display">
+                                                Thông tin cá nhân
+                                            </h2>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={handleGetLocation}
+                                            disabled={isLocating}
+                                            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl font-bold text-sm hover:bg-indigo-100 transition-all border border-indigo-100 shadow-sm"
+                                        >
+                                            <span className={`material-symbols-outlined text-[18px] ${isLocating ? 'animate-spin' : ''}`}>my_location</span>
+                                            {isLocating ? 'Đang xác định...' : 'Lấy vị trí hiện tại'}
+                                        </button>
                                     </div>
-                                    <h2 className="text-2xl font-bold text-slate-900 font-display">
-                                        Thông tin cá nhân
-                                    </h2>
-                                </div>
 
                                 <form onSubmit={handleSubmitProfile} className="space-y-6">
                                     {/* Full Name */}

@@ -15,7 +15,8 @@ export default function BlogPage() {
     const navigate = useNavigate();
     const [blogs, setBlogs] = useState([]);
     const [trendingBlogs, setTrendingBlogs] = useState([]);
-    const [featuredBlog, setFeaturedBlog] = useState(null);
+    const [featuredBlogs, setFeaturedBlogs] = useState([]);
+    const [currentFeaturedIndex, setCurrentFeaturedIndex] = useState(0);
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [page, setPage] = useState(1);
@@ -53,10 +54,10 @@ export default function BlogPage() {
     const fetchFeatured = useCallback(async () => {
         try {
             const res = await getFeaturedBlog();
-            setFeaturedBlog(res);
+            setFeaturedBlogs(Array.isArray(res) ? res : (res ? [res] : []));
         } catch (error) {
             console.error("Error fetching featured blog:", error);
-            setFeaturedBlog(null);
+            setFeaturedBlogs([]);
         }
     }, []);
 
@@ -112,6 +113,17 @@ export default function BlogPage() {
         fetchFeatured();
         fetchTrending();
     }, [fetchFeatured, fetchTrending]);
+
+    // Timer for Featured Rotation
+    useEffect(() => {
+        if (featuredBlogs.length <= 1) return;
+        
+        const interval = setInterval(() => {
+            setCurrentFeaturedIndex((prev) => (prev + 1) % featuredBlogs.length);
+        }, 3000);
+        
+        return () => clearInterval(interval);
+    }, [featuredBlogs, currentFeaturedIndex]);
 
     useEffect(() => {
         fetchBlogs();
@@ -276,51 +288,81 @@ export default function BlogPage() {
 
                         </div>
 
-                        {/* Featured Quick Card - Made wider as requested */}
-                        {featuredBlog && (
-                            <div
-                                onClick={() => navigate(`/blog/${featuredBlog._id}`)}
-                                className="hidden lg:flex flex-col w-[550px] shrink-0 rounded-3xl overflow-hidden glass-panel border-white/10 shadow-2xl cursor-pointer group hover:scale-[1.02] transition-all duration-500"
-                            >
-                                <div className="aspect-[21/9] overflow-hidden">
-                                    <img src={featuredBlog.coverImage} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Featured" />
-                                </div>
-                                <div className="p-8">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <span className="inline-block px-3 py-1 rounded-full bg-primary/20 text-primary text-[10px] font-black uppercase tracking-widest">
-                                            Featured Insight
-                                        </span>
-                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                                            {featuredBlog.readTime} MIN READ
-                                        </span>
-                                    </div>
-                                    <h3 className="text-2xl font-bold text-white mb-3 line-clamp-2 group-hover:text-primary transition-colors leading-snug">
-                                        {featuredBlog.title}
-                                    </h3>
-                                    <p className="text-sm text-slate-400 line-clamp-2 mb-6 leading-relaxed">
-                                        {featuredBlog.description}
-                                    </p>
-                                    <div className="flex items-center justify-between pt-6 border-t border-white/5">
-                                        <div className="flex items-center gap-3">
-                                            {featuredBlog.author?.avatar ? (
-                                                <div className="h-10 w-10 rounded-full border border-white/10 p-0.5">
-                                                    <img src={featuredBlog.author.avatar} alt={featuredBlog.author.name} className="h-full w-full rounded-full object-cover" />
+                        {/* Featured Quick Card - Made wider with rotation logic */}
+                        {featuredBlogs.length > 0 && (
+                            <div className="hidden lg:flex flex-col w-[550px] shrink-0 relative">
+                                <AnimatePresence mode="wait">
+                                    <motion.div
+                                        key={featuredBlogs[currentFeaturedIndex]?._id}
+                                        initial={{ opacity: 0, x: 20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -20 }}
+                                        transition={{ duration: 0.5 }}
+                                        onClick={() => navigate(`/blog/${featuredBlogs[currentFeaturedIndex]._id}`)}
+                                        className="flex flex-col w-full rounded-3xl overflow-hidden glass-panel border-white/10 shadow-2xl cursor-pointer group hover:scale-[1.02] transition-all duration-500"
+                                    >
+                                        <div className="aspect-[21/9] overflow-hidden">
+                                            <img 
+                                                src={featuredBlogs[currentFeaturedIndex].coverImage} 
+                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                                                alt="Featured" 
+                                            />
+                                        </div>
+                                        <div className="p-8">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="inline-block px-3 py-1 rounded-full bg-primary/20 text-primary text-[10px] font-black uppercase tracking-widest">
+                                                        Featured Insight
+                                                    </span>
+                                                    {featuredBlogs.length > 1 && (
+                                                        <div className="flex gap-1.5 ml-3">
+                                                            {featuredBlogs.map((_, idx) => (
+                                                                <button 
+                                                                    key={idx}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setCurrentFeaturedIndex(idx);
+                                                                    }}
+                                                                    className={`h-2 w-2 rounded-full transition-all duration-500 hover:bg-white/40 ${idx === currentFeaturedIndex ? "bg-primary w-5" : "bg-white/20"}`}
+                                                                    title={`View featured blog ${idx + 1}`}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            ) : (
-                                                <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-bold">
-                                                    {featuredBlog.author?.name?.charAt(0)}
+                                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                                    {featuredBlogs[currentFeaturedIndex].readTime} MIN READ
+                                                </span>
+                                            </div>
+                                            <h3 className="text-2xl font-bold text-white mb-3 line-clamp-2 group-hover:text-primary transition-colors leading-snug h-[4rem] flex items-center">
+                                                {featuredBlogs[currentFeaturedIndex].title}
+                                            </h3>
+                                            <p className="text-sm text-slate-400 line-clamp-2 mb-6 leading-relaxed h-[3rem]">
+                                                {featuredBlogs[currentFeaturedIndex].description}
+                                            </p>
+                                            <div className="flex items-center justify-between pt-6 border-t border-white/5">
+                                                <div className="flex items-center gap-3">
+                                                    {featuredBlogs[currentFeaturedIndex].author?.avatar ? (
+                                                        <div className="h-10 w-10 rounded-full border border-white/10 p-0.5">
+                                                            <img src={featuredBlogs[currentFeaturedIndex].author.avatar} alt={featuredBlogs[currentFeaturedIndex].author.name} className="h-full w-full rounded-full object-cover" />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-bold">
+                                                            {featuredBlogs[currentFeaturedIndex].author?.name?.charAt(0)}
+                                                        </div>
+                                                    )}
+                                                    <div>
+                                                        <span className="block text-sm text-white font-bold">{featuredBlogs[currentFeaturedIndex].author?.name}</span>
+                                                        <span className="block text-[10px] text-slate-500 uppercase font-medium">{formatDate(featuredBlogs[currentFeaturedIndex].createdAt)}</span>
+                                                    </div>
                                                 </div>
-                                            )}
-                                            <div>
-                                                <span className="block text-sm text-white font-bold">{featuredBlog.author?.name}</span>
-                                                <span className="block text-[10px] text-slate-500 uppercase font-medium">{formatDate(featuredBlog.createdAt)}</span>
+                                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-white group-hover:bg-primary group-hover:text-white transition-all">
+                                                    <span className="material-symbols-outlined text-sm">arrow_outward</span>
+                                                </div>
                                             </div>
                                         </div>
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-white group-hover:bg-primary group-hover:text-white transition-all">
-                                            <span className="material-symbols-outlined text-sm">arrow_outward</span>
-                                        </div>
-                                    </div>
-                                </div>
+                                    </motion.div>
+                                </AnimatePresence>
                             </div>
                         )}
                     </div>

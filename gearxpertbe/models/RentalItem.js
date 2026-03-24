@@ -13,23 +13,35 @@ const rentalItemSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Device",
       required: true,
+      index: true,
     },
 
-    quantity: { type: Number, required: true },
+    // Mảng các DeviceItem được allocate cho item này (thay vì chỉ 1 deviceItemId)
+    deviceItemIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "DeviceItem",
+        required: true,
+      },
+    ],
+
+    // Snapshot chung cho loại thiết bị (không cần serial vì có mảng deviceItemIds)
+    deviceSnapshot: {
+      name: String,
+      images: [String],
+    },
+
+    quantity: { type: Number, required: true, min: 1 }, // số lượng thực tế từ giỏ hàng
 
     rentalStartDate: { type: Date, required: true },
     rentalEndDate: { type: Date, required: true },
     totalDays: { type: Number, required: true },
 
-    isAddon: {
-      type: Boolean,
-      default: false,
-    },
+    isAddon: { type: Boolean, default: false },
 
-    rentPrice: { type: Number, required: true },
-    depositAmount: { type: Number, required: true },
+    rentPrice: { type: Number, required: true }, // giá thuê cho 1 chiếc
+    depositAmount: { type: Number, required: true }, // cọc cho 1 chiếc
 
-    /** 👉 TRẠNG THÁI ITEM */
     status: {
       type: String,
       enum: [
@@ -42,6 +54,7 @@ const rentalItemSchema = new mongoose.Schema(
         "INSPECTING",
         "DAMAGED",
         "COMPLETED",
+        "CANCELLED",
       ],
       default: "PENDING",
       index: true,
@@ -49,35 +62,41 @@ const rentalItemSchema = new mongoose.Schema(
 
     conditionBeforeRent: {
       type: String,
-      enum: ["NEW", "GOOD", "USED", "DAMAGED"],
+      enum: ["NEW", "GOOD", "FAIR", "USED"],
       default: "GOOD",
     },
 
     conditionAfterReturn: {
       type: String,
-      enum: ["GOOD", "DAMAGED"],
+      enum: ["GOOD", "DAMAGED", "NEEDS_REPAIR"],
       default: "GOOD",
     },
+
+    penaltyAmount: { type: Number, default: 0 },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 );
 
-rentalItemSchema.virtual('deliveryIssues', {
-  ref: 'DeliveryIssueReport',
-  localField: '_id',
-  foreignField: 'rentalItemIds',  // vì là array, sẽ match nếu _id nằm trong array
-  justOne: false,                 // có thể có nhiều report theo thời gian
+// Virtuals báo cáo vẫn dùng _id của RentalItem (1 RentalItem đại diện cho cả lô)
+rentalItemSchema.virtual("deliveryIssues", {
+  ref: "DeliveryIssueReport",
+  localField: "_id",
+  foreignField: "rentalItemId",
+  justOne: false,
 });
 
-rentalItemSchema.set('toObject', { virtuals: true });
-rentalItemSchema.set('toJSON', { virtuals: true });
-rentalItemSchema.virtual('damageReports', {
-  ref: 'DamageReport',
-  localField: '_id',
-  foreignField: 'rentalItemId',
-  justOne: false, // có thể có nhiều report theo thời gian
+rentalItemSchema.virtual("damageReports", {
+  ref: "DamageReport",
+  localField: "_id",
+  foreignField: "rentalItemId",
+  justOne: false,
 });
 
-rentalItemSchema.set('toObject', { virtuals: true });
-rentalItemSchema.set('toJSON', { virtuals: true });
+// Index chống duplicate cùng rental + deviceId (vì gộp theo deviceId)
+rentalItemSchema.index({ rentalId: 1, deviceId: 1 }, { unique: true });
+
 module.exports = mongoose.model("RentalItem", rentalItemSchema);

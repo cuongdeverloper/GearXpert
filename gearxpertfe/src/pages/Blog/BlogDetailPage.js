@@ -14,6 +14,7 @@ import {
     deleteComment,
     toggleSaveBlog 
 } from "../../service/ApiService/BlogApi";
+import { useSocket } from "../../SocketContext";
 
 const CATEGORY_MAP = {
     CAMERA: { label: "Cameras", color: "bg-primary" },
@@ -63,6 +64,9 @@ export default function BlogDetailPage() {
     
     // Sensitive Keyword Modal
     const [sensitiveModal, setSensitiveModal] = useState({ open: false, message: "" });
+
+    // Socket
+    const { socket } = useSocket();
 
     const allImages = blog?.images?.length > 0 ? blog.images : (blog?.coverImage ? [blog.coverImage] : []);
 
@@ -128,6 +132,38 @@ export default function BlogDetailPage() {
         fetchBlog();
         window.scrollTo({ top: 0, behavior: "smooth" });
     }, [id, currentUser?.username, currentUser?.email]);
+
+    // Socket Realtime Updates
+    useEffect(() => {
+        if (!socket || !id) return;
+
+        console.log(`[SOCKET] Joining room: blog_${id}`);
+        socket.emit("joinRoom", `blog_${id}`);
+
+        socket.on("blogUpdate", (data) => {
+            console.log("[SOCKET] Received blogUpdate:", data);
+            const { type, blog: updatedBlog } = data;
+
+            // Update components based on what changed
+            setBlog(updatedBlog);
+            
+            if (type === "LIKE") {
+                setLikesCount(updatedBlog.likes?.length || 0);
+                
+                // If current user liked/unliked on another device, update isLiked
+                const userKey = currentUser?.username || currentUser?.email;
+                if (userKey) {
+                    setIsLiked(updatedBlog.likes?.includes(userKey) || false);
+                }
+            }
+        });
+
+        return () => {
+            console.log(`[SOCKET] Leaving room: blog_${id}`);
+            socket.emit("leaveRoom", `blog_${id}`);
+            socket.off("blogUpdate");
+        };
+    }, [socket, id, currentUser?.username, currentUser?.email]);
 
     const handleLike = async () => {
         if (!isAuthenticated) {

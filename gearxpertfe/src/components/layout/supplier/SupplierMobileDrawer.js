@@ -11,6 +11,7 @@ import {
   FiChevronDown,
 } from "react-icons/fi";
 import { NavLink } from "react-router-dom";
+import logo from "../../../assets/logoGearXpert.png";
 
 const sections = [
   {
@@ -116,9 +117,7 @@ export default function SupplierMobileDrawer({ open, onClose }) {
       <div className="absolute left-0 top-0 h-full w-64 bg-white shadow-2xl animate-in slide-in-from-left">
         <div className="flex items-center justify-between border-b border-slate-200 p-4">
           <div className="flex items-center gap-3">
-            <div className="bg-gradient-to-br from-primary to-primary-dark p-2 rounded-xl">
-              <span className="text-white font-bold">GX</span>
-            </div>
+            <img src={logo} alt="GearXpert Logo" className="h-8 w-auto object-contain" />
             <div>
               <div className="text-sm font-bold text-slate-900">Portal</div>
               <div className="text-xs text-slate-500">GearXpert</div>
