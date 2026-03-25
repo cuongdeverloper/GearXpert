@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { getDevices, getDeviceDetail } from "../../service/ApiService/DeviceApi";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
@@ -9,10 +10,13 @@ import { Dialog, Transition, Popover } from "@headlessui/react";
 import { Fragment } from "react";
 
 export default function ProductsPage() {
+  const [searchParams] = useSearchParams();
+  const categoryFromUrl = searchParams.get("category");
+
   const [devices, setDevices] = useState([]);
   const [filteredDevices, setFilteredDevices] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(categoryFromUrl || null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("featured");
   const [priceRange, setPriceRange] = useState([0, 10000000]);
@@ -123,6 +127,12 @@ export default function ProductsPage() {
   useEffect(() => {
     fetchDevices();
   }, [fetchDevices]);
+
+  useEffect(() => {
+    if (categoryFromUrl) {
+      setSelectedCategory(categoryFromUrl);
+    }
+  }, [categoryFromUrl]);
 
   useEffect(() => {
     applyFiltersAndSort();

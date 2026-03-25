@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useDispatch } from "react-redux";
-import { getBlogs, manageBlogStatus, deleteBlog } from "../../service/ApiService/BlogApi";
+import { getBlogs, manageBlogStatus, deleteBlog, toggleFeaturedBlog } from "../../service/ApiService/BlogApi";
 import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
-import { FiSearch, FiCheckCircle, FiXCircle, FiEye, FiTrash2, FiClock, FiFileText } from "react-icons/fi";
+import { FiSearch, FiCheckCircle, FiXCircle, FiEye, FiTrash2, FiClock, FiFileText, FiMoreHorizontal, FiStar } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { CATEGORY_MAP, formatDate } from "../Blog/BlogConstants";
 
@@ -17,6 +17,14 @@ export default function BlogManagement() {
     // Reason Modal States
     const [reasonModal, setReasonModal] = useState({ open: false, type: '', id: '', title: '' });
     const [reasonText, setReasonText] = useState("");
+    const [openMenuId, setOpenMenuId] = useState(null);
+
+    // Close menu on click outside
+    useEffect(() => {
+        const handleClick = () => setOpenMenuId(null);
+        window.addEventListener('click', handleClick);
+        return () => window.removeEventListener('click', handleClick);
+    }, []);
 
     const fetchBlogs = useCallback(async (status, search, isInitial = false) => {
         try {
@@ -101,6 +109,20 @@ export default function BlogManagement() {
             return;
         }
         setReasonModal({ open: true, type: 'delete', id: blog._id, title: 'Lý do xóa bài viết' });
+    };
+
+    const handleToggleFeatured = async (id) => {
+        try {
+            dispatch(showAdminLoading());
+            await toggleFeaturedBlog(id);
+            toast.success("Đã cập nhật trạng thái nổi bật");
+            fetchBlogs(statusFilter, searchTerm);
+        } catch (error) {
+            console.error("Error toggling featured:", error);
+            toast.error("Lỗi khi cập nhật trạng thái nổi bật");
+        } finally {
+            dispatch(hideAdminLoading());
+        }
     };
 
     const submitReasonAction = async () => {
@@ -265,42 +287,92 @@ export default function BlogManagement() {
                                     <td className="px-4 py-6 text-center text-sm font-bold text-slate-500 whitespace-nowrap">
                                         {formatDate(blog.createdAt)}
                                     </td>
-                                    <td className="px-4 py-6 text-right">
+                                    <td className="px-4 py-6 text-right relative">
                                         <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <a 
-                                                href={`/blog/${blog._id}`} 
-                                                target="_blank" 
-                                                rel="noreferrer"
-                                                className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-primary hover:border-primary transition-all shadow-sm"
-                                                title="Xem trước"
-                                            >
-                                                <FiEye size={16} />
-                                            </a>
-                                            {blog.status === 'pending' && (
-                                                <>
+                                            {blog.status === 'approved' ? (
+                                                <div className="relative">
                                                     <button
-                                                        onClick={() => handleUpdateStatus(blog._id, 'approved')}
-                                                        className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
-                                                        title="Duyệt bài"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setOpenMenuId(openMenuId === blog._id ? null : blog._id);
+                                                        }}
+                                                        className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-primary hover:border-primary transition-all shadow-sm"
+                                                        title="Thao tác"
                                                     >
-                                                        <FiCheckCircle size={16} />
+                                                        <FiMoreHorizontal size={16} />
                                                     </button>
-                                                    <button
-                                                        onClick={() => handleUpdateStatus(blog._id, 'rejected')}
-                                                        className="p-2.5 rounded-xl bg-red-50 text-red-600 border border-red-100 hover:bg-red-600 hover:text-white transition-all shadow-sm"
-                                                        title="Từ chối"
+                                                    
+                                                    {openMenuId === blog._id && (
+                                                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 py-2 animate-in fade-in zoom-in duration-200">
+                                                            <a 
+                                                                href={`/blog/${blog._id}`} 
+                                                                target="_blank" 
+                                                                rel="noreferrer"
+                                                                className="flex items-center gap-3 px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors"
+                                                            >
+                                                                <FiEye size={16} />
+                                                                <span>Xem bài viết</span>
+                                                            </a>
+                                                            <button
+                                                                onClick={() => handleToggleFeatured(blog._id)}
+                                                                className={`flex items-center gap-3 w-full px-4 py-3 text-sm transition-colors ${
+                                                                    blog.isFeatured 
+                                                                    ? "text-amber-500 hover:bg-amber-50" 
+                                                                    : "text-slate-600 hover:bg-slate-50 hover:text-amber-500"
+                                                                }`}
+                                                            >
+                                                                <FiStar size={16} className={blog.isFeatured ? "fill-amber-500" : ""} />
+                                                                <span>{blog.isFeatured ? "Bỏ nổi bật" : "Đặt nổi bật"}</span>
+                                                            </button>
+                                                            <div className="h-px bg-slate-100 my-1"></div>
+                                                            <button
+                                                                onClick={() => handleDelete(blog)}
+                                                                className="flex items-center gap-3 w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                                            >
+                                                                <FiTrash2 size={16} />
+                                                                <span>Xóa bài viết</span>
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <a 
+                                                        href={`/blog/${blog._id}`} 
+                                                        target="_blank" 
+                                                        rel="noreferrer"
+                                                        className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-primary hover:border-primary transition-all shadow-sm"
+                                                        title="Xem trước"
                                                     >
-                                                        <FiXCircle size={16} />
+                                                        <FiEye size={16} />
+                                                    </a>
+                                                    {blog.status === 'pending' && (
+                                                        <>
+                                                            <button
+                                                                onClick={() => handleUpdateStatus(blog._id, 'approved')}
+                                                                className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                                                                title="Duyệt bài"
+                                                            >
+                                                                <FiCheckCircle size={16} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleUpdateStatus(blog._id, 'rejected')}
+                                                                className="p-2.5 rounded-xl bg-red-50 text-red-600 border border-red-100 hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                                                                title="Từ chối"
+                                                            >
+                                                                <FiXCircle size={16} />
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                    <button
+                                                        onClick={() => handleDelete(blog)}
+                                                        className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-600 transition-all shadow-sm"
+                                                        title="Xóa"
+                                                    >
+                                                        <FiTrash2 size={16} />
                                                     </button>
                                                 </>
                                             )}
-                                            <button
-                                                onClick={() => handleDelete(blog)}
-                                                className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-600 transition-all shadow-sm"
-                                                title="Xóa"
-                                            >
-                                                <FiTrash2 size={16} />
-                                            </button>
                                         </div>
                                     </td>
                                 </tr>

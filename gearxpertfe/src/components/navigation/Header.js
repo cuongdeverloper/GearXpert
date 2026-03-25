@@ -109,6 +109,11 @@ export default function Header() {
     ...(userAccount?.role === 'SUPPLIER'
       ? [{ label: 'Dashboard', icon: 'dashboard', path: '/supplier/dashboard' }]
       : []),
+      
+    ...(userAccount?.role === 'CUSTOMER'
+      ? [{ label: 'Trở thành Nhà cung cấp', icon: 'storefront', path: '/become-supplier' }]
+      : []),
+
     { label: 'Đơn thuê của tôi', icon: 'description', path: '/user/myrental' },
     { label: 'Vouchers', icon: 'local_activity', path: '/vouchers' },
     { label: 'Yêu thích', icon: 'favorite', path: '/favorites' },

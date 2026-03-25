@@ -12,6 +12,7 @@ routerBlog.put('/:id', uploadCloud.array('images', 10), blogController.updateBlo
 routerBlog.delete('/:id', blogController.deleteBlog);
 routerBlog.post('/:id/save', blogController.toggleSaveBlog);
 routerBlog.patch('/:id/status', blogController.manageBlogStatus);
+routerBlog.patch('/:id/featured', blogController.toggleFeaturedBlog);
 routerBlog.post('/:id/like', blogController.toggleLikeBlog);
 routerBlog.post('/:id/comments', blogController.addComment);
 routerBlog.put('/:id/comments/:commentId', blogController.updateComment);

@@ -549,6 +549,28 @@ export default function ProfilePage() {
                                             {userAccount.isVerifiedEkyc ? 'Đã xác thực' : 'Chưa xác thực'}
                                         </span>
                                     </div>
+
+                                    {userAccount?.role === 'CUSTOMER' && (
+                                    <div className="mt-6 pt-6 border-t border-slate-200">
+                                        <button
+                                            onClick={() => {
+                                                if (!userAccount.isVerifiedEkyc) {
+                                                    toast.warning('Vui lòng xác thực danh tính (eKYC) trước khi đăng ký Nhà cung cấp!');
+                                                    setShowEkycModal(true);
+                                                } else {
+                                                    navigate('/become-supplier');
+                                                }
+                                            }}
+                                            className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-indigo-600 to-cyan-500 text-white rounded-xl font-bold hover:shadow-lg hover:shadow-indigo-500/30 hover:scale-[1.02] active:scale-95 transition-all duration-300"
+                                        >
+                                            <span className="material-symbols-outlined text-[20px]">storefront</span>
+                                            Nâng cấp Nhà cung cấp
+                                        </button>
+                                        <p className="text-xs text-slate-500 text-center mt-2">
+                                            Cho thuê thiết bị nhàn rỗi để tạo thu nhập
+                                        </p>
+                                    </div>
+                                )}
                                 </div>
                             </div>
                         </div>
