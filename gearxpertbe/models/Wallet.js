@@ -5,9 +5,10 @@ const walletSchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       unique: true,
-      required: true
+      required: true,
+      sparse: true
     },
-  
+    isSystem: { type: Boolean, default: false },
     balance: { type: Number, default: 0 },
     currency: { type: String, default: 'VND' },
   

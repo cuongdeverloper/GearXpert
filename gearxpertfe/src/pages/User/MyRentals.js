@@ -9,7 +9,6 @@ import {
   MapPin,
   Loader2,
   XCircle,
-  ShieldCheck,
   Receipt,
   ChevronDown,
   RefreshCcw,
@@ -1039,14 +1038,7 @@ export default function MyRentals() {
                                 {order.depositAmount?.toLocaleString()} ₫
                               </span>
                             </div>
-                            <div className="flex justify-between items-center text-emerald-400">
-                              <span className="text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-1">
-                                <ShieldCheck size={12} /> Insurance
-                              </span>
-                              <span className="text-xs font-bold">
-                                +{order.insuranceAmount?.toLocaleString()} ₫
-                              </span>
-                            </div>
+
                             <div className="pt-3 border-t border-white/10 flex justify-between items-end">
                               <span className="text-[11px] font-black uppercase italic">
                                 Total Charged
@@ -1316,9 +1308,7 @@ export default function MyRentals() {
                 <h2 className="text-2xl font-black italic uppercase tracking-tighter">
                   Order Details
                 </h2>
-                <p className="text-indigo-400 text-[10px] font-bold uppercase tracking-[0.3em]">
-                  ID: {detailModal.order._id}
-                </p>
+
               </div>
               <button
                 onClick={() => setDetailModal({ isOpen: false, order: null })}
@@ -1427,12 +1417,6 @@ export default function MyRentals() {
                     <span>Tiền đặt cọc</span>
                     <span>
                       {detailModal.order.depositAmount?.toLocaleString()} ₫
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs font-bold text-emerald-600">
-                    <span>Bảo hiểm thiết bị</span>
-                    <span>
-                      +{detailModal.order.insuranceAmount?.toLocaleString()} ₫
                     </span>
                   </div>
                   <div className="pt-3 border-t border-gray-200 flex justify-between items-center">
