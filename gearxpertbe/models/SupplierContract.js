@@ -13,6 +13,21 @@ const supplierContractSchema = new mongoose.Schema({
   contractSignature: {
     type: String, 
   },
+  signatureDataUrl: {
+    type: String,
+  },
+  signerName: {
+    type: String,
+  },
+  signedPdfUrl: {
+    type: String,
+  },
+  signedPdfPublicId: {
+    type: String,
+  },
+  ipAddress: { type: String },
+  userAgent: { type: String },
+  contractVersion: { type: String },
   status: {
     type: String,
     enum: ['PENDING', 'APPROVED', 'REJECTED'],
@@ -25,7 +40,8 @@ const supplierContractSchema = new mongoose.Schema({
   rejectionReason: { 
     type: String, 
     default: "" 
-  }
+  },
+  
 }, { timestamps: true });
 
 module.exports = mongoose.model('SupplierContract', supplierContractSchema);
