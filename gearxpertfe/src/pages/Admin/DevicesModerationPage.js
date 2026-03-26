@@ -84,7 +84,7 @@ export default function DevicesModerationPage() {
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Search devices..."
+              placeholder="Tìm kiếm thiết bị..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition"
@@ -96,15 +96,15 @@ export default function DevicesModerationPage() {
             onChange={(e) => setCategoryFilter(e.target.value)}
             className="px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition bg-white"
           >
-            <option value="ALL">All Categories</option>
-            <option value="CAMERA">Camera</option>
-            <option value="AUDIO">Audio</option>
-            <option value="OFFICE">Office</option>
-            <option value="GAMING">Gaming</option>
-            <option value="ACCESSORY">Accessory</option>
-            <option value="LIGHTING">Lighting</option>
-            <option value="DRONE">Drone</option>
-            <option value="OTHER">Other</option>
+            <option value="ALL">Tất cả danh mục</option>
+            <option value="CAMERA">Máy ảnh</option>
+            <option value="AUDIO">Âm thanh</option>
+            <option value="OFFICE">Văn phòng</option>
+            <option value="GAMING">Trò chơi</option>
+            <option value="ACCESSORY">Phụ kiện</option>
+            <option value="LIGHTING">Ánh sáng</option>
+            <option value="DRONE">Flycam</option>
+            <option value="OTHER">Khác</option>
           </select>
 
           <select
@@ -112,17 +112,17 @@ export default function DevicesModerationPage() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition bg-white"
           >
-            <option value="ALL">All Status</option>
-            <option value="AVAILABLE">Available</option>
-            <option value="RENTED">Rented</option>
-            <option value="MAINTENANCE">Maintenance</option>
-            <option value="BROKEN">Broken</option>
-            <option value="STOPPED">Stopped</option>
+            <option value="ALL">Tất cả trạng thái</option>
+            <option value="AVAILABLE">Sẵn sàng</option>
+            <option value="RENTED">Đang thuê</option>
+            <option value="MAINTENANCE">Bảo trì</option>
+            <option value="BROKEN">Hỏng</option>
+            <option value="STOPPED">Dừng hoạt động</option>
           </select>
         </div>
 
         <div className="text-xs text-slate-500 font-semibold uppercase tracking-widest">
-          Supplier managed
+          Quản lý nhà cung cấp
         </div>
       </div>
 
@@ -131,14 +131,14 @@ export default function DevicesModerationPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              <th className="px-6 py-3 text-left font-semibold text-slate-700">Device</th>
-              <th className="px-6 py-3 text-left font-semibold text-slate-700">Supplier</th>
-              <th className="px-6 py-3 text-left font-semibold text-slate-700">Category</th>
-              <th className="px-6 py-3 text-center font-semibold text-slate-700">Stock</th>
-              <th className="px-6 py-3 text-right font-semibold text-slate-700">Daily Rate</th>
-              <th className="px-6 py-3 text-center font-semibold text-slate-700">Rating</th>
-              <th className="px-6 py-3 text-center font-semibold text-slate-700">Status</th>
-              <th className="px-6 py-3 text-center font-semibold text-slate-700">Actions</th>
+              <th className="px-6 py-3 text-left font-semibold text-slate-700">Thiết bị</th>
+              <th className="px-6 py-3 text-left font-semibold text-slate-700">Nhà cung cấp</th>
+              <th className="px-6 py-3 text-left font-semibold text-slate-700">Danh mục</th>
+              <th className="px-6 py-3 text-center font-semibold text-slate-700">Kho</th>
+              <th className="px-6 py-3 text-right font-semibold text-slate-700">Giá thuê ngày</th>
+              <th className="px-6 py-3 text-center font-semibold text-slate-700">Đánh giá</th>
+              <th className="px-6 py-3 text-center font-semibold text-slate-700">Trạng thái</th>
+              <th className="px-6 py-3 text-center font-semibold text-slate-700">Hành động</th>
             </tr>
           </thead>
           <tbody>
@@ -160,7 +160,7 @@ export default function DevicesModerationPage() {
                   </span>
                 </td>
                 <td className="px-6 py-3 text-right font-medium text-slate-900">
-                  ${device.rentPrice.perDay}/day
+                   {device.rentPrice.perDay}đ/ngày
                 </td>
                 <td className="px-6 py-3 text-center">
                   <div className="flex items-center justify-center gap-1">
@@ -194,7 +194,7 @@ export default function DevicesModerationPage() {
 
       {filteredDevices.length === 0 && (
         <div className="text-center py-12">
-          <p className="text-slate-500">No devices found</p>
+          <p className="text-slate-500">Không tìm thấy thiết bị nào</p>
         </div>
       )}
 

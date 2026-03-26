@@ -15,10 +15,10 @@ import { toast } from "react-toastify";
 
 const LOW_STOCK_THRESHOLD = 2;
 const STOCK_FILTERS = [
-  { value: "ALL", label: "All" },
-  { value: "IN_STOCK", label: "In Stock" },
-  { value: "LOW_STOCK", label: "Low Stock" },
-  { value: "OUT_OF_STOCK", label: "Out of Stock" },
+  { value: "ALL", label: "Tất cả" },
+  { value: "IN_STOCK", label: "Sẵn hàng" },
+  { value: "LOW_STOCK", label: "Sắp hết" },
+  { value: "OUT_OF_STOCK", label: "Hết hàng" },
 ];
 
 export default function SupplierInventoryPage() {
@@ -106,10 +106,10 @@ export default function SupplierInventoryPage() {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 font-display tracking-tight">
-            Inventory Management
+            Quản lý Kho hàng
           </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Track quantity and status of your devices
+            Theo dõi số lượng và trạng thái thiết bị của bạn
           </p>
         </div>
 
@@ -118,7 +118,7 @@ export default function SupplierInventoryPage() {
           className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-primary to-primary-dark text-white rounded-2xl font-semibold shadow-lg shadow-primary/30 hover:shadow-lg hover:shadow-primary/40 transition-all hover:scale-105 active:scale-95"
         >
           <FiPlus size={20} />
-          <span>Add Product</span>
+          <span>Thêm sản phẩm</span>
         </button>
       </div>
 
@@ -129,7 +129,7 @@ export default function SupplierInventoryPage() {
             <FiBox size={18} />
           </span>
           <div>
-            <p className="text-xs text-slate-500">Products</p>
+            <p className="text-xs text-slate-500">Sản phẩm</p>
             <p className="text-lg font-bold text-slate-900">{inventorySummary.totalProducts}</p>
           </div>
         </div>
@@ -138,7 +138,7 @@ export default function SupplierInventoryPage() {
             <FiBox size={18} />
           </span>
           <div>
-            <p className="text-xs text-slate-500">Total Devices</p>
+            <p className="text-xs text-slate-500">Tổng thiết bị</p>
             <p className="text-lg font-bold text-slate-900">{inventorySummary.totalUnits}</p>
           </div>
         </div>
@@ -147,7 +147,7 @@ export default function SupplierInventoryPage() {
             <FiCheckCircle size={18} />
           </span>
           <div>
-            <p className="text-xs text-slate-500">Available</p>
+            <p className="text-xs text-slate-500">Sẵn sàng</p>
             <p className="text-lg font-bold text-slate-900">{inventorySummary.availableUnits}</p>
           </div>
         </div>
@@ -156,7 +156,7 @@ export default function SupplierInventoryPage() {
             <FiClock size={18} />
           </span>
           <div>
-            <p className="text-xs text-slate-500">Rented</p>
+            <p className="text-xs text-slate-500">Đang thuê</p>
             <p className="text-lg font-bold text-slate-900">{inventorySummary.rentedUnits}</p>
           </div>
         </div>
@@ -165,7 +165,7 @@ export default function SupplierInventoryPage() {
             <FiTool size={18} />
           </span>
           <div>
-            <p className="text-xs text-slate-500">Maintenance</p>
+            <p className="text-xs text-slate-500">Bảo trì</p>
             <p className="text-lg font-bold text-slate-900">{inventorySummary.maintenanceUnits}</p>
           </div>
         </div>
@@ -183,16 +183,16 @@ export default function SupplierInventoryPage() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
           <div className="p-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-slate-900">Inventory List</h3>
+              <h3 className="text-lg font-semibold text-slate-900">Danh sách kho</h3>
               <p className="text-sm text-slate-500">
-                Manage device quantity per product
+                Quản lý số lượng thiết bị cho mỗi sản phẩm
               </p>
             </div>
             <div className="relative w-full lg:w-64">
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
               <input
                 type="text"
-                placeholder="Search products..."
+                placeholder="Tìm kiếm sản phẩm..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
@@ -220,14 +220,14 @@ export default function SupplierInventoryPage() {
             <table className="w-full text-sm">
               <thead className="text-slate-500 border-t border-slate-200">
                 <tr className="text-left">
-                  <th className="px-4 py-3 font-semibold">Product</th>
-                  <th className="px-4 py-3 font-semibold">ID</th>
-                  <th className="px-4 py-3 font-semibold text-center">Total</th>
-                  <th className="px-4 py-3 font-semibold text-center">Available</th>
-                  <th className="px-4 py-3 font-semibold text-center">Rented</th>
-                  <th className="px-4 py-3 font-semibold text-center">Maintenance</th>
-                  <th className="px-4 py-3 font-semibold text-center">Status</th>
-                  <th className="px-4 py-3 font-semibold text-center">Adjust</th>
+                  <th className="px-4 py-3 font-semibold">Sản phẩm</th>
+                  <th className="px-4 py-3 font-semibold">Mã</th>
+                  <th className="px-4 py-3 font-semibold text-center">Tổng</th>
+                  <th className="px-4 py-3 font-semibold text-center">Sẵn sàng</th>
+                  <th className="px-4 py-3 font-semibold text-center">Đang thuê</th>
+                  <th className="px-4 py-3 font-semibold text-center">Bảo trì</th>
+                  <th className="px-4 py-3 font-semibold text-center">Trạng thái</th>
+                  <th className="px-4 py-3 font-semibold text-center">Điều chỉnh</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -311,7 +311,7 @@ export default function SupplierInventoryPage() {
                 {stockFilteredDevices.length === 0 && (
                   <tr>
                     <td colSpan={8} className="py-10 text-center text-slate-500">
-                      No matching products.
+                      Không tìm thấy sản phẩm phù hợp.
                     </td>
                   </tr>
                 )}
@@ -330,7 +330,7 @@ export default function SupplierInventoryPage() {
             </span>
             <span className="text-slate-600"> - </span>
             <span className="text-primary font-bold">{Math.min(page * pageSize, total)}</span>
-            <span className="text-slate-600"> of </span>
+            <span className="text-slate-600"> của </span>
             <span className="text-primary font-bold">{total}</span>
           </p>
           <div className="flex items-center gap-2">
@@ -339,14 +339,14 @@ export default function SupplierInventoryPage() {
               disabled={page === 1}
               onClick={() => setPage(1)}
             >
-              First
+              Đầu
             </button>
             <button
               className="px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-sm font-medium"
               disabled={page === 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
-              Prev
+              Trước
             </button>
             <span className="text-sm font-semibold text-slate-900">
               <span className="text-primary">{page}</span>
@@ -358,14 +358,14 @@ export default function SupplierInventoryPage() {
               disabled={page === totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             >
-              Next
+              Sau
             </button>
             <button
               className="px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-sm font-medium"
               disabled={page === totalPages}
               onClick={() => setPage(totalPages)}
             >
-              Last
+              Cuối
             </button>
           </div>
         </div>

@@ -92,10 +92,10 @@ export default function SupplierDashboard() {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 font-display tracking-tight">
-            Supplier Dashboard
+            Bảng điều khiển Nhà cung cấp
           </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Overview of earnings, bookings, and inventory performance.
+            Tổng quan về thu nhập, đặt hàng và hiệu suất kho hàng.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -103,13 +103,13 @@ export default function SupplierDashboard() {
             to="/supplier/rental-requests"
             className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 transition-all"
           >
-            Review requests
+            Xem yêu cầu
           </Link>
           <Link
             to="/supplier/devices"
             className="px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all"
           >
-            Manage devices
+            Quản lý thiết bị
           </Link>
         </div>
       </div>
@@ -119,7 +119,7 @@ export default function SupplierDashboard() {
         <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl border border-primary/20 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm text-slate-600 font-semibold uppercase tracking-tighter">
-              Total Revenue
+              Tổng doanh thu
             </p>
             <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
               <FiDollarSign size={20} className="text-primary" />
@@ -128,13 +128,13 @@ export default function SupplierDashboard() {
           <p className="text-3xl font-bold text-primary">
             {formatMillions(summary.totalRevenue)}
           </p>
-          <p className="text-xs text-primary/70 mt-2">All time earnings</p>
+          <p className="text-xs text-primary/70 mt-2">Tổng thu nhập từ trước đến nay</p>
         </div>
 
         <div className="bg-gradient-to-br from-green-100/10 to-green-50/5 rounded-2xl border border-green-200/30 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm text-slate-600 font-semibold uppercase tracking-tighter">
-              This Month
+              Tháng này
             </p>
             <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
               <FiTrendingUp size={20} className="text-green-600" />
@@ -143,13 +143,13 @@ export default function SupplierDashboard() {
           <p className="text-3xl font-bold text-green-600">
             {formatMillions(summary.monthlyRevenue)}
           </p>
-          <p className="text-xs text-green-600/70 mt-2">Monthly performance</p>
+          <p className="text-xs text-green-600/70 mt-2">Hiệu suất hàng tháng</p>
         </div>
 
         <div className="bg-gradient-to-br from-amber-100/10 to-amber-50/5 rounded-2xl border border-amber-200/30 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm text-slate-600 font-semibold uppercase tracking-tighter">
-              Pending Requests
+              Yêu cầu chờ xử lý
             </p>
             <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
               <FiClipboard size={20} className="text-amber-600" />
@@ -157,14 +157,14 @@ export default function SupplierDashboard() {
           </div>
           <p className="text-3xl font-bold text-amber-600">{pendingCount}</p>
           <p className="text-xs text-amber-600/70 mt-2">
-            {approvedCount} approved bookings
+            {approvedCount} đơn đặt hàng đã phê duyệt
           </p>
         </div>
 
         <div className="bg-gradient-to-br from-blue-100/10 to-blue-50/5 rounded-2xl border border-blue-200/30 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm text-slate-600 font-semibold uppercase tracking-tighter">
-              Inventory
+              Kho hàng
             </p>
             <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
               <FiBox size={20} className="text-blue-600" />
@@ -172,7 +172,7 @@ export default function SupplierDashboard() {
           </div>
           <p className="text-3xl font-bold text-blue-600">{deviceTotals.total}</p>
           <p className="text-xs text-blue-600/70 mt-2">
-            {deviceTotals.available} available now
+            {deviceTotals.available} thiết bị sẵn sàng ngay
           </p>
         </div>
       </div>
@@ -181,22 +181,22 @@ export default function SupplierDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {[
           {
-            title: "Rental Requests",
-            desc: "Approve or reject new bookings",
+            title: "Yêu cầu thuê",
+            desc: "Phê duyệt hoặc từ chối đơn đặt mới",
             to: "/supplier/rental-requests",
             icon: FiClipboard,
             color: "text-primary",
           },
           {
-            title: "Devices",
-            desc: "Add or update your listings",
+            title: "Thiết bị",
+            desc: "Thêm hoặc cập nhật danh sách của bạn",
             to: "/supplier/devices",
             icon: FiBox,
             color: "text-blue-600",
           },
           {
-            title: "Revenue",
-            desc: "View detailed earnings analytics",
+            title: "Doanh thu",
+            desc: "Xem phân tích thu nhập chi tiết",
             to: "/supplier/revenue",
             icon: FiDollarSign,
             color: "text-green-600",
@@ -226,17 +226,17 @@ export default function SupplierDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-slate-900">Recent Requests</h3>
+            <h3 className="text-lg font-bold text-slate-900">Yêu cầu gần đây</h3>
             <Link
               to="/supplier/rental-requests"
               className="text-sm font-semibold text-primary hover:text-primary-dark"
             >
-              View all
+              Xem tất cả
             </Link>
           </div>
-          {loading && <p className="text-sm text-slate-500">Loading...</p>}
+          {loading && <p className="text-sm text-slate-500">Đang tải...</p>}
           {!loading && recentRequests.length === 0 && (
-            <p className="text-sm text-slate-500">No requests yet.</p>
+            <p className="text-sm text-slate-500">Chưa có yêu cầu nào.</p>
           )}
           <div className="space-y-3">
             {recentRequests.map((req) => (
@@ -246,10 +246,10 @@ export default function SupplierDashboard() {
               >
                 <div>
                   <p className="font-semibold text-slate-900">
-                    Rental #{req._id?.slice(-6)}
+                    Đơn thuê #{req._id?.slice(-6)}
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
-                    {req.customerId?.fullName || "Customer"}
+                    {req.customerId?.fullName || "Khách hàng"}
                   </p>
                 </div>
                 <div className="text-right">
@@ -265,7 +265,7 @@ export default function SupplierDashboard() {
                     ) : (
                       <FiCheckCircle size={12} />
                     )}
-                    {req.status}
+                    {req.status === "PENDING" ? "Chờ xử lý" : "Đã duyệt"}
                   </span>
                   <p className="text-sm font-bold text-primary mt-2">
                     {formatMoney(req.totalAmount)} ₫
@@ -278,17 +278,17 @@ export default function SupplierDashboard() {
 
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-slate-900">Top Devices</h3>
+            <h3 className="text-lg font-bold text-slate-900">Thiết bị hàng đầu</h3>
             <Link
               to="/supplier/devices"
               className="text-sm font-semibold text-primary hover:text-primary-dark"
             >
-              View all
+              Xem tất cả
             </Link>
           </div>
-          {loading && <p className="text-sm text-slate-500">Loading...</p>}
+          {loading && <p className="text-sm text-slate-500">Đang tải...</p>}
           {!loading && topDevices.length === 0 && (
-            <p className="text-sm text-slate-500">No device data yet.</p>
+            <p className="text-sm text-slate-500">Chưa có dữ liệu thiết bị.</p>
           )}
           <div className="space-y-3">
             {topDevices.slice(0, 4).map((device, idx) => (
@@ -299,7 +299,7 @@ export default function SupplierDashboard() {
                 <div>
                   <p className="font-semibold text-slate-900">{device.name}</p>
                   <p className="text-xs text-slate-500 mt-1">
-                    {device.rentals} rentals
+                    {device.rentals} lượt thuê
                   </p>
                 </div>
                 <p className="text-sm font-bold text-primary">
@@ -314,17 +314,17 @@ export default function SupplierDashboard() {
       {/* Recent Transactions */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-slate-900">Recent Transactions</h3>
+          <h3 className="text-lg font-bold text-slate-900">Giao dịch gần đây</h3>
           <Link
             to="/supplier/revenue"
             className="text-sm font-semibold text-primary hover:text-primary-dark"
           >
-            View analytics
+            Xem phân tích
           </Link>
         </div>
-        {loading && <p className="text-sm text-slate-500">Loading...</p>}
+        {loading && <p className="text-sm text-slate-500">Đang tải...</p>}
         {!loading && transactions.length === 0 && (
-          <p className="text-sm text-slate-500">No transactions yet.</p>
+          <p className="text-sm text-slate-500">Chưa có giao dịch nào.</p>
         )}
         <div className="space-y-3">
           {transactions.slice(0, 5).map((item) => (

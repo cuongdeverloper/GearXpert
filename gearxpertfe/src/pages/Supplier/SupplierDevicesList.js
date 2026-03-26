@@ -26,31 +26,31 @@ const CATEGORIES = [
   "OTHER",
 ];
 const STATUS_OPTIONS = [
-  { value: "ALL", label: "All Statuses" },
-  { value: "AVAILABLE", label: "Available" },
-  { value: "RENTED", label: "Rented" },
-  { value: "MAINTENANCE", label: "Maintenance" },
-  { value: "BROKEN", label: "Broken" },
-  { value: "STOPPED", label: "Hidden" },
+  { value: "ALL", label: "Tất cả trạng thái" },
+  { value: "AVAILABLE", label: "Sẵn sàng" },
+  { value: "RENTED", label: "Đang thuê" },
+  { value: "MAINTENANCE", label: "Bảo trì" },
+  { value: "BROKEN", label: "Hỏng" },
+  { value: "STOPPED", label: "Đã ẩn" },
 ];
 const SORT_OPTIONS = [
-  { value: "createdAt", label: "Newest" },
-  { value: "name", label: "Name A-Z" },
-  { value: "-name", label: "Name Z-A" },
-  { value: "rentPrice.perDay", label: "Price Low-High" },
-  { value: "-rentPrice.perDay", label: "Price High-Low" },
-  { value: "ratingAvg", label: "Rating High-Low" },
+  { value: "createdAt", label: "Mới nhất" },
+  { value: "name", label: "Tên A-Z" },
+  { value: "-name", label: "Tên Z-A" },
+  { value: "rentPrice.perDay", label: "Giá Thấp-Cao" },
+  { value: "-rentPrice.perDay", label: "Giá Cao-Thấp" },
+  { value: "ratingAvg", label: "Đánh giá Cao-Thấp" },
 ];
 const PAGE_SIZES = [5, 10, 20];
 const CATEGORY_LABELS = {
-  CAMERA: "Camera",
-  AUDIO: "Audio",
-  OFFICE: "Office",
-  GAMING: "Gaming",
-  ACCESSORY: "Accessories",
-  LIGHTING: "Lighting",
-  DRONE: "Drone",
-  OTHER: "Other",
+  CAMERA: "Máy ảnh",
+  AUDIO: "Âm thanh",
+  OFFICE: "Văn phòng",
+  GAMING: "Trò chơi",
+  ACCESSORY: "Phụ kiện",
+  LIGHTING: "Ánh sáng",
+  DRONE: "Flycam",
+  OTHER: "Khác",
 };
 
 const formatCurrency = (value) => {
@@ -119,21 +119,21 @@ export default function SupplierDevicesList() {
 
   const handleDeleteDevice = async (device) => {
     const result = await confirmDialog({
-      title: "Delete device?",
-      text: `Are you sure you want to delete "${device.name}"? This action cannot be undone!`,
+      title: "Xóa thiết bị?",
+      text: `Bạn có chắc chắn muốn xóa "${device.name}"? Hành động này không thể hoàn tác!`,
       icon: "warning",
-      confirmText: "Yes, delete it!",
-      cancelText: "Cancel",
+      confirmText: "Có, xóa nó!",
+      cancelText: "Hủy",
       confirmColor: "#d33",
       cancelColor: "#3085d6",
     });
     if (result.isConfirmed) {
       try {
         await deleteDevice(device._id || device.id);
-        toast.success("Device deleted successfully!");
+        toast.success("Xóa thiết bị thành công!");
         fetchDevices();
       } catch (error) {
-        toast.error(error?.response?.data?.message || "Failed to delete device");
+        toast.error(error?.response?.data?.message || "Xóa thiết bị thất bại");
       }
     }
   };
@@ -149,10 +149,10 @@ export default function SupplierDevicesList() {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 font-display tracking-tight">
-            Product List
+            Danh sách sản phẩm
           </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Manage all your tech products
+            Quản lý tất cả sản phẩm công nghệ của bạn
           </p>
         </div>
         <button
@@ -160,7 +160,7 @@ export default function SupplierDevicesList() {
           className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-primary to-primary-dark text-white rounded-2xl font-semibold shadow-lg shadow-primary/30 hover:shadow-lg hover:shadow-primary/40 transition-all hover:scale-105 active:scale-95"
         >
           <FiPlus size={20} />
-          <span>Add Product</span>
+          <span>Thêm sản phẩm</span>
         </button>
       </div>
 
@@ -173,7 +173,7 @@ export default function SupplierDevicesList() {
             />
             <input
               type="text"
-              placeholder="Search by product name..."
+              placeholder="Tìm kiếm theo tên sản phẩm..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
@@ -206,7 +206,7 @@ export default function SupplierDevicesList() {
             >
               {CATEGORIES.map((c) => (
                 <option key={c} value={c}>
-                  {c === "ALL" ? "All Categories" : CATEGORY_LABELS[c] || c}
+                  {c === "ALL" ? "Tất cả danh mục" : CATEGORY_LABELS[c] || c}
                 </option>
               ))}
             </select>
@@ -226,7 +226,7 @@ export default function SupplierDevicesList() {
             </select>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-slate-500">Show</span>
+            <span className="text-sm text-slate-500">Hiển thị</span>
             <select
               value={pageSize}
               onChange={(e) => {
@@ -254,23 +254,23 @@ export default function SupplierDevicesList() {
       {!isLoading && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
           <div className="p-4 border-b border-slate-100">
-            <h3 className="text-lg font-semibold text-slate-900">Product List</h3>
+            <h3 className="text-lg font-semibold text-slate-900">Danh sách sản phẩm</h3>
             <p className="text-sm text-slate-500">
-              Showing {filteredDevices.length} / {total} products
+              Hiển thị {filteredDevices.length} / {total} sản phẩm
             </p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-slate-500">
                 <tr className="text-left">
-                  <th className="px-4 py-3 font-semibold">Image</th>
-                  <th className="px-4 py-3 font-semibold">Product Name</th>
-                  <th className="px-4 py-3 font-semibold">Category</th>
-                  <th className="px-4 py-3 font-semibold">Rental Price</th>
-                  <th className="px-4 py-3 font-semibold text-center">Stock</th>
-                  <th className="px-4 py-3 font-semibold text-center">Rentals</th>
-                  <th className="px-4 py-3 font-semibold text-center">Status</th>
-                  <th className="px-4 py-3 font-semibold text-center">Actions</th>
+                  <th className="px-4 py-3 font-semibold">Hình ảnh</th>
+                  <th className="px-4 py-3 font-semibold">Tên sản phẩm</th>
+                  <th className="px-4 py-3 font-semibold">Danh mục</th>
+                  <th className="px-4 py-3 font-semibold">Giá thuê</th>
+                  <th className="px-4 py-3 font-semibold text-center">Kho</th>
+                  <th className="px-4 py-3 font-semibold text-center">Lượt thuê</th>
+                  <th className="px-4 py-3 font-semibold text-center">Trạng thái</th>
+                  <th className="px-4 py-3 font-semibold text-center">Hành động</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -294,7 +294,7 @@ export default function SupplierDevicesList() {
                         {CATEGORY_LABELS[device.category] || device.category}
                       </td>
                       <td className="px-4 py-3 text-slate-700">
-                        {formatCurrency(device.rentPrice?.perDay || 0)}/day
+                        {formatCurrency(device.rentPrice?.perDay || 0)}đ/ngày
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span className="inline-flex min-w-[28px] justify-center rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
@@ -329,7 +329,7 @@ export default function SupplierDevicesList() {
                               )
                             }
                             className="h-9 w-9 inline-flex items-center justify-center rounded-full border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition"
-                            aria-label="Actions"
+                            aria-label="Hành động"
                           >
                             <FiMoreVertical size={16} />
                           </button>
@@ -345,7 +345,7 @@ export default function SupplierDevicesList() {
                                 className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                               >
                                 <FiEye size={16} />
-                                View Details
+                                Xem chi tiết
                               </button>
                               <button
                                 type="button"
@@ -356,7 +356,7 @@ export default function SupplierDevicesList() {
                                 className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                               >
                                 <FiEdit2 size={16} />
-                                Edit
+                                Sửa
                               </button>
                               <button
                                 type="button"
@@ -367,7 +367,7 @@ export default function SupplierDevicesList() {
                                 className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
                               >
                                 <FiTrash2 size={16} />
-                                Delete
+                                Xóa
                               </button>
                             </div>
                           )}
@@ -379,7 +379,7 @@ export default function SupplierDevicesList() {
                 {filteredDevices.length === 0 && (
                   <tr>
                     <td colSpan={8} className="py-10 text-center text-slate-500">
-                      No matching products.
+                      Không tìm thấy sản phẩm phù hợp.
                     </td>
                   </tr>
                 )}
@@ -397,7 +397,7 @@ export default function SupplierDevicesList() {
             </span>
             <span className="text-slate-600"> - </span>
             <span className="text-primary font-bold">{Math.min(page * pageSize, total)}</span>
-            <span className="text-slate-600"> of </span>
+            <span className="text-slate-600"> của </span>
             <span className="text-primary font-bold">{total}</span>
           </p>
           <div className="flex items-center gap-2">
@@ -406,14 +406,14 @@ export default function SupplierDevicesList() {
               disabled={page === 1}
               onClick={() => setPage(1)}
             >
-              First
+              Đầu
             </button>
             <button
               className="px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-sm font-medium"
               disabled={page === 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
-              Prev
+              Trước
             </button>
             <span className="text-sm font-semibold text-slate-900">
               <span className="text-primary">{page}</span>
@@ -425,14 +425,14 @@ export default function SupplierDevicesList() {
               disabled={page === totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             >
-              Next
+              Sau
             </button>
             <button
               className="px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-sm font-medium"
               disabled={page === totalPages}
               onClick={() => setPage(totalPages)}
             >
-              Last
+              Cuối
             </button>
           </div>
         </div>

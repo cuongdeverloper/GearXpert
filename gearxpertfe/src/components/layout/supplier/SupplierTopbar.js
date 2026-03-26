@@ -25,27 +25,27 @@ const timeAgo = (date) => {
 const RANK_STYLES = {
   BRONZE: {
     border: "border-[3px] border-[#cd7f32] animate-spin-slow",
-    label: "Bronze",
+    label: "Đồng",
     color: "#cd7f32"
   },
   SILVER: {
     border: "border-[3px] border-[#c0c0c0] animate-spin-slow",
-    label: "Silver",
+    label: "Bạc",
     color: "#c0c0c0"
   },
   GOLD: {
     border: "border-[3px] border-[#ffd700] animate-spin-slow",
-    label: "Gold",
+    label: "Vàng",
     color: "#ffd700"
   },
   PLATINUM: {
     border: "border-[3px] border-[#e5e4e2] animate-spin-slow",
-    label: "Platinum",
+    label: "Bạch kim",
     color: "#e5e4e2"
   },
   DIAMOND: {
     border: "border-[3px] border-[#00bfff] animate-spin-slow",
-    label: "Diamond",
+    label: "Kim cương",
     color: "#00bfff"
   }
 };
@@ -150,7 +150,7 @@ export default function SupplierTopbar({ onMenuOpen, me }) {
           <img src={logo} alt="GearXpert Logo" className="h-9 w-auto object-contain" />
           <div className="hidden sm:block">
             <div className="text-sm font-bold text-slate-900 font-display">GearXpert</div>
-            <div className="text-xs text-slate-500 font-medium">Supplier Portal</div>
+            <div className="text-xs text-slate-500 font-medium">Cổng Nhà cung cấp</div>
           </div>
         </Link>
 
@@ -159,7 +159,7 @@ export default function SupplierTopbar({ onMenuOpen, me }) {
           <FiSearch className="text-slate-400" size={18} />
           <input
             className="w-full bg-transparent outline-none placeholder:text-slate-400 text-sm"
-            placeholder="Search devices, rentals..."
+            placeholder="Tìm kiếm thiết bị, đơn thuê..."
           />
         </div>
 
@@ -255,7 +255,7 @@ export default function SupplierTopbar({ onMenuOpen, me }) {
             aria-label="Logout"
           >
             <FiLogOut size={18} />
-            <span className="hidden lg:inline text-sm font-semibold">Logout</span>
+            <span className="hidden lg:inline text-sm font-semibold">Đăng xuất</span>
           </button>
         </div>
       </div>

@@ -103,19 +103,19 @@ export default function Homepage() {
   };
 
   const categories = [
-    { name: 'Camera', id: 'CAMERA', category: 'CAMERA' },
-    { name: 'Lighting', id: 'LIGHTING', category: 'LIGHTING' },
-    { name: 'Audio', id: 'AUDIO', category: 'AUDIO' },
-    { name: 'Office', id: 'OFFICE', category: 'OFFICE' },
-    { name: 'Gaming', id: 'GAMING', category: 'GAMING' },
-    { name: 'Accessory', id: 'ACCESSORY', category: 'ACCESSORY' },
-    { name: 'Drone', id: 'DRONE', category: 'DRONE' },
+    { name: 'Máy ảnh', id: 'CAMERA', category: 'CAMERA' },
+    { name: 'Ánh sáng', id: 'LIGHTING', category: 'LIGHTING' },
+    { name: 'Âm thanh', id: 'AUDIO', category: 'AUDIO' },
+    { name: 'Văn phòng', id: 'OFFICE', category: 'OFFICE' },
+    { name: 'Trò chơi', id: 'GAMING', category: 'GAMING' },
+    { name: 'Phụ kiện', id: 'ACCESSORY', category: 'ACCESSORY' },
+    { name: 'Flycam', id: 'DRONE', category: 'DRONE' },
   ];
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background-light">
-        <div className="text-xl font-semibold text-gray-600 animate-pulse">Loading gear...</div>
+        <div className="text-xl font-semibold text-gray-600 animate-pulse">Đang tải thiết bị...</div>
       </div>
     );
   }

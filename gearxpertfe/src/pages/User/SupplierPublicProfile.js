@@ -41,22 +41,22 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import gearXpertLogo from "../../assets/logoGearXpert.png";
 
 const SORT_OPTIONS = [
-  { value: "newest", label: "Newest" },
-  { value: "popular", label: "Most Popular" },
-  { value: "price-asc", label: "Price: Low to High" },
-  { value: "price-desc", label: "Price: High to Low" },
-  { value: "rating-desc", label: "Top Rated" },
+  { value: "newest", label: "Hàng mới nhất" },
+  { value: "popular", label: "Phổ biến nhất" },
+  { value: "price-asc", label: "Giá: Thấp đến Cao" },
+  { value: "price-desc", label: "Giá: Cao xuống Thấp" },
+  { value: "rating-desc", label: "Đánh giá cao" },
 ];
 
 const CATEGORY_MAP = {
-  CAMERA: { name: "Camera", icon: "videocam" },
-  LIGHTING: { name: "Lighting", icon: "lightbulb" },
-  AUDIO: { name: "Audio", icon: "mic" },
-  OFFICE: { name: "Office", icon: "business_center" },
-  GAMING: { name: "Gaming", icon: "sports_esports" },
-  ACCESSORY: { name: "Accessories", icon: "handyman" },
-  DRONE: { name: "Drone", icon: "flight" },
-  OTHER: { name: "Other", icon: "category" },
+  CAMERA: { name: "Máy ảnh", icon: "videocam" },
+  LIGHTING: { name: "Ánh sáng", icon: "lightbulb" },
+  AUDIO: { name: "Âm thanh", icon: "mic" },
+  OFFICE: { name: "Văn phòng", icon: "business_center" },
+  GAMING: { name: "Trò chơi", icon: "sports_esports" },
+  ACCESSORY: { name: "Phụ kiện", icon: "handyman" },
+  DRONE: { name: "Flycam", icon: "flight" },
+  OTHER: { name: "Khác", icon: "category" },
 };
 
 export default function SupplierPublicProfile() {
@@ -101,10 +101,10 @@ export default function SupplierPublicProfile() {
       if (res?.success) {
         setSupplier(res.data);
       } else {
-        toast.error("Supplier not found");
+        toast.error("Không tìm thấy cửa hàng");
       }
     } catch {
-      toast.error("Failed to load supplier profile");
+      toast.error("Không thể tải thông tin cửa hàng");
     }
   }, [id]);
 
@@ -123,7 +123,7 @@ export default function SupplierPublicProfile() {
         if (res.data?.categories) setCategories(res.data.categories);
       }
     } catch {
-      toast.error("Failed to load devices");
+      toast.error("Không thể tải danh sách thiết bị");
     } finally {
       setDevicesLoading(false);
     }
@@ -304,7 +304,7 @@ export default function SupplierPublicProfile() {
   };
 
   const memberSince = supplier?.memberSince
-    ? new Date(supplier.memberSince).toLocaleDateString("en-US", {
+    ? new Date(supplier.memberSince).toLocaleDateString("vi-VN", {
       year: "numeric",
       month: "long",
     })
@@ -330,16 +330,16 @@ export default function SupplierPublicProfile() {
           <div className="bg-white rounded-3xl p-12 text-center shadow-xl border border-slate-200 max-w-lg mx-auto">
             <Store className="w-20 h-20 text-slate-300 mx-auto mb-6" />
             <h2 className="text-2xl font-bold text-slate-900 mb-3">
-              Supplier not found
+              Không tìm thấy nhà cung cấp
             </h2>
             <p className="text-slate-500 mb-8">
-              This supplier may have been deactivated or does not exist.
+              Nhà cung cấp này có thể đã bị vô hiệu hóa hoặc không tồn tại.
             </p>
             <Link
               to="/products"
               className="inline-flex items-center gap-2 px-8 py-3 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all"
             >
-              Browse all devices
+              Xem tất cả thiết bị
             </Link>
           </div>
         </div>
@@ -433,7 +433,7 @@ export default function SupplierPublicProfile() {
                     <StatItem
                       icon={<Users className="w-5 h-5" />}
                       value={followerCount}
-                      label="Followers"
+                      label="Người theo dõi"
                       theme="cyan"
                     />
                   </div>
@@ -597,7 +597,7 @@ export default function SupplierPublicProfile() {
             <div className="flex items-center gap-3 mb-4">
               <Ticket className="w-5 h-5 text-rose-500" />
               <h2 className="text-lg font-bold text-slate-900">
-                Shop Vouchers
+                Mã giảm giá cửa hàng
               </h2>
             </div>
 
@@ -655,7 +655,7 @@ export default function SupplierPublicProfile() {
                           </div>
                           <div className="flex items-center justify-between mt-3 pt-3 border-t border-dashed border-slate-100">
                             <div className="flex flex-col">
-                              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Min Order</span>
+                              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Đơn tối thiểu</span>
                               <span className="text-xs font-black text-indigo-600">{v.minOrderValue?.toLocaleString()}đ</span>
                             </div>
                             <button
@@ -784,8 +784,8 @@ export default function SupplierPublicProfile() {
           ) : devices.length === 0 ? (
             <div className="bg-white rounded-3xl p-16 text-center border border-slate-200">
               <Package className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-slate-800 mb-2">No devices found</h3>
-              <p className="text-slate-500 max-w-md mx-auto">Try adjusting your filters or search terms.</p>
+              <h3 className="text-xl font-bold text-slate-800 mb-2">Không tìm thấy thiết bị</h3>
+              <p className="text-slate-500 max-w-md mx-auto">Hãy thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm của bạn.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">

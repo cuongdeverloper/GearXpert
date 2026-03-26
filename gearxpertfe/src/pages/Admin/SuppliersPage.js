@@ -58,7 +58,7 @@ export default function SuppliersPage() {
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Search suppliers..."
+              placeholder="Tìm kiếm nhà cung cấp..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition"
@@ -85,30 +85,30 @@ export default function SuppliersPage() {
                   supplier.status
                 )}`}
               >
-                {supplier.status === "ACTIVE" ? "Active" : "Blocked"}
+                {supplier.status === "ACTIVE" ? "Đang hoạt động" : "Đã khóa"}
               </span>
             </div>
 
             {/* Info Grid */}
             <div className="mb-4 grid grid-cols-2 gap-3 border-t border-b border-slate-200 py-3">
               <div>
-                <p className="text-xs text-slate-500">Devices</p>
+                <p className="text-xs text-slate-500">Thiết bị</p>
                 <p className="font-semibold text-slate-900">
                   {supplier.totalDevices}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Active Rentals</p>
+                <p className="text-xs text-slate-500">Đơn thuê đang chạy</p>
                 <p className="font-semibold text-slate-900">
                   {supplier.activeRentals}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Rank</p>
+                <p className="text-xs text-slate-500">Hạng</p>
                 <p className="font-semibold text-slate-900">{supplier.rank}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Verified</p>
+                <p className="text-xs text-slate-500">Xác minh</p>
                 <div className="flex gap-1">
                   {supplier.isVerified ? (
                     <FiCheck className="w-5 h-5 text-green-600" />
@@ -130,11 +130,11 @@ export default function SuppliersPage() {
             <div className="flex gap-2">
               <button className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-100 transition">
                 <FiEdit2 className="inline mr-1.5" size={14} />
-                Edit
+                Sửa
               </button>
               <button className="flex-1 px-3 py-2 rounded-lg border border-red-200 text-sm font-medium text-red-600 hover:bg-red-50 transition">
                 <FiTrash2 className="inline mr-1.5" size={14} />
-                Remove
+                Xóa
               </button>
             </div>
           </div>
@@ -143,7 +143,7 @@ export default function SuppliersPage() {
 
       {filteredSuppliers.length === 0 && (
         <div className="text-center py-12">
-          <p className="text-slate-500">No suppliers found</p>
+          <p className="text-slate-500">Không tìm thấy nhà cung cấp nào</p>
         </div>
       )}
     </div>

@@ -65,8 +65,8 @@ export default function SupplierMaintenance() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-slate-900 font-display tracking-tight">Maintenance</h2>
-        <p className="mt-1 text-sm text-slate-600">Track and manage equipment maintenance tasks</p>
+        <h2 className="text-2xl font-bold text-slate-900 font-display tracking-tight">Bảo trì</h2>
+        <p className="mt-1 text-sm text-slate-600">Theo dõi và quản lý các công việc bảo trì thiết bị</p>
       </div>
 
       {/* Stats */}
@@ -74,7 +74,7 @@ export default function SupplierMaintenance() {
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-600 font-semibold uppercase tracking-tighter">Pending Tasks</p>
+              <p className="text-sm text-slate-600 font-semibold uppercase tracking-tighter">Công việc chờ</p>
               <p className="text-3xl font-bold text-slate-900 mt-2">5</p>
             </div>
             <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
@@ -85,7 +85,7 @@ export default function SupplierMaintenance() {
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-600 font-semibold uppercase tracking-tighter">In Progress</p>
+              <p className="text-sm text-slate-600 font-semibold uppercase tracking-tighter">Đang thực hiện</p>
               <p className="text-3xl font-bold text-slate-900 mt-2">2</p>
             </div>
             <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
@@ -96,7 +96,7 @@ export default function SupplierMaintenance() {
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-600 font-semibold uppercase tracking-tighter">Est. Cost</p>
+              <p className="text-sm text-slate-600 font-semibold uppercase tracking-tighter">Chi phí dự tính</p>
               <p className="text-3xl font-bold text-primary mt-2">3.5M</p>
             </div>
             <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -124,10 +124,10 @@ export default function SupplierMaintenance() {
                   <div className="flex items-center gap-2 mb-3">
                     <h3 className="font-bold text-slate-900 truncate">{task.deviceName}</h3>
                     <span className={`h-fit rounded-lg px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider whitespace-nowrap border ${getStatusColor(task.status)}`}>
-                      {task.status.replace(/_/g, " ")}
+                      {task.status === "PENDING" ? "Chờ xử lý" : task.status === "IN_PROGRESS" ? "Đang làm" : "Đã xong"}
                     </span>
                     <span className={`h-fit rounded-lg px-2 py-1 text-xs font-bold uppercase tracking-wider whitespace-nowrap ${getPriorityColor(task.priority)}`}>
-                      {task.priority}
+                      {task.priority === "HIGH" ? "Cao" : task.priority === "MEDIUM" ? "Trung bình" : "Thấp"}
                     </span>
                   </div>
 
@@ -140,7 +140,7 @@ export default function SupplierMaintenance() {
                     </div>
                     <div className="flex items-center gap-1.5 text-slate-600">
                       <FiClock size={14} />
-                      <span>Due: {task.dueDate}</span>
+                      <span>Hạn: {task.dueDate}</span>
                     </div>
                   </div>
                 </div>
@@ -149,27 +149,27 @@ export default function SupplierMaintenance() {
               {/* Cost & Actions */}
               <div className="flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-6">
                 <div className="text-right">
-                  <p className="text-xs text-slate-500 font-semibold uppercase tracking-tighter">Est. Cost</p>
+                  <p className="text-xs text-slate-500 font-semibold uppercase tracking-tighter">Chi phí tối thiểu</p>
                   <p className="text-2xl font-bold text-primary mt-1">{(task.estCost / 1000000).toFixed(1)}M</p>
                 </div>
 
                 {task.status === "PENDING" && (
                   <button className="px-4 py-2.5 bg-primary/10 text-primary rounded-xl font-semibold hover:bg-primary/20 transition-all border border-primary/20">
-                    Start Work
+                    Bắt đầu làm
                   </button>
                 )}
 
                 {task.status === "IN_PROGRESS" && (
                   <button className="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-all">
                     <FiCheckCircle size={18} />
-                    <span className="hidden sm:inline">Mark Complete</span>
+                    <span className="hidden sm:inline">Hoàn tất</span>
                   </button>
                 )}
 
                 {task.status === "COMPLETED" && (
                   <div className="px-4 py-2.5 bg-green-50 rounded-xl border border-green-200 text-green-700 text-sm font-semibold flex items-center gap-2">
                     <FiCheckCircle size={18} />
-                    Completed
+                    Hoàn tất
                   </div>
                 )}
               </div>

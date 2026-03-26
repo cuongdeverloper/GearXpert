@@ -48,7 +48,7 @@ export default function AdminTopbar({ onMenuOpen, me }) {
           <FiSearch className="text-slate-400 shrink-0" size={18} />
           <input
             className="w-full bg-transparent outline-none placeholder:text-slate-400 text-sm"
-            placeholder="Search users, suppliers..."
+            placeholder="Tìm kiếm người dùng, nhà cung cấp..."
           />
         </div>
 
@@ -81,7 +81,7 @@ export default function AdminTopbar({ onMenuOpen, me }) {
             aria-label="Logout"
           >
             <FiLogOut size={18} />
-            <span className="hidden lg:inline text-sm font-semibold">Logout</span>
+            <span className="hidden lg:inline text-sm font-semibold">Đăng xuất</span>
           </button>
         </div>
       </div>

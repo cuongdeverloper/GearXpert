@@ -107,7 +107,7 @@ export default function Header() {
 
   const menuItems = [
     ...(userAccount?.role === 'SUPPLIER'
-      ? [{ label: 'Dashboard', icon: 'dashboard', path: '/supplier/dashboard' }]
+      ? [{ label: 'Bảng điều khiển', icon: 'dashboard', path: '/supplier/dashboard' }]
       : []),
       
     ...(userAccount?.role === 'CUSTOMER'
@@ -202,19 +202,19 @@ export default function Header() {
             className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors cursor-pointer bg-transparent border-none"
             onClick={() => handleRestrictedNavigation('/')}
           >
-            Marketplace
+            Trang chủ
           </button>
           <button
             className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors cursor-pointer bg-transparent border-none"
             onClick={() => handleRestrictedNavigation('/products')}
           >
-            Productions
+            Thiết bị
           </button>
           <button
             className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors cursor-pointer bg-transparent border-none"
             onClick={() => handleRestrictedNavigation('/suppliers')}
           >
-            Shops
+            Cửa hàng
           </button>
           <button
             className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors cursor-pointer bg-transparent border-none"
@@ -227,7 +227,7 @@ export default function Header() {
             onClick={() => handleRestrictedNavigation('/smartgear')}
           >
             <span className="material-symbols-outlined text-[18px] fill-current">auto_awesome</span>
-            AI Discovery
+            Khám phá AI
           </button>
         </nav>
 
