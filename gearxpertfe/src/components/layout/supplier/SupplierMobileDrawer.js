@@ -33,7 +33,8 @@ const sections = [
     items: [
       { to: "/supplier/devices", label: "Product List" },
       { to: "/supplier/devices/new", label: "Add New Product" },
-      { to: "/supplier/inventory", label: "Inventory Management" },
+      { to: "/supplier/vouchers", label: "Vouchers" },
+      { to: "/supplier/ai-pricing", label: "Chiến lược giá AI" },
       { label: "Status: Draft / Pending / Live / Hidden", muted: true },
     ],
   },

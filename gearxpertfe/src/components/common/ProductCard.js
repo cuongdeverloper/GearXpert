@@ -55,7 +55,13 @@ export default function ProductCard({
   };
   const category = getCategoryDisplay(device?.category);
   const description = device?.description || '';
-  const price = device?.price || device?.rentPrice?.perDay || 0;
+  const originalPrice = device?.rentPrice?.perDay || device?.price || 0;
+  const discountPrice = device?.discountPrice || 0;
+  const expiry = device?.discountExpiry ? new Date(device.discountExpiry) : null;
+  const isExpired = expiry && expiry < new Date();
+  const hasDiscount = discountPrice > 0 && discountPrice < originalPrice && !isExpired;
+  const price = hasDiscount ? discountPrice : originalPrice;
+
   const image = device?.image || device?.images?.[0] || '';
   const rating = device?.ratingAvg || device?.rating || null;
 
@@ -205,10 +211,17 @@ export default function ProductCard({
             {name}
           </h4>
           <div className="mt-auto pt-2 flex items-center justify-between border-t border-slate-50">
-            <p className="text-primary font-bold text-sm">
-              {price.toLocaleString('vi-VN')}đ
-              <span className="text-[10px] text-slate-400 font-normal ml-0.5">/day</span>
-            </p>
+            <div className="flex flex-col">
+              {hasDiscount && (
+                <span className="text-[10px] text-slate-400 line-through leading-none mb-0.5">
+                  {originalPrice.toLocaleString('vi-VN')}đ
+                </span>
+              )}
+              <p className={`${hasDiscount ? 'text-red-500' : 'text-primary'} font-bold text-sm`}>
+                {price.toLocaleString('vi-VN')}đ
+                <span className="text-[10px] text-slate-400 font-normal ml-0.5">/day</span>
+              </p>
+            </div>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{category}</span>
           </div>
         </div>
@@ -294,10 +307,17 @@ export default function ProductCard({
             <p className="text-sm text-slate-500 mt-2 line-clamp-2">{description}</p>
           )}
           <div className="mt-6 flex items-center justify-between">
-            <span className="text-2xl font-bold text-slate-900">
-              {price.toLocaleString('vi-VN')}đ
-              <span className="text-sm text-slate-400 font-normal">/day</span>
-            </span>
+            <div className="flex flex-col">
+              {hasDiscount && (
+                <span className="text-sm text-slate-400 line-through leading-none mb-1">
+                  {originalPrice.toLocaleString('vi-VN')}đ
+                </span>
+              )}
+              <span className={`text-2xl font-bold ${hasDiscount ? 'text-red-500' : 'text-slate-900'}`}>
+                {price.toLocaleString('vi-VN')}đ
+                <span className="text-sm text-slate-400 font-normal ml-1">/day</span>
+              </span>
+            </div>
             <button
               onClick={(e) => {
                 e.stopPropagation();

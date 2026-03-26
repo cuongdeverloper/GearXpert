@@ -31,6 +31,7 @@ const sections = [
       { to: "/supplier/devices/new", label: "Thêm thiết bị mới" },
       { to: "/supplier/inventory", label: "Quản lý kho" },
       { to: "/supplier/vouchers", label: "Mã giảm giá" },
+      { to: "/supplier/ai-pricing", label: "Chiến lược giá AI" },
     ],
   },
   {

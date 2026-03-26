@@ -176,7 +176,7 @@ exports.getDevices = async (req, res) => {
 
     const devicesRaw = await Device.find(query)
       .select(
-        "name slug description rentPrice ratingAvg reviewCount location images category status stockQuantity rentedQuantity depositAmount supplierId createdAt"
+        "name slug description rentPrice ratingAvg reviewCount location images category status stockQuantity rentedQuantity depositAmount supplierId createdAt discountPrice discountReason discountExpiry"
       )
       .populate("supplierId", "fullName")
       .limit(parseInt(limit))
@@ -322,7 +322,7 @@ exports.getDeviceAddons = async (req, res) => {
     isAddon: true,
     compatibleWith: device._id,
     status: "AVAILABLE",
-  }).select("name rentPrice images");
+  }).select("name rentPrice images discountPrice discountReason discountExpiry");
 
   res.json(addons);
 };
@@ -344,7 +344,7 @@ exports.getRelatedDevices = async (req, res) => {
     status: "AVAILABLE",
   })
     .limit(4)
-    .select("name slug rentPrice ratingAvg location images");
+    .select("name slug rentPrice ratingAvg location images discountPrice discountReason discountExpiry");
 
   res.json(related);
 };
@@ -543,7 +543,7 @@ exports.getSupplierDevices = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const devices = await Device.find(query)
       .select(
-        "name slug description rentPrice ratingAvg reviewCount location images category status stockQuantity depositAmount"
+        "name slug description rentPrice ratingAvg reviewCount location images category status stockQuantity depositAmount discountPrice discountReason discountExpiry"
       )
       .limit(parseInt(limit))
       .skip(skip)
