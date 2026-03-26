@@ -47,8 +47,8 @@ export default function Footer() {
             </div>
 
             <p className="mt-3 text-sm text-slate-500 leading-relaxed max-w-md">
-              Professional rental solutions for tech equipment. Manage rentals,
-              track orders, and keep operations transparent for teams.
+              Giải pháp cho thuê thiết bị công nghệ chuyên nghiệp. Quản lý việc thuê,
+              theo dõi đơn hàng và giữ cho các hoạt động luôn minh bạch cho đội ngũ của bạn.
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
@@ -56,19 +56,19 @@ export default function Footer() {
                 <span className="material-symbols-outlined text-[16px]">
                   verified
                 </span>
-                Secure
+                Bảo mật
               </span>
               <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
                 <span className="material-symbols-outlined text-[16px]">
                   bolt
                 </span>
-                Fast checkout
+                Thanh toán nhanh
               </span>
               <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
                 <span className="material-symbols-outlined text-[16px]">
                   support_agent
                 </span>
-                Support
+                Hỗ trợ
               </span>
             </div>
           </div>
@@ -76,29 +76,29 @@ export default function Footer() {
           {/* Links */}
           <div className="md:col-span-4 grid grid-cols-2 gap-8">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Platform</h3>
+              <h3 className="text-sm font-bold text-slate-900">Nền tảng</h3>
               <div className="mt-3 flex flex-col gap-2">
-                <FooterLink to="/products">Browse Devices</FooterLink>
-                <FooterLink to="/pricing">Rental Plans</FooterLink>
-                <FooterLink to="/vouchers">Vouchers</FooterLink>
-                <FooterLink to="/tracking">Order Tracking</FooterLink>
+                <FooterLink to="/products">Duyệt thiết bị</FooterLink>
+                <FooterLink to="/pricing">Gói thuê</FooterLink>
+                <FooterLink to="/vouchers">Mã giảm giá</FooterLink>
+                <FooterLink to="/tracking">Theo dõi đơn hàng</FooterLink>
               </div>
             </div>
 
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Company</h3>
+              <h3 className="text-sm font-bold text-slate-900">Công ty</h3>
               <div className="mt-3 flex flex-col gap-2">
-                <FooterLink to="/about">About</FooterLink>
+                <FooterLink to="/about">Giới thiệu</FooterLink>
                 <FooterLink to="/blog">Blog</FooterLink>
-                <FooterLink to="/contact">Contact</FooterLink>
-                <FooterLink to="/faq">FAQ</FooterLink>
+                <FooterLink to="/contact">Liên hệ</FooterLink>
+                <FooterLink to="/faq">Hỏi đáp</FooterLink>
               </div>
             </div>
           </div>
 
           {/* Contact */}
           <div className="md:col-span-3">
-            <h3 className="text-sm font-bold text-slate-900">Get in touch</h3>
+            <h3 className="text-sm font-bold text-slate-900">Liên hệ với chúng tôi</h3>
 
             <div className="mt-3 space-y-2">
               <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -111,7 +111,7 @@ export default function Footer() {
                 <span className="material-symbols-outlined text-[18px] text-slate-400">
                   schedule
                 </span>
-                <span>Mon–Sat · 08:00–18:00</span>
+                <span>Thứ 2–Thứ 7 · 08:00–18:00</span>
               </div>
             </div>
 
@@ -146,18 +146,18 @@ export default function Footer() {
         {/* Bottom */}
         <div className="mt-10 border-t border-slate-200 pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-slate-400 text-sm font-medium text-center md:text-left">
-            © {new Date().getFullYear()} GearXpert Platforms Inc. Professional
-            Rental Solutions.
+            © {new Date().getFullYear()} GearXpert Platforms Inc. Giải pháp
+            cho thuê thiết bị chuyên nghiệp.
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-            <FooterLink to="/privacy">Privacy</FooterLink>
-            <FooterLink to="/terms">Terms</FooterLink>
-            <FooterLink to="/support">Support</FooterLink>
+            <FooterLink to="/privacy">Bảo mật</FooterLink>
+            <FooterLink to="/terms">Điều khoản</FooterLink>
+            <FooterLink to="/support">Hỗ trợ</FooterLink>
 
             <span className="hidden sm:inline-flex items-center gap-2 text-xs font-semibold text-slate-500">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              All systems operational
+              Hệ thống hoạt động bình thường
             </span>
           </div>
         </div>

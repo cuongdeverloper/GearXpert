@@ -5,7 +5,7 @@ import {
   X, Maximize2, Navigation, ChevronDown,
   Store, Layers
 } from 'lucide-react';
-import Map, { Marker, Popup } from 'react-map-gl/mapbox';
+import Map, { Marker, Popup, Source, Layer } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getPublicSuppliers } from '../../service/ApiService/SupplierApi';
@@ -63,6 +63,7 @@ export default function SupplierListPage() {
   const [isDistrictOpen, setIsDistrictOpen] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [routeData, setRouteData] = useState(null);
 
   const fetchSuppliers = useCallback(async () => {
     try {
@@ -126,35 +127,81 @@ export default function SupplierListPage() {
   };
 
   const handleLocateMe = () => {
-    if (!navigator.geolocation) {
-      toast.error('Trình duyệt của bạn không hỗ trợ định vị');
-      return;
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        toast.error('Trình duyệt của bạn không hỗ trợ định vị');
+        reject('Not supported');
+        return;
+      }
+
+      setIsLocating(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          const newCoords = { latitude, longitude };
+          setUserLocation(newCoords);
+          
+          mapRef.current?.flyTo({
+            center: [longitude, latitude],
+            zoom: 15,
+            pitch: 45,
+            duration: 2000
+          });
+          
+          setIsLocating(false);
+          toast.success('Đã xác định vị trí của bạn');
+          resolve(newCoords);
+        },
+        (error) => {
+          console.error('Error getting location:', error);
+          setIsLocating(false);
+          toast.error('Không thể lấy vị trí. Vui lòng kiểm tra quyền truy cập vị trí.');
+          reject(error);
+        },
+        { enableHighAccuracy: true }
+      );
+    });
+  };
+
+  const handleShowRoute = async (shop) => {
+    let currentPos = userLocation;
+    
+    if (!currentPos) {
+      try {
+        currentPos = await handleLocateMe();
+      } catch (error) {
+        toast.info('Vui lòng cho phép truy cập vị trí để tìm đường.');
+        return;
+      }
     }
 
-    setIsLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        const newCoords = { latitude, longitude };
-        setUserLocation(newCoords);
+    try {
+      const start = [currentPos.longitude, currentPos.latitude];
+      const end = [shop.coords.longitude, shop.coords.latitude];
+      const query = await fetch(
+        `https://api.mapbox.com/directions/v5/mapbox/driving/${start[0]},${start[1]};${end[0]},${end[1]}?steps=true&geometries=geojson&access_token=${MAPBOX_TOKEN}`
+      );
+      const json = await query.json();
+      
+      if (json.routes && json.routes.length > 0) {
+        const data = json.routes[0].geometry;
+        setRouteData(data);
         
-        mapRef.current?.flyTo({
-          center: [longitude, latitude],
-          zoom: 15,
-          pitch: 45,
-          duration: 2000
-        });
+        // Zoom map to fit both points
+        const bounds = [
+          [Math.min(start[0], end[0]) - 0.005, Math.min(start[1], end[1]) - 0.005],
+          [Math.max(start[0], end[0]) + 0.005, Math.max(start[1], end[1]) + 0.005]
+        ];
         
-        setIsLocating(false);
-        toast.success('Đã xác định vị trí của bạn');
-      },
-      (error) => {
-        console.error('Error getting location:', error);
-        setIsLocating(false);
-        toast.error('Không thể lấy vị trí. Vui lòng kiểm tra quyền truy cập vị trí.');
-      },
-      { enableHighAccuracy: true }
-    );
+        mapRef.current?.fitBounds(bounds, { padding: 100, duration: 2000 });
+        toast.success(`Khoảng cách đường đi: ${(json.routes[0].distance / 1000).toFixed(1)}km`);
+      } else {
+        toast.error('Không tìm thấy đường đi');
+      }
+    } catch (error) {
+      console.error('Error fetching route:', error);
+      toast.error('Lỗi khi tìm đường');
+    }
   };
 
   return (
@@ -171,10 +218,10 @@ export default function SupplierListPage() {
 
           <div className="relative z-10 max-w-[1440px] mx-auto px-6 lg:px-10 text-center">
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 tracking-tight font-display">
-              Professional <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">Supplier Network</span>
+              Mạng lưới <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">Đối tác Chuyên nghiệp</span>
             </h1>
             <p className="text-lg md:text-xl text-slate-300 max-w-3xl mx-auto font-light mb-10 leading-relaxed">
-              Khám phá hệ sinh thái những nhà cung cấp thiết bị hàng đầu tại Đà Nẵng. <br className="hidden md:block"/> Connect with our curated network of professional equipment hubs.
+              Khám phá hệ sinh thái những nhà cung cấp thiết bị hàng đầu tại Đà Nẵng. <br className="hidden md:block"/> Kết nối với mạng lưới các trung tâm thiết bị chuyên nghiệp đã được kiểm duyệt.
             </p>
 
             {/* Premium Search Box */}
@@ -193,7 +240,7 @@ export default function SupplierListPage() {
                   onClick={() => fetchSuppliers()}
                   className="px-8 py-3 bg-white text-slate-900 font-bold rounded-xl hover:bg-indigo-50 transition-all uppercase text-sm tracking-widest"
                 >
-                  Search Hubs
+                  Tìm kiếm
                 </button>
               </div>
             </div>
@@ -206,7 +253,7 @@ export default function SupplierListPage() {
             {/* SIDEBAR - Synchronized with /products */}
             <aside className="w-full lg:w-80 flex-shrink-0">
               <div className="bg-white/80 backdrop-blur-xl rounded-[24px] p-6 shadow-xl border border-white/60 sticky top-24">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Location</h3>
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Vị trí</h3>
                 
                 <div className="relative mb-8">
                   <button
@@ -256,8 +303,8 @@ export default function SupplierListPage() {
                 {/* Nearby Hubs Section */}
                 <div className="mt-8">
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center justify-between">
-                    Nearby Hubs
-                    {userLocation && <span className="text-[10px] text-indigo-500 font-bold bg-indigo-50 px-2 py-0.5 rounded-full">Closest to you</span>}
+                    Cửa hàng lân cận
+                    {userLocation && <span className="text-[10px] text-indigo-500 font-bold bg-indigo-50 px-2 py-0.5 rounded-full">Gần bạn nhất</span>}
                   </h3>
                   <div className="space-y-3">
                     {[...suppliersWithCoords]
@@ -300,10 +347,10 @@ export default function SupplierListPage() {
                 {/* Promotional Card */}
                 <div className="mt-8 p-6 bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl text-white relative overflow-hidden">
                   <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
-                  <h4 className="font-bold font-display text-lg mb-2 relative z-10">Be a Partner?</h4>
-                  <p className="text-xs text-indigo-100 mb-4 relative z-10 leading-relaxed">Join our professional network and grow your reach.</p>
+                  <h4 className="font-bold font-display text-lg mb-2 relative z-10">Trở thành đối tác?</h4>
+                  <p className="text-xs text-indigo-100 mb-4 relative z-10 leading-relaxed">Tham gia vào mạng lưới chuyên nghiệp và mở rộng kinh doanh của bạn.</p>
                   <button className="px-4 py-2 bg-white text-indigo-700 text-xs font-bold rounded-lg hover:bg-indigo-50 transition-colors w-full shadow-lg relative z-10">
-                    Register Now
+                    Đăng ký ngay
                   </button>
                 </div>
               </div>
@@ -315,21 +362,21 @@ export default function SupplierListPage() {
               {/* CONTROLS BAR - Synchronized with /products */}
               <div className="bg-white/50 backdrop-blur-md rounded-2xl p-4 mb-8 flex flex-wrap items-center justify-between gap-4 border border-white/60 shadow-sm">
                 <h2 className="text-lg font-bold text-slate-700">
-                  Showing <span className="text-slate-900">{suppliersWithCoords.length}</span> results
+                  Đang hiển thị <span className="text-slate-900">{suppliersWithCoords.length}</span> kết quả
                 </h2>
 
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-slate-500">Sort By:</span>
+                    <span className="text-sm font-semibold text-slate-500">Sắp xếp:</span>
                     <div className="relative">
                       <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value)}
                         className="appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-bold py-2.5 pl-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer shadow-sm hover:border-indigo-300 transition-colors"
                       >
-                        <option value="featured">Featured</option>
-                        <option value="newest">Newest Partner</option>
-                        <option value="rating">Top Rated</option>
+                        <option value="featured">Nổi bật</option>
+                        <option value="newest">Đối tác mới nhất</option>
+                        <option value="rating">Đánh giá cao nhất</option>
                       </select>
                       <ChevronRight size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none rotate-90" />
                     </div>
@@ -343,13 +390,13 @@ export default function SupplierListPage() {
                       onClick={() => setViewMode('grid')}
                       className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${viewMode === 'grid' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
                     >
-                      Grid
+                      Lưới
                     </button>
                     <button
                       onClick={() => setViewMode('map')}
                       className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${viewMode === 'map' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
                     >
-                      Map
+                      Bản đồ
                     </button>
                   </div>
                 </div>
@@ -403,7 +450,7 @@ export default function SupplierListPage() {
                           <div className="mt-auto pt-6 border-t border-slate-50 flex justify-between items-center text-sm font-bold">
                              <div className="flex items-center gap-2 text-slate-600">
                                 <Store size={18} className="text-indigo-500" />
-                                <span>{shop.deviceCount} items</span>
+                                <span>{shop.deviceCount} sản phẩm</span>
                              </div>
                              <div className="w-10 h-10 rounded-full border border-slate-100 flex items-center justify-center text-slate-300 group-hover:bg-indigo-600 group-hover:text-white transition-all">
                                 <ChevronRight size={18} />
@@ -415,8 +462,8 @@ export default function SupplierListPage() {
                   ) : (
                     <div className="col-span-full py-32 text-center bg-white rounded-[40px] border border-dashed border-slate-200">
                       <Search size={64} className="mx-auto mb-6 text-slate-200" />
-                      <h3 className="text-2xl font-bold text-slate-900 mb-2">No results found</h3>
-                      <p className="text-slate-400 text-sm">Try adjusting your filters or search keywords</p>
+                      <h3 className="text-2xl font-bold text-slate-900 mb-2">Không tìm thấy kết quả</h3>
+                      <p className="text-slate-400 text-sm">Hãy thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm của bạn</p>
                     </div>
                   )}
                 </div>
@@ -486,12 +533,42 @@ export default function SupplierListPage() {
                                 <h5 className="font-bold text-slate-900 text-sm mb-1">{selectedShop.businessName}</h5>
                                 <p className="text-[10px] text-slate-400 mb-4 flex items-center gap-1"><MapPin size={10} className="text-indigo-500" /> {selectedShop.warehouseAddress?.district}</p>
                                 
-                                <button onClick={() => navigate(`/supplier/${selectedShop.userId._id}`)} className="w-full bg-indigo-600 text-white font-bold text-xs py-3 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20">View Hub Details</button>
+                                <button onClick={() => navigate(`/supplier/${selectedShop.userId._id}`)} className="w-full bg-indigo-600 text-white font-bold text-xs py-3 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20">Xem chi tiết cửa hàng</button>
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); handleShowRoute(selectedShop); }} 
+                                  className="w-full mt-2 bg-white text-indigo-600 border border-indigo-600 font-bold text-xs py-2.5 rounded-xl hover:bg-indigo-50 transition-all flex items-center justify-center gap-2"
+                                >
+                                  <Navigation size={14} />
+                                  Đường đi ngắn nhất
+                                </button>
                              </div>
                           </motion.div>
                         </Popup>
                       )}
                     </AnimatePresence>
+
+                    {routeData && (
+                      <Source id="route" type="geojson" data={{
+                        type: 'Feature',
+                        properties: {},
+                        geometry: routeData
+                      }}>
+                        <Layer
+                          id="route"
+                          type="line"
+                          source="route"
+                          layout={{
+                            'line-join': 'round',
+                            'line-cap': 'round'
+                          }}
+                          paint={{
+                            'line-color': '#4f46e5',
+                            'line-width': 6,
+                            'line-opacity': 0.8
+                          }}
+                        />
+                      </Source>
+                    )}
 
                     <div className="absolute right-6 top-6 z-20 flex flex-col gap-3">
                        <button onClick={() => setIsFullscreenMap(true)} title="Toàn màn hình" className="w-12 h-12 bg-white/90 backdrop-blur-md rounded-2xl shadow-xl flex items-center justify-center text-slate-600 border border-white/50 hover:bg-white transition-all"><Maximize2 size={20} /></button>
@@ -504,12 +581,21 @@ export default function SupplierListPage() {
                          <Navigation size={20} className={isLocating ? 'animate-pulse' : ''} />
                        </button>
                        <button onClick={() => mapRef.current?.flyTo({ center: [DA_NANG_COORDS.longitude, DA_NANG_COORDS.latitude], zoom: 13, pitch: 45, bearing: 0, duration: 2000 })} title="Về trung tâm Đà Nẵng" className="w-12 h-12 bg-slate-900 text-white rounded-2xl shadow-xl flex items-center justify-center hover:bg-indigo-600 transition-all font-bold">DN</button>
+                       {routeData && (
+                         <button 
+                           onClick={() => setRouteData(null)} 
+                           title="Xóa đường đi" 
+                           className="w-12 h-12 bg-red-500 text-white rounded-2xl shadow-xl flex items-center justify-center hover:bg-red-600 transition-all"
+                         >
+                           <X size={20} />
+                         </button>
+                       )}
                     </div>
 
                     <div className="absolute bottom-8 left-8 z-20 bg-slate-900/90 backdrop-blur-md px-5 py-3 rounded-2xl border border-white/10 flex items-center gap-4 text-white">
                        <div className="flex items-center gap-2">
                           <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></div>
-                          <span className="text-[9px] font-bold uppercase tracking-widest">Active Hubs</span>
+                          <span className="text-[9px] font-bold uppercase tracking-widest">Cửa hàng đang hoạt động</span>
                        </div>
                     </div>
                   </Map>
@@ -592,12 +678,42 @@ export default function SupplierListPage() {
                             <h5 className="font-bold text-slate-900 text-sm mb-1">{selectedShop.businessName}</h5>
                             <p className="text-[10px] text-slate-400 mb-4 flex items-center gap-1"><MapPin size={10} className="text-indigo-500" /> {selectedShop.warehouseAddress?.district}</p>
                             
-                            <button onClick={() => navigate(`/supplier/${selectedShop.userId._id}`)} className="w-full bg-indigo-600 text-white font-bold text-xs py-3 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20">View Hub Details</button>
+                            <button onClick={() => navigate(`/supplier/${selectedShop.userId._id}`)} className="w-full bg-indigo-600 text-white font-bold text-xs py-3 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20">Xem chi tiết cửa hàng</button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); handleShowRoute(selectedShop); }} 
+                              className="w-full mt-2 bg-white text-indigo-600 border border-indigo-600 font-bold text-xs py-2.5 rounded-xl hover:bg-indigo-50 transition-all flex items-center justify-center gap-2"
+                            >
+                              <Navigation size={14} />
+                              Đường đi ngắn nhất
+                            </button>
                          </div>
                       </motion.div>
                     </Popup>
                   )}
                 </AnimatePresence>
+
+                {routeData && (
+                  <Source id="route-fs" type="geojson" data={{
+                    type: 'Feature',
+                    properties: {},
+                    geometry: routeData
+                  }}>
+                    <Layer
+                      id="route-fs"
+                      type="line"
+                      source="route-fs"
+                      layout={{
+                        'line-join': 'round',
+                        'line-cap': 'round'
+                      }}
+                      paint={{
+                        'line-color': '#4f46e5',
+                        'line-width': 6,
+                        'line-opacity': 0.8
+                      }}
+                    />
+                  </Source>
+                )}
 
                 {/* Fullscreen Map Controls */}
                 <div className="absolute left-10 top-10 flex flex-col gap-4">
@@ -610,6 +726,15 @@ export default function SupplierListPage() {
                      <Navigation size={24} className={isLocating ? 'animate-pulse' : ''} />
                    </button>
                    <button onClick={() => mapRef.current?.flyTo({ center: [DA_NANG_COORDS.longitude, DA_NANG_COORDS.latitude], zoom: 13, pitch: 45, bearing: 0, duration: 2000 })} title="Về trung tâm Đà Nẵng" className="w-14 h-14 bg-slate-900 text-white rounded-2xl shadow-2xl flex items-center justify-center hover:bg-indigo-600 transition-all font-bold">DN</button>
+                   {routeData && (
+                     <button 
+                       onClick={() => setRouteData(null)} 
+                       title="Xóa đường đi" 
+                       className="w-14 h-14 bg-red-500 text-white rounded-2xl shadow-2xl flex items-center justify-center hover:bg-red-600 transition-all"
+                     >
+                       <X size={24} />
+                     </button>
+                   )}
                 </div>
               </Map>
             </motion.div>

@@ -17,20 +17,20 @@ import {
 import { useSocket } from "../../SocketContext";
 
 const CATEGORY_MAP = {
-    CAMERA: { label: "Cameras", color: "bg-primary" },
-    DRONE: { label: "Drones", color: "bg-primary" },
-    LIGHTING: { label: "Lighting", color: "bg-amber-500" },
-    AI_TECH: { label: "AI Tech", color: "bg-accent-cyan" },
-    AUDIO: { label: "Audio Gear", color: "bg-primary" },
-    CINEMATOGRAPHY: { label: "Cinematography", color: "bg-violet-500" },
-    ACCESSORIES: { label: "Accessories", color: "bg-primary" },
-    INDUSTRY_NEWS: { label: "Industry News", color: "bg-slate-800" },
+    CAMERA: { label: "Máy ảnh", color: "bg-primary" },
+    DRONE: { label: "Drone", color: "bg-primary" },
+    LIGHTING: { label: "Ánh sáng", color: "bg-amber-500" },
+    AI_TECH: { label: "Công nghệ AI", color: "bg-accent-cyan" },
+    AUDIO: { label: "Thiết bị âm thanh", color: "bg-primary" },
+    CINEMATOGRAPHY: { label: "Quay phim điện ảnh", color: "bg-violet-500" },
+    ACCESSORIES: { label: "Phụ kiện", color: "bg-primary" },
+    INDUSTRY_NEWS: { label: "Tin tức ngành", color: "bg-slate-800" },
 };
 
 const formatDate = (dateStr) => {
     if (!dateStr) return "";
     const d = new Date(dateStr);
-    return d.toLocaleDateString("en-US", {
+    return d.toLocaleDateString("vi-VN", {
         year: "numeric",
         month: "long",
         day: "numeric",
@@ -167,7 +167,7 @@ export default function BlogDetailPage() {
 
     const handleLike = async () => {
         if (!isAuthenticated) {
-            toast.error("Please login to like this article!");
+            toast.error("Vui lòng đăng nhập để thích bài viết này!");
             navigate("/signin");
             return;
         }
@@ -177,13 +177,13 @@ export default function BlogDetailPage() {
             setIsLiked(res.isLiked);
             setLikesCount(res.blog.likes?.length || 0);
         } catch (err) {
-            toast.error("Error liking article");
+            toast.error("Lỗi khi thích bài viết");
         }
     };
 
     const handleSave = async () => {
         if (!isAuthenticated) {
-            toast.error("Please login to save this article!");
+            toast.error("Vui lòng đăng nhập để lưu bài viết này!");
             navigate("/signin");
             return;
         }
@@ -191,17 +191,17 @@ export default function BlogDetailPage() {
             const userKey = currentUser.username || currentUser.email;
             const res = await toggleSaveBlog(id, userKey);
             setIsSaved(res.isSaved);
-            if (res.isSaved) toast.success("Saved to your collection!");
-            else toast.info("Removed from saved items.");
+            if (res.isSaved) toast.success("Đã lưu vào bộ sưu tập của bạn!");
+            else toast.info("Đã xóa khỏi mục đã lưu.");
         } catch (err) {
-            toast.error("Error saving article");
+            toast.error("Lỗi khi lưu bài viết");
         }
     };
 
     const handleSubmitComment = async (e) => {
         e.preventDefault();
         if (!isAuthenticated) {
-            toast.error("Please login to comment!");
+            toast.error("Vui lòng đăng nhập để bình luận!");
             navigate("/signin");
             return;
         }
@@ -221,7 +221,7 @@ export default function BlogDetailPage() {
             if (err.response?.status === 400 && err.response?.data?.message?.includes("từ ngữ không phù hợp")) {
                 setSensitiveModal({ open: true, message: err.response.data.message });
             } else {
-                toast.error("Error posting comment");
+                toast.error("Lỗi khi đăng bình luận");
             }
         } finally {
             setIsSubmittingComment(false);
@@ -244,12 +244,12 @@ export default function BlogDetailPage() {
             setBlog(res.blog);
             setEditingCommentId(null);
             setEditCommentText("");
-            toast.success("Comment updated!");
+            toast.success("Đã cập nhật bình luận!");
         } catch (err) {
             if (err.response?.status === 400 && err.response?.data?.message?.includes("từ ngữ không phù hợp")) {
                 setSensitiveModal({ open: true, message: err.response.data.message });
             } else {
-                toast.error("Error updating comment");
+                toast.error("Lỗi khi cập nhật bình luận");
             }
         } finally {
             setIsUpdatingComment(false);
@@ -257,15 +257,15 @@ export default function BlogDetailPage() {
     };
 
     const handleDeleteComment = async (commentId) => {
-        if (!window.confirm("Are you sure you want to delete this comment?")) return;
+        if (!window.confirm("Bạn có chắc chắn muốn xóa bình luận này?")) return;
         try {
             const userName = currentUser.username || currentUser.email;
             const role = currentUser.role;
             const res = await deleteComment(id, commentId, userName, role);
             setBlog(res.blog);
-            toast.success("Comment deleted!");
+            toast.success("Đã xóa bình luận!");
         } catch (err) {
-            toast.error("Error deleting comment");
+            toast.error("Lỗi khi xóa bình luận");
         }
     };
 
@@ -276,7 +276,7 @@ export default function BlogDetailPage() {
                 <div className="flex-grow flex items-center justify-center">
                     <div className="flex flex-col items-center gap-3">
                         <div className="h-10 w-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-                        <span className="text-sm font-medium" style={{ color: "#4c4d9a" }}>Loading article...</span>
+                        <span className="text-sm font-medium" style={{ color: "#4c4d9a" }}>Đang tải bài viết...</span>
                     </div>
                 </div>
             </div>
@@ -290,17 +290,17 @@ export default function BlogDetailPage() {
                 <div className="flex-grow flex flex-col items-center justify-center text-center px-6">
                     <span className="material-symbols-outlined text-7xl text-slate-300 mb-4">article</span>
                     <h2 className="font-display text-2xl font-bold mb-2" style={{ color: "#4c4d9a" }}>
-                        Article not found
+                        Không tìm thấy bài viết
                     </h2>
                     <p className="mb-6" style={{ color: "#4c4d9a" }}>
-                        The article you're looking for doesn't exist or has been removed.
+                        Bài viết bạn đang tìm kiếm không tồn tại hoặc đã bị xóa.
                     </p>
                     <button
                         onClick={() => navigate("/blog")}
                         className="flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-xl font-bold text-sm hover:scale-[1.02] active:scale-[0.98] transition-all"
                     >
                         <span className="material-symbols-outlined text-lg">arrow_back</span>
-                        Back to Blog
+                        Quay lại Blog
                     </button>
                 </div>
                 <Footer />
@@ -324,7 +324,7 @@ export default function BlogDetailPage() {
                     <span className="material-symbols-outlined text-lg group-hover:-translate-x-1 transition-transform">
                         arrow_back
                     </span>
-                    Back to Blog
+                    Quay lại Blog
                 </button>
 
                 <article>
@@ -370,11 +370,11 @@ export default function BlogDetailPage() {
                             <div className="flex items-center gap-4 text-xs font-medium" style={{ color: "#4c4d9a" }}>
                                 <span className="flex items-center gap-1">
                                     <span className="material-symbols-outlined text-sm">schedule</span>
-                                    {blog.readTime} min read
+                                    {blog.readTime} phút đọc
                                 </span>
                                 <span className="flex items-center gap-1">
                                     <span className="material-symbols-outlined text-sm">visibility</span>
-                                    {blog.views || 0} views
+                                    {blog.views || 0} lượt xem
                                 </span>
                             </div>
                         </div>
@@ -461,7 +461,7 @@ export default function BlogDetailPage() {
                                 <span className={`material-symbols-outlined text-2xl ${isLiked ? "fill-current" : ""}`}>
                                     thumb_up
                                 </span>
-                                <span>{likesCount} Likes</span>
+                                <span>{likesCount} Thích</span>
                             </button>
                             <button 
                                 onClick={() => document.getElementById('comment-input').focus()}
@@ -470,7 +470,7 @@ export default function BlogDetailPage() {
                                 <span className="material-symbols-outlined text-2xl">
                                     chat_bubble
                                 </span>
-                                <span>{blog.comments?.length || 0} Comments</span>
+                                <span>{blog.comments?.length || 0} Bình luận</span>
                             </button>
                         </div>
                         <button 
@@ -482,14 +482,14 @@ export default function BlogDetailPage() {
                             <span className={`material-symbols-outlined text-2xl ${isSaved ? "fill-current" : ""}`}>
                                 bookmark
                             </span>
-                            <span>{isSaved ? "Saved" : "Save"}</span>
+                            <span>{isSaved ? "Đã lưu" : "Lưu"}</span>
                         </button>
                     </div>
 
                     {/* Comments Section */}
                     <section className="mb-16">
                         <h3 className="font-display text-xl font-bold mb-8" style={{ color: "#0d0e1b" }}>
-                            Discussion ({blog.comments?.length || 0})
+                            Thảo luận ({blog.comments?.length || 0})
                         </h3>
 
                         {/* Comment Form */}
@@ -508,7 +508,7 @@ export default function BlogDetailPage() {
                                     id="comment-input"
                                     value={commentText}
                                     onChange={(e) => setCommentText(e.target.value)}
-                                    placeholder="Write a comment..."
+                                    placeholder="Viết bình luận..."
                                     className="w-full min-h-[100px] rounded-2xl border border-slate-200 p-4 text-sm focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all outline-none resize-none"
                                 />
                                 <div className="flex justify-end">
@@ -517,7 +517,7 @@ export default function BlogDetailPage() {
                                         disabled={!commentText.trim() || isSubmittingComment}
                                         className="h-11 px-8 rounded-xl bg-primary text-white text-sm font-bold hover:shadow-lg hover:shadow-primary/30 active:scale-95 disabled:opacity-50 disabled:scale-100 transition-all"
                                     >
-                                        {isSubmittingComment ? "Posting..." : "Post Comment"}
+                                        {isSubmittingComment ? "Đang đăng..." : "Đăng bình luận"}
                                     </button>
                                 </div>
                             </div>
@@ -542,7 +542,7 @@ export default function BlogDetailPage() {
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-sm font-bold text-slate-900">{comment.user}</span>
                                                     {comment.user === (currentUser?.username || currentUser?.email) && (
-                                                        <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-md font-bold uppercase">You</span>
+                                                        <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-md font-bold uppercase">Bạn</span>
                                                     )}
                                                 </div>
                                                 <span className="text-[10px] font-medium text-slate-400">
@@ -563,14 +563,14 @@ export default function BlogDetailPage() {
                                                             onClick={() => setEditingCommentId(null)}
                                                             className="text-xs font-bold text-slate-500 hover:text-slate-700 px-3 py-1.5"
                                                         >
-                                                            Cancel
+                                                            Hủy
                                                         </button>
                                                         <button 
                                                             onClick={() => handleUpdateComment(comment._id)}
                                                             disabled={isUpdatingComment || !editCommentText.trim()}
                                                             className="text-xs font-bold bg-primary text-white rounded-lg px-4 py-1.5 hover:shadow-md disabled:opacity-50"
                                                         >
-                                                            {isUpdatingComment ? "Saving..." : "Save"}
+                                                            {isUpdatingComment ? "Đang lưu..." : "Lưu"}
                                                         </button>
                                                     </div>
                                                 </div>
@@ -585,7 +585,7 @@ export default function BlogDetailPage() {
                                                                 <button 
                                                                     onClick={() => handleEditComment(comment)}
                                                                     className="h-7 w-7 flex items-center justify-center rounded-lg bg-white border border-slate-100 text-slate-400 hover:text-primary hover:border-primary shadow-sm transition-all"
-                                                                    title="Edit comment"
+                                                                    title="Sửa bình luận"
                                                                 >
                                                                     <span className="material-symbols-outlined text-sm">edit</span>
                                                                 </button>
@@ -593,7 +593,7 @@ export default function BlogDetailPage() {
                                                             <button 
                                                                 onClick={() => handleDeleteComment(comment._id)}
                                                                 className="h-7 w-7 flex items-center justify-center rounded-lg bg-white border border-slate-100 text-slate-400 hover:text-red-500 hover:border-red-100 shadow-sm transition-all"
-                                                                title="Delete comment"
+                                                                title="Xóa bình luận"
                                                             >
                                                                 <span className="material-symbols-outlined text-sm">delete</span>
                                                             </button>
@@ -607,7 +607,7 @@ export default function BlogDetailPage() {
                             ))}
                             {(blog.comments || []).length === 0 && (
                                 <div className="text-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-300">
-                                    <p className="text-sm text-slate-400">No comments yet. Be the first to share your thoughts!</p>
+                                    <p className="text-sm text-slate-400">Chưa có bình luận nào. Hãy là người đầu tiên chia sẻ suy nghĩ của bạn!</p>
                                 </div>
                             )}
                         </div>
@@ -635,7 +635,7 @@ export default function BlogDetailPage() {
                 {relatedBlogs.length > 0 && (
                     <section className="mt-16">
                         <h2 className="font-display text-2xl font-bold mb-8" style={{ color: "#0d0e1b" }}>
-                            Related Articles
+                            Bài viết liên quan
                         </h2>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             {relatedBlogs.map((rb) => {
@@ -667,7 +667,7 @@ export default function BlogDetailPage() {
                                                     {rb.author?.name}
                                                 </span>
                                                 <span className="text-[10px] font-bold uppercase" style={{ color: "rgba(76,77,154,0.6)" }}>
-                                                    {rb.readTime} min
+                                                    {rb.readTime} phút
                                                 </span>
                                             </div>
                                         </div>
@@ -736,7 +736,7 @@ export default function BlogDetailPage() {
                             {/* Counter & Info */}
                             <div className="mt-6 flex flex-col items-center gap-2">
                                 <div className="px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/10 text-white text-sm font-bold tracking-widest uppercase">
-                                    Photo {currentImgIdx + 1} / {allImages.length}
+                                    Ảnh {currentImgIdx + 1} / {allImages.length}
                                 </div>
                                 <p className="text-white/60 text-xs font-medium uppercase tracking-[0.2em]">{blog.title}</p>
                             </div>

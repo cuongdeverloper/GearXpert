@@ -36,11 +36,11 @@ export default function AISuggestedSection({ devices = [] }) {
     <section className="px-6 lg:px-10 mb-16">
       <div className="flex items-end justify-between mb-8">
         <div>
-          <h2 className="text-3xl font-bold text-slate-900 font-display">Suggested for You</h2>
-          <p className="text-slate-500 mt-2 font-medium">Top matches based on your recent activity and saved productions.</p>
+          <h2 className="text-3xl font-bold text-slate-900 font-display">Đề xuất cho bạn</h2>
+          <p className="text-slate-500 mt-2 font-medium">Các lựa chọn hàng đầu dựa trên hoạt động gần đây và sở thích của bạn.</p>
         </div>
         <button className="text-primary font-bold flex items-center gap-2 hover:underline">
-          View Recommendations <span className="material-symbols-outlined">chevron_right</span>
+          Xem đề xuất <span className="material-symbols-outlined">chevron_right</span>
         </button>
       </div>
 
@@ -54,7 +54,7 @@ export default function AISuggestedSection({ devices = [] }) {
               device={device}
               variant="detailed"
               match={match}
-              buttonText="Rent Gear"
+              buttonText="Thuê thiết bị"
             />
           );
         })}

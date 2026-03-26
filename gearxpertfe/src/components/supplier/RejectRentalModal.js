@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { FiAlertTriangle, FiSend, FiX } from "react-icons/fi";
 
 const REJECT_REASONS = [
-  "Out of stock",
-  "Schedule conflict",
-  "Delivery not available",
-  "Customer verification issue",
-  "Other",
+  "Hết hàng",
+  "Trùng lịch",
+  "Không thể giao hàng",
+  "Vấn đề xác thực khách hàng",
+  "Khác",
 ];
 
 const getBookingCode = (rental) => {
@@ -18,7 +18,7 @@ const getBookingCode = (rental) => {
 
 const getPrimaryDeviceName = (rental) => {
   const firstItem = rental?.rentalItems?.[0];
-  return firstItem?.deviceId?.name || "Device";
+  return firstItem?.deviceId?.name || "Thiết bị";
 };
 
 export default function RejectRentalModal({
@@ -46,7 +46,7 @@ export default function RejectRentalModal({
   const handleSubmit = (event) => {
     event.preventDefault();
     if (!reason) {
-      setError("Please select a rejection reason.");
+      setError("Vui lòng chọn lý do từ chối.");
       return;
     }
     setError("");
@@ -70,10 +70,10 @@ export default function RejectRentalModal({
               <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-50 text-amber-600">
                 <FiAlertTriangle size={16} />
               </span>
-              Reject Booking
+              Từ chối đơn hàng
             </h3>
             <p className="text-sm text-slate-500 mt-1">
-              Booking {getBookingCode(rental)} · {getPrimaryDeviceName(rental)}
+              Đơn hàng {getBookingCode(rental)} · {getPrimaryDeviceName(rental)}
             </p>
           </div>
           <button
@@ -87,21 +87,21 @@ export default function RejectRentalModal({
 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           <div className="rounded-xl bg-slate-50 border border-slate-100 p-4 text-sm text-slate-600">
-            <div className="font-medium text-slate-700">Customer</div>
-            <div>{rental?.customerId?.fullName || "Customer"}</div>
+            <div className="font-medium text-slate-700">Khách hàng</div>
+            <div>{rental?.customerId?.fullName || "Khách hàng"}</div>
             <div className="text-slate-500">{rental?.phoneNumber || "-"}</div>
           </div>
 
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">
-              Rejection reason
+              Lý do từ chối
             </label>
             <select
               value={reason}
               onChange={(event) => setReason(event.target.value)}
               className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
             >
-              <option value="">Select a reason</option>
+              <option value="">Chọn một lý do</option>
               {REJECT_REASONS.map((item) => (
                 <option key={item} value={item}>
                   {item}
@@ -112,26 +112,26 @@ export default function RejectRentalModal({
 
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">
-              Details (optional)
+              Chi tiết (tùy chọn)
             </label>
             <textarea
               value={details}
               onChange={(event) => setDetails(event.target.value)}
               rows={3}
-              placeholder="Add internal notes about this rejection..."
+              placeholder="Thêm ghi chú nội bộ về việc từ chối này..."
               className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
             />
           </div>
 
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">
-              Message to customer
+              Tin nhắn gửi khách hàng
             </label>
             <textarea
               value={customerMessage}
               onChange={(event) => setCustomerMessage(event.target.value)}
               rows={3}
-              placeholder="We’re sorry, this booking cannot be fulfilled. Please contact support if needed."
+              placeholder="Chúng tôi rất tiếc, đơn hàng này không thể thực hiện được. Vui lòng liên hệ bộ phận hỗ trợ nếu cần thiết."
               className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
             />
           </div>
@@ -149,7 +149,7 @@ export default function RejectRentalModal({
               className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800"
               disabled={isSubmitting}
             >
-              Cancel
+              Hủy
             </button>
             <button
               type="submit"
@@ -157,7 +157,7 @@ export default function RejectRentalModal({
               className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-60"
             >
               <FiSend size={16} />
-              {isSubmitting ? "Submitting..." : "Send rejection"}
+              {isSubmitting ? "Đang gửi..." : "Gửi từ chối"}
             </button>
           </div>
         </form>

@@ -8,8 +8,8 @@ export default function FeaturedProductsSection({ devices = [] }) {
         <section className="px-6 lg:px-10 mb-12">
             <div className="flex items-end justify-between mb-8">
                 <div>
-                    <h2 className="text-3xl font-bold text-slate-900 font-display">Featured Gear</h2>
-                    <p className="text-slate-500 mt-2 font-medium">Explore our top rated equipment available for rent.</p>
+                    <h2 className="text-3xl font-bold text-slate-900 font-display">Thiết bị Nổi bật</h2>
+                    <p className="text-slate-500 mt-2 font-medium">Khám phá các thiết bị hàng đầu hiện có để thuê.</p>
                 </div>
             </div>
 
@@ -19,7 +19,7 @@ export default function FeaturedProductsSection({ devices = [] }) {
                         key={device._id || device.id}
                         device={device}
                         variant="detailed"
-                        buttonText="Rent Now"
+                        buttonText="Thuê ngay"
                     />
                 ))}
             </div>

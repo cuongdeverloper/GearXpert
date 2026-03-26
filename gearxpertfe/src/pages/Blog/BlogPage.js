@@ -272,18 +272,18 @@ export default function BlogPage() {
                         {/* Hero Text Content */}
                         <div className="max-w-3xl">
                             <nav className="mb-6 flex items-center gap-2 text-sm font-medium text-slate-400">
-                                <span className="hover:text-primary cursor-pointer transition-colors" onClick={() => navigate("/")}>Home</span>
+                                <span className="hover:text-primary cursor-pointer transition-colors" onClick={() => navigate("/")}>Trang chủ</span>
                                 <span className="material-symbols-outlined text-xs">chevron_right</span>
                                 <span className="text-white">Blog</span>
                             </nav>
 
                             <h1 className="font-display text-5xl md:text-7xl font-black text-white leading-[1.1] mb-6">
-                                Gear <span className="text-primary italic">Editorial</span> <br />
-                                & Market Insights
+                                Tạp chí <span className="text-primary italic">Thiết bị</span> <br />
+                                & Phân tích Thị trường
                             </h1>
 
                             <p className="text-lg md:text-xl text-slate-300 leading-relaxed mb-10 max-w-2xl">
-                                Explore deep-dives into the latest high-tech equipment, industry-shifting news, and professional masterclasses designed for modern creators.
+                                Khám phá các bài viết chuyên sâu về thiết bị công nghệ mới nhất, tin tức thị trường và những chia sẻ kinh nghiệm từ các chuyên gia dành cho nhà sáng tạo hiện đại.
                             </p>
 
                         </div>
@@ -312,7 +312,7 @@ export default function BlogPage() {
                                             <div className="flex items-center justify-between mb-4">
                                                 <div className="flex items-center gap-2">
                                                     <span className="inline-block px-3 py-1 rounded-full bg-primary/20 text-primary text-[10px] font-black uppercase tracking-widest">
-                                                        Featured Insight
+                                                        Bài viết nổi bật
                                                     </span>
                                                     {featuredBlogs.length > 1 && (
                                                         <div className="flex gap-1.5 ml-3">
@@ -331,7 +331,7 @@ export default function BlogPage() {
                                                     )}
                                                 </div>
                                                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                                                    {featuredBlogs[currentFeaturedIndex].readTime} MIN READ
+                                                    {featuredBlogs[currentFeaturedIndex].readTime} phút đọc
                                                 </span>
                                             </div>
                                             <h3 className="text-2xl font-bold text-white mb-3 line-clamp-2 group-hover:text-primary transition-colors leading-snug h-[4rem] flex items-center">
@@ -383,7 +383,7 @@ export default function BlogPage() {
                         {/* ---- Toolbar: Title + Search + View Toggles ---- */}
                         <div id="insights-start" className="flex items-center justify-between mb-8 gap-4">
                             <h2 className="font-display text-3xl font-bold tracking-tight shrink-0" style={{ color: "#0d0e1b" }}>
-                                Latest Insights
+                                Bài viết mới nhất
                             </h2>
 
                             <div className="flex items-center gap-2">
@@ -427,7 +427,7 @@ export default function BlogPage() {
                                                 pointerEvents: isSearchExpanded ? "auto" : "none",
                                                 transition: "opacity 0.2s ease",
                                             }}
-                                            placeholder="Search articles..."
+                                            placeholder="Tìm kiếm bài viết..."
                                             type="text"
                                             autoFocus={isSearchExpanded}
                                         />
@@ -487,14 +487,14 @@ export default function BlogPage() {
                             <div className="flex items-center justify-center py-20">
                                 <div className="flex flex-col items-center gap-3">
                                     <div className="h-10 w-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-                                    <span className="text-sm font-medium" style={{ color: "#4c4d9a" }}>Loading articles...</span>
+                                    <span className="text-sm font-medium" style={{ color: "#4c4d9a" }}>Đang tải bài viết...</span>
                                 </div>
                             </div>
                         ) : gridBlogs.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-20 text-center">
                                 <span className="material-symbols-outlined text-6xl text-slate-300 mb-4">article</span>
-                                <h3 className="text-xl font-bold text-slate-400 mb-2">No articles found</h3>
-                                <p className="text-sm text-slate-400">Try adjusting your search or filter criteria.</p>
+                                <h3 className="text-xl font-bold text-slate-400 mb-2">Không tìm thấy bài viết nào</h3>
+                                <p className="text-sm text-slate-400">Hãy thử điều chỉnh từ khóa tìm kiếm hoặc bộ lọc của bạn.</p>
                             </div>
                         ) : (
                             <>
@@ -601,7 +601,7 @@ export default function BlogPage() {
                                                                 </span>
                                                             </div>
                                                             <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(76,77,154,0.6)" }}>
-                                                                {blog.readTime} min read
+                                                                {blog.readTime} phút đọc
                                                             </span>
                                                             <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(76,77,154,0.6)" }}>
                                                                 <span className="material-symbols-outlined text-xs">visibility</span>
@@ -730,7 +730,7 @@ export default function BlogPage() {
                                                             </div>
                                                             <div className="flex items-center gap-4">
                                                                 <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(76,77,154,0.6)" }}>
-                                                                    {blog.readTime} min read
+                                                                    {blog.readTime} phút đọc
                                                                 </span>
                                                                 <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(76,77,154,0.6)" }}>
                                                                     <span className="material-symbols-outlined text-xs">visibility</span>
@@ -758,11 +758,11 @@ export default function BlogPage() {
                                                 {loadingMore ? (
                                                     <>
                                                         <div className="h-4 w-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
-                                                        <span>Fetching...</span>
+                                                        <span>Đang tải...</span>
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <span>Load More Insights</span>
+                                                        <span>Xem thêm bài viết</span>
                                                         <span className="material-symbols-outlined group-hover:translate-y-1 transition-transform">expand_more</span>
                                                     </>
                                                 )}
@@ -772,7 +772,7 @@ export default function BlogPage() {
                                                 onClick={handleCollapse}
                                                 className="flex items-center gap-2 rounded-xl border-2 px-8 py-3 font-bold text-primary hover:bg-white hover:text-primary transition-all border-primary shadow-lg shadow-primary/10"
                                             >
-                                                <span>Show Less</span>
+                                                <span>Thu gọn</span>
                                                 <span className="material-symbols-outlined">expand_less</span>
                                             </button>
                                         )}
@@ -788,7 +788,7 @@ export default function BlogPage() {
                         <div className="rounded-xl bg-white p-8 shadow-sm" style={{ border: "1px solid rgba(99,102,241,0.05)" }}>
                             <h3 className="font-display text-xl font-bold mb-6 flex items-center gap-2" style={{ color: "#0d0e1b" }}>
                                 <span className="material-symbols-outlined text-primary">category</span>
-                                Popular Categories
+                                Chuyên mục phổ biến
                             </h3>
                             <div className="flex flex-wrap gap-2">
                                 {Object.entries(CATEGORY_MAP).map(([key, { label }]) => {
@@ -848,7 +848,7 @@ export default function BlogPage() {
                             <div className="rounded-xl bg-white p-8 shadow-sm" style={{ border: "1px solid rgba(99,102,241,0.05)" }}>
                                 <h3 className="font-display text-xl font-bold mb-6 flex items-center gap-2" style={{ color: "#0d0e1b" }}>
                                     <span className="material-symbols-outlined text-primary">trending_up</span>
-                                    Trending Now
+                                    Xu hướng
                                 </h3>
                                 <div className="space-y-6">
                                     {trendingBlogs.map((blog) => {
@@ -894,17 +894,17 @@ export default function BlogPage() {
                         <div className="rounded-xl bg-white p-8 shadow-sm" style={{ border: "1px solid rgba(99,102,241,0.05)" }}>
                             <h3 className="font-display text-xl font-bold mb-4 flex items-center gap-2" style={{ color: "#0d0e1b" }}>
                                 <span className="material-symbols-outlined text-primary">groups</span>
-                                Contribute
+                                Cộng tác
                             </h3>
                             <p className="text-sm mb-6 leading-relaxed" style={{ color: "#4c4d9a" }}>
-                                Got gear insights or a tech tutorial? Share your expertise with our global community of 50k+ professionals.
+                                Bạn có bài chia sẻ về thiết bị hoặc hướng dẫn công nghệ? Hãy chia sẻ kiến thức của bạn với cộng đồng chuyên nghiệp của chúng tôi.
                             </p>
                             <button
                                 onClick={handleOpenSubmitModal}
                                 className="w-full flex items-center justify-center gap-2 rounded-lg border-2 border-primary text-primary py-3 text-sm font-bold transition-all hover:bg-primary hover:text-white"
                             >
                                 <span className="material-symbols-outlined text-lg">upload_file</span>
-                                Submit Your Article
+                                Đăng bài viết của bạn
                             </button>
                         </div>
 
@@ -914,13 +914,13 @@ export default function BlogPage() {
                             <div className="relative z-10">
                                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Pro Community</span>
                                 <h3 className="mt-2 text-2xl font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-                                    Join the Inner Circle
+                                    Tham gia Cộng đồng Ưu tú
                                 </h3>
                                 <p className="mt-4 text-sm text-slate-400 leading-relaxed">
-                                    Exclusive deep-dives, equipment rentals, and industry networking.
+                                    Khám phá các nội dung độc quyền, ưu đãi thuê thiết bị và kết nối trong ngành.
                                 </p>
                                 <button className="mt-8 w-full rounded-lg bg-primary py-3 text-sm font-bold transition-all hover:bg-primary/80">
-                                    Get Early Access
+                                    Nhận quyền truy cập sớm
                                 </button>
                             </div>
                         </div>
@@ -932,33 +932,33 @@ export default function BlogPage() {
             <section className="bg-slate-950 text-white py-20">
                 <div className="max-w-4xl mx-auto px-6 text-center">
                     <span className="inline-block bg-primary/20 text-primary text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-[0.2em] mb-6 border border-primary/30">
-                        Intelligence for Creators
+                        Kiến thức cho Nhà sáng tạo
                     </span>
 
                     <h2 className="text-4xl md:text-5xl font-bold mb-6 font-display">
-                        Gear Intelligence Delivered.
+                        Cập nhật Kiến thức Thiết bị.
                     </h2>
 
                     <p className="text-slate-400 text-lg mb-10 max-w-2xl mx-auto">
-                        Join 50,000+ professionals getting weekly insights on the latest cinematography tech, field tests, and production workflows.
+                        Tham gia cùng hơn 50.000 chuyên gia để nhận thông tin hàng tuần về công nghệ quay phim mới nhất.
                     </p>
 
                     <form className="flex flex-col sm:flex-row gap-4 max-w-lg mx-auto" onSubmit={(e) => e.preventDefault()}>
                         <input
                             className="flex-1 bg-slate-900 border-slate-800 rounded-xl px-6 py-4 focus:ring-primary focus:border-primary placeholder:text-slate-600 text-white"
-                            placeholder="Enter your email address"
+                            placeholder="Nhập địa chỉ email của bạn"
                             type="email"
                         />
                         <button
                             className="bg-primary hover:bg-primary/90 text-white px-8 py-4 rounded-xl font-bold transition-all shadow-lg shadow-primary/20"
                             type="submit"
                         >
-                            Subscribe Now
+                            Đăng ký ngay
                         </button>
                     </form>
 
                     <p className="mt-6 text-slate-600 text-xs">
-                        Zero spam. Only high-end gear. Unsubscribe at any time.
+                        Không spam. Chỉ thông tin thiết bị chất lượng cao. Hủy đăng ký bất cứ lúc nào.
                     </p>
                 </div>
             </section>
