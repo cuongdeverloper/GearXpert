@@ -1,6 +1,6 @@
 // modals/TrackingModal.jsx
 import React from "react";
-import { XCircle, CheckCircle2, Truck } from "lucide-react";
+import { XCircle, CheckCircle2 } from "lucide-react";
 
 export default function TrackingModal({ trackingModal, setTrackingModal }) {
   if (!trackingModal.isOpen) return null;

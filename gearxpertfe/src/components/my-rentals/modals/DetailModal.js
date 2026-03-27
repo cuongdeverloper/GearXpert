@@ -1,6 +1,6 @@
 // modals/DetailModal.jsx
 import React from "react";
-import { XCircle, MapPin, FileText } from "lucide-react";
+import { XCircle, MapPin } from "lucide-react";
 
 export default function DetailModal({ detailModal, setDetailModal }) {
   if (!detailModal.isOpen || !detailModal.order) return null;
