@@ -1,8 +1,10 @@
 import { useNavigate, Link } from "react-router-dom";
 import logo from "../../assets/logoGearXpert.png";
+import { useI18n } from "../../i18n/I18nContext";
 
 export default function Footer() {
   const navigate = useNavigate();
+  const { text } = useI18n();
 
   const FooterLink = ({ to, children }) => (
     <button
@@ -47,8 +49,10 @@ export default function Footer() {
             </div>
 
             <p className="mt-3 text-sm text-slate-500 leading-relaxed max-w-md">
-              Professional rental solutions for tech equipment. Manage rentals,
-              track orders, and keep operations transparent for teams.
+              {text(
+                "Giải pháp cho thuê thiết bị công nghệ chuyên nghiệp. Quản lý việc thuê, theo dõi đơn hàng và giữ cho các hoạt động luôn minh bạch cho đội ngũ của bạn.",
+                "A professional gear rental platform. Manage rentals, track orders, and keep operations transparent for your team."
+              )}
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
@@ -56,19 +60,19 @@ export default function Footer() {
                 <span className="material-symbols-outlined text-[16px]">
                   verified
                 </span>
-                Secure
+                {text("Bảo mật", "Secure")}
               </span>
               <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
                 <span className="material-symbols-outlined text-[16px]">
                   bolt
                 </span>
-                Fast checkout
+                {text("Thanh toán nhanh", "Fast payments")}
               </span>
               <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
                 <span className="material-symbols-outlined text-[16px]">
                   support_agent
                 </span>
-                Support
+                {text("Hỗ trợ", "Support")}
               </span>
             </div>
           </div>
@@ -76,29 +80,29 @@ export default function Footer() {
           {/* Links */}
           <div className="md:col-span-4 grid grid-cols-2 gap-8">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Platform</h3>
+              <h3 className="text-sm font-bold text-slate-900">{text("Nền tảng", "Platform")}</h3>
               <div className="mt-3 flex flex-col gap-2">
-                <FooterLink to="/products">Browse Devices</FooterLink>
-                <FooterLink to="/pricing">Rental Plans</FooterLink>
-                <FooterLink to="/vouchers">Vouchers</FooterLink>
-                <FooterLink to="/tracking">Order Tracking</FooterLink>
+                <FooterLink to="/products">{text("Duyệt thiết bị", "Browse devices")}</FooterLink>
+                <FooterLink to="/pricing">{text("Gói thuê", "Rental plans")}</FooterLink>
+                <FooterLink to="/vouchers">{text("Mã giảm giá", "Discount codes")}</FooterLink>
+                <FooterLink to="/tracking">{text("Theo dõi đơn hàng", "Order tracking")}</FooterLink>
               </div>
             </div>
 
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Company</h3>
+              <h3 className="text-sm font-bold text-slate-900">{text("Công ty", "Company")}</h3>
               <div className="mt-3 flex flex-col gap-2">
-                <FooterLink to="/about">About</FooterLink>
+                <FooterLink to="/about">{text("Giới thiệu", "About")}</FooterLink>
                 <FooterLink to="/blog">Blog</FooterLink>
-                <FooterLink to="/contact">Contact</FooterLink>
-                <FooterLink to="/faq">FAQ</FooterLink>
+                <FooterLink to="/contact">{text("Liên hệ", "Contact")}</FooterLink>
+                <FooterLink to="/faq">{text("Hỏi đáp", "FAQ")}</FooterLink>
               </div>
             </div>
           </div>
 
           {/* Contact */}
           <div className="md:col-span-3">
-            <h3 className="text-sm font-bold text-slate-900">Get in touch</h3>
+            <h3 className="text-sm font-bold text-slate-900">{text("Liên hệ với chúng tôi", "Contact us")}</h3>
 
             <div className="mt-3 space-y-2">
               <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -111,7 +115,7 @@ export default function Footer() {
                 <span className="material-symbols-outlined text-[18px] text-slate-400">
                   schedule
                 </span>
-                <span>Mon–Sat · 08:00–18:00</span>
+                <span>{text("Thứ 2–Thứ 7 · 08:00–18:00", "Mon–Sat · 08:00–18:00")}</span>
               </div>
             </div>
 
@@ -146,18 +150,18 @@ export default function Footer() {
         {/* Bottom */}
         <div className="mt-10 border-t border-slate-200 pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-slate-400 text-sm font-medium text-center md:text-left">
-            © {new Date().getFullYear()} GearXpert Platforms Inc. Professional
-            Rental Solutions.
+            © {new Date().getFullYear()} GearXpert Platforms Inc.{" "}
+            {text("Giải pháp cho thuê thiết bị chuyên nghiệp.", "Professional gear rental platform.")}
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-            <FooterLink to="/privacy">Privacy</FooterLink>
-            <FooterLink to="/terms">Terms</FooterLink>
-            <FooterLink to="/support">Support</FooterLink>
+            <FooterLink to="/privacy">{text("Bảo mật", "Privacy")}</FooterLink>
+            <FooterLink to="/terms">{text("Điều khoản", "Terms")}</FooterLink>
+            <FooterLink to="/support">{text("Hỗ trợ", "Support")}</FooterLink>
 
-            <span className="hidden sm:inline-flex items-center gap-2 text-xs font-semibold text-slate-500">
+              <span className="hidden sm:inline-flex items-center gap-2 text-xs font-semibold text-slate-500">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              All systems operational
+              {text("Hệ thống hoạt động bình thường", "All systems operational")}
             </span>
           </div>
         </div>

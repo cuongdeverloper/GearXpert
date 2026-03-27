@@ -80,7 +80,7 @@ export default function AdminDashboard() {
     labels: revenueSeries.map((item) => item.label),
     datasets: [
       {
-        label: "Revenue",
+        label: "Doanh thu",
         data: revenueSeries.map((item) => item.total),
         backgroundColor: "#6366f1",
         borderRadius: 8,
@@ -126,7 +126,7 @@ export default function AdminDashboard() {
             </div>
             <p className="text-xs font-medium text-slate-600 mb-1">{stat.label}</p>
             <p className="text-3xl font-bold text-slate-900 mb-2">{stat.value}</p>
-            <p className="text-xs font-semibold text-green-600">{stat.change} from last month</p>
+            <p className="text-xs font-semibold text-green-600">{stat.change} so với tháng trước</p>
           </div>
         ))}
       </div>
@@ -135,7 +135,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Revenue Chart */}
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-4 text-lg font-semibold text-slate-900">Revenue Trend</h3>
+          <h3 className="mb-4 text-lg font-semibold text-slate-900">Xu hướng doanh thu</h3>
           <div className="relative h-[220px]">
             <Bar data={revenueChartData} options={revenueChartOptions} />
           </div>
@@ -143,7 +143,7 @@ export default function AdminDashboard() {
 
         {/* Top Devices */}
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-4 text-lg font-semibold text-slate-900">Top Rented Devices</h3>
+          <h3 className="mb-4 text-lg font-semibold text-slate-900">Thiết bị thuê nhiều nhất</h3>
           <div className="space-y-3">
             {topDevices.map((device, idx) => (
               <div key={`${device.name}-${idx}`} className="flex items-center justify-between">
@@ -170,7 +170,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Recent Rentals */}
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-4 text-lg font-semibold text-slate-900">Recent Rentals</h3>
+          <h3 className="mb-4 text-lg font-semibold text-slate-900">Đơn thuê gần đây</h3>
           <div className="space-y-3">
             {recentRentals.map((rental) => (
               <div key={rental.id} className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -199,7 +199,7 @@ export default function AdminDashboard() {
 
         {/* Activity Timeline */}
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-4 text-lg font-semibold text-slate-900">Platform Activity</h3>
+          <h3 className="mb-4 text-lg font-semibold text-slate-900">Hoạt động nền tảng</h3>
           <div className="space-y-3">
             {[
               { time: "2 hours ago", action: "New rental request from John Doe", icon: "📦" },
@@ -222,7 +222,7 @@ export default function AdminDashboard() {
 
       {/* System Status */}
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="mb-4 text-lg font-semibold text-slate-900">System Status</h3>
+        <h3 className="mb-4 text-lg font-semibold text-slate-900">Trạng thái hệ thống</h3>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {[
             { label: "API Status", status: "Operational", color: "green" },

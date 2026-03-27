@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getApprovedBanners } from '../../service/ApiService/AdvertisementApi';
 import { FiChevronLeft, FiChevronRight, FiExternalLink } from 'react-icons/fi';
+import { useI18n } from '../../i18n/I18nContext';
 
 export default function TopBannerAds() {
+    const { text } = useI18n();
     const [banners, setBanners] = useState([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [loading, setLoading] = useState(true);
@@ -89,7 +91,7 @@ export default function TopBannerAds() {
                                 </p>
                                 <div className="flex items-center gap-4">
                                     <span className="inline-flex items-center gap-2 px-6 py-3 bg-white text-slate-900 rounded-xl font-bold text-sm md:text-base hover:bg-primary hover:text-white transition-all shadow-xl shadow-black/20 hover:-translate-y-1">
-                                        Khám phá ngay <FiExternalLink />
+                                        {text("Khám phá ngay", "Explore now")} <FiExternalLink />
                                     </span>
                                 </div>
                             </motion.div>

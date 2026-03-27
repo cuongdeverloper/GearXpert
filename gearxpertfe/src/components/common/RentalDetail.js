@@ -53,12 +53,12 @@ export default function RentalDetail({ open, onClose, rental }) {
                 ×
               </button>
               <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white mb-6 tracking-tight flex items-center gap-3">
-                <span>Rental Details</span>
+                <span>Chi tiết đơn thuê</span>
                 <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ml-2 ${getStatusColor(rental.status)}`}>{rental.status}</span>
               </h2>
               {/* Customer Info */}
               <div className="mb-6">
-                <h3 className="font-semibold text-slate-800 dark:text-slate-200 mb-2 text-base">Customer</h3>
+                <h3 className="font-semibold text-slate-800 dark:text-slate-200 mb-2 text-base">Khách hàng</h3>
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-xl overflow-hidden border-2 border-primary/20 shadow-sm">
                     {rental.customerId?.avatar ? (
@@ -76,13 +76,13 @@ export default function RentalDetail({ open, onClose, rental }) {
               </div>
               {/* Rental Info */}
               <div className="mb-6">
-                <h3 className="font-semibold text-slate-800 dark:text-slate-200 mb-2 text-base">Rental Info</h3>
+                <h3 className="font-semibold text-slate-800 dark:text-slate-200 mb-2 text-base">Thông tin thuê</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-slate-700 dark:text-slate-200 text-sm">
-                  <div><span className="font-semibold">Rental ID:</span> {rental._id}</div>
-                  <div><span className="font-semibold">Booked at:</span> {new Date(rental.createdAt).toLocaleString()}</div>
-                  <div><span className="font-semibold">Total Price:</span> <span className="text-primary font-bold">{(rental.totalAmount).toFixed(1)}$</span></div>
-                  <div><span className="font-semibold">Phone:</span> {rental.phoneNumber}</div>
-                  <div className="md:col-span-2"><span className="font-semibold">Notes:</span> {rental.notes || '-'}</div>
+                  <div><span className="font-semibold">Mã đơn:</span> {rental._id}</div>
+                  <div><span className="font-semibold">Thời gian đặt:</span> {new Date(rental.createdAt).toLocaleString("vi-VN")}</div>
+                  <div><span className="font-semibold">Tổng cộng:</span> <span className="text-primary font-bold">{(rental.totalAmount || 0).toLocaleString("vi-VN")}₫</span></div>
+                  <div><span className="font-semibold">Số điện thoại:</span> {rental.phoneNumber}</div>
+                  <div className="md:col-span-2"><span className="font-semibold">Ghi chú:</span> {rental.notes || '-'}</div>
                 </div>
                 {String(rental.status || "").toUpperCase() === "APPROVED" && (
                   <div className="mt-4">
@@ -90,14 +90,14 @@ export default function RentalDetail({ open, onClose, rental }) {
                       className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all text-sm font-semibold"
                       onClick={() => setShowContract(true)}
                     >
-                      <span>View Rental Contract</span>
+                      <span>Xem hợp đồng thuê</span>
                     </button>
                   </div>
                 )}
               </div>
               {/* Product(s) Info */}
               <div>
-                <h3 className="font-semibold text-slate-800 dark:text-slate-200 mb-2 text-base">Rented Product(s)</h3>
+                <h3 className="font-semibold text-slate-800 dark:text-slate-200 mb-2 text-base">Sản phẩm thuê</h3>
                 <div className="space-y-5">
                   {rental.rentalItems?.map((item, idx) => (
                     <motion.div
@@ -114,17 +114,17 @@ export default function RentalDetail({ open, onClose, rental }) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="font-bold text-slate-900 dark:text-white text-lg mb-1 flex items-center gap-2">
-                          {item.deviceId?.name || 'Device'}
+                          {item.deviceId?.name || 'Thiết bị'}
                         </div>
                         <div className="text-slate-600 dark:text-slate-300 text-sm mb-1 line-clamp-2">{item.deviceId?.description || '-'}</div>
                         <div className="flex flex-wrap gap-3 text-xs text-slate-500 dark:text-slate-400 mb-1">
-                          <span>Category: <span className="font-semibold text-slate-700 dark:text-slate-200">{item.deviceId?.category}</span></span>
-                          <span>Deposit: <span className="font-semibold text-slate-700 dark:text-slate-200">{item.deviceId?.depositAmount?.toLocaleString()}₫</span></span>
+                          <span>Danh mục: <span className="font-semibold text-slate-700 dark:text-slate-200">{item.deviceId?.category}</span></span>
+                          <span>Tiền cọc: <span className="font-semibold text-slate-700 dark:text-slate-200">{item.deviceId?.depositAmount?.toLocaleString()}₫</span></span>
                         </div>
                         <div className="flex gap-4 text-xs text-slate-700 dark:text-slate-200">
-                          <span>Rental: <b>{item.rentalStartDate?.slice(0,10)} → {item.rentalEndDate?.slice(0,10)}</b></span>
-                          <span>Qty: <b>{item.quantity}</b></span>
-                          <span>Price: <b>{(item.rentPrice).toFixed(0)}$</b></span>
+                          <span>Thời gian: <b>{item.rentalStartDate?.slice(0,10)} → {item.rentalEndDate?.slice(0,10)}</b></span>
+                          <span>SL: <b>{item.quantity}</b></span>
+                          <span>Giá: <b>{(item.rentPrice || 0).toLocaleString("vi-VN")}₫</b></span>
                         </div>
                       </div>
                     </motion.div>
@@ -151,26 +151,26 @@ export default function RentalDetail({ open, onClose, rental }) {
             <button
               className="absolute top-4 right-4 text-slate-400 hover:text-primary text-2xl font-bold transition-colors duration-150 rounded-full w-10 h-10 flex items-center justify-center hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/30"
               onClick={() => setShowContract(false)}
-              aria-label="Close"
+              aria-label="Đóng"
             >
               ×
             </button>
             <div className="text-center mb-6">
-              <h3 className="text-2xl font-extrabold text-slate-900">Rental Contract</h3>
-              <p className="text-sm text-slate-500">Contract #{contractId} • {contractDate}</p>
+              <h3 className="text-2xl font-extrabold text-slate-900">Hợp đồng thuê</h3>
+              <p className="text-sm text-slate-500">Hợp đồng #{contractId} • {contractDate}</p>
             </div>
             <div className="space-y-4 text-sm text-slate-700 leading-relaxed">
-              <p><span className="font-semibold">Supplier:</span> GearXpert Supplier</p>
-              <p><span className="font-semibold">Customer:</span> {rental.customerId?.fullName || "-"}</p>
-              <p><span className="font-semibold">Delivery Address:</span> {rental.deliveryAddress?.fullAddress || "-"}</p>
-              <p><span className="font-semibold">Phone:</span> {rental.phoneNumber || "-"}</p>
-              <p><span className="font-semibold">Rental Period:</span> {rental.rentalItems?.[0]?.rentalStartDate?.slice(0, 10)} → {rental.rentalItems?.[0]?.rentalEndDate?.slice(0, 10)}</p>
-              <p><span className="font-semibold">Total Amount:</span> {(rental.totalAmount || 0).toLocaleString("vi-VN")} ₫</p>
-              <p><span className="font-semibold">Deposit:</span> {(rental.depositAmount || 0).toLocaleString("vi-VN")} ₫</p>
-              <p><span className="font-semibold">Notes:</span> {rental.notes || "-"}</p>
+              <p><span className="font-semibold">Nhà cung cấp:</span> GearXpert Supplier</p>
+              <p><span className="font-semibold">Khách hàng:</span> {rental.customerId?.fullName || "-"}</p>
+              <p><span className="font-semibold">Địa chỉ giao hàng:</span> {rental.deliveryAddress?.fullAddress || "-"}</p>
+              <p><span className="font-semibold">Số điện thoại:</span> {rental.phoneNumber || "-"}</p>
+              <p><span className="font-semibold">Thời gian thuê:</span> {rental.rentalItems?.[0]?.rentalStartDate?.slice(0, 10)} → {rental.rentalItems?.[0]?.rentalEndDate?.slice(0, 10)}</p>
+              <p><span className="font-semibold">Tổng tiền thuê:</span> {(rental.totalAmount || 0).toLocaleString("vi-VN")} ₫</p>
+              <p><span className="font-semibold">Tiền cọc:</span> {(rental.depositAmount || 0).toLocaleString("vi-VN")} ₫</p>
+              <p><span className="font-semibold">Ghi chú:</span> {rental.notes || "-"}</p>
             </div>
-            <div className="mt-6 border-t border-slate-200 pt-4 text-xs text-slate-500">
-              This is a placeholder contract for viewing purposes. Final terms are agreed between supplier and customer.
+            <div className="mt-6 border-t border-slate-200 pt-4 text-xs text-slate-500 italic">
+              Đây là bản xem trước của hợp đồng. Các điều khoản cuối cùng được thỏa thuận giữa nhà cung cấp và khách hàng.
             </div>
           </motion.div>
         </motion.div>

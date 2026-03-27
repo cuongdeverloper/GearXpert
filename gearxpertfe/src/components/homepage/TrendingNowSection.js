@@ -1,8 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import ImageWithFallback from '../common/ImageWithFallback';
+import { useI18n } from '../../i18n/I18nContext';
 
 export default function TrendingNowSection({ device = null }) {
   const navigate = useNavigate();
+  const { text } = useI18n();
 
   // Mock data if no device provided
   const trendingDevice = device || {
@@ -14,7 +16,9 @@ export default function TrendingNowSection({ device = null }) {
 
   return (
     <div className="w-full">
-      <h3 className="text-2xl font-bold text-slate-900 mb-6 font-display">Trending Now</h3>
+      <h3 className="text-2xl font-bold text-slate-900 mb-6 font-display">
+        {text("Xu hướng hiện tại", "Trending now")}
+      </h3>
       <div className="relative rounded-3xl overflow-hidden h-[450px] shadow-xl group">
         <div className="absolute inset-0 bg-cover bg-center transition-transform duration-1000 group-hover:scale-110">
           <ImageWithFallback
@@ -26,7 +30,7 @@ export default function TrendingNowSection({ device = null }) {
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent"></div>
         <div className="absolute bottom-0 left-0 p-8">
           <span className="bg-accent-cyan text-slate-900 text-[10px] font-black px-3 py-1 rounded-md uppercase tracking-widest mb-4 inline-block">
-            Popular Production
+            {text("Sản phẩm phổ biến", "Popular pick")}
           </span>
           <h4 className="text-4xl font-bold text-white mb-3 font-display leading-tight">{trendingDevice.name}</h4>
           <p className="text-slate-300 mb-8 max-w-sm font-medium">{trendingDevice.description}</p>
@@ -34,7 +38,7 @@ export default function TrendingNowSection({ device = null }) {
             onClick={() => trendingDevice.slug && navigate(`/device/${trendingDevice.slug}`)}
             className="bg-white text-slate-900 font-bold px-8 py-3.5 rounded-2xl hover:bg-slate-100 transition-all flex items-center gap-2"
           >
-            View Now
+            {text("Xem ngay", "View now")}
             <span className="material-symbols-outlined">schedule</span>
           </button>
         </div>

@@ -5,6 +5,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { performLogout } from '../../utils/logout';
 import MessengerPopup from '../Message Socket/MessengerPopup/MessengerPopup';
+import LanguageSwitcher from '../common/LanguageSwitcher';
+import { useI18n } from '../../i18n/I18nContext';
 
 import logo from '../../assets/logoGearXpert.png';
 
@@ -18,6 +20,7 @@ export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
+  const { t, locale } = useI18n();
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMessengerOpen, setIsMessengerOpen] = useState(false);
@@ -45,11 +48,11 @@ export default function Header() {
       setNotifications(data);
     } catch (err) {
       console.error('Fetch notifications error:', err);
-      toast.error('Không thể tải danh sách thông báo');
+      toast.error(t('header.notificationsLoadFail'));
     } finally {
       setLoadingNotifications(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, t]);
 
   // Load notifications khi authenticated
   useEffect(() => {
@@ -107,16 +110,16 @@ export default function Header() {
 
   const menuItems = [
     ...(userAccount?.role === 'SUPPLIER'
-      ? [{ label: 'Dashboard', icon: 'dashboard', path: '/supplier/dashboard' }]
+      ? [{ label: t('header.dashboard'), icon: 'dashboard', path: '/supplier/dashboard' }]
       : []),
       
     ...(userAccount?.role === 'CUSTOMER'
-      ? [{ label: 'Trở thành Nhà cung cấp', icon: 'storefront', path: '/become-supplier' }]
+      ? [{ label: t('header.becomeSupplier'), icon: 'storefront', path: '/become-supplier' }]
       : []),
 
-    { label: 'Đơn thuê của tôi', icon: 'description', path: '/user/myrental' },
-    { label: 'Vouchers', icon: 'local_activity', path: '/vouchers' },
-    { label: 'Yêu thích', icon: 'favorite', path: '/favorites' },
+    { label: t('header.myRentals'), icon: 'description', path: '/user/myrental' },
+    { label: t('header.vouchers'), icon: 'local_activity', path: '/vouchers' },
+    { label: t('header.favorites'), icon: 'favorite', path: '/favorites' },
   ];
 
   const handleRestrictedNavigation = (path) => {
@@ -202,19 +205,19 @@ export default function Header() {
             className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors cursor-pointer bg-transparent border-none"
             onClick={() => handleRestrictedNavigation('/')}
           >
-            Marketplace
+            {t("header.nav.home")}
           </button>
           <button
             className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors cursor-pointer bg-transparent border-none"
             onClick={() => handleRestrictedNavigation('/products')}
           >
-            Productions
+            {t("header.nav.devices")}
           </button>
           <button
             className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors cursor-pointer bg-transparent border-none"
             onClick={() => handleRestrictedNavigation('/suppliers')}
           >
-            Shops
+            {t("header.nav.stores")}
           </button>
           <button
             className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors cursor-pointer bg-transparent border-none"
@@ -227,7 +230,7 @@ export default function Header() {
             onClick={() => handleRestrictedNavigation('/smartgear')}
           >
             <span className="material-symbols-outlined text-[18px] fill-current">auto_awesome</span>
-            AI Discovery
+            {t("header.nav.exploreAi")}
           </button>
         </nav>
 
@@ -277,10 +280,10 @@ export default function Header() {
                   <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-50 max-h-[70vh] flex flex-col">
                     {/* Header */}
                     <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-                      <h3 className="font-semibold text-slate-900">Thông báo</h3>
+                      <h3 className="font-semibold text-slate-900">{t('header.notifications')}</h3>
                       {unreadCount > 0 && (
                         <button onClick={markAllAsRead} className="text-sm text-primary hover:underline">
-                          Đánh dấu tất cả đã đọc
+                          {t('header.markAllRead')}
                         </button>
                       )}
                     </div>
@@ -288,9 +291,9 @@ export default function Header() {
                     {/* Content */}
                     <div className="overflow-y-auto flex-1">
                       {loadingNotifications ? (
-                        <div className="py-10 text-center text-slate-500">Đang tải thông báo...</div>
+                        <div className="py-10 text-center text-slate-500">{t('common.loading')}</div>
                       ) : notifications.length === 0 ? (
-                        <div className="py-10 text-center text-slate-500">Chưa có thông báo nào</div>
+                        <div className="py-10 text-center text-slate-500">{t('header.noNotifications')}</div>
                       ) : (
                         notifications.map((notif) => (
                           <div
@@ -325,7 +328,7 @@ export default function Header() {
                                 <p className="text-sm font-semibold text-slate-900">{notif.title}</p>
                                 <p className="text-sm text-slate-600 mt-0.5 line-clamp-2">{notif.message}</p>
                                 <p className="text-xs text-slate-500 mt-1.5">
-                                  {new Date(notif.createdAt).toLocaleString('vi-VN', {
+                                  {new Date(notif.createdAt).toLocaleString(locale, {
                                     hour: '2-digit',
                                     minute: '2-digit',
                                     day: 'numeric',
@@ -351,6 +354,8 @@ export default function Header() {
               </button>
             </>
           )}
+
+          <LanguageSwitcher className="hidden md:inline-flex" />
 
           {/* User Profile / Auth Buttons */}
           {isAuthenticated ? (
@@ -416,9 +421,9 @@ export default function Header() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className={`flex items-center gap-2 flex-wrap ${getRankTextClass(userAccount.rank)}`}>
-                            <span className="font-bold text-sm">Hạng {formatRank(userAccount.rank)}</span>
+                            <span className="font-bold text-sm">{t("header.rank")} {formatRank(userAccount.rank)}</span>
                             <span className={`${getRankTextClass(userAccount.rank)}/80 text-sm`}>•</span>
-                            <span className="text-sm">{(userAccount.rewardPoints || 0).toLocaleString('vi-VN')} điểm</span>
+                            <span className="text-sm">{(userAccount.rewardPoints || 0).toLocaleString(locale)} {t('header.points')}</span>
                           </div>
                         </div>
                       </div>
@@ -438,7 +443,7 @@ export default function Header() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <span className="font-bold text-slate-900 text-sm">
-                          {(userAccount.walletBalance || 0).toLocaleString('vi-VN')}đ
+                          {(userAccount.walletBalance || 0).toLocaleString(locale)}₫
                         </span>
                       </div>
                     </div>
@@ -476,14 +481,14 @@ export default function Header() {
                       className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
                     >
                       <span className="material-symbols-outlined text-[20px]">settings</span>
-                      <span>Cài đặt</span>
+                      <span>{t('header.settings')}</span>
                     </button>
                     <button
                       onClick={handleLogout}
                       className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
                     >
                       <span className="material-symbols-outlined text-[20px]">logout</span>
-                      <span>Đăng xuất</span>
+                      <span>{t('header.logout')}</span>
                     </button>
                   </div>
                 </div>
@@ -495,13 +500,13 @@ export default function Header() {
                 onClick={() => navigate('/signin', { state: { isSignUp: true } })}
                 className="text-sm font-bold text-slate-600 hover:text-primary px-3 py-2 transition-colors cursor-pointer"
               >
-                Đăng ký
+                {t('header.signUp')}
               </button>
               <button
                 onClick={() => navigate('/signin', { state: { isSignUp: false } })}
                 className="bg-gradient-to-r from-primary to-accent-cyan text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
               >
-                Đăng nhập
+                {t('header.signIn')}
               </button>
             </div>
           )}

@@ -82,6 +82,7 @@ import SupplierPublicProfile from "./pages/User/SupplierPublicProfile";
 import FollowedStoresPage from "./pages/User/FollowedStoresPage";
 import SupplierListPage from "./pages/User/SupplierListPage";
 import BecomeSupplierPage from "./pages/User/BecomeSupplierPage";
+import RentalDetail from "./pages/Rental/RentalDetail";
 
 const ChatbotWrapper = () => {
   const location = useLocation();
@@ -168,6 +169,7 @@ export default function Layout() {
             path="/rental/checkout/review"
             element={<RentalReviewPage />}
           />
+          <Route path="/my-rentals/:rentalId" element={<RentalDetail />} />
           <Route path="/user/myrental" element={<MyRentals />} />
           <Route path="/user/cart" element={<CartPage />} />
           <Route path="/user/followed-stores" element={<FollowedStoresPage />} />

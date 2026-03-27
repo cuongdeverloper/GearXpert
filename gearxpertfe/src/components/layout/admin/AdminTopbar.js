@@ -4,11 +4,14 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { performLogout } from "../../../utils/logout";
 import logo from "../../../assets/logoGearXpert.png";
+import LanguageSwitcher from "../../common/LanguageSwitcher";
+import { useI18n } from "../../../i18n/I18nContext";
 
 export default function AdminTopbar({ onMenuOpen, me }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const account = useSelector((state) => state.user.account);
+  const { t } = useI18n();
 
   const handleLogout = async () => {
     await performLogout({
@@ -38,7 +41,7 @@ export default function AdminTopbar({ onMenuOpen, me }) {
             <img src={logo} alt="GearXpert Logo" className="h-9 w-auto object-contain" />
             <div className="hidden sm:block">
               <div className="text-sm font-bold text-slate-900 font-display">GearXpert</div>
-              <div className="text-xs text-slate-500 font-medium">Admin Portal</div>
+              <div className="text-xs text-slate-500 font-medium">{t("topbar.adminPortal")}</div>
             </div>
           </div>
         </div>
@@ -48,12 +51,13 @@ export default function AdminTopbar({ onMenuOpen, me }) {
           <FiSearch className="text-slate-400 shrink-0" size={18} />
           <input
             className="w-full bg-transparent outline-none placeholder:text-slate-400 text-sm"
-            placeholder="Search users, suppliers..."
+            placeholder={t("topbar.searchAdminPlaceholder")}
           />
         </div>
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2 lg:gap-3 ml-auto">
+          <LanguageSwitcher className="hidden md:inline-flex" />
           {/* Notifications */}
           <button
             className="relative w-10 h-10 flex items-center justify-center rounded-2xl bg-white border border-slate-200 text-slate-600 hover:text-primary hover:shadow-md transition-all shrink-0"
@@ -81,7 +85,7 @@ export default function AdminTopbar({ onMenuOpen, me }) {
             aria-label="Logout"
           >
             <FiLogOut size={18} />
-            <span className="hidden lg:inline text-sm font-semibold">Logout</span>
+            <span className="hidden lg:inline text-sm font-semibold">{t("topbar.logout")}</span>
           </button>
         </div>
       </div>

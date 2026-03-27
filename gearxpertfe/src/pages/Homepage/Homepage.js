@@ -11,8 +11,10 @@ import TopBannerAds from "../../components/homepage/TopBannerAds";
 import PopupAds from "../../components/homepage/PopupAds";
 import Footer from "../../components/homepage/Footer";
 import SmartGearPromoSection from "../../components/homepage/SmartGearPromoSection";
+import { useI18n } from "../../i18n/I18nContext";
 
 export default function Homepage() {
+  const { text } = useI18n();
   const [devices, setDevices] = useState([]);
   const [suggestedDevices, setSuggestedDevices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -98,24 +100,25 @@ export default function Homepage() {
   }, [fetchDevices]);
 
   const handleCategorySelect = (categoryId) => {
-    // Chuyển hướng cứng sang trang products với category
     window.location.href = `/products?category=${categoryId}`;
   };
 
   const categories = [
-    { name: 'Camera', id: 'CAMERA', category: 'CAMERA' },
-    { name: 'Lighting', id: 'LIGHTING', category: 'LIGHTING' },
-    { name: 'Audio', id: 'AUDIO', category: 'AUDIO' },
-    { name: 'Office', id: 'OFFICE', category: 'OFFICE' },
-    { name: 'Gaming', id: 'GAMING', category: 'GAMING' },
-    { name: 'Accessory', id: 'ACCESSORY', category: 'ACCESSORY' },
-    { name: 'Drone', id: 'DRONE', category: 'DRONE' },
+    { name: text("Máy ảnh", "Cameras"), id: "CAMERA", category: "CAMERA" },
+    { name: text("Ánh sáng", "Lighting"), id: "LIGHTING", category: "LIGHTING" },
+    { name: text("Âm thanh", "Audio"), id: "AUDIO", category: "AUDIO" },
+    { name: text("Văn phòng", "Office"), id: "OFFICE", category: "OFFICE" },
+    { name: text("Trò chơi", "Gaming"), id: "GAMING", category: "GAMING" },
+    { name: text("Phụ kiện", "Accessories"), id: "ACCESSORY", category: "ACCESSORY" },
+    { name: text("Flycam", "Drones"), id: "DRONE", category: "DRONE" },
   ];
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background-light">
-        <div className="text-xl font-semibold text-gray-600 animate-pulse">Loading gear...</div>
+        <div className="text-xl font-semibold text-gray-600 animate-pulse">
+          {text("Đang tải thiết bị...", "Loading devices...")}
+        </div>
       </div>
     );
   }

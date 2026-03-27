@@ -5,6 +5,7 @@ import ImageWithFallback from './ImageWithFallback';
 import { toggleFavorite, checkIsFavorite } from '../../service/ApiService/FavoriteApi';
 import { toast } from 'react-toastify';
 import AuthRequirementModal from './AuthRequirementModal';
+import { useI18n } from '../../i18n/I18nContext';
 
 /**
  * ProductCard Component - Reusable product card for displaying devices/equipment
@@ -22,7 +23,7 @@ export default function ProductCard({
   device,
   variant = 'detailed',
   match = null,
-  buttonText = 'Rent Gear',
+  buttonText,
   onClick,
   onFavoriteChange,
   className = '',
@@ -31,6 +32,13 @@ export default function ProductCard({
 }) {
   const navigate = useNavigate();
   const isAuthenticated = useSelector(state => state.user?.isAuthenticated || false);
+  const { text, locale } = useI18n();
+  const formatVnd = (value) =>
+    new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: 'VND',
+      maximumFractionDigits: 0,
+    }).format(Number(value) || 0);
 
   // Local state for favorite
   const [isFavorited, setIsFavorited] = useState(false);
@@ -42,22 +50,24 @@ export default function ProductCard({
   const name = device?.name || '';
   const getCategoryDisplay = (cat) => {
     const map = {
-      'CAMERA': 'Camera',
-      'LIGHTING': 'Lighting',
-      'AUDIO': 'Audio',
-      'OFFICE': 'Office',
-      'GAMING': 'Gaming',
-      'ACCESSORY': 'Accessories',
-      'DRONE': 'Drone',
-      'OTHER': 'Other'
+      CAMERA: { vi: 'Máy ảnh', en: 'Camera' },
+      LIGHTING: { vi: 'Ánh sáng', en: 'Lighting' },
+      AUDIO: { vi: 'Âm thanh', en: 'Audio' },
+      OFFICE: { vi: 'Văn phòng', en: 'Office' },
+      GAMING: { vi: 'Trò chơi', en: 'Gaming' },
+      ACCESSORY: { vi: 'Phụ kiện', en: 'Accessories' },
+      DRONE: { vi: 'Flycam', en: 'Drone' },
+      OTHER: { vi: 'Khác', en: 'Other' },
     };
-    return map[cat] || 'Other';
+    const entry = map[cat] || map.OTHER;
+    return text(entry);
   };
   const category = getCategoryDisplay(device?.category);
   const description = device?.description || '';
   const price = device?.price || device?.rentPrice?.perDay || 0;
   const image = device?.image || device?.images?.[0] || '';
   const rating = device?.ratingAvg || device?.rating || null;
+  const resolvedButtonText = buttonText ?? text('Thuê thiết bị', 'Rent gear');
 
   // Load initial favorite status
   useEffect(() => {
@@ -206,8 +216,8 @@ export default function ProductCard({
           </h4>
           <div className="mt-auto pt-2 flex items-center justify-between border-t border-slate-50">
             <p className="text-primary font-bold text-sm">
-              {price.toLocaleString('vi-VN')}đ
-              <span className="text-[10px] text-slate-400 font-normal ml-0.5">/day</span>
+              {formatVnd(price)}
+              <span className="text-[10px] text-slate-400 font-normal ml-0.5">{text('/ngày', '/day')}</span>
             </p>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{category}</span>
           </div>
@@ -295,8 +305,8 @@ export default function ProductCard({
           )}
           <div className="mt-6 flex items-center justify-between">
             <span className="text-2xl font-bold text-slate-900">
-              {price.toLocaleString('vi-VN')}đ
-              <span className="text-sm text-slate-400 font-normal">/day</span>
+              {formatVnd(price)}
+              <span className="text-sm text-slate-400 font-normal">{text('/ngày', '/day')}</span>
             </span>
             <button
               onClick={(e) => {
@@ -305,7 +315,7 @@ export default function ProductCard({
               }}
               className="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors shadow-md"
             >
-              {buttonText}
+              {resolvedButtonText}
             </button>
           </div>
         </div>

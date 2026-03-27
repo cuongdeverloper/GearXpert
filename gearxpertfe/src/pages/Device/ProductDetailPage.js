@@ -25,6 +25,7 @@ import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
 import { useSocket } from "../../SocketContext";
 import AuthRequirementModal from "../../components/common/AuthRequirementModal";
+import { useI18n } from "../../i18n/I18nContext";
 
 /* ===== API ===== */
 import {
@@ -43,6 +44,16 @@ import {
 export default function ProductDetailPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const { text, locale } = useI18n();
+  const formatVnd = useCallback(
+    (value) =>
+      new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency: "VND",
+        maximumFractionDigits: 0,
+      }).format(Number(value) || 0),
+    [locale]
+  );
 
   const today = new Date().toISOString().split("T")[0];
   const isAuthenticated = useSelector(
@@ -98,11 +109,11 @@ export default function ProductDetailPage() {
       setReviews(d.reviews || []);
     } catch (err) {
       console.error("Fetch device detail error:", err);
-      toast.error("Không thể tải dữ liệu thiết bị");
+      toast.error(text("Không thể tải dữ liệu thiết bị", "Unable to load device data"));
     } finally {
       setLoading(false);
     }
-  }, [slug, isAuthenticated]);
+  }, [slug, isAuthenticated, text]);
 
   const fetchMyReview = useCallback(async () => {
     if (!isAuthenticated || !device?._id) return;
@@ -158,16 +169,32 @@ export default function ProductDetailPage() {
 
   const validateRental = () => {
     if (!startDate || !endDate) {
-      toast.warning("Vui lòng chọn ngày bắt đầu và ngày kết thúc thuê!");
+      toast.warning(
+        text(
+          "Vui lòng chọn ngày bắt đầu và ngày kết thúc thuê!",
+          "Please select a rental start and end date."
+        )
+      );
       return false;
     }
     if (new Date(startDate) > new Date(endDate)) {
-      toast.error("Ngày kết thúc không được nhỏ hơn ngày bắt đầu!");
+      toast.error(
+        text(
+          "Ngày kết thúc không được nhỏ hơn ngày bắt đầu!",
+          "End date cannot be earlier than start date."
+        )
+      );
       return false;
     }
 
     if (quantity > (device?.stockQuantity || 0)) {
-      toast.error(`Chỉ còn ${device?.stockQuantity || 0} thiết bị khả dụng!`);
+      const available = device?.stockQuantity || 0;
+      toast.error(
+        text(
+          `Chỉ còn ${available} thiết bị khả dụng!`,
+          `Only ${available} units available!`
+        )
+      );
       return false;
     }
 
@@ -181,7 +208,7 @@ export default function ProductDetailPage() {
     );
 
     if (!isSelected) {
-      toast.info(`Đã thêm phụ kiện: ${addon.name}`);
+      toast.info(text(`Đã thêm phụ kiện: ${addon.name}`, `Added add-on: ${addon.name}`));
     }
   };
 
@@ -199,15 +226,23 @@ export default function ProductDetailPage() {
         rentalEndDate: endDate,
         addons: addons.map((a) => a._id),
       });
-      toast.success("Đã thêm vào giỏ hàng thành công!", {
-        description: `${device.name} đã sẵn sàng trong giỏ của bạn.`,
+      toast.success(text("Đã thêm vào giỏ hàng thành công!", "Added to cart!"), {
+        description: text(
+          `${device.name} đã sẵn sàng trong giỏ của bạn.`,
+          `${device.name} is ready in your cart.`
+        ),
         action: {
-          label: "Đến giỏ hàng",
+          label: text("Đến giỏ hàng", "Go to cart"),
           onClick: () => navigate("/user/cart"),
         },
       });
     } catch {
-      toast.error("Thêm vào giỏ thất bại. Vui lòng thử lại!");
+      toast.error(
+        text(
+          "Thêm vào giỏ thất bại. Vui lòng thử lại!",
+          "Failed to add to cart. Please try again."
+        )
+      );
     }
   };
 
@@ -218,7 +253,9 @@ export default function ProductDetailPage() {
     }
     if (!validateRental()) return;
 
-    const toastId = toast.loading("Đang xử lý yêu cầu thuê ngay...");
+    const toastId = toast.loading(
+      text("Đang xử lý yêu cầu thuê ngay...", "Processing rent-now request...")
+    );
     try {
       const response = await addInstantToCart({
         deviceId: device._id,
@@ -230,24 +267,24 @@ export default function ProductDetailPage() {
 
       console.log("[handleBuyNow] Response:", response.data);
 
-      toast.success("Đã thêm vào giỏ INSTANT!", { id: toastId });
+      toast.success(text("Đã thêm vào giỏ INSTANT!", "Added to INSTANT cart!"), { id: toastId });
       navigate("/rental/checkout", {
         state: { cartType: "INSTANT" },
       });
     } catch (err) {
       console.error("[handleBuyNow] Error:", err);
-      toast.error("Thuê ngay thất bại", { id: toastId });
+      toast.error(text("Thuê ngay thất bại", "Rent now failed"), { id: toastId });
     }
   };
 
   const handleUpdateReview = async () => {
     if (!editComment.trim()) {
-      toast.error("Vui lòng nhập nội dung nhận xét");
+      toast.error(text("Vui lòng nhập nội dung nhận xét", "Please enter a review comment"));
       return;
     }
 
     setIsSubmittingReview(true);
-    const toastId = toast.loading("Đang cập nhật review...");
+    const toastId = toast.loading(text("Đang cập nhật review...", "Updating review..."));
 
     try {
       await updateReview(myReview._id, {
@@ -255,7 +292,7 @@ export default function ProductDetailPage() {
         comment: editComment,
       });
 
-      toast.success("Cập nhật review thành công!", { id: toastId });
+      toast.success(text("Cập nhật review thành công!", "Review updated!"), { id: toastId });
       setMyReview((prev) => ({
         ...prev,
         rating: editRating,
@@ -263,7 +300,7 @@ export default function ProductDetailPage() {
       }));
       setIsEditingReview(false);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Cập nhật review thất bại", {
+      toast.error(err.response?.data?.message || text("Cập nhật review thất bại", "Failed to update review"), {
         id: toastId,
       });
     } finally {
@@ -277,15 +314,15 @@ export default function ProductDetailPage() {
 
   const confirmDeleteReview = async () => {
     setShowDeleteConfirm(false);
-    const toastId = toast.loading("Đang xóa review...");
+    const toastId = toast.loading(text("Đang xóa review...", "Deleting review..."));
 
     try {
       await deleteReview(myReview._id);
-      toast.success("Đã xóa review thành công", { id: toastId });
+      toast.success(text("Đã xóa review thành công", "Review deleted"), { id: toastId });
       setMyReview(null);
       setHasMyReview(false);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Xóa review thất bại", {
+      toast.error(err.response?.data?.message || text("Xóa review thất bại", "Failed to delete review"), {
         id: toastId,
       });
     }
@@ -332,11 +369,11 @@ export default function ProductDetailPage() {
               className="flex items-center gap-2 text-slate-600 hover:text-indigo-600 transition-colors font-semibold text-sm"
             >
               <ArrowLeft className="w-5 h-5" />
-              Back to Catalog
+              {text("Quay lại danh mục", "Back to category")}
             </button>
             <div className="hidden md:flex items-center gap-4">
               <span className="text-sm font-medium text-slate-400">
-                Home / Devices / {device?.category}
+                {text("Trang chủ", "Home")} / {text("Thiết bị", "Devices")} / {device?.category}
               </span>
             </div>
           </div>
@@ -365,7 +402,7 @@ export default function ProductDetailPage() {
                     >
                       {device.stockQuantity > 0
                         ? device.status
-                        : "Out of Stock"}
+                        : text("Hết hàng", "Out of stock")}
                     </span>
                   </div>
                 </div>
@@ -394,7 +431,7 @@ export default function ProductDetailPage() {
               {/* OVERVIEW */}
               <div className="space-y-5">
                 <h2 className="text-2xl font-bold text-slate-900 font-display flex items-center gap-3">
-                  Overview
+                  {text("Tổng quan", "Overview")}
                   <div className="h-1 flex-1 bg-slate-100 rounded-full"></div>
                 </h2>
                 <p className="text-[15px] text-slate-600 leading-relaxed whitespace-pre-line font-medium">
@@ -407,7 +444,7 @@ export default function ProductDetailPage() {
                 <div className="mt-10 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
                   <h3 className="text-xl font-bold text-slate-900 mb-5 flex items-center gap-3">
                     <User className="w-5 h-5 text-indigo-600" />
-                    Review của tôi
+                    {text("Đánh giá của tôi", "My review")}
                   </h3>
 
                   {hasMyReview ? (
@@ -431,7 +468,7 @@ export default function ProductDetailPage() {
                               <span className="text-sm text-slate-500 font-medium">
                                 {new Date(
                                   myReview.createdAt
-                                ).toLocaleDateString("vi-VN")}
+                                ).toLocaleDateString(locale)}
                               </span>
                             </div>
 
@@ -449,19 +486,19 @@ export default function ProductDetailPage() {
                                     className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 hover:border-indigo-300 rounded-xl transition-all"
                                   >
                                     <Edit className="w-4 h-4" />
-                                    Chỉnh sửa
+                                    {text("Chỉnh sửa", "Edit")}
                                   </button>
                                   <button
                                     onClick={handleDeleteReview}
                                     className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 hover:border-rose-300 rounded-xl transition-all"
                                   >
                                     <Trash2 className="w-4 h-4" />
-                                    Xóa
+                                    {text("Xóa", "Delete")}
                                   </button>
                                 </div>
                               ) : (
                                 <span className="text-xs italic px-3 py-1.5 bg-slate-100 text-slate-500 rounded-full">
-                                  Đã quá 48 giờ
+                                  {text("Đã quá 48 giờ", "More than 48 hours")}
                                 </span>
                               );
                             })()}
@@ -488,7 +525,7 @@ export default function ProductDetailPage() {
                         <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-5">
                           <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-2">
-                              Đánh giá của bạn
+                              {text("Đánh giá của bạn", "Your rating")}
                             </label>
                             <div className="flex gap-1">
                               {[1, 2, 3, 4, 5].map((star) => (
@@ -512,13 +549,16 @@ export default function ProductDetailPage() {
 
                           <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-2">
-                              Nhận xét
+                              {text("Nhận xét", "Comment")}
                             </label>
                             <textarea
                               value={editComment}
                               onChange={(e) => setEditComment(e.target.value)}
                               className="w-full h-36 p-3.5 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none text-slate-700 placeholder-slate-400 text-[15px]"
-                              placeholder="Chia sẻ trải nghiệm của bạn..."
+                              placeholder={text(
+                                "Chia sẻ trải nghiệm của bạn...",
+                                "Share your experience..."
+                              )}
                             />
                           </div>
 
@@ -528,7 +568,7 @@ export default function ProductDetailPage() {
                               disabled={isSubmittingReview}
                               className="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors"
                             >
-                              Hủy
+                              {text("Hủy", "Cancel")}
                             </button>
                             <button
                               onClick={handleUpdateReview}
@@ -544,10 +584,10 @@ export default function ProductDetailPage() {
                               {isSubmittingReview ? (
                                 <>
                                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                  Đang lưu...
+                                  {text("Đang lưu...", "Saving...")}
                                 </>
                               ) : (
-                                "Lưu thay đổi"
+                                text("Lưu thay đổi", "Save changes")
                               )}
                             </button>
                           </div>
@@ -557,11 +597,14 @@ export default function ProductDetailPage() {
                   ) : (
                     <div className="text-center py-10 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
                       <p className="text-slate-600 font-medium">
-                        Bạn chưa đánh giá sản phẩm này
+                        {text("Bạn chưa đánh giá sản phẩm này", "You haven't reviewed this product yet")}
                       </p>
                       {hasRented && (
                         <p className="mt-2 text-sm text-indigo-600">
-                          (Bạn có thể đánh giá vì đã từng thuê thiết bị này)
+                          {text(
+                            "(Bạn có thể đánh giá vì đã từng thuê thiết bị này)",
+                            "(You can review it because you previously rented this device)"
+                          )}
                         </p>
                       )}
                     </div>
@@ -572,7 +615,7 @@ export default function ProductDetailPage() {
               {/* REVIEWS */}
               <div className="space-y-7">
                 <h2 className="text-2xl font-bold text-slate-900 font-display flex items-center gap-3">
-                  Production Reviews
+                  {text("Đánh giá thiết bị", "Device reviews")}
                   <div className="h-1 flex-1 bg-slate-100 rounded-full"></div>
                 </h2>
 
@@ -621,7 +664,7 @@ export default function ProductDetailPage() {
                     <div className="text-center py-10 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
                       <AlertCircle className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                       <p className="text-slate-400 font-bold uppercase text-xs tracking-widest">
-                        No production reviews yet
+                        {text("Chưa có đánh giá nào", "No reviews yet")}
                       </p>
                     </div>
                   )}
@@ -629,7 +672,10 @@ export default function ProductDetailPage() {
                   {!hasRented && (
                     <div className="flex items-center justify-center gap-3 p-4 bg-indigo-50 rounded-2xl text-indigo-600 text-sm font-bold">
                       <AlertCircle className="w-5 h-5" />
-                      Verified renters only can leave reviews
+                      {text(
+                        "Chỉ những người đã thuê mới có thể để lại đánh giá",
+                        "Only customers who have rented can leave a review"
+                      )}
                     </div>
                   )}
                 </div>
@@ -655,7 +701,7 @@ export default function ProductDetailPage() {
                       {device.ratingAvg}
                     </span>
                     <span className="text-slate-400 text-sm">
-                      ({device.reviewCount} reviews)
+                      ({device.reviewCount} {text("đánh giá", "reviews")})
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 text-slate-500">
@@ -675,7 +721,7 @@ export default function ProductDetailPage() {
                 >
                   <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-3">
                     <User size={20} className="text-indigo-600" />
-                    Supplier
+                    {text("Nhà cung cấp", "Supplier")}
                   </h3>
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-indigo-100 group-hover:border-indigo-300 transition-colors flex-shrink-0">
@@ -694,7 +740,10 @@ export default function ProductDetailPage() {
                         {supplier.businessName || supplier.fullName}
                       </p>
                       <p className="text-sm text-slate-500 truncate">
-                        Listed {device.name} on GearXpert
+                        {text(
+                          `Đã đăng ${device.name} trên GearXpert`,
+                          `Listed ${device.name} on GearXpert`
+                        )}
                       </p>
                     </div>
                     <ArrowLeft className="w-5 h-5 text-slate-300 rotate-180 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all flex-shrink-0" />
@@ -707,21 +756,21 @@ export default function ProductDetailPage() {
                 <div className="flex justify-between items-end">
                   <div>
                     <p className="text-indigo-100 text-xs font-bold uppercase tracking-widest mb-1">
-                      Rental Rate
+                      {text("Giá thuê", "Rental price")}
                     </p>
                     <div className="flex items-baseline gap-2">
                       <span className="text-3xl font-bold">
-                        {device.rentPrice?.perDay.toLocaleString()}đ
+                        {formatVnd(device.rentPrice?.perDay)}
                       </span>
-                      <span className="text-indigo-200 text-sm">/ day</span>
+                      <span className="text-indigo-200 text-sm">{text("/ ngày", "/ day")}</span>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest mb-1">
-                      Security Deposit
+                      {text("Tiền đặt cọc", "Deposit")}
                     </p>
                     <p className="font-bold text-lg">
-                      {device.depositAmount?.toLocaleString()}đ
+                      {formatVnd(device.depositAmount)}
                     </p>
                   </div>
                 </div>
@@ -733,12 +782,12 @@ export default function ProductDetailPage() {
                 <div className="space-y-4">
                   <label className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wider">
                     <CalendarIcon className="w-4 h-4 text-indigo-600" />
-                    Select Rental Period
+                    {text("Chọn thời gian thuê", "Select rental period")}
                   </label>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <p className="text-[10px] font-bold text-slate-400 uppercase ml-1.5">
-                        Start Date
+                        {text("Ngày bắt đầu", "Start date")}
                       </p>
                       <input
                         type="date"
@@ -754,7 +803,7 @@ export default function ProductDetailPage() {
                     </div>
                     <div className="space-y-2">
                       <p className="text-[10px] font-bold text-slate-400 uppercase ml-1.5">
-                        End Date
+                        {text("Ngày kết thúc", "End date")}
                       </p>
                       <input
                         type="date"
@@ -772,10 +821,10 @@ export default function ProductDetailPage() {
                   <div className="flex items-center justify-between">
                     <label className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wider">
                       <Package className="w-4 h-4 text-indigo-600" />
-                      Rent Quantity
+                      {text("Số lượng thuê", "Quantity")}
                     </label>
                     <span className="text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-widest border text-indigo-600 bg-indigo-50 border-indigo-100">
-                      Available: {device.stockQuantity}
+                      {text("Có sẵn", "Available")}: {device.stockQuantity}
                     </span>
                   </div>
                   <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-2xl border border-slate-100 w-fit">
@@ -820,7 +869,7 @@ export default function ProductDetailPage() {
                 <div className="space-y-4">
                   <label className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wider">
                     <PlusCircle className="w-4 h-4 text-indigo-600" />
-                    Essential Add-ons
+                    {text("Phụ kiện đi kèm", "Add-ons")}
                   </label>
                   <div className="space-y-3">
                     {addonsList.map((a) => {
@@ -848,11 +897,11 @@ export default function ProductDetailPage() {
                               {a.name}
                             </p>
                             <p className="text-[10px] text-slate-400 uppercase font-bold mt-0.5">
-                              Compatible Gear
+                              {text("Thiết bị tương thích", "Compatible devices")}
                             </p>
                           </div>
                           <span className="font-bold text-indigo-600 whitespace-nowrap">
-                            +{a.rentPrice?.perDay.toLocaleString()}đ
+                            +{formatVnd(a.rentPrice?.perDay)}
                           </span>
                         </button>
                       );
@@ -865,10 +914,11 @@ export default function ProductDetailPage() {
                   <div className="pt-4 border-t border-dashed border-slate-200">
                     <div className="flex justify-between items-center">
                       <div className="text-sm font-bold text-slate-500 uppercase tracking-widest">
-                        Estimated Total ({days} days)
+                        {text("Tổng cộng dự kiến", "Estimated total")} ({days}{" "}
+                        {text("ngày", "days")})
                       </div>
                       <div className="text-xl sm:text-2xl font-black text-indigo-600">
-                        {totalPrice.toLocaleString()}đ
+                        {formatVnd(totalPrice)}
                       </div>
                     </div>
                   </div>
@@ -882,7 +932,7 @@ export default function ProductDetailPage() {
                     className="flex items-center justify-center gap-2 py-3.5 rounded-2xl border-2 border-slate-200 text-slate-700 font-bold hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                   >
                     <ShoppingCart className="w-5 h-5" />
-                    Add to Cart
+                    {text("Thêm vào giỏ", "Add to cart")}
                   </button>
                   <button
                     onClick={handleBuyNow}
@@ -890,7 +940,7 @@ export default function ProductDetailPage() {
                     className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-slate-900 text-white font-bold hover:bg-black shadow-lg shadow-slate-200/50 transition-all active:scale-95 disabled:bg-slate-400 disabled:shadow-none disabled:cursor-not-allowed text-sm"
                   >
                     <Zap className="w-5 h-5 fill-current" />
-                    Rent Now
+                    {text("Thuê ngay", "Rent now")}
                   </button>
                 </div>
               </div>
@@ -899,15 +949,15 @@ export default function ProductDetailPage() {
               <div className="grid grid-cols-3 gap-4">
                 <Criteria
                   icon={<Shield className="w-5 h-5" />}
-                  text="Pro Insurance"
+                  text={text("Bảo hiểm Pro", "Pro insurance")}
                 />
                 <Criteria
                   icon={<Package className="w-5 h-5" />}
-                  text="Same-day Delivery"
+                  text={text("Giao trong ngày", "Same-day delivery")}
                 />
                 <Criteria
                   icon={<CheckCircle className="w-5 h-5" />}
-                  text="Tech Inspected"
+                  text={text("Kiểm định kỹ thuật", "Tech inspection")}
                 />
               </div>
             </div>
@@ -919,7 +969,7 @@ export default function ProductDetailPage() {
             <div className="lg:col-span-5">
               <div className="sticky top-24 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-5">
                 <h3 className="text-xl font-bold text-slate-900 font-display">
-                  Technical Specs
+                  {text("Thông số kỹ thuật", "Specifications")}
                 </h3>
                 <div className="space-y-3">
                   {device.specs &&
@@ -950,14 +1000,18 @@ export default function ProductDetailPage() {
               <div className="flex items-end justify-between">
                 <div>
                   <h2 className="text-3xl font-bold text-slate-900 font-display">
-                    Similar Equipment
+                    {text("Thiết bị tương tự", "Similar devices")}
                   </h2>
                   <p className="text-slate-500 font-medium mt-1.5 text-[15px]">
-                    Recommended gear based on this production kit.
+                    {text(
+                      "Gợi ý thiết bị dựa trên bộ quay phim này.",
+                      "Suggested devices based on this kit."
+                    )}
                   </p>
                 </div>
                 <button className="text-indigo-600 font-bold hover:underline flex items-center gap-2 text-sm">
-                  View All <ArrowLeft className="w-4 h-4 rotate-180" />
+                  {text("Xem tất cả", "View all")}{" "}
+                  <ArrowLeft className="w-4 h-4 rotate-180" />
                 </button>
               </div>
 
@@ -994,9 +1048,9 @@ export default function ProductDetailPage() {
                       </div>
                       <div className="flex justify-between items-center pt-3 border-t border-slate-50">
                         <div className="text-indigo-600 font-black text-base">
-                          {d.rentPrice?.perDay.toLocaleString()}đ
+                          {formatVnd(d.rentPrice?.perDay)}
                           <span className="text-[10px] text-slate-400 font-bold uppercase ml-1">
-                            / day
+                            {text("/ ngày", "/ day")}
                           </span>
                         </div>
                         <div className="w-9 h-9 rounded-full bg-slate-900 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1026,25 +1080,27 @@ export default function ProductDetailPage() {
             <div className="flex items-center gap-3 mb-4">
               <AlertCircle className="w-7 h-7 text-rose-500" />
               <h3 className="text-xl font-bold text-slate-900">
-                Xác nhận xóa review
+                {text("Xác nhận xóa review", "Confirm delete review")}
               </h3>
             </div>
             <p className="text-slate-600 mb-7 leading-relaxed text-[15px]">
-              Bạn có chắc chắn muốn xóa đánh giá này? Hành động này không thể
-              hoàn tác.
+              {text(
+                "Bạn có chắc chắn muốn xóa đánh giá này? Hành động này không thể hoàn tác.",
+                "Are you sure you want to delete this review? This action cannot be undone."
+              )}
             </p>
             <div className="flex gap-4 justify-end">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
                 className="px-6 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors"
               >
-                Hủy
+                {text("Hủy", "Cancel")}
               </button>
               <button
                 onClick={confirmDeleteReview}
                 className="px-6 py-2.5 bg-rose-600 text-white font-medium rounded-xl hover:bg-rose-700 transition-colors active:scale-95 shadow-sm"
               >
-                Xóa review
+                {text("Xóa review", "Delete review")}
               </button>
             </div>
           </div>

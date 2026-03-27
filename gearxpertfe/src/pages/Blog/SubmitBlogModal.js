@@ -196,10 +196,10 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                             
                             <div className="relative z-10 flex items-center justify-between">
                                 <div>
-                                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-2 block">Content Creator Hub</span>
+                                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-2 block">Trung tâm Sáng tạo Nội dung</span>
                                     <h2 className="font-display text-3xl md:text-4xl font-black text-white leading-tight">
-                                        {initialData ? "Refine Your" : "Elevate Your"} <br />
-                                        <span className="text-primary italic">Insight</span>
+                                        {initialData ? "Chỉnh sửa" : "Nâng tầm"} <br />
+                                        <span className="text-primary italic">Bài viết</span>
                                     </h2>
                                 </div>
                                 <button
@@ -217,24 +217,24 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                             <div className="space-y-6">
                                 <div className="flex items-center gap-3 mb-2">
                                     <div className="h-8 w-1 bg-primary rounded-full" />
-                                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">01. Core Identity</h3>
+                                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">01. Thông tin cơ bản</h3>
                                 </div>
                                 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div className="md:col-span-2 group">
-                                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 mb-2 block ml-1 transition-colors group-focus-within:text-primary">Article Title</label>
+                                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 mb-2 block ml-1 transition-colors group-focus-within:text-primary">Tiêu đề bài viết</label>
                                         <input
                                             name="title"
                                             value={submitFormData.title}
                                             onChange={handleInputChange}
                                             className="w-full rounded-2xl border-2 border-slate-100 bg-white px-5 py-4 text-sm font-medium outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/5 transition-all duration-300 shadow-sm"
-                                            placeholder="What's the big story?"
+                                            placeholder="Câu chuyện của bạn là gì?"
                                             required
                                         />
                                     </div>
 
                                     <div className="group" ref={dropdownRef}>
-                                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 mb-2 block ml-1 transition-colors group-focus-within:text-primary">Category</label>
+                                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 mb-2 block ml-1 transition-colors group-focus-within:text-primary">Chuyên mục</label>
                                         <div className="relative">
                                             <button
                                                 type="button"
@@ -245,7 +245,7 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                                             >
                                                 <div className="flex items-center gap-3">
                                                     <div className={`h-2.5 w-2.5 rounded-full ${CATEGORY_MAP[submitFormData.category]?.color || "bg-primary"}`} />
-                                                    <span className="text-slate-700">{CATEGORY_MAP[submitFormData.category]?.label || "Select Category"}</span>
+                                                    <span className="text-slate-700">{CATEGORY_MAP[submitFormData.category]?.label || "Chọn Chuyên mục"}</span>
                                                 </div>
                                                 <span className={`material-symbols-outlined text-slate-400 transition-transform duration-300 ${isCategoryOpen ? "rotate-180" : ""}`}>expand_more</span>
                                             </button>
@@ -293,9 +293,9 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                                 <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center gap-3">
                                         <div className="h-8 w-1 bg-accent-cyan rounded-full" />
-                                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">02. Visual Narrative</h3>
+                                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">02. Hình ảnh minh họa</h3>
                                     </div>
-                                    <span className="text-[10px] font-bold text-slate-400 px-3 py-1 bg-slate-100 rounded-full">{selectedImages.length} {selectedImages.length === 1 ? 'image' : 'images'} added</span>
+                                    <span className="text-[10px] font-bold text-slate-400 px-3 py-1 bg-slate-100 rounded-full">{selectedImages.length} {selectedImages.length === 1 ? 'ảnh' : 'ảnh'} đã thêm</span>
                                 </div>
 
                                 <div className="space-y-4">
@@ -324,8 +324,8 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                                                 <span className="material-symbols-outlined text-3xl">add_photo_alternate</span>
                                             </div>
                                             <div className="text-center">
-                                                <p className="text-sm font-black text-slate-700 tracking-tight">Drop your visual story here</p>
-                                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">High-quality PNG, JPG, or WEBP</p>
+                                                <p className="text-sm font-black text-slate-700 tracking-tight">Kéo thả hình ảnh vào đây</p>
+                                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Định dạng PNG, JPG, hoặc WEBP chất lượng cao</p>
                                             </div>
                                         </div>
                                     </div>
@@ -343,7 +343,7 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                                                     <img src={img.preview} alt="preview" className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-700" />
                                                     {idx === 0 && (
                                                         <div className="absolute top-2 left-2 bg-primary/90 backdrop-blur-md text-white text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-widest shadow-lg">
-                                                            Cover
+                                                            Ảnh bìa
                                                         </div>
                                                     )}
                                                     <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -366,14 +366,14 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                             <div className="space-y-6">
                                 <div className="flex items-center gap-3 mb-2">
                                     <div className="h-8 w-1 bg-emerald-400 rounded-full" />
-                                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">03. The Narrative</h3>
+                                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">03. Nội dung chi tiết</h3>
                                 </div>
 
                                 <div className="grid grid-cols-1 gap-8">
                                     <div className="group">
                                         <div className="flex justify-between items-center mb-2">
-                                            <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 ml-1 transition-colors group-focus-within:text-primary">Executive Summary</label>
-                                            <span className="text-[10px] font-bold text-slate-300 uppercase letter-spacing-1">Brief & Hook</span>
+                                            <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 ml-1 transition-colors group-focus-within:text-primary">Tóm tắt nội dung</label>
+                                            <span className="text-[10px] font-bold text-slate-300 uppercase letter-spacing-1">Ngắn gọn & Hấp dẫn</span>
                                         </div>
                                         <textarea
                                             name="description"
@@ -381,16 +381,16 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                                             onChange={handleInputChange}
                                             rows="3"
                                             className="w-full rounded-2xl border-2 border-slate-100 bg-white px-5 py-4 text-sm font-medium outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/5 transition-all duration-300 shadow-sm resize-none"
-                                            placeholder="Summarize the core impact..."
+                                            placeholder="Tóm tắt tác động cốt lõi của bài viết..."
                                             required
                                         />
                                     </div>
 
                                     <div className="group">
                                         <div className="flex justify-between items-center mb-2">
-                                            <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 ml-1 transition-colors group-focus-within:text-primary">Full Editorial Content</label>
+                                            <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 ml-1 transition-colors group-focus-within:text-primary">Nội dung chi tiết</label>
                                             <div className="flex items-center gap-2">
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Reading: <span className="text-primary">{submitFormData.readTime} MIN</span></span>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Đọc trong: <span className="text-primary">{submitFormData.readTime} PHÚT</span></span>
                                             </div>
                                         </div>
                                         <div className="rounded-[2rem] overflow-hidden border-2 border-slate-100 bg-white shadow-sm ring-primary/5 focus-within:ring-4 transition-all overflow-hidden">
@@ -433,7 +433,7 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                             <div className="pt-8 flex flex-col md:flex-row items-center gap-4">
                                 <div className="space-y-4 w-full">
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] text-center">
-                                        Your post will be reviewed by an admin before publication
+                                        Nội dung của bạn sẽ được quản trị viên kiểm duyệt trước khi xuất bản
                                     </p>
                                     <button
                                         type="submit"
@@ -445,12 +445,12 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                                         {isSubmitting ? (
                                             <>
                                                 <div className="h-6 w-6 border-3 border-white/20 border-t-white rounded-full animate-spin" />
-                                                <span className="uppercase tracking-widest">{initialData ? "Refining Data..." : "Launching Insight..."}</span>
+                                                <span className="uppercase tracking-widest">{initialData ? "Đang cập nhật..." : "Đang xuất bản..."}</span>
                                             </>
                                         ) : (
                                             <>
                                                 <span className="material-symbols-outlined text-2xl">{initialData ? "auto_fix_high" : "rocket_launch"}</span>
-                                                <span className="uppercase tracking-[0.2em]">{initialData ? "Update Publication" : "Launch Production"}</span>
+                                                <span className="uppercase tracking-[0.2em]">{initialData ? "Cập nhật bài viết" : "Xuất bản bài viết"}</span>
                                             </>
                                         )}
                                     </div>
@@ -462,7 +462,7 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                                     onClick={handleClose}
                                     className="md:w-auto w-full px-10 py-6 rounded-[1.5rem] bg-white border-2 border-slate-100 text-slate-400 font-black uppercase tracking-widest text-sm hover:bg-slate-50 hover:text-slate-600 transition-all active:scale-95"
                                 >
-                                    Cancel
+                                    Hủy
                                 </button>
                             </div>
                         </form>

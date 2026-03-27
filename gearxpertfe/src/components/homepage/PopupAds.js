@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiX, FiExternalLink } from 'react-icons/fi';
 import { getApprovedPopups } from '../../service/ApiService/AdvertisementApi';
+import { useI18n } from '../../i18n/I18nContext';
 
 export default function PopupAds() {
+    const { text } = useI18n();
     const [isOpen, setIsOpen] = useState(false);
     const [ad, setAd] = useState(null);
 
@@ -112,7 +114,7 @@ export default function PopupAds() {
                                     whileTap={{ scale: 0.95 }}
                                     className="block w-full py-4 bg-white text-slate-900 rounded-2xl font-bold shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)] transition-all flex items-center justify-center gap-2 group cursor-pointer"
                                 >
-                                    <span>Khám phá ngay</span>
+                                    <span>{text("Khám phá ngay", "Explore now")}</span>
                                     <FiExternalLink className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                                 </motion.a>
                             </div>

@@ -20,11 +20,13 @@ import {
 
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
+import { useI18n } from "../../i18n/I18nContext";
 
 export default function BecomeSupplierPage() {
     const navigate = useNavigate();
     const userAccount = useSelector((state) => state.user.account);
     const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
+    const { t, locale } = useI18n();
 
     const [agreed, setAgreed] = useState(false);
     const [signature, setSignature] = useState("");
@@ -38,22 +40,22 @@ export default function BecomeSupplierPage() {
 
     useEffect(() => {
         if (!isAuthenticated) {
-            toast.warning("Vui lòng đăng nhập để tiếp tục");
+            toast.warning(t("becomeSupplier.requireLogin"));
             navigate("/signin");
             return;
         }
 
         if (userAccount?.role === "SUPPLIER") {
-            toast.info("Bạn đã là Nhà cung cấp của GearXpert rồi!");
+            toast.info(t("becomeSupplier.alreadySupplier"));
             navigate("/supplier/dashboard");
             return;
         }
 
         if (!userAccount?.isVerifiedEkyc) {
-            toast.error("Vui lòng xác thực danh tính (eKYC) trước khi ký hợp đồng!");
+            toast.error(t("becomeSupplier.requireEkyc"));
             navigate("/profile");
         }
-    }, [isAuthenticated, userAccount, navigate]);
+    }, [isAuthenticated, userAccount, navigate, t]);
 
     useEffect(() => {
         if (userAccount?.fullName && !signature) {
@@ -72,20 +74,20 @@ export default function BecomeSupplierPage() {
 
     const handlePreviewContract = async () => {
         if (!hasScrolledToBottom) {
-            return toast.warning("Vui lòng cuộn xuống đọc hết điều khoản trước khi ký.");
+            return toast.warning(t("becomeSupplier.mustScroll"));
         }
         if (!agreed) {
-            return toast.error("Bạn cần đồng ý với điều khoản dịch vụ để tiếp tục.");
+            return toast.error(t("becomeSupplier.mustAgree"));
         }
         if (!signatureDataUrl) {
-            return toast.error("Vui lòng ký tên điện tử (vẽ chữ ký) trước khi xem hợp đồng.");
+            return toast.error(t("becomeSupplier.mustSignBeforePreview"));
         }
 
         setIsPreviewLoading(true);
         try {
             const payload = {
                 signerName: signature || userAccount?.fullName || "",
-                currentDate: new Date().toLocaleDateString("vi-VN"),
+                currentDate: new Date().toLocaleDateString(locale),
                 signatureDataUrl,
             };
             const blob = await previewSupplierContract(payload);
@@ -93,7 +95,7 @@ export default function BecomeSupplierPage() {
             window.open(url, "_blank");
         } catch (error) {
             console.error("Preview supplier contract error:", error);
-            toast.error(error.response?.data?.message || "Không thể tạo bản xem trước hợp đồng.");
+            toast.error(error.response?.data?.message || t("becomeSupplier.previewFail"));
         } finally {
             setIsPreviewLoading(false);
         }
@@ -103,19 +105,19 @@ export default function BecomeSupplierPage() {
         e.preventDefault();
 
         if (!hasScrolledToBottom) {
-            toast.error("Vui lòng cuộn xuống đọc hết điều khoản trước khi ký.");
+            toast.error(t("becomeSupplier.mustScroll"));
             return;
         }
         if (!agreed) {
-            toast.error("Bạn cần đồng ý với điều khoản dịch vụ để tiếp tục.");
+            toast.error(t("becomeSupplier.mustAgree"));
             return;
         }
         if (!signature) {
-            toast.error("Vui lòng nhập họ tên xác nhận.");
+            toast.error(t("becomeSupplier.mustEnterName"));
             return;
         }
         if (!signatureDataUrl) {
-            toast.error("Vui lòng ký tên điện tử (vẽ chữ ký) trước khi gửi yêu cầu.");
+            toast.error(t("becomeSupplier.mustSignBeforeSubmit"));
             return;
         }
 
@@ -131,14 +133,14 @@ export default function BecomeSupplierPage() {
                 if (response.signedPdfUrl) {
                     window.open(response.signedPdfUrl, "_blank");
                 }
-                toast.success("Gửi yêu cầu hợp đồng thành công! Vui lòng chờ Admin phê duyệt.");
+                toast.success(t("becomeSupplier.submitSuccess"));
                 navigate("/profile");
             } else {
-                toast.error(response.message || "Có lỗi xảy ra, vui lòng thử lại.");
+                toast.error(response.message || t("becomeSupplier.submitFail"));
             }
         } catch (error) {
             console.error("Error submitting contract:", error);
-            toast.error(error.response?.data?.message || "Lỗi kết nối đến máy chủ.");
+            toast.error(error.response?.data?.message || t("becomeSupplier.submitFail"));
         } finally {
             setLoading(false);
         }
@@ -324,24 +326,24 @@ export default function BecomeSupplierPage() {
                                                     const dataUrl =
                                                         canvasToUse.toDataURL("image/png");
                                                     setSignatureDataUrl(dataUrl);
-                                                    toast.success("Đã lưu chữ ký thành công!");
+                                                    toast.success(t("becomeSupplier.signatureSaved"));
                                                 } else {
                                                     toast.warning(
-                                                        "Vui lòng vẽ chữ ký trước khi xác nhận!"
+                                                        t("becomeSupplier.mustDrawSignature")
                                                     );
                                                 }
                                             }}
                                             disabled={!hasScrolledToBottom}
                                             className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                                         >
-                                            Xác nhận chữ ký
+                                            {t("becomeSupplier.confirmSignature")}
                                         </button>
                                     </div>
 
                                     {signatureDataUrl && (
                                         <div className="mt-4 text-center">
                                             <p className="text-xs font-bold text-emerald-700 mb-2">
-                                                Chữ ký đã lưu:
+                                                {t("becomeSupplier.savedSignature")}
                                             </p>
                                             <img
                                                 src={signatureDataUrl}
@@ -362,7 +364,7 @@ export default function BecomeSupplierPage() {
                                 className="w-full sm:w-auto px-8 py-4 border border-slate-200 bg-slate-50 rounded-2xl text-slate-600 font-bold hover:bg-slate-100 hover:text-slate-900 transition-all flex items-center justify-center gap-2"
                             >
                                 <FiX size={18} />
-                                Hủy bỏ
+                                {t("becomeSupplier.cancel")}
                             </button>
                             <button
                                 type="button"
@@ -373,12 +375,12 @@ export default function BecomeSupplierPage() {
                                 {isPreviewLoading ? (
                                     <>
                                         <div className="w-5 h-5 border-2 border-indigo-300 border-t-indigo-700 rounded-full animate-spin"></div>
-                                        Đang tạo bản xem trước...
+                                        {t("becomeSupplier.previewing")}
                                     </>
                                 ) : (
                                     <>
                                         <FiEye size={18} />
-                                        Xem trước hợp đồng
+                                        {t("becomeSupplier.previewContract")}
                                     </>
                                 )}
                             </button>
@@ -390,11 +392,11 @@ export default function BecomeSupplierPage() {
                                 {loading ? (
                                     <>
                                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                        Đang xử lý...
+                                        {t("becomeSupplier.processing")}
                                     </>
                                 ) : (
                                     <>
-                                        Ký & Gửi yêu cầu
+                                        {t("becomeSupplier.signAndSubmit")}
                                         <FiArrowRight size={18} className="group-hover/btn:translate-x-1 transition-transform" />
                                     </>
                                 )}

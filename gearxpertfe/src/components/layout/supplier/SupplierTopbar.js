@@ -7,45 +7,47 @@ import { performLogout } from "../../../utils/logout";
 import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead } from "../../../service/ApiService/notificationApi";
 import { useSocket } from "../../../SocketContext";
 import logo from "../../../assets/logoGearXpert.png";
+import LanguageSwitcher from "../../common/LanguageSwitcher";
+import { useI18n } from "../../../i18n/I18nContext";
 
-const timeAgo = (date) => {
+const timeAgo = (date, { t, locale }) => {
   if (!date) return "";
   const s = Math.floor((Date.now() - new Date(date)) / 1000);
-  if (s < 60) return "Vừa xong";
+  if (s < 60) return t("timeAgo.justNow");
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m} phút trước`;
+  if (m < 60) return t("timeAgo.minutesAgo", { count: m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h} giờ trước`;
+  if (h < 24) return t("timeAgo.hoursAgo", { count: h });
   const d = Math.floor(h / 24);
-  if (d < 30) return `${d} ngày trước`;
-  return new Date(date).toLocaleDateString("vi-VN");
+  if (d < 30) return t("timeAgo.daysAgo", { count: d });
+  return new Date(date).toLocaleDateString(locale);
 };
 
 // Rank color mapping
 const RANK_STYLES = {
   BRONZE: {
     border: "border-[3px] border-[#cd7f32] animate-spin-slow",
-    label: "Bronze",
+    label: "Đồng",
     color: "#cd7f32"
   },
   SILVER: {
     border: "border-[3px] border-[#c0c0c0] animate-spin-slow",
-    label: "Silver",
+    label: "Bạc",
     color: "#c0c0c0"
   },
   GOLD: {
     border: "border-[3px] border-[#ffd700] animate-spin-slow",
-    label: "Gold",
+    label: "Vàng",
     color: "#ffd700"
   },
   PLATINUM: {
     border: "border-[3px] border-[#e5e4e2] animate-spin-slow",
-    label: "Platinum",
+    label: "Bạch kim",
     color: "#e5e4e2"
   },
   DIAMOND: {
     border: "border-[3px] border-[#00bfff] animate-spin-slow",
-    label: "Diamond",
+    label: "Kim cương",
     color: "#00bfff"
   }
 };
@@ -55,6 +57,7 @@ export default function SupplierTopbar({ onMenuOpen, me }) {
   const navigate = useNavigate();
   const account = useSelector((state) => state.user.account);
   const { socket } = useSocket();
+  const { t, locale } = useI18n();
 
   const [notifications, setNotifications] = useState([]);
   const [showPanel, setShowPanel] = useState(false);
@@ -150,7 +153,7 @@ export default function SupplierTopbar({ onMenuOpen, me }) {
           <img src={logo} alt="GearXpert Logo" className="h-9 w-auto object-contain" />
           <div className="hidden sm:block">
             <div className="text-sm font-bold text-slate-900 font-display">GearXpert</div>
-            <div className="text-xs text-slate-500 font-medium">Supplier Portal</div>
+            <div className="text-xs text-slate-500 font-medium">{t("topbar.supplierPortal")}</div>
           </div>
         </Link>
 
@@ -159,12 +162,13 @@ export default function SupplierTopbar({ onMenuOpen, me }) {
           <FiSearch className="text-slate-400" size={18} />
           <input
             className="w-full bg-transparent outline-none placeholder:text-slate-400 text-sm"
-            placeholder="Search devices, rentals..."
+            placeholder={t("topbar.searchSupplierPlaceholder")}
           />
         </div>
 
         {/* Right actions */}
         <div className="flex items-center gap-3">
+          <LanguageSwitcher className="hidden md:inline-flex" />
           {/* Notification bell */}
           <div className="relative" ref={panelRef}>
             <button
@@ -183,17 +187,17 @@ export default function SupplierTopbar({ onMenuOpen, me }) {
             {showPanel && (
               <div className="absolute right-0 top-12 w-80 max-h-[420px] bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-                  <span className="font-bold text-sm text-slate-800">Thông báo</span>
+                  <span className="font-bold text-sm text-slate-800">{t("topbar.notifications")}</span>
                   {unreadCount > 0 && (
                     <button onClick={handleMarkAllRead} className="text-xs text-primary font-semibold hover:underline flex items-center gap-1">
-                      <FiCheck size={12} /> Đọc tất cả
+                      <FiCheck size={12} /> {t("topbar.markAllRead")}
                     </button>
                   )}
                 </div>
 
                 <div className="overflow-y-auto max-h-[360px]">
                   {notifications.length === 0 ? (
-                    <p className="text-center text-sm text-slate-400 py-10">Không có thông báo</p>
+                    <p className="text-center text-sm text-slate-400 py-10">{t("topbar.noNotifications")}</p>
                   ) : (
                     notifications.map((n) => (
                       <button
@@ -211,7 +215,7 @@ export default function SupplierTopbar({ onMenuOpen, me }) {
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-semibold text-slate-800 truncate">{n.title}</p>
                           <p className="text-xs text-slate-500 line-clamp-2">{n.message}</p>
-                          <p className="text-[10px] text-slate-400 mt-1">{timeAgo(n.createdAt)}</p>
+                          <p className="text-[10px] text-slate-400 mt-1">{timeAgo(n.createdAt, { t, locale })}</p>
                         </div>
                         {!n.isRead && <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-2" />}
                       </button>
@@ -255,7 +259,7 @@ export default function SupplierTopbar({ onMenuOpen, me }) {
             aria-label="Logout"
           >
             <FiLogOut size={18} />
-            <span className="hidden lg:inline text-sm font-semibold">Logout</span>
+            <span className="hidden lg:inline text-sm font-semibold">{t("topbar.logout")}</span>
           </button>
         </div>
       </div>
