@@ -37,6 +37,7 @@ const smartgearRoutes = require("./Routes/SmartGearRoutes");
 const supplierRouter = require("./Routes/SupplierRoutes");
 const supplierContractRouter = require("./Routes/SupplierContractRoutes");
 const operationLogRouter = require("./Routes/OperationLogRoutes");
+const handoverRouter = require("./Routes/HandoverRoutes");
 const { startAutoConfirmJob } = require("./jobs/autoConfirmDelivery");
 const { startAutoReturnJob } = require("./jobs/autoReturnRentals");
 const routerReview = require("./Routes/ReviewRoutes");
@@ -94,6 +95,7 @@ app.use("/api/suppliers", supplierRouter);
 app.use("/api/suppliers-contract", supplierContractRouter);
 
 app.use("/api/operation-logs", operationLogRouter);
+app.use("/api/handovers", handoverRouter);
 app.use("/api/reviews", routerReview);
 app.use("/", googleAuthRouter);
 

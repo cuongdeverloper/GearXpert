@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useSelector } from 'react-redux';
 import {
   Truck, PackageCheck, Wrench,
   AlertTriangle, CheckCircle, X, Camera, MapPin, Phone, FileText, XCircle,
 } from 'lucide-react';
-import { getDeliveringRentals, getReturningRentals, confirmPickup, confirmDelivery, confirmReturn } from '../../../service/ApiService/RentalApi';
+import { getDeliveringRentals, getReturningRentals, claimDeliveryTask, confirmPickup, confirmDelivery, confirmReturn } from '../../../service/ApiService/RentalApi';
 import { createStaffDeliveryIssue, createStaffReturnIssue } from '../../../service/ApiService/ReportApi';
 import { logOperationAction } from '../../../service/ApiService/OperationLogApi';
 
@@ -23,6 +24,8 @@ const mapRentalToTask = (rental) => {
     address: rental.deliveryAddress?.fullAddress || '—',
     device: deviceLabel,
     note: rental.notes || 'Không có ghi chú',
+    deliveryTaskId: rental.deliveryTask?._id || null,
+    assignedOperationStaffId: rental.assignedOperationStaffId?._id || rental.assignedOperationStaffId || null,
     rentalData: rental,
   };
 };
@@ -43,11 +46,14 @@ const mapRentalToReturnTask = (rental) => {
     address: rental.deliveryAddress?.fullAddress || '—',
     device: deviceLabel,
     note: rental.notes || 'Không có ghi chú',
+    assignedOperationStaffId: rental.assignedOperationStaffId?._id || rental.assignedOperationStaffId || null,
     rentalData: rental,
   };
 };
 
-export default function TasksTab() {
+export default function TasksTab({ onOpenHandover }) {
+  const account = useSelector((state) => state.user.account);
+  const currentStaffId = account?.id;
   const [activeTab, setActiveTab] = useState('all');
   const [tasks, setTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
@@ -56,6 +62,7 @@ export default function TasksTab() {
   const [pickupLoading, setPickupLoading] = useState(false);
   const [completionLoading, setCompletionLoading] = useState(false);
   const [returnLoading, setReturnLoading] = useState(false);
+  const [claimLoading, setClaimLoading] = useState(false);
 
   // Delivery issue form state
   const [issueForm, setIssueForm] = useState({ issueType: '', description: '', files: [] });
@@ -107,18 +114,28 @@ export default function TasksTab() {
 
   const handleConfirmPickup = async () => {
     if (!selectedTask || pickupLoading) return;
+
+    if (selectedTask.type === 'delivery' && selectedTask.assignedOperationStaffId && String(selectedTask.assignedOperationStaffId) !== String(currentStaffId)) {
+      return alert('Đơn này đã được lock cho staff khác.');
+    }
+
     setPickupLoading(true);
     try {
       await confirmPickup(selectedTask.rentalId);
       const now = new Date().toISOString();
       setTasks(prev => prev.map(t =>
         t.id === selectedTask.id
-          ? { ...t, rentalData: { ...t.rentalData, pickedUpAt: now } }
+          ? {
+              ...t,
+              rentalData: { ...t.rentalData, pickedUpAt: now },
+              assignedOperationStaffId: t.assignedOperationStaffId || currentStaffId,
+            }
           : t
       ));
       setSelectedTask(prev => ({
         ...prev,
         rentalData: { ...prev.rentalData, pickedUpAt: now },
+        assignedOperationStaffId: prev.assignedOperationStaffId || currentStaffId,
       }));
       logOperationAction('CONFIRM_PICKUP', 'RENTAL', selectedTask.rentalId, {
         device: selectedTask.device,
@@ -135,6 +152,11 @@ export default function TasksTab() {
 
   const handleConfirmDelivery = async () => {
     if (!selectedTask || completionLoading) return;
+
+    if (selectedTask.type === 'delivery' && selectedTask.assignedOperationStaffId && String(selectedTask.assignedOperationStaffId) !== String(currentStaffId)) {
+      return alert('Đơn này đã được lock cho staff khác.');
+    }
+
     setCompletionLoading(true);
     try {
       await confirmDelivery(selectedTask.rentalId);
@@ -164,6 +186,11 @@ export default function TasksTab() {
 
   const handleConfirmReturn = async () => {
     if (!selectedTask || returnLoading) return;
+
+    if (selectedTask.type === 'return' && selectedTask.assignedOperationStaffId && String(selectedTask.assignedOperationStaffId) !== String(currentStaffId)) {
+      return alert('Đơn thu hồi này đã được lock cho staff khác.');
+    }
+
     setReturnLoading(true);
     try {
       await confirmReturn(selectedTask.rentalId);
@@ -188,6 +215,10 @@ export default function TasksTab() {
     if (!issueForm.issueType) return alert('Vui lòng chọn phân loại sự cố.');
     if (!issueForm.description.trim()) return alert('Vui lòng mô tả chi tiết sự cố.');
     if (!selectedTask) return;
+
+    if (selectedTask.assignedOperationStaffId && String(selectedTask.assignedOperationStaffId) !== String(currentStaffId)) {
+      return alert('Đơn này đã được lock cho staff khác.');
+    }
 
     setIssueSubmitting(true);
     try {
@@ -223,6 +254,10 @@ export default function TasksTab() {
     if (!returnIssueForm.description.trim()) return alert('Vui lòng mô tả chi tiết sự cố.');
     if (!selectedTask) return;
 
+    if (selectedTask.assignedOperationStaffId && String(selectedTask.assignedOperationStaffId) !== String(currentStaffId)) {
+      return alert('Đơn thu hồi này đã được lock cho staff khác.');
+    }
+
     setReturnIssueSubmitting(true);
     try {
       const formData = new FormData();
@@ -256,6 +291,60 @@ export default function TasksTab() {
   const filteredTasks = tasks.filter(task =>
     activeTab === 'all' ? true : task.type === activeTab
   );
+
+  const isSelectedLockedByOther =
+    selectedTask?.assignedOperationStaffId &&
+    String(selectedTask.assignedOperationStaffId) !== String(currentStaffId);
+
+  const handleClaimTask = async () => {
+    if (!selectedTask || selectedTask.type !== 'delivery') return;
+    if (!selectedTask.deliveryTaskId) {
+      return alert('Task giao hàng chưa sẵn sàng để nhận.');
+    }
+
+    if (isSelectedLockedByOther) {
+      return alert('Đơn đã được lock cho staff khác.');
+    }
+
+    setClaimLoading(true);
+    try {
+      await claimDeliveryTask(selectedTask.deliveryTaskId);
+
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === selectedTask.id
+            ? {
+                ...t,
+                assignedOperationStaffId: currentStaffId,
+                rentalData: {
+                  ...t.rentalData,
+                  assignedOperationStaffId: currentStaffId,
+                },
+              }
+            : t
+        )
+      );
+
+      setSelectedTask((prev) =>
+        prev
+          ? {
+              ...prev,
+              assignedOperationStaffId: currentStaffId,
+              rentalData: {
+                ...prev.rentalData,
+                assignedOperationStaffId: currentStaffId,
+              },
+            }
+          : prev
+      );
+
+      alert('Nhận đơn thành công. Đơn đã lock cho bạn.');
+    } catch (err) {
+      alert(err?.response?.data?.message || 'Không thể nhận đơn');
+    } finally {
+      setClaimLoading(false);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -427,6 +516,13 @@ export default function TasksTab() {
                     <p className="text-xs text-slate-400 mb-1.5 font-semibold">Ghi chú từ hệ thống:</p>
                     <p className="text-[15px] font-medium text-slate-800">{selectedTask.note}</p>
                   </div>
+                  <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-200 text-sm font-semibold text-indigo-700">
+                    {selectedTask.assignedOperationStaffId
+                      ? isSelectedLockedByOther
+                        ? 'Đơn đang được staff khác xử lý'
+                        : 'Đơn đã lock cho bạn'
+                      : 'Đơn chưa có staff nhận'}
+                  </div>
                   <button className="w-full mt-2 py-2.5 bg-white border border-slate-200 rounded-xl text-[13px] text-slate-700 flex justify-center items-center gap-2 font-bold hover:bg-slate-50 transition-colors">
                     <FileText size={16} className="text-primary" /> Xem chi tiết biên bản/hợp đồng
                   </button>
@@ -435,10 +531,32 @@ export default function TasksTab() {
             </div>
 
             <div className="p-4 border-t border-slate-200 bg-white flex flex-col md:flex-row gap-3 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] shrink-0">
+              {selectedTask?.type === 'delivery' && !selectedTask?.assignedOperationStaffId && (
+                <button
+                  onClick={handleClaimTask}
+                  disabled={claimLoading}
+                  className="w-full md:w-auto px-6 py-3.5 bg-indigo-600 text-white rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-indigo-700 transition-colors disabled:opacity-60"
+                >
+                  <PackageCheck size={18} /> {claimLoading ? 'Đang nhận đơn...' : 'Nhận đơn'}
+                </button>
+              )}
+              {selectedTask?.type === 'delivery' && (
+                <button
+                  onClick={() => {
+                    onOpenHandover?.(selectedTask.rentalId);
+                    setSelectedTask(null);
+                  }}
+                  disabled={isSelectedLockedByOther || !selectedTask?.assignedOperationStaffId}
+                  className="w-full md:w-auto px-6 py-3.5 bg-indigo-50 text-indigo-700 rounded-xl font-bold flex justify-center items-center gap-2 border border-indigo-200 hover:bg-indigo-100 transition-colors disabled:opacity-50"
+                >
+                  <FileText size={18} /> Mở biên bản bàn giao
+                </button>
+              )}
               {selectedTask?.type === 'delivery' && selectedTask?.rentalData?.pickedUpAt && (
                 <button
                   onClick={handleOpenIssueModal}
-                  className="w-full md:w-auto px-6 py-3.5 bg-red-50 text-red-600 rounded-xl font-bold flex justify-center items-center gap-2 active:bg-red-100 transition-colors"
+                  disabled={isSelectedLockedByOther}
+                  className="w-full md:w-auto px-6 py-3.5 bg-red-50 text-red-600 rounded-xl font-bold flex justify-center items-center gap-2 active:bg-red-100 transition-colors disabled:opacity-50"
                 >
                   <AlertTriangle size={18} /> Ghi nhận sự cố
                 </button>
@@ -446,7 +564,7 @@ export default function TasksTab() {
               {selectedTask?.type === 'delivery' && !selectedTask?.rentalData?.pickedUpAt && (
                 <button
                   onClick={handleConfirmPickup}
-                  disabled={pickupLoading}
+                  disabled={pickupLoading || isSelectedLockedByOther || !selectedTask?.assignedOperationStaffId}
                   className="w-full md:w-auto px-6 py-3.5 bg-amber-500 text-white rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-amber-600 active:bg-amber-700 transition-colors disabled:opacity-60 shadow-md shadow-amber-200"
                 >
                   <PackageCheck size={18} /> {pickupLoading ? 'Đang xác nhận...' : 'Đã lấy hàng'}
@@ -465,7 +583,7 @@ export default function TasksTab() {
               {selectedTask?.type === 'delivery' && selectedTask?.rentalData?.pickedUpAt && !selectedTask?.rentalData?.deliveredAt && (
                 <button
                   onClick={handleConfirmDelivery}
-                  disabled={completionLoading}
+                  disabled={completionLoading || isSelectedLockedByOther}
                   className="w-full md:flex-1 py-3.5 bg-slate-900 text-white rounded-xl font-bold flex justify-center items-center gap-2 active:bg-slate-800 shadow-md disabled:opacity-60"
                 >
                   <CheckCircle size={18} /> {completionLoading ? 'Đang xác nhận...' : 'Xác nhận hoàn thành'}
@@ -475,7 +593,8 @@ export default function TasksTab() {
               {selectedTask?.type === 'return' && (
                 <button
                   onClick={handleOpenReturnIssueModal}
-                  className="w-full md:w-auto px-6 py-3.5 bg-red-50 text-red-600 rounded-xl font-bold flex justify-center items-center gap-2 active:bg-red-100 transition-colors border border-red-200"
+                  disabled={isSelectedLockedByOther}
+                  className="w-full md:w-auto px-6 py-3.5 bg-red-50 text-red-600 rounded-xl font-bold flex justify-center items-center gap-2 active:bg-red-100 transition-colors border border-red-200 disabled:opacity-50"
                 >
                   <AlertTriangle size={18} /> Ghi nhận sự cố
                 </button>
@@ -483,7 +602,7 @@ export default function TasksTab() {
               {selectedTask?.type === 'return' && (
                 <button
                   onClick={handleConfirmReturn}
-                  disabled={returnLoading}
+                  disabled={returnLoading || isSelectedLockedByOther}
                   className="w-full md:flex-1 py-3.5 bg-orange-500 text-white rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-orange-600 active:bg-orange-700 transition-colors disabled:opacity-60 shadow-md shadow-orange-200"
                 >
                   <PackageCheck size={18} /> {returnLoading ? 'Đang xác nhận...' : 'Xác nhận đã thu hồi'}

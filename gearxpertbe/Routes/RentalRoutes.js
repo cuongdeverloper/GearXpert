@@ -18,6 +18,7 @@ const {
   repaySingleRental,
   getDeliveringRentals,
   getReturningRentals,
+  claimDeliveryTask,
   confirmPickup,
   confirmDelivery,
   confirmReturn,
@@ -32,6 +33,7 @@ rentalRouter.get('/has-rented/:deviceId', checkAccessToken, hasRentedDevice);
 rentalRouter.post('/verify-payment', checkAccessToken, verifyRentalPayment);
 rentalRouter.get('/delivering', checkAccessToken, getDeliveringRentals);
 rentalRouter.get('/returning', checkAccessToken, getReturningRentals);
+rentalRouter.post('/delivery-tasks/:taskId/claim', checkAccessToken, claimDeliveryTask);
 rentalRouter.get('/supplier/:supplierId', checkAccessToken, getSupplierRentals);
 rentalRouter.get('/supplier/:supplierId/revenue', checkAccessToken, getSupplierRevenue);
 // Approve rental

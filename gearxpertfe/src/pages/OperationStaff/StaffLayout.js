@@ -1,14 +1,26 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, ShieldAlert, QrCode, Bell, User, History } from 'lucide-react';
+import { LayoutDashboard, ShieldAlert, QrCode, Bell, User, History, ClipboardCheck } from 'lucide-react';
 
 import TasksTab from './tabs/TasksTab';
 import QRTab from './tabs/QRTab';
 import ReportsTab from './tabs/ReportsTab';
 import HistoryTab from './tabs/HistoryTab';
 import ProfileTab from './tabs/ProfileTab';
+import HandoverTab from './tabs/HandoverTab';
 
 export default function StaffLayout() {
   const [activeMenu, setActiveMenu] = useState('tasks');
+  const [handoverRentalId, setHandoverRentalId] = useState('');
+
+  const openHandoverForRental = (rentalId) => {
+    if (!rentalId) return;
+    setHandoverRentalId(rentalId);
+    setActiveMenu('handover');
+  };
+
+  const clearHandoverRental = () => {
+    setHandoverRentalId('');
+  };
 
   return (
     <div className="flex h-[100dvh] bg-slate-50 text-slate-900 font-sans overflow-hidden">
@@ -28,6 +40,7 @@ export default function StaffLayout() {
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           {[
             { id: 'tasks', label: 'Nhiệm vụ', icon: LayoutDashboard },
+            { id: 'handover', label: 'Biên bản bàn giao', icon: ClipboardCheck },
             { id: 'qr', label: 'Quét mã QR', icon: QrCode },
             { id: 'reports', label: 'Báo cáo sự cố', icon: ShieldAlert },
             { id: 'history', label: 'Lịch sử hoạt động', icon: History },
@@ -57,6 +70,7 @@ export default function StaffLayout() {
             </div>
             <h1 className="font-bold text-lg text-slate-900 leading-none">
               {activeMenu === 'tasks' && 'Nhiệm vụ'}
+              {activeMenu === 'handover' && 'Biên bản'}
               {activeMenu === 'qr' && 'Quét mã'}
               {activeMenu === 'reports' && 'Sự cố'}
               {activeMenu === 'profile' && 'Tài khoản'}
@@ -71,7 +85,13 @@ export default function StaffLayout() {
 
         {/* CÃC VIEW CONTENT */}
         <div className="flex-1 overflow-y-auto pb-20 md:pb-0 scroll-smooth w-full">
-          {activeMenu === 'tasks' && <TasksTab />}
+          {activeMenu === 'tasks' && <TasksTab onOpenHandover={openHandoverForRental} />}
+          {activeMenu === 'handover' && (
+            <HandoverTab
+              selectedRentalIdFromTask={handoverRentalId}
+              onConsumedSelectedRental={clearHandoverRental}
+            />
+          )}
           {activeMenu === 'qr' && <QRTab />}
           {activeMenu === 'reports' && <ReportsTab />}
           {activeMenu === 'history' && <HistoryTab setActiveMenu={setActiveMenu} />}
@@ -83,6 +103,7 @@ export default function StaffLayout() {
           <div className="flex justify-around items-center h-16 px-2">
             {[
               { id: 'tasks', label: 'Nhiệm vụ', icon: LayoutDashboard },
+              { id: 'handover', label: 'Biên bản', icon: ClipboardCheck },
               { id: 'qr', label: 'Quét mã', icon: QrCode },
               { id: 'reports', label: 'Sự cố', icon: ShieldAlert },
               { id: 'profile', label: 'Tài khoản', icon: User },
