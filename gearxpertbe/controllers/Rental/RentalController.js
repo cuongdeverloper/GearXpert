@@ -45,7 +45,104 @@ const sendRentalNotification = async (
     type: "ORDER",
   });
 };
+/**
+ * GET /api/rentals/:rentalId
+ * Lấy chi tiết một đơn thuê (dành cho customer xem chi tiết)
+ */
+exports.getRentalById = async (req, res) => {
+  try {
+    const { rentalId } = req.params;
+    const customerId = req.user.id; // Bảo mật: chỉ cho phép xem đơn của chính mình
 
+    if (!mongoose.Types.ObjectId.isValid(rentalId)) {
+      return res.status(400).json({ message: "Rental ID không hợp lệ" });
+    }
+
+    const rental = await Rental.findOne({
+      _id: rentalId,
+      customerId: customerId, // Quan trọng: ngăn user xem đơn của người khác
+    })
+      .populate({
+        path: "extensionRequests",
+        match: { status: "PENDING" },
+        select:
+          "requestedEndDate requestedDays proposedExtraAmount status note",
+      })
+      .lean();
+
+    if (!rental) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy đơn thuê hoặc bạn không có quyền xem",
+      });
+    }
+
+    // Populate RentalItems + nested data
+    const rentalItems = await RentalItem.find({ rentalId: rental._id })
+      .populate([
+        {
+          path: "deviceId",
+          select: "name slug images supplierId rentPrice depositAmount",
+          populate: {
+            path: "supplierId",
+            select: "fullName avatar phone email",
+          },
+        },
+        {
+          path: "deviceItemIds", // mảng serial thực tế
+          select: "serialNumber internalCode condition status location images",
+        },
+      ])
+      .lean();
+
+    // Thêm reports + serialNumbers cho từng item (giống getMyRentals)
+    const itemsWithReports = await Promise.all(
+      rentalItems.map(async (item) => {
+        const deliveryIssues = await mongoose
+          .model("DeliveryIssueReport")
+          .find({ rentalItemId: item._id })
+          .sort({ createdAt: -1 })
+          .select(
+            "issueType description status images resolvedNote createdAt updatedAt"
+          )
+          .lean();
+
+        const damageReports = await mongoose
+          .model("DamageReport")
+          .find({ rentalItemId: item._id })
+          .sort({ createdAt: -1 })
+          .select(
+            "description severity status images compensationAmount createdAt updatedAt"
+          )
+          .lean();
+
+        return {
+          ...item,
+          deliveryIssues,
+          damageReports,
+          serialNumbers: item.deviceItemIds?.map((d) => d.serialNumber) || [],
+          conditions: item.deviceItemIds?.map((d) => d.condition) || [],
+        };
+      })
+    );
+
+    const result = {
+      ...rental,
+      items: itemsWithReports,
+    };
+
+    res.json({
+      success: true,
+      rental: result,
+    });
+  } catch (error) {
+    console.error("Error getRentalById:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Lỗi khi lấy chi tiết đơn thuê",
+    });
+  }
+};
 exports.checkoutRental = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -751,9 +848,9 @@ exports.rejectRental = async (req, res) => {
       session
     );
     for (const item of rentalItems) {
-      if (item.deviceItemId) {
-        await DeviceItem.updateOne(
-          { _id: item.deviceItemId },
+      if (item.deviceItemIds && item.deviceItemIds.length > 0) {
+        await DeviceItem.updateMany(
+          { _id: { $in: item.deviceItemIds } },
           { $set: { status: "AVAILABLE" } },
           { session }
         );
@@ -1070,30 +1167,38 @@ exports.getSupplierRevenue = async (req, res) => {
   }
 };
 // 1. HỦY ĐƠN & HOÀN TIỀN (Chỉ cho PENDING)
+// ====================== CANCEL RENTAL - ĐÃ SỬA ======================
 exports.cancelRental = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
     const { rentalId } = req.params;
+    const customerId = req.user.id;
+
+    // 1. Tìm rental
     const rental = await Rental.findOne({
       _id: rentalId,
-      customerId: req.user.id,
+      customerId,
     }).session(session);
 
-    if (!rental || rental.status !== "PENDING") {
-      throw new Error("Đơn hàng không thể hủy ở trạng thái này");
+    if (!rental) {
+      throw new Error("Không tìm thấy đơn hàng");
     }
 
-    const refundAmount = rental.totalAmount;
+    if (rental.status !== "PENDING") {
+      throw new Error("Chỉ có thể hủy đơn ở trạng thái PENDING");
+    }
 
-    // Hoàn tiền cho khách nếu đã PAID
-    if (rental.paymentStatus === "PAID") {
+    const refundAmount = rental.totalAmount || 0;
+
+    // 2. Hoàn tiền cho khách nếu đã thanh toán
+    if (rental.paymentStatus === "PAID" && refundAmount > 0) {
       const customerWallet = await Wallet.findOne({
         user: rental.customerId,
       }).session(session);
       if (customerWallet) {
-        const custBefore = customerWallet.balance;
+        const balanceBefore = customerWallet.balance;
         customerWallet.balance += refundAmount;
         await customerWallet.save({ session });
 
@@ -1103,54 +1208,58 @@ exports.cancelRental = async (req, res) => {
               wallet: customerWallet._id,
               type: "REFUND",
               amount: refundAmount,
-              balanceBefore: custBefore,
+              balanceBefore,
               balanceAfter: customerWallet.balance,
               referenceType: "RENTAL",
               referenceId: rental._id,
               description: `Hoàn tiền hủy đơn #${rental._id
                 .toString()
                 .slice(-6)}`,
+              status: "SUCCESS",
             },
           ],
           { session }
         );
       }
 
-      // Trừ ngược platform fee khỏi ví system (nếu đã thu)
-      const systemWallet = await Wallet.findOne({ isSystem: true }).session(
-        session
-      );
-      if (systemWallet && rental.paymentBreakdown?.platformFee > 0) {
-        const sysBefore = systemWallet.balance;
-        systemWallet.balance -= rental.paymentBreakdown.platformFee;
-        await systemWallet.save({ session });
-
-        await WalletTransaction.create(
-          [
-            {
-              wallet: systemWallet._id,
-              type: "PLATFORM_FEE_REFUND", // hoặc ADJUSTMENT
-              amount: -rental.paymentBreakdown.platformFee,
-              balanceBefore: sysBefore,
-              balanceAfter: systemWallet.balance,
-              referenceType: "RENTAL",
-              referenceId: rental._id,
-              description: `Hoàn phí nền tảng do hủy đơn #${rental._id
-                .toString()
-                .slice(-6)}`,
-            },
-          ],
-          { session }
+      // Hoàn platform fee về ví system (nếu có)
+      if (rental.paymentBreakdown?.platformFee > 0) {
+        const systemWallet = await Wallet.findOne({ isSystem: true }).session(
+          session
         );
+        if (systemWallet) {
+          const sysBefore = systemWallet.balance;
+          systemWallet.balance -= rental.paymentBreakdown.platformFee;
+          await systemWallet.save({ session });
+
+          await WalletTransaction.create(
+            [
+              {
+                wallet: systemWallet._id,
+                type: "PLATFORM_FEE_REFUND",
+                amount: -rental.paymentBreakdown.platformFee,
+                balanceBefore: sysBefore,
+                balanceAfter: systemWallet.balance,
+                referenceType: "RENTAL",
+                referenceId: rental._id,
+                description: `Hoàn phí nền tảng do hủy đơn #${rental._id
+                  .toString()
+                  .slice(-6)}`,
+                status: "SUCCESS",
+              },
+            ],
+            { session }
+          );
+        }
       }
     }
 
-    // Restore DeviceItem & Device quantity (giữ nguyên code của bạn)
-    const items = await RentalItem.find({ rentalId: rental._id }).session(
+    // 3. Hoàn lại DeviceItem và cập nhật stock Device
+    const rentalItems = await RentalItem.find({ rentalId: rental._id }).session(
       session
     );
-    for (const item of items) {
-      if (item.deviceItemIds?.length > 0) {
+    for (const item of rentalItems) {
+      if (item.deviceItemIds && item.deviceItemIds.length > 0) {
         await DeviceItem.updateMany(
           { _id: { $in: item.deviceItemIds } },
           { $set: { status: "AVAILABLE" } },
@@ -1162,7 +1271,6 @@ exports.cancelRental = async (req, res) => {
           {
             $inc: {
               stockQuantity: item.quantity,
-              availableQuantity: item.quantity,
               rentedQuantity: -item.quantity,
             },
           },
@@ -1171,30 +1279,50 @@ exports.cancelRental = async (req, res) => {
       }
     }
 
-    rental.status = "CANCELLED";
-    rental.paymentStatus = "REFUNDED"; // cập nhật thêm cho rõ
-    await rental.save({ session });
+    // 4. Cập nhật rental - DÙNG $set để tránh validation lỗi paymentBreakdown
+    await Rental.updateOne(
+      { _id: rentalId },
+      {
+        $set: {
+          status: "CANCELLED",
+          paymentStatus: "REFUNDED",
+          cancelledAt: new Date(),
+          cancelReason: "Khách hàng yêu cầu hủy",
+        },
+      },
+      { session }
+    );
 
-    // Notification cho supplier & customer
+    // 5. Gửi thông báo
     await sendRentalNotification(
       rental,
       "SUPPLIER",
       "Đơn thuê bị hủy",
-      `Khách đã hủy đơn #${rental._id.toString().slice(-6)}.`
+      `Khách hàng đã hủy đơn #${rental._id.toString().slice(-6)}.`
     );
+
     await sendRentalNotification(
       rental,
       "CUSTOMER",
       "Hủy đơn thành công",
-      `Đơn #${rental._id.toString().slice(-6)} đã hủy và tiền được hoàn.`
+      `Đơn thuê #${rental._id
+        .toString()
+        .slice(-6)} đã được hủy. Tiền đã hoàn về ví.`
     );
 
     await session.commitTransaction();
-    res.json({ message: "Hủy đơn thành công, tiền đã hoàn" });
+
+    res.json({
+      success: true,
+      message: "Hủy đơn thành công và tiền đã được hoàn",
+    });
   } catch (err) {
     await session.abortTransaction();
     console.error("Cancel Rental Error:", err);
-    res.status(400).json({ message: err.message || "Hủy đơn thất bại" });
+    res.status(400).json({
+      success: false,
+      message: err.message || "Hủy đơn thất bại",
+    });
   } finally {
     session.endSession();
   }
@@ -1244,15 +1372,25 @@ exports.confirmReceived = async (req, res) => {
 };
 const ExtensionRequest = require("../../models/ExtensionRequest"); // import model mới
 
+// ====================== EXTEND RENTAL - ĐÃ SỬA ======================
+// ====================== EXTEND RENTAL - PHIÊN BẢN MẠNH & CÓ LOG ======================
 exports.extendRental = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
     const { rentalId } = req.params;
-    const { newEndDate, requestedDays, extraAmount, note } = req.body;
+    let { newEndDate, requestedDays, extraAmount = 0, note = "" } = req.body;
 
-    // Tìm rental để lấy thông tin supplierId, customerId, items
+    console.log("📥 Extend Request received:", {
+      rentalId,
+      newEndDate,
+      requestedDays,
+      extraAmount,
+    });
+
+    if (!newEndDate) throw new Error("Vui lòng chọn ngày gia hạn mới");
+
     const rental = await Rental.findById(rentalId)
       .populate("items")
       .session(session);
@@ -1263,9 +1401,25 @@ exports.extendRental = async (req, res) => {
       throw new Error("Chỉ được yêu cầu gia hạn khi đang thuê");
     }
 
-    // Kiểm tra ngày hợp lệ
-    const currentEnd = new Date(rental.items[0]?.rentalEndDate);
+    // === KIỂM TRA NGÀY ===
+    let currentEndDateStr = rental.items?.[0]?.rentalEndDate;
+    if (!currentEndDateStr) {
+      console.error("❌ Không tìm thấy rentalEndDate trong items");
+      throw new Error("Không tìm thấy ngày kết thúc hiện tại của đơn");
+    }
+
+    const currentEnd = new Date(currentEndDateStr);
     const proposedEnd = new Date(newEndDate);
+
+    if (isNaN(currentEnd.getTime())) {
+      console.error("❌ currentEndDate không hợp lệ:", currentEndDateStr);
+      throw new Error("Ngày kết thúc hiện tại không hợp lệ");
+    }
+
+    if (isNaN(proposedEnd.getTime())) {
+      console.error("❌ newEndDate không hợp lệ:", newEndDate);
+      throw new Error("Ngày gia hạn mới không hợp lệ");
+    }
 
     if (proposedEnd <= currentEnd) {
       throw new Error("Ngày gia hạn phải sau ngày trả hiện tại");
@@ -1275,11 +1429,11 @@ exports.extendRental = async (req, res) => {
       (proposedEnd - currentEnd) / (1000 * 60 * 60 * 24)
     );
 
-    if (actualRequestedDays !== requestedDays) {
-      throw new Error("Số ngày gia hạn không khớp, vui lòng thử lại");
+    if (actualRequestedDays <= 0) {
+      throw new Error("Số ngày gia hạn phải lớn hơn 0");
     }
 
-    // Tạo document ExtensionRequest mới
+    // Tạo yêu cầu gia hạn
     const extensionRequest = await ExtensionRequest.create(
       [
         {
@@ -1287,41 +1441,48 @@ exports.extendRental = async (req, res) => {
           customerId: rental.customerId,
           supplierId: rental.supplierId,
           requestedEndDate: proposedEnd,
-          requestedDays,
-          proposedExtraAmount: extraAmount,
-          note: note || "",
+          requestedDays: actualRequestedDays,
+          proposedExtraAmount: Number(extraAmount) || 0,
+          note: note.trim(),
           status: "PENDING",
         },
       ],
       { session }
     );
+
+    // Cập nhật trạng thái rental
+    await Rental.updateOne(
+      { _id: rentalId },
+      { $set: { extensionStatus: "PENDING" } },
+      { session }
+    );
+
+    // Gửi thông báo
     await NotificationConfig.sendNotification({
       senderId: rental.customerId,
       receiverId: rental.supplierId,
       title: "Yêu cầu gia hạn đơn thuê",
-      message: `Khách hàng yêu cầu gia hạn thêm ${requestedDays} ngày đến ${newEndDate.toLocaleDateString(
+      message: `Khách hàng yêu cầu gia hạn thêm ${actualRequestedDays} ngày đến ${proposedEnd.toLocaleDateString(
         "vi-VN"
-      )}. Số tiền đề xuất thêm: ${extraAmount.toLocaleString()}đ`,
+      )}. Phí đề xuất: ${Number(extraAmount).toLocaleString()}đ`,
       link: `/supplier/orders/${rental._id}`,
       type: "ORDER",
     });
-    // Optional: Cập nhật Rental để đánh dấu có yêu cầu pending (dễ filter)
-    rental.extensionStatus = "PENDING";
-    await rental.save({ session });
 
     await session.commitTransaction();
 
     res.status(201).json({
-      message:
-        "Yêu cầu gia hạn đã được gửi thành công, chờ xác nhận từ bên cho thuê",
+      success: true,
+      message: "Yêu cầu gia hạn đã được gửi thành công",
       extensionRequest: extensionRequest[0],
     });
   } catch (err) {
     await session.abortTransaction();
     console.error("Extend Rental Error:", err);
-    res
-      .status(400)
-      .json({ message: err.message || "Gửi yêu cầu gia hạn thất bại" });
+    res.status(400).json({
+      success: false,
+      message: err.message || "Gửi yêu cầu gia hạn thất bại",
+    });
   } finally {
     session.endSession();
   }
@@ -1733,8 +1894,12 @@ exports.repaySingleRental = async (req, res) => {
     }
 
     // Cập nhật orderCode mới CHỈ cho rental này
-    rental.orderCode = newOrderCode;
-    await rental.save({ session });
+    // Lưu ý: dùng updateOne để tránh trigger validation full-doc (một số rental cũ có thể thiếu paymentBreakdown)
+    await Rental.updateOne(
+      { _id: rental._id },
+      { $set: { orderCode: newOrderCode } },
+      { session }
+    );
 
     await session.commitTransaction();
 
