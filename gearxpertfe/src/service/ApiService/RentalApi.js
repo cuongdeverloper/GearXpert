@@ -131,8 +131,12 @@ export const previewContract = async (data) => {
 
   return res;
 };
+const getRentalById = (rentalId) => {
+  return axios.get(`/api/rentals/${rentalId}`);
+};
 export { 
   checkout, 
+  getRentalById,
   hasRentedDevice, 
   verifyPayment, 
   getSupplierRentalRequests,
