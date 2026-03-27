@@ -1,7 +1,6 @@
 // modals/ReviewModal.jsx
 import React from "react";
-import { Star, Camera, XCircle, Send } from "lucide-react";
-import { toast } from "react-toastify";
+import { Star, Camera, XCircle, Check } from "lucide-react";
 
 export default function ReviewModal({
   reviewModal,

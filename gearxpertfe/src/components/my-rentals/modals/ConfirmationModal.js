@@ -1,6 +1,5 @@
 // modals/ConfirmationModal.jsx
 import React from "react";
-import { XCircle, CheckCircle2 } from "lucide-react";
 
 export default function ConfirmationModal({ modalConfig, onClose, onConfirm }) {
   if (!modalConfig.isOpen) return null;
