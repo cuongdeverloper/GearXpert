@@ -24,6 +24,7 @@ import { mapRentalCard, makeInspectionPayload } from "./handover/helpers";
 import SuccessConfirmCard from "./handover/components/SuccessConfirmCard";
 import FailureConfirmCard from "./handover/components/FailureConfirmCard";
 import AttemptsHistory from "./handover/components/AttemptsHistory";
+import DeviceChecklist from "./handover/components/DeviceChecklist";
 
 export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedSelectedRental }) {
   const account = useSelector((state) => state.user.account);
@@ -48,7 +49,8 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
   const [confirmForm, setConfirmForm] = useState({
     confirmerName: "",
     confirmerPhone: "",
-    signatureUrl: "",
+    signatureUrls: [],
+    operatorNote: "",
     otpVerified: false,
   });
 
@@ -58,7 +60,7 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
     noShowWaitMinutes: "",
     missingAccessories: "",
     mismatchedSerials: "",
-    evidenceUrls: "",
+    evidenceUrls: [],
     operatorNote: "",
   });
 
@@ -224,6 +226,27 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
   const handleConfirmSuccess = async () => {
     if (!activeAttempt) return;
 
+    const requiredChecklist = [
+      ["customerPresent", "Khách có mặt"],
+      ["customerIdentityVerified", "Xác minh danh tính"],
+      ["deliveryAddressMatched", "Đúng địa chỉ giao"],
+    ];
+    const missingChecklist = requiredChecklist
+      .filter(([key]) => !inspectionForm[key])
+      .map(([, label]) => label);
+
+    if (missingChecklist.length > 0) {
+      alert(
+        `Để xác nhận giao thành công, vui lòng hoàn tất Inspection Checklist: ${missingChecklist.join(", ")}.`
+      );
+      return;
+    }
+
+    if (!confirmForm.operatorNote?.trim()) {
+      alert("Vui lòng ghi chú chi tiết kiểm tra thiết bị/phụ kiện.");
+      return;
+    }
+
     const confirmerName =
       confirmForm.confirmerName.trim() ||
       (selectedRental?.customerName && selectedRental.customerName !== "Khách hàng"
@@ -248,7 +271,10 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
           confirmed: true,
           confirmerName,
           confirmerPhone,
-          signatureUrl: confirmForm.signatureUrl.trim(),
+          signatureUrls: Array.isArray(confirmForm.signatureUrls)
+            ? confirmForm.signatureUrls
+            : [],
+          operatorNote: confirmForm.operatorNote,
           otpVerified: Boolean(confirmForm.otpVerified),
         },
       });
@@ -294,10 +320,12 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
           .split(",")
           .map((x) => x.trim())
           .filter(Boolean),
-        evidenceUrls: failureForm.evidenceUrls
-          .split("\n")
-          .map((x) => x.trim())
-          .filter(Boolean),
+        evidenceUrls: Array.isArray(failureForm.evidenceUrls)
+          ? failureForm.evidenceUrls
+          : failureForm.evidenceUrls
+              .split("\n")
+              .map((x) => x.trim())
+              .filter(Boolean),
         operatorNote: failureForm.operatorNote,
       },
     };
@@ -473,25 +501,16 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
                   ))}
                 </div>
 
-                <textarea
-                  value={inspectionForm.operatorNote}
-                  onChange={(e) =>
-                    setInspectionForm((prev) => ({ ...prev, operatorNote: e.target.value }))
-                  }
-                  rows={3}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"
-                  placeholder="Ghi chú kiểm tra thực tế thiết bị/phụ kiện"
+                <DeviceChecklist
+                  items={selectedRental?.raw?.rentalItems?.map((item) => ({
+                    rentalItemId: item._id,
+                    deviceName: item.deviceId?.name || "Thiết bị",
+                    expectedQuantity: item.quantity || 1,
+                    expectedSerialNumbers:
+                      item.deviceItemIds?.map((di) => di?.serialNumber).filter(Boolean) || [],
+                  })) || []}
                 />
 
-                <textarea
-                  value={inspectionForm.evidenceUrls}
-                  onChange={(e) =>
-                    setInspectionForm((prev) => ({ ...prev, evidenceUrls: e.target.value }))
-                  }
-                  rows={2}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"
-                  placeholder="Evidence URL (mỗi dòng 1 link)"
-                />
               </div>
 
               <div className="space-y-3">
