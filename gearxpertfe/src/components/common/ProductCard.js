@@ -142,17 +142,11 @@ export default function ProductCard({
     return 'auto_fix_high';
   };
 
-  const getRingColor = (matchValue) => {
-    if (matchValue >= 95) return 'ring-accent-cyan/50';
-    if (matchValue >= 90) return 'ring-accent-cyan/30';
-    return 'ring-accent-cyan/20';
-  };
-
   // Simple variant
   if (variant === 'simple') {
     return (
       <div
-        className={`flex flex-col h-full w-full max-w-[320px] mx-auto snap-start group bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-500 cursor-pointer ${className}`}
+        className={`flex flex-col h-full w-full max-w-[320px] mx-auto snap-start group bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-500 cursor-pointer ${className}`}
         onClick={handleClick}
       >
         <div className="aspect-square rounded-xl overflow-hidden isolate mb-4 bg-slate-50 relative shrink-0">
@@ -232,10 +226,10 @@ export default function ProductCard({
   // Detailed variant
   return (
     <div
-      className={`group relative bg-white rounded-3xl p-1 shadow-lg hover:shadow-glow-cyan transition-all duration-300 border border-slate-100 cursor-pointer ${match ? `ring-2 ${getRingColor(match)}` : ''} ${className}`}
+      className={`group relative bg-white rounded-3xl p-0 shadow-lg hover:shadow-2xl transition-all duration-300 border border-slate-100 cursor-pointer ${match ? `ring-1 ring-slate-900` : ''} ${className}`}
       onClick={handleClick}
     >
-      <div className="bg-white rounded-[22px] overflow-hidden isolate flex flex-col h-full">
+      <div className="bg-white rounded-3xl overflow-hidden isolate flex flex-col h-full">
         {/* Image Section */}
         <div className="relative h-64 overflow-hidden rounded-t-[22px]">
           {/* Rating Badge */}
@@ -246,8 +240,8 @@ export default function ProductCard({
             </div>
           )}
 
-          {/* Match Badge */}
-          {match !== null && (
+          {/* Match Badge hidden as requested */}
+          {false && match !== null && (
             <div className={`absolute ${rating !== null ? 'top-14' : 'top-4'} left-4 z-10 ${getMatchBadgeColor(match)} text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-lg flex items-center gap-1`}>
               <span className="material-symbols-outlined text-[12px] fill-current">{getMatchIcon(match)}</span>
               {match}% Match

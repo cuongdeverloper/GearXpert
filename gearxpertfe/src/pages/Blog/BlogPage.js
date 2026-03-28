@@ -256,7 +256,7 @@ export default function BlogPage() {
             <Header />
 
             {/* ============ PREMIUM HERO BANNER ============ */}
-            <section className="relative w-full overflow-hidden bg-slate-900 py-20 lg:py-32">
+            <section className="relative w-full overflow-hidden bg-slate-900 pt-32 pb-20 lg:pt-48 lg:pb-32">
                 {/* Background Image with Overlay */}
                 <div className="absolute inset-0 z-0">
                     <img

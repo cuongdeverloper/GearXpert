@@ -330,7 +330,7 @@ export default function ProductDetailPage() {
 
       <main className="flex-1">
         {/* HEADER NAV STICKY */}
-        <div className="sticky top-[84px] z-40 mx-4 sm:mx-6 bg-white/80 backdrop-blur-md border border-slate-200 rounded-2xl shadow-lg mt-3">
+        <div className="sticky top-[112px] z-40 mx-4 sm:mx-6 bg-white/80 backdrop-blur-md border border-slate-200 rounded-2xl shadow-lg mt-28">
           <div className="max-w-7xl mx-auto px-5 sm:px-6 py-3 flex items-center justify-between">
             <button
               onClick={() => navigate(-1)}

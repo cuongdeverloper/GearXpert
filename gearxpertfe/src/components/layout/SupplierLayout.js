@@ -22,14 +22,14 @@ export default function SupplierLayout() {
 
       {/* BODY */}
       <div className={classNames(
-        "flex-1 flex lg:grid w-full transition-all duration-500",
+        "flex-1 flex lg:grid w-full transition-all duration-500 pt-32 lg:pt-32",
         collapsed ? "lg:grid-cols-[88px_1fr]" : "lg:grid-cols-[260px_1fr]"
       )}>
         {/* SIDEBAR Desktop */}
-        <SupplierSidebar 
-          collapsed={collapsed} 
-          onCollapse={() => setCollapsed(!collapsed)} 
-          me={me} 
+        <SupplierSidebar
+          collapsed={collapsed}
+          onCollapse={() => setCollapsed(!collapsed)}
+          me={me}
         />
 
         {/* SIDEBAR Mobile drawer */}

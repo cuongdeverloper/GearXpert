@@ -210,7 +210,7 @@ export default function SupplierListPage() {
       
       <main className="flex-grow w-full pb-20">
         {/* PREMIUM HERO SECTION - Synchronized with /products */}
-        <section className="relative w-full bg-slate-900 overflow-hidden mb-12 pt-16 pb-24 lg:pt-24 lg:pb-32">
+        <section className="relative w-full bg-slate-900 overflow-hidden mb-12 pt-48 pb-24 lg:pt-56 lg:pb-32">
           {/* Background Image Overlay */}
           <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1556761175-597368b268f9?q=80&w=2070')] bg-cover bg-center opacity-30 mix-blend-overlay"></div>
           {/* Depth Gradient Overlay */}

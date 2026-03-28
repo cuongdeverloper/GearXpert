@@ -314,7 +314,7 @@ export default function SupplierProfileEdit() {
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Left - Preview Card (giống profile user) */}
             <div className="lg:col-span-1">
-              <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-xl border border-slate-200/50 p-6 sticky top-24 transition-all duration-300">
+              <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-xl border border-slate-200/50 p-6 sticky top-[112px] transition-all duration-300">
                 <div className="flex flex-col items-center mb-6">
                   <div className="relative group">
                     <label

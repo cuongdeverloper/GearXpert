@@ -5,14 +5,14 @@ import { toast } from "react-toastify";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
-import { 
-    getBlogDetail, 
-    getBlogs, 
-    toggleLikeBlog, 
-    addComment, 
+import {
+    getBlogDetail,
+    getBlogs,
+    toggleLikeBlog,
+    addComment,
     updateComment,
     deleteComment,
-    toggleSaveBlog 
+    toggleSaveBlog
 } from "../../service/ApiService/BlogApi";
 import { useSocket } from "../../SocketContext";
 
@@ -56,12 +56,12 @@ export default function BlogDetailPage() {
     const [isSaved, setIsSaved] = useState(false);
     const [commentText, setCommentText] = useState("");
     const [isSubmittingComment, setIsSubmittingComment] = useState(false);
-    
+
     // Comment Edit State
     const [editingCommentId, setEditingCommentId] = useState(null);
     const [editCommentText, setEditCommentText] = useState("");
     const [isUpdatingComment, setIsUpdatingComment] = useState(false);
-    
+
     // Sensitive Keyword Modal
     const [sensitiveModal, setSensitiveModal] = useState({ open: false, message: "" });
 
@@ -108,7 +108,7 @@ export default function BlogDetailPage() {
                 setLoading(true);
                 const data = await getBlogDetail(id);
                 setBlog(data);
-                
+
                 // Initialize interaction states
                 const userKey = currentUser?.username || currentUser?.email;
                 if (userKey) {
@@ -146,10 +146,10 @@ export default function BlogDetailPage() {
 
             // Update components based on what changed
             setBlog(updatedBlog);
-            
+
             if (type === "LIKE") {
                 setLikesCount(updatedBlog.likes?.length || 0);
-                
+
                 // If current user liked/unliked on another device, update isLiked
                 const userKey = currentUser?.username || currentUser?.email;
                 if (userKey) {
@@ -314,7 +314,7 @@ export default function BlogDetailPage() {
         <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#f6f6f8", fontFamily: "'Inter', sans-serif" }}>
             <Header />
 
-            <main className="mx-auto w-full max-w-4xl px-6 py-10 md:px-20">
+            <main className="mx-auto w-full max-w-4xl px-6 pt-32 pb-10 md:px-20 lg:pt-40">
                 {/* Back button */}
                 <button
                     onClick={() => navigate("/blog")}
@@ -389,15 +389,14 @@ export default function BlogDetailPage() {
                                 onClick={() => openViewer(0)}
                             />
                         ) : (
-                            <div 
-                                className={`grid gap-1 bg-slate-200 transition-all duration-300 ${
-                                    blog.images.length === 2 ? "grid-cols-2 h-[300px] md:h-[400px]" : 
-                                    "grid-cols-4 h-[400px] md:h-[550px]"
-                                }`}
+                            <div
+                                className={`grid gap-1 bg-slate-200 transition-all duration-300 ${blog.images.length === 2 ? "grid-cols-2 h-[300px] md:h-[400px]" :
+                                        "grid-cols-4 h-[400px] md:h-[550px]"
+                                    }`}
                             >
                                 {blog.images.length === 2 && blog.images.map((img, idx) => (
-                                    <div 
-                                        key={idx} 
+                                    <div
+                                        key={idx}
                                         className="h-full bg-cover bg-center hover:brightness-90 transition-all cursor-pointer"
                                         style={{ backgroundImage: `url('${img}')` }}
                                         onClick={() => openViewer(idx)}
@@ -407,20 +406,19 @@ export default function BlogDetailPage() {
                                 {blog.images.length >= 3 && (
                                     <>
                                         {/* Left Side: Large Image */}
-                                        <div 
+                                        <div
                                             className="col-span-3 h-full bg-cover bg-center hover:brightness-90 transition-all cursor-pointer"
                                             style={{ backgroundImage: `url('${blog.images[0]}')` }}
                                             onClick={() => openViewer(0)}
                                         />
-                                        
+
                                         {/* Right Side: Stacked Images */}
-                                        <div className={`col-span-1 grid gap-1 h-full ${
-                                            blog.images.length === 3 ? "grid-rows-2" : "grid-rows-3"
-                                        }`}>
+                                        <div className={`col-span-1 grid gap-1 h-full ${blog.images.length === 3 ? "grid-rows-2" : "grid-rows-3"
+                                            }`}>
                                             {[1, 2, 3].map((idx) => (
                                                 blog.images[idx] && (
-                                                    <div 
-                                                        key={idx} 
+                                                    <div
+                                                        key={idx}
                                                         className="relative h-full bg-cover bg-center hover:brightness-90 transition-all cursor-pointer overflow-hidden"
                                                         style={{ backgroundImage: `url('${blog.images[idx]}')` }}
                                                         onClick={() => openViewer(idx)}
@@ -452,18 +450,17 @@ export default function BlogDetailPage() {
                     {/* Interaction Bar (Like, Comment, Save) */}
                     <div className="flex items-center justify-between py-4 mb-10 border-y border-slate-200">
                         <div className="flex items-center gap-6">
-                            <button 
+                            <button
                                 onClick={handleLike}
-                                className={`flex items-center gap-2 text-sm font-bold transition-all px-4 py-2 rounded-xl h-11 ${
-                                    isLiked ? "text-primary bg-primary/10" : "text-slate-500 hover:bg-slate-100"
-                                }`}
+                                className={`flex items-center gap-2 text-sm font-bold transition-all px-4 py-2 rounded-xl h-11 ${isLiked ? "text-primary bg-primary/10" : "text-slate-500 hover:bg-slate-100"
+                                    }`}
                             >
                                 <span className={`material-symbols-outlined text-2xl ${isLiked ? "fill-current" : ""}`}>
                                     thumb_up
                                 </span>
                                 <span>{likesCount} Thích</span>
                             </button>
-                            <button 
+                            <button
                                 onClick={() => document.getElementById('comment-input').focus()}
                                 className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:bg-slate-100 transition-all px-4 py-2 rounded-xl h-11"
                             >
@@ -473,11 +470,10 @@ export default function BlogDetailPage() {
                                 <span>{blog.comments?.length || 0} Bình luận</span>
                             </button>
                         </div>
-                        <button 
+                        <button
                             onClick={handleSave}
-                            className={`flex items-center gap-2 text-sm font-bold transition-all px-4 py-2 rounded-xl h-11 ${
-                                isSaved ? "text-amber-500 bg-amber-500/10" : "text-slate-500 hover:bg-slate-100"
-                            }`}
+                            className={`flex items-center gap-2 text-sm font-bold transition-all px-4 py-2 rounded-xl h-11 ${isSaved ? "text-amber-500 bg-amber-500/10" : "text-slate-500 hover:bg-slate-100"
+                                }`}
                         >
                             <span className={`material-symbols-outlined text-2xl ${isSaved ? "fill-current" : ""}`}>
                                 bookmark
@@ -549,7 +545,7 @@ export default function BlogDetailPage() {
                                                     {formatDate(comment.createdAt)}
                                                 </span>
                                             </div>
-                                            
+
                                             {editingCommentId === comment._id ? (
                                                 <div className="mt-2 flex flex-col gap-2">
                                                     <textarea
@@ -559,13 +555,13 @@ export default function BlogDetailPage() {
                                                         autoFocus
                                                     />
                                                     <div className="flex justify-end gap-2">
-                                                        <button 
+                                                        <button
                                                             onClick={() => setEditingCommentId(null)}
                                                             className="text-xs font-bold text-slate-500 hover:text-slate-700 px-3 py-1.5"
                                                         >
                                                             Hủy
                                                         </button>
-                                                        <button 
+                                                        <button
                                                             onClick={() => handleUpdateComment(comment._id)}
                                                             disabled={isUpdatingComment || !editCommentText.trim()}
                                                             className="text-xs font-bold bg-primary text-white rounded-lg px-4 py-1.5 hover:shadow-md disabled:opacity-50"
@@ -582,7 +578,7 @@ export default function BlogDetailPage() {
                                                     {(comment.user === (currentUser?.username || currentUser?.email) || currentUser?.role === "ADMIN") && (
                                                         <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover/comment:opacity-100 transition-opacity">
                                                             {comment.user === (currentUser?.username || currentUser?.email) && (
-                                                                <button 
+                                                                <button
                                                                     onClick={() => handleEditComment(comment)}
                                                                     className="h-7 w-7 flex items-center justify-center rounded-lg bg-white border border-slate-100 text-slate-400 hover:text-primary hover:border-primary shadow-sm transition-all"
                                                                     title="Sửa bình luận"
@@ -590,7 +586,7 @@ export default function BlogDetailPage() {
                                                                     <span className="material-symbols-outlined text-sm">edit</span>
                                                                 </button>
                                                             )}
-                                                            <button 
+                                                            <button
                                                                 onClick={() => handleDeleteComment(comment._id)}
                                                                 className="h-7 w-7 flex items-center justify-center rounded-lg bg-white border border-slate-100 text-slate-400 hover:text-red-500 hover:border-red-100 shadow-sm transition-all"
                                                                 title="Xóa bình luận"
@@ -732,7 +728,7 @@ export default function BlogDetailPage() {
                                 alt={`View ${currentImgIdx + 1}`}
                                 className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl select-none"
                             />
-                            
+
                             {/* Counter & Info */}
                             <div className="mt-6 flex flex-col items-center gap-2">
                                 <div className="px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/10 text-white text-sm font-bold tracking-widest uppercase">
@@ -744,7 +740,7 @@ export default function BlogDetailPage() {
 
                         {/* Thumbnails Strip */}
                         {allImages.length > 1 && (
-                            <div 
+                            <div
                                 className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3 px-4 py-3 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10"
                                 onClick={(e) => e.stopPropagation()}
                             >
@@ -752,9 +748,8 @@ export default function BlogDetailPage() {
                                     <div
                                         key={idx}
                                         onClick={() => setCurrentImgIdx(idx)}
-                                        className={`h-14 w-14 rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${
-                                            currentImgIdx === idx ? "border-primary scale-110 shadow-lg shadow-primary/20" : "border-transparent opacity-40 hover:opacity-100"
-                                        }`}
+                                        className={`h-14 w-14 rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${currentImgIdx === idx ? "border-primary scale-110 shadow-lg shadow-primary/20" : "border-transparent opacity-40 hover:opacity-100"
+                                            }`}
                                     >
                                         <img src={img} className="h-full w-full object-cover" alt="thumb" />
                                     </div>
@@ -769,14 +764,14 @@ export default function BlogDetailPage() {
             <AnimatePresence>
                 {sensitiveModal.open && (
                     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-                        <motion.div 
+                        <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
                             onClick={() => setSensitiveModal({ ...sensitiveModal, open: false })}
                         />
-                        <motion.div 
+                        <motion.div
                             initial={{ opacity: 0, scale: 0.9, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -785,7 +780,7 @@ export default function BlogDetailPage() {
                             {/* Decorative background elements */}
                             <div className="absolute top-0 right-0 w-32 h-32 bg-red-50 rounded-full -mr-16 -mt-16 opacity-50" />
                             <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary/5 rounded-full -ml-12 -mb-12 opacity-50" />
-                            
+
                             <div className="relative text-center">
                                 <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center mx-auto mb-6 text-red-500 shadow-lg shadow-red-100 ring-8 ring-red-50/50">
                                     <span className="material-symbols-outlined text-4xl">security_update_warning</span>

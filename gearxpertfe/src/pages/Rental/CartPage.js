@@ -210,7 +210,7 @@ const CartPage = () => {
         <ToastContainer position="top-right" autoClose={2000} theme="colored" />
 
         {/* HEADER NAV */}
-        <div className="sticky top-[84px] z-40 mx-6 bg-white/80 backdrop-blur-md border border-slate-200 rounded-[24px] shadow-lg mt-4 mb-8">
+        <div className="sticky top-[112px] z-40 mx-6 bg-white/80 backdrop-blur-md border border-slate-200 rounded-[24px] shadow-lg mt-28 mb-8">
           <div className="max-w-[1440px] mx-auto px-6 py-3 flex items-center justify-between">
             <button
               onClick={() => navigate("/")}
