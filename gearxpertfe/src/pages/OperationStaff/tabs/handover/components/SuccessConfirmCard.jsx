@@ -8,6 +8,7 @@ export default function SuccessConfirmCard({
   working,
   activeAttempt,
   canProcessHandover,
+  contextType = "DELIVERY",
 }) {
   const fileInputRef = useRef(null);
 
@@ -44,10 +45,13 @@ export default function SuccessConfirmCard({
     ? confirmForm.signatureUrls
     : [];
 
+  const isReturnFlow = contextType === "RETURN";
+
   return (
     <div className="border border-emerald-200 bg-emerald-50 rounded-2xl p-4 space-y-3">
       <p className="font-semibold text-emerald-800 flex items-center gap-2">
-        <ShieldCheck size={16} /> Xác nhận giao thành công
+        <ShieldCheck size={16} />
+        {isReturnFlow ? "Xác nhận thu hồi thành công" : "Xác nhận giao thành công"}
       </p>
       <input
         value={confirmForm.confirmerName}
@@ -68,7 +72,7 @@ export default function SuccessConfirmCard({
 
       <div className="space-y-2">
         <label className="text-xs font-semibold text-emerald-800 uppercase">
-          Ghi chú kiểm tra thiết bị/phụ kiện <span className="text-emerald-600">*</span>
+          {isReturnFlow ? "Ghi chú kiểm tra thu hồi" : "Ghi chú kiểm tra thiết bị/phụ kiện"} <span className="text-emerald-600">*</span>
         </label>
         <textarea
           value={confirmForm.operatorNote}
@@ -81,7 +85,11 @@ export default function SuccessConfirmCard({
               ? "border-emerald-200 bg-white"
               : "border-emerald-300 bg-white"
           }`}
-          placeholder="Ghi chú bắt buộc: Mô tả chi tiết kiểm tra các thiết bị/phụ kiện"
+          placeholder={
+            isReturnFlow
+              ? "Ghi chú bắt buộc: Mô tả chi tiết kiểm tra khi thu hồi"
+              : "Ghi chú bắt buộc: Mô tả chi tiết kiểm tra các thiết bị/phụ kiện"
+          }
         />
         {!confirmForm.operatorNote?.trim() && (
           <p className="text-xs text-emerald-600 font-medium">
@@ -153,7 +161,7 @@ export default function SuccessConfirmCard({
         className="w-full px-3 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 transition"
       >
         <span className="inline-flex items-center gap-2">
-          <CircleCheck size={15} /> Confirm Success
+          <CircleCheck size={15} /> {isReturnFlow ? "Xác nhận thu hồi thành công" : "Xác nhận giao thành công"}
         </span>
       </button>
     </div>

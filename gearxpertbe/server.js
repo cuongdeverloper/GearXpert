@@ -38,6 +38,7 @@ const supplierRouter = require("./Routes/SupplierRoutes");
 const supplierContractRouter = require("./Routes/SupplierContractRoutes");
 const operationLogRouter = require("./Routes/OperationLogRoutes");
 const handoverRouter = require("./Routes/HandoverRoutes");
+const returnRouter = require("./Routes/ReturnRoutes");
 const { startAutoConfirmJob } = require("./jobs/autoConfirmDelivery");
 const { startAutoReturnJob } = require("./jobs/autoReturnRentals");
 const routerReview = require("./Routes/ReviewRoutes");
@@ -96,6 +97,7 @@ app.use("/api/suppliers-contract", supplierContractRouter);
 
 app.use("/api/operation-logs", operationLogRouter);
 app.use("/api/handovers", handoverRouter);
+app.use("/api/returns", returnRouter);
 app.use("/api/reviews", routerReview);
 app.use("/", googleAuthRouter);
 

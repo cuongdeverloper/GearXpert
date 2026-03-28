@@ -11,10 +11,12 @@ import HandoverTab from './tabs/HandoverTab';
 export default function StaffLayout() {
   const [activeMenu, setActiveMenu] = useState('tasks');
   const [handoverRentalId, setHandoverRentalId] = useState('');
+  const [handoverContext, setHandoverContext] = useState('DELIVERY');
 
-  const openHandoverForRental = (rentalId) => {
+  const openHandoverForRental = (rentalId, context = 'DELIVERY') => {
     if (!rentalId) return;
     setHandoverRentalId(rentalId);
+    setHandoverContext(context);
     setActiveMenu('handover');
   };
 
@@ -40,7 +42,7 @@ export default function StaffLayout() {
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           {[
             { id: 'tasks', label: 'Nhiệm vụ', icon: LayoutDashboard },
-            { id: 'handover', label: 'Biên bản bàn giao', icon: ClipboardCheck },
+            { id: 'handover', label: 'Biên bản', icon: ClipboardCheck },
             { id: 'qr', label: 'Quét mã QR', icon: QrCode },
             { id: 'reports', label: 'Báo cáo sự cố', icon: ShieldAlert },
             { id: 'history', label: 'Lịch sử hoạt động', icon: History },
@@ -89,6 +91,7 @@ export default function StaffLayout() {
           {activeMenu === 'handover' && (
             <HandoverTab
               selectedRentalIdFromTask={handoverRentalId}
+              selectedFlowContextFromTask={handoverContext}
               onConsumedSelectedRental={clearHandoverRental}
             />
           )}

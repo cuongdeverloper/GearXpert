@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const Rental = require('../models/Rental');
 const RentalItem = require('../models/RentalItem');
 const NotificationConfig = require('../configs/NotificationConfig');
+const { ensureDraftForReturn } = require('../services/ReturnService');
 
 async function runAutoReturn() {
   const now = new Date();
@@ -28,6 +29,9 @@ async function runAutoReturn() {
     try {
       rental.status = 'RETURNING';
       await rental.save();
+
+      // Ensure retrieval draft exists as soon as rental enters RETURNING.
+      await ensureDraftForReturn({ rentalId: rental._id });
 
       // Thông báo cho khách hàng
       try {

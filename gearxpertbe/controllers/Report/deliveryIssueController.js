@@ -2,6 +2,7 @@ const DeliveryIssueReport = require("../../models/DeliveryIssueReport");
 const Rental = require("../../models/Rental");
 const RentalItem = require("../../models/RentalItem");
 const NotificationConfig = require("../../configs/NotificationConfig"); // ← THÊM DÒNG NÀY (điều chỉnh path nếu cần)
+const { ensureDraftForReturn, reportIssue } = require("../../services/ReturnService");
 
 exports.createDeliveryIssue = async (req, res) => {
   try {
@@ -282,6 +283,31 @@ exports.createStaffReturnIssue = async (req, res) => {
       images,
     });
 
+    const returnDraft = await ensureDraftForReturn({
+      rentalId,
+      staffId,
+      actorId: staffId,
+    });
+
+    await reportIssue({
+      returnRecordId: returnDraft._id,
+      issue: {
+        reportId: report._id,
+        issueType,
+        detail: description?.trim() || "",
+        evidenceUrls: images,
+        operatorNote: description?.trim() || "",
+        requiresDeepInspection: true,
+      },
+      inspection: {
+        ...(returnDraft?.inspection || {}),
+        actualReturnedAt: new Date(),
+        requiresDeepInspection: true,
+      },
+      staffId,
+      actorId: staffId,
+    });
+
     // Chuyển trạng thái về INSPECTING
     rental.status = "INSPECTING";
     rental.inspectedContext = "RETURN";
@@ -307,6 +333,7 @@ exports.createStaffReturnIssue = async (req, res) => {
       message:
         "Biên bản sự cố thu hồi đã được lưu. Đơn hàng chuyển sang trạng thái Kiểm tra.",
       data: report,
+      returnRecordId: returnDraft._id,
     });
   } catch (err) {
     console.error("Create Staff Return Issue Error:", err);

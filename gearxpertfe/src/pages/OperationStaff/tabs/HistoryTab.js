@@ -38,6 +38,16 @@ const ACTION_CONFIG = {
     status: 'warning',
     Icon: AlertTriangle,
   },
+  RETURN_CONFIRM_SUCCESS: {
+    label: 'Xác nhận thu hồi thành công',
+    status: 'success',
+    Icon: CheckCircle,
+  },
+  RETURN_CONFIRM_FAILED: {
+    label: 'Xác nhận thu hồi thất bại',
+    status: 'warning',
+    Icon: AlertTriangle,
+  },
 };
 
 const STATUS_CLASS = {

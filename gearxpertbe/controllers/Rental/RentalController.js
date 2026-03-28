@@ -15,6 +15,12 @@ const {
   ensureDraftForDelivery,
   syncCancelledRental,
 } = require("../../services/HandoverService");
+const {
+  ensureDraftForReturn,
+  completeReturn,
+  listByRental,
+  syncClosedRental,
+} = require("../../services/ReturnService");
 
 const { PayOS } = require("@payos/node");
 
@@ -725,12 +731,29 @@ exports.getReturningRentals = async (req, res) => {
 
     const rentalsWithItems = await Promise.all(
       rentals.map(async (rental) => {
+        // Ensure each RETURNING rental has a retrieval draft for operation flow.
+        await ensureDraftForReturn({
+          rentalId: rental._id,
+          staffId:
+            req.user?.role === "OPERATION_STAFF"
+              ? req.user.id
+              : rental.assignedOperationStaffId,
+          actorId: req.user?.id,
+        });
+
+        const returnRecords = await listByRental(rental._id);
+        const activeReturnRecord = returnRecords.find((record) =>
+          ["DRAFT", "IN_PROGRESS"].includes(record.status)
+        );
+
         const rentalItems = await RentalItem.find({
           rentalId: rental._id,
         }).populate("deviceId", "name images");
+
         return {
           ...rental.toObject(),
           rentalItems,
+          returnRecord: activeReturnRecord || null,
         };
       })
     );
@@ -1461,6 +1484,15 @@ exports.cancelRental = async (req, res) => {
       console.error("SYNC CANCEL HANDOVER ERROR:", syncError.message);
     }
 
+    try {
+      await syncClosedRental({
+        rentalId: rental._id,
+        actorId: customerId,
+      });
+    } catch (syncError) {
+      console.error("SYNC CANCEL RETURN ERROR:", syncError.message);
+    }
+
     res.json({
       success: true,
       message: "Hủy đơn thành công và tiền đã được hoàn",
@@ -1796,6 +1828,13 @@ exports.confirmReturn = async (req, res) => {
       throw new Error("Đơn chưa ở trạng thái trả hàng");
     }
 
+    const returnDraft = await ensureDraftForReturn({
+      rentalId: rental._id,
+      staffId: actorId,
+      actorId,
+      session,
+    });
+
     // Giả sử đã kiểm tra thiết bị OK (không hỏng, không forfeit deposit)
     // → Payout tiền thuê cho supplier (sau trừ phí nền tảng)
     const supplierReceive = rental.paymentBreakdown.supplierReceive;
@@ -1864,6 +1903,23 @@ exports.confirmReturn = async (req, res) => {
     rental.escrowStatus = "RELEASED";
     await rental.save({ session });
 
+    await completeReturn({
+      returnRecordId: returnDraft._id,
+      inspection: {
+        ...(returnDraft?.inspection || {}),
+        actualReturnedAt: new Date(),
+      },
+      settlement: {
+        depositOutcome: rental.depositAmount > 0 ? "REFUND_FULL" : undefined,
+        deductedAmount: 0,
+        disputeReason: "",
+        operatorNote: "Hoàn tất thu hồi - không phát hiện bất thường.",
+      },
+      staffId: actorId,
+      actorId,
+      session,
+    });
+
     // Gửi thông báo
     await sendRentalNotification(
       rental,
@@ -1886,6 +1942,7 @@ exports.confirmReturn = async (req, res) => {
       message: "Đơn thuê đã hoàn tất thành công",
       rentalId: rental._id,
       status: "COMPLETED",
+      returnRecordId: returnDraft._id,
     });
   } catch (err) {
     await session.abortTransaction();
@@ -2032,6 +2089,15 @@ exports.cancelPayRental = async (req, res) => {
         });
       } catch (syncError) {
         console.error("SYNC CANCEL HANDOVER ERROR:", syncError.message);
+      }
+
+      try {
+        await syncClosedRental({
+          rentalId: item._id,
+          actorId: customerId,
+        });
+      } catch (syncError) {
+        console.error("SYNC CANCEL RETURN ERROR:", syncError.message);
       }
     }
 

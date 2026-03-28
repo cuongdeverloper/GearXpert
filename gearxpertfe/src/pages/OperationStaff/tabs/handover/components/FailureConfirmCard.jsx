@@ -9,6 +9,8 @@ export default function FailureConfirmCard({
   working,
   activeAttempt,
   canProcessHandover,
+  contextType = "DELIVERY",
+  failureOptions,
 }) {
   const fileInputRef = useRef(null);
 
@@ -44,10 +46,14 @@ export default function FailureConfirmCard({
   const evidenceList = Array.isArray(failureForm.evidenceUrls)
     ? failureForm.evidenceUrls
     : [];
+  const isReturnFlow = contextType === "RETURN";
+  const reasonOptions = failureOptions || FAILURE_OPTIONS;
 
   return (
     <div className="border border-red-200 bg-red-50 rounded-2xl p-4 space-y-3">
-      <p className="font-semibold text-red-800">Đánh dấu giao thất bại</p>
+      <p className="font-semibold text-red-800">
+        {isReturnFlow ? "Đánh dấu thu hồi thất bại" : "Đánh dấu giao thất bại"}
+      </p>
       <select
         value={failureForm.reason}
         onChange={(e) =>
@@ -55,8 +61,8 @@ export default function FailureConfirmCard({
         }
         className="w-full border border-red-200 rounded-xl px-3 py-2 text-sm"
       >
-        <option value="">Chọn lý do thất bại</option>
-        {FAILURE_OPTIONS.map((op) => (
+        <option value="">{isReturnFlow ? "Chọn lý do thu hồi thất bại" : "Chọn lý do thất bại"}</option>
+        {reasonOptions.map((op) => (
           <option key={op.value} value={op.value}>
             {op.label}
           </option>
@@ -78,7 +84,11 @@ export default function FailureConfirmCard({
               ? "border-red-200 bg-white"
               : "border-red-300 bg-white"
           }`}
-          placeholder="Ghi chú bắt buộc: Mô tả chi tiết tại sao giao thất bại"
+          placeholder={
+            isReturnFlow
+              ? "Ghi chú bắt buộc: Mô tả chi tiết tại sao thu hồi thất bại"
+              : "Ghi chú bắt buộc: Mô tả chi tiết tại sao giao thất bại"
+          }
         />
         {!failureForm.operatorNote?.trim() && (
           <p className="text-xs text-red-600 font-medium">
@@ -139,7 +149,7 @@ export default function FailureConfirmCard({
         className="w-full px-3 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition"
       >
         <span className="inline-flex items-center gap-2">
-          <CircleX size={15} /> Confirm Failed
+          <CircleX size={15} /> {isReturnFlow ? "Xác nhận thu hồi thất bại" : "Xác nhận giao thất bại"}
         </span>
       </button>
     </div>

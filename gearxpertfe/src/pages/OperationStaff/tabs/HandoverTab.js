@@ -9,7 +9,11 @@ import {
   CircleCheck,
   CircleX,
 } from "lucide-react";
-import { getDeliveringRentals } from "../../../service/ApiService/RentalApi";
+import {
+  getDeliveringRentals,
+  getReturningRentals,
+  confirmReturn,
+} from "../../../service/ApiService/RentalApi";
 import {
   createHandoverDraft,
   createHandoverRedelivery,
@@ -19,6 +23,14 @@ import {
   confirmHandoverSuccess,
   failHandover,
 } from "../../../service/ApiService/HandoverApi";
+import {
+  createReturnDraft,
+  getReturnRecordsByRental,
+  startReturnRecord,
+  saveReturnInspection,
+  failReturnRecord,
+  createReturnRetryAttempt,
+} from "../../../service/ApiService/ReturnApi";
 import { logOperationAction } from "../../../service/ApiService/OperationLogApi";
 import { mapRentalCard, makeInspectionPayload } from "./handover/helpers";
 import SuccessConfirmCard from "./handover/components/SuccessConfirmCard";
@@ -26,9 +38,23 @@ import FailureConfirmCard from "./handover/components/FailureConfirmCard";
 import AttemptsHistory from "./handover/components/AttemptsHistory";
 import DeviceChecklist from "./handover/components/DeviceChecklist";
 
-export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedSelectedRental }) {
+const RETURN_FAILURE_OPTIONS = [
+  { value: "CUSTOMER_NO_SHOW", label: "Khách không có mặt" },
+  { value: "CUSTOMER_REJECT_RETURN", label: "Khách từ chối trả" },
+  { value: "CONTACT_FAILED", label: "Không liên hệ được khách" },
+  { value: "LOCATION_BLOCKED", label: "Không thể tiếp cận điểm thu hồi" },
+  { value: "ORDER_CLOSED_ELSEWHERE", label: "Đơn đã đóng ở nhánh khác" },
+  { value: "OTHER", label: "Khác" },
+];
+
+export default function HandoverTab({
+  selectedRentalIdFromTask = "",
+  selectedFlowContextFromTask = "DELIVERY",
+  onConsumedSelectedRental,
+}) {
   const account = useSelector((state) => state.user.account);
   const currentStaffId = account?.id;
+  const [flowContext, setFlowContext] = useState(selectedFlowContextFromTask || "DELIVERY");
   const [loadingRentals, setLoadingRentals] = useState(false);
   const [rentals, setRentals] = useState([]);
   const [selectedRentalId, setSelectedRentalId] = useState("");
@@ -88,8 +114,9 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
   }, [selectedRental, currentStaffId]);
 
   const canProcessHandover = Boolean(
-    selectedRental?.raw?.pickedUpAt &&
-      isAssignedToMe
+    flowContext === "DELIVERY"
+      ? selectedRental?.raw?.pickedUpAt && isAssignedToMe
+      : isAssignedToMe
   );
 
   const activeAttempt = useMemo(
@@ -106,10 +133,12 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
       ...prev,
       customerPresent: Boolean(attempt?.inspection?.checklist?.customerPresent),
       customerIdentityVerified: Boolean(
-        attempt?.inspection?.checklist?.customerIdentityVerified
+        attempt?.inspection?.checklist?.customerIdentityVerified ||
+          attempt?.inspection?.checklist?.receivedAtAddress
       ),
       deliveryAddressMatched: Boolean(
-        attempt?.inspection?.checklist?.deliveryAddressMatched
+        attempt?.inspection?.checklist?.deliveryAddressMatched ||
+          attempt?.inspection?.checklist?.accessoriesChecked
       ),
       operatorNote: attempt?.inspection?.operatorNote || "",
       evidenceUrls: (attempt?.inspection?.evidenceUrls || []).join("\n"),
@@ -117,10 +146,37 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
     }));
   }, []);
 
-  const fetchDeliveringRentals = useCallback(async () => {
+  const makeReturnInspectionPayload = useCallback(
+    (attempt) => {
+      const sourceItems =
+        Array.isArray(inspectionForm.items) && inspectionForm.items.length > 0
+          ? inspectionForm.items
+          : attempt?.inspection?.items || attempt?.prefetchedSnapshot?.items || [];
+
+      return {
+        checklist: {
+          customerPresent: Boolean(inspectionForm.customerPresent),
+          receivedAtAddress: Boolean(inspectionForm.customerIdentityVerified),
+          accessoriesChecked: Boolean(inspectionForm.deliveryAddressMatched),
+        },
+        items: sourceItems,
+        operatorNote: inspectionForm.operatorNote || "",
+        evidenceUrls: inspectionForm.evidenceUrls
+          .split("\n")
+          .map((x) => x.trim())
+          .filter(Boolean),
+      };
+    },
+    [inspectionForm]
+  );
+
+  const fetchRentals = useCallback(async () => {
     setLoadingRentals(true);
     try {
-      const res = await getDeliveringRentals();
+      const res =
+        flowContext === "DELIVERY"
+          ? await getDeliveringRentals()
+          : await getReturningRentals();
       const mapped = (res?.rentals || []).map(mapRentalCard);
       const mineOnly = mapped.filter((item) => {
         const owner = item.raw?.assignedOperationStaffId?._id || item.raw?.assignedOperationStaffId;
@@ -128,23 +184,34 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
       });
       setRentals(mineOnly);
     } catch (error) {
-      alert(error?.response?.data?.message || "Không tải được danh sách đơn đang giao");
+      alert(
+        error?.response?.data?.message ||
+          (flowContext === "DELIVERY"
+            ? "Không tải được danh sách đơn đang giao"
+            : "Không tải được danh sách đơn đang thu hồi")
+      );
     } finally {
       setLoadingRentals(false);
     }
-  }, [currentStaffId]);
+  }, [currentStaffId, flowContext]);
 
   useEffect(() => {
-    fetchDeliveringRentals();
-  }, [fetchDeliveringRentals]);
+    fetchRentals();
+  }, [fetchRentals]);
 
   const fetchAttempts = useCallback(
     async (rentalId) => {
       if (!rentalId) return;
       setLoadingAttempts(true);
       try {
-        const res = await getHandoverAttemptsByRental(rentalId);
-        const data = res?.handovers || [];
+        const res =
+          flowContext === "DELIVERY"
+            ? await getHandoverAttemptsByRental(rentalId)
+            : await getReturnRecordsByRental(rentalId);
+        const data =
+          flowContext === "DELIVERY"
+            ? res?.handovers || []
+            : res?.returnRecords || [];
         setAttempts(data);
 
         const active = data.find((x) => ["DRAFT", "IN_PROGRESS"].includes(x.status));
@@ -157,20 +224,26 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
         setLoadingAttempts(false);
       }
     },
-    [hydrateInspectionFromAttempt]
+    [hydrateInspectionFromAttempt, flowContext]
   );
 
   useEffect(() => {
     if (!selectedRentalIdFromTask) return;
 
+    setFlowContext(selectedFlowContextFromTask || "DELIVERY");
     setSelectedRentalId(selectedRentalIdFromTask);
     fetchAttempts(selectedRentalIdFromTask);
     onConsumedSelectedRental?.();
-  }, [selectedRentalIdFromTask, fetchAttempts, onConsumedSelectedRental]);
+  }, [
+    selectedRentalIdFromTask,
+    selectedFlowContextFromTask,
+    fetchAttempts,
+    onConsumedSelectedRental,
+  ]);
 
   useEffect(() => {
     setResolutionMode("SUCCESS");
-  }, [selectedRentalId]);
+  }, [selectedRentalId, flowContext]);
 
   const handleSelectRental = async (rentalId) => {
     setSelectedRentalId(rentalId);
@@ -182,7 +255,11 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
 
     setWorking(true);
     try {
-      await createHandoverDraft(selectedRentalId, {});
+      if (flowContext === "DELIVERY") {
+        await createHandoverDraft(selectedRentalId, {});
+      } else {
+        await createReturnDraft(selectedRentalId, {});
+      }
       await fetchAttempts(selectedRentalId);
       alert("Đã chuẩn bị biên bản draft.");
     } catch (error) {
@@ -197,9 +274,17 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
 
     setWorking(true);
     try {
-      await startHandover(activeAttempt.id);
+      if (flowContext === "DELIVERY") {
+        await startHandover(activeAttempt.id);
+      } else {
+        await startReturnRecord(activeAttempt.id);
+      }
       await fetchAttempts(selectedRentalId);
-      alert("Biên bản đã chuyển sang trạng thái đang giao.");
+      alert(
+        flowContext === "DELIVERY"
+          ? "Biên bản đã chuyển sang trạng thái đang giao."
+          : "Biên bản đã chuyển sang trạng thái đang thu hồi."
+      );
     } catch (error) {
       alert(error?.response?.data?.message || "Không thể bắt đầu bàn giao");
     } finally {
@@ -210,10 +295,17 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
   const handleSaveInspection = async () => {
     if (!activeAttempt) return;
 
-    const payload = makeInspectionPayload(activeAttempt, inspectionForm);
+    const payload =
+      flowContext === "DELIVERY"
+        ? makeInspectionPayload(activeAttempt, inspectionForm)
+        : makeReturnInspectionPayload(activeAttempt);
     setWorking(true);
     try {
-      await saveHandoverInspection(activeAttempt.id, payload);
+      if (flowContext === "DELIVERY") {
+        await saveHandoverInspection(activeAttempt.id, payload);
+      } else {
+        await saveReturnInspection(activeAttempt.id, payload);
+      }
       await fetchAttempts(selectedRentalId);
       alert("Đã lưu kiểm tra thiết bị/phụ kiện.");
     } catch (error) {
@@ -261,35 +353,56 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
       return;
     }
 
-    const inspection = makeInspectionPayload(activeAttempt, inspectionForm);
+    const inspection =
+      flowContext === "DELIVERY"
+        ? makeInspectionPayload(activeAttempt, inspectionForm)
+        : makeReturnInspectionPayload(activeAttempt);
 
     setWorking(true);
     try {
-      await confirmHandoverSuccess(activeAttempt.id, {
-        inspection,
-        customerConfirmation: {
-          confirmed: true,
+      if (flowContext === "DELIVERY") {
+        await confirmHandoverSuccess(activeAttempt.id, {
+          inspection,
+          customerConfirmation: {
+            confirmed: true,
+            confirmerName,
+            confirmerPhone,
+            signatureUrls: Array.isArray(confirmForm.signatureUrls)
+              ? confirmForm.signatureUrls
+              : [],
+            operatorNote: confirmForm.operatorNote,
+            otpVerified: Boolean(confirmForm.otpVerified),
+          },
+        });
+
+        logOperationAction("HANDOVER_CONFIRM_SUCCESS", "RENTAL", selectedRentalId, {
+          handoverId: activeAttempt.id,
           confirmerName,
           confirmerPhone,
-          signatureUrls: Array.isArray(confirmForm.signatureUrls)
-            ? confirmForm.signatureUrls
-            : [],
-          operatorNote: confirmForm.operatorNote,
-          otpVerified: Boolean(confirmForm.otpVerified),
-        },
-      });
-
-      logOperationAction("HANDOVER_CONFIRM_SUCCESS", "RENTAL", selectedRentalId, {
-        handoverId: activeAttempt.id,
-        confirmerName,
-        confirmerPhone,
-      }).catch(() => {});
+        }).catch(() => {});
+      } else {
+        await confirmReturn(selectedRentalId);
+        logOperationAction("RETURN_CONFIRM_SUCCESS", "RENTAL", selectedRentalId, {
+          returnRecordId: activeAttempt.id,
+          confirmerName,
+          confirmerPhone,
+        }).catch(() => {});
+      }
 
       await fetchAttempts(selectedRentalId);
-      await fetchDeliveringRentals();
-      alert("Xác nhận bàn giao thành công. Đơn đã chuyển RENTING.");
+      await fetchRentals();
+      alert(
+        flowContext === "DELIVERY"
+          ? "Xác nhận bàn giao thành công. Đơn đã chuyển RENTING."
+          : "Xác nhận thu hồi thành công. Đơn đã hoàn tất."
+      );
     } catch (error) {
-      alert(error?.response?.data?.message || "Không thể xác nhận bàn giao thành công");
+      alert(
+        error?.response?.data?.message ||
+          (flowContext === "DELIVERY"
+            ? "Không thể xác nhận bàn giao thành công"
+            : "Không thể xác nhận thu hồi thành công")
+      );
     } finally {
       setWorking(false);
     }
@@ -302,7 +415,10 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
       return;
     }
 
-    const inspection = makeInspectionPayload(activeAttempt, inspectionForm);
+    const inspection =
+      flowContext === "DELIVERY"
+        ? makeInspectionPayload(activeAttempt, inspectionForm)
+        : makeReturnInspectionPayload(activeAttempt);
 
     const payload = {
       inspection,
@@ -332,16 +448,29 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
 
     setWorking(true);
     try {
-      await failHandover(activeAttempt.id, payload);
+      if (flowContext === "DELIVERY") {
+        await failHandover(activeAttempt.id, payload);
 
-      logOperationAction("HANDOVER_CONFIRM_FAILED", "RENTAL", selectedRentalId, {
-        handoverId: activeAttempt.id,
-        reason: failureForm.reason,
-        detail: failureForm.detail,
-      }).catch(() => {});
+        logOperationAction("HANDOVER_CONFIRM_FAILED", "RENTAL", selectedRentalId, {
+          handoverId: activeAttempt.id,
+          reason: failureForm.reason,
+          detail: failureForm.detail,
+        }).catch(() => {});
+      } else {
+        await failReturnRecord(activeAttempt.id, payload);
+        logOperationAction("RETURN_CONFIRM_FAILED", "RENTAL", selectedRentalId, {
+          returnRecordId: activeAttempt.id,
+          reason: failureForm.reason,
+          detail: failureForm.detail,
+        }).catch(() => {});
+      }
 
       await fetchAttempts(selectedRentalId);
-      alert("Đã ghi nhận bàn giao thất bại và lưu bằng chứng.");
+      alert(
+        flowContext === "DELIVERY"
+          ? "Đã ghi nhận bàn giao thất bại và lưu bằng chứng."
+          : "Đã ghi nhận thu hồi thất bại và lưu bằng chứng."
+      );
     } catch (error) {
       alert(error?.response?.data?.message || "Không thể ghi nhận thất bại");
     } finally {
@@ -353,11 +482,24 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
     if (!selectedRentalId) return;
     setWorking(true);
     try {
-      await createHandoverRedelivery(selectedRentalId, {});
+      if (flowContext === "DELIVERY") {
+        await createHandoverRedelivery(selectedRentalId, {});
+      } else {
+        await createReturnRetryAttempt(selectedRentalId, {});
+      }
       await fetchAttempts(selectedRentalId);
-      alert("Đã tạo attempt giao lại mới.");
+      alert(
+        flowContext === "DELIVERY"
+          ? "Đã tạo attempt giao lại mới."
+          : "Đã tạo attempt thu hồi lại mới."
+      );
     } catch (error) {
-      alert(error?.response?.data?.message || "Không thể tạo attempt giao lại");
+      alert(
+        error?.response?.data?.message ||
+          (flowContext === "DELIVERY"
+            ? "Không thể tạo attempt giao lại"
+            : "Không thể tạo attempt thu hồi lại")
+      );
     } finally {
       setWorking(false);
     }
@@ -369,11 +511,11 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-              <ClipboardCheck size={20} className="text-primary" /> Biên bản bàn giao
+              <ClipboardCheck size={20} className="text-primary" /> Biên bản
             </h2>
           </div>
           <button
-            onClick={fetchDeliveringRentals}
+            onClick={fetchRentals}
             className="px-3 py-2 text-sm rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center gap-2"
             disabled={loadingRentals}
           >
@@ -382,16 +524,53 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
         </div>
       </div>
 
+      <div className="bg-white border border-slate-200 rounded-2xl p-2 shadow-sm flex gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setFlowContext("DELIVERY");
+            setSelectedRentalId("");
+            setAttempts([]);
+          }}
+          className={`flex-1 px-3 py-2 rounded-xl text-sm font-semibold transition-colors ${
+            flowContext === "DELIVERY"
+              ? "bg-indigo-600 text-white"
+              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+          }`}
+        >
+          Biên bản bàn giao
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setFlowContext("RETURN");
+            setSelectedRentalId("");
+            setAttempts([]);
+          }}
+          className={`flex-1 px-3 py-2 rounded-xl text-sm font-semibold transition-colors ${
+            flowContext === "RETURN"
+              ? "bg-orange-600 text-white"
+              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+          }`}
+        >
+          Biên bản thu hồi
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         <div className="xl:col-span-1 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-100 text-sm font-semibold text-slate-700">
-            Đơn đang giao
+            {flowContext === "DELIVERY" ? "Đơn đang giao" : "Đơn đang thu hồi"}
           </div>
           <div className="max-h-[65vh] overflow-y-auto p-3 space-y-2">
             {loadingRentals ? (
               <p className="text-sm text-slate-500 p-2">Đang tải...</p>
             ) : rentals.length === 0 ? (
-              <p className="text-sm text-slate-500 p-2">Không có đơn DELIVERING.</p>
+              <p className="text-sm text-slate-500 p-2">
+                {flowContext === "DELIVERY"
+                  ? "Không có đơn DELIVERING."
+                  : "Không có đơn RETURNING."}
+              </p>
             ) : (
               rentals.map((item) => (
                 <button
@@ -415,7 +594,9 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
         <div className="xl:col-span-2 bg-white border border-slate-200 rounded-2xl shadow-sm p-4 md:p-6">
           {!selectedRental ? (
             <div className="h-[50vh] flex items-center justify-center text-slate-500 text-sm">
-              Chọn một đơn đang giao để xử lý biên bản bàn giao.
+              {flowContext === "DELIVERY"
+                ? "Chọn một đơn đang giao để xử lý biên bản bàn giao."
+                : "Chọn một đơn đang thu hồi để xử lý biên bản thu hồi."}
             </div>
           ) : (
             <div className="space-y-5">
@@ -453,7 +634,7 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
                   disabled={working || !activeAttempt || !canProcessHandover}
                   className="px-3 py-2 text-sm rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
                 >
-                  Bắt đầu giao
+                  {flowContext === "DELIVERY" ? "Bắt đầu giao" : "Bắt đầu thu hồi"}
                 </button>
                 <button
                   onClick={handleSaveInspection}
@@ -467,13 +648,15 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
                   disabled={working || !isAssignedToMe}
                   className="px-3 py-2 text-sm rounded-xl border border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 disabled:opacity-50"
                 >
-                  Tạo attempt giao lại
+                  {flowContext === "DELIVERY" ? "Tạo attempt giao lại" : "Tạo attempt thu hồi lại"}
                 </button>
               </div>
 
               {!canProcessHandover && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 text-amber-700 px-3 py-2 text-sm font-medium">
-                  Bạn chỉ có thể xử lý biên bản khi đơn đã được bạn nhận và đã xác nhận lấy hàng.
+                  {flowContext === "DELIVERY"
+                    ? "Bạn chỉ có thể xử lý biên bản khi đơn đã được bạn nhận và đã xác nhận lấy hàng."
+                    : "Bạn chỉ có thể xử lý biên bản khi đơn thu hồi đã được lock cho bạn."}
                 </div>
               )}
 
@@ -524,7 +707,8 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
                         : "text-slate-700 hover:bg-white"
                     }`}
                   >
-                    <CircleCheck size={16} /> Giao thành công
+                    <CircleCheck size={16} />
+                    {flowContext === "DELIVERY" ? "Giao thành công" : "Thu hồi thành công"}
                   </button>
                   <button
                     type="button"
@@ -535,7 +719,8 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
                         : "text-slate-700 hover:bg-white"
                     }`}
                   >
-                    <CircleX size={16} /> Giao thất bại
+                    <CircleX size={16} />
+                    {flowContext === "DELIVERY" ? "Giao thất bại" : "Thu hồi thất bại"}
                   </button>
                 </div>
 
@@ -547,6 +732,7 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
                     working={working}
                     activeAttempt={activeAttempt}
                     canProcessHandover={canProcessHandover}
+                    contextType={flowContext}
                   />
                 ) : (
                   <FailureConfirmCard
@@ -556,6 +742,8 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
                     working={working}
                     activeAttempt={activeAttempt}
                     canProcessHandover={canProcessHandover}
+                    contextType={flowContext}
+                    failureOptions={flowContext === "DELIVERY" ? undefined : RETURN_FAILURE_OPTIONS}
                   />
                 )}
               </div>
