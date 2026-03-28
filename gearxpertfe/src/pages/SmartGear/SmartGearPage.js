@@ -296,10 +296,10 @@ export default function SmartGearPage() {
             <div className="lg:col-span-4">
               <div className="rounded-2xl border border-white/15 bg-white/10 p-4 md:p-5">
                 <p className="text-xs font-black uppercase tracking-[0.14em] text-cyan-300">Luồng sử dụng</p>
-                <div className="mt-3 space-y-2 text-sm text-slate-100">
-                  <p>1. Nhập nhu cầu quay/chụp.</p>
-                  <p>2. Chọn thời gian thuê.</p>
-                  <p>3. Nhận combo và thêm thẳng vào giỏ.</p>
+                <div className="mt-3 space-y-2 text-sm font-semibold">
+                  <p className="text-white">1. Nhập nhu cầu quay/chụp.</p>
+                  <p className="text-white">2. Chọn thời gian thuê.</p>
+                  <p className="text-white">3. Nhận combo và thêm thẳng vào giỏ.</p>
                 </div>
               </div>
             </div>

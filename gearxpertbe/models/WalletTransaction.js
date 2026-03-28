@@ -9,7 +9,17 @@ const walletTransactionSchema = new mongoose.Schema({
   
     type: {
       type: String,
-      enum: ['TOP_UP', 'PAYMENT', 'REFUND', 'WITHDRAW', 'ADJUSTMENT'],
+      enum: [
+        'TOP_UP',
+        'PAYMENT',
+        'REFUND',
+        'WITHDRAW',
+        'ADJUSTMENT',
+        'PLATFORM_FEE',
+        'PLATFORM_FEE_REFUND',
+        'PAYOUT',
+        'DEPOSIT_REFUND'
+      ],
       required: true
     },
   

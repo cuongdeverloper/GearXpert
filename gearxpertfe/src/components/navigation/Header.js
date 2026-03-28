@@ -14,7 +14,7 @@ import {
   markAllNotificationsAsRead,
 } from '../../service/ApiService/notificationApi'; // ← import api mới
 
-export default function Header() {
+export default function Header({ onMenuOpen }) {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
@@ -182,6 +182,15 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 w-full glass-panel bg-white/70 border-b border-slate-200">
       <div className="max-w-[1440px] mx-auto px-6 lg:px-10 h-24 flex items-center justify-between relative">
+        {/* Mobile Sidebar Toggle (For Dashboard use) */}
+        {onMenuOpen && (
+          <button
+            onClick={onMenuOpen}
+            className="lg:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors mr-2"
+          >
+            <span className="material-symbols-outlined text-[24px]">menu</span>
+          </button>
+        )}
         {/* Logo */}
         <div
           className="flex items-center cursor-pointer group relative z-10"

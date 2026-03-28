@@ -207,7 +207,7 @@ export default function ProductCard({
         </div>
 
         <div className="flex flex-col flex-1">
-          <h4 className="font-bold text-slate-900 font-display text-base mb-2 line-clamp-2 h-12 leading-tight">
+          <h4 className="font-bold text-slate-900 font-display text-base mb-2 line-clamp-1 h-6 leading-tight" title={name}>
             {name}
           </h4>
           <div className="mt-auto pt-2 flex items-center justify-between border-t border-slate-50">
@@ -298,15 +298,17 @@ export default function ProductCard({
         </div>
 
         {/* Content Section */}
-        <div className="p-6">
+        <div className="p-6 flex flex-col flex-1">
           <span className="text-[10px] font-bold text-primary uppercase tracking-[0.2em]">
             {category}
           </span>
-          <h3 className="text-xl font-bold text-slate-900 mt-1 font-display">{name}</h3>
+          <h3 className="text-xl font-bold text-slate-900 mt-1 font-display line-clamp-1 min-h-[1.75rem]" title={name}>
+            {name}
+          </h3>
           {description && (
-            <p className="text-sm text-slate-500 mt-2 line-clamp-2">{description}</p>
+            <p className="text-sm text-slate-500 mt-2 line-clamp-2 flex-1">{description}</p>
           )}
-          <div className="mt-6 flex items-center justify-between">
+          <div className="mt-auto pt-6 flex items-center justify-between">
             <div className="flex flex-col">
               {hasDiscount && (
                 <span className="text-sm text-slate-400 line-through leading-none mb-1">

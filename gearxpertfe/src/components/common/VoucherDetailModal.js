@@ -1,8 +1,10 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
+import { useNavigate } from 'react-router-dom';
 
 const VoucherDetailModal = ({ isOpen, onClose, voucher, onApply }) => {
+    const navigate = useNavigate();
     if (!voucher) return null;
 
     const isGlobal = voucher.type === 'GLOBAL';
@@ -56,16 +58,24 @@ const VoucherDetailModal = ({ isOpen, onClose, voucher, onApply }) => {
                             </button>
 
                             <div className="relative z-10 flex flex-col items-center">
-                                <div className={`mb-4 flex h-20 w-20 items-center justify-center rounded-3xl shadow-2xl ${isGlobal ? 'bg-white/20 ring-1 ring-white/30' : 'bg-white dark:bg-slate-800'}`}>
-                                    <span className={`material-symbols-outlined text-[48px] ${isGlobal ? 'text-white material-symbols-filled' : 'text-primary'}`}>
-                                        {isGlobal ? 'workspace_premium' : 'storefront'}
-                                    </span>
+                                <div className={`mb-4 flex h-20 w-20 items-center justify-center rounded-3xl shadow-2xl ${isGlobal ? 'bg-white/20 ring-1 ring-white/30' : 'bg-white dark:bg-slate-800 overflow-hidden'}`}>
+                                    {!isGlobal && voucher.shopInfo?.avatar ? (
+                                        <img 
+                                            src={voucher.shopInfo.avatar} 
+                                            alt={voucher.shopInfo.name} 
+                                            className="h-full w-full object-cover"
+                                        />
+                                    ) : (
+                                        <span className={`material-symbols-outlined text-[48px] ${isGlobal ? 'text-white material-symbols-filled' : 'text-primary'}`}>
+                                            {isGlobal ? 'workspace_premium' : 'storefront'}
+                                        </span>
+                                    )}
                                 </div>
                                 <h2 className={`text-4xl font-black mb-1 ${isGlobal ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
                                     {voucher.discountType === 'PERCENT' ? `${voucher.discountValue}% OFF` : `-${voucher.discountValue.toLocaleString()}đ`}
                                 </h2>
                                 <p className={`text-sm font-bold tracking-widest uppercase opacity-80 ${isGlobal ? 'text-indigo-100' : 'text-slate-500'}`}>
-                                    {isGlobal ? 'Global Voucher' : 'Supplier Exclusive'}
+                                    {isGlobal ? 'Global Voucher' : (voucher.shopInfo?.name || 'Supplier Exclusive')}
                                 </p>
                             </div>
                         </div>
@@ -112,6 +122,11 @@ const VoucherDetailModal = ({ isOpen, onClose, voucher, onApply }) => {
                                 <button
                                     onClick={() => {
                                         onApply?.(voucher);
+                                        if (!isGlobal && voucher.supplierId) {
+                                            navigate(`/supplier/${voucher.supplierId}`);
+                                        } else if (isGlobal) {
+                                            navigate('/products');
+                                        }
                                         onClose();
                                     }}
                                     className="flex-1 py-4 rounded-2xl bg-slate-900 text-white font-black uppercase tracking-widest hover:bg-primary transition-all shadow-xl active:scale-[0.98]"

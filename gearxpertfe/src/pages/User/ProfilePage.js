@@ -520,7 +520,7 @@ export default function ProfilePage() {
                                 <div
                                     className="flex items-center gap-3 p-4 rounded-xl mb-6 cursor-pointer hover:scale-105 transition-all duration-300 shadow-md hover:shadow-lg"
                                     style={{ backgroundColor: '#D1FAE5' }}
-                                    onClick={() => navigate('/wallet')}
+                                    onClick={() => navigate('/user/wallet')}
                                 >
                                     <span className="material-symbols-outlined text-2xl text-slate-900">account_balance_wallet</span>
                                     <div className="flex-1">
