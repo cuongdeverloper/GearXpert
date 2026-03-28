@@ -118,11 +118,6 @@ const claimDeliveryTask = (taskId) => {
   return axios.post(`/api/rentals/delivery-tasks/${taskId}/claim`);
 };
 
-// Staff xác nhận đã giao hàng đến tay customer
-const confirmDelivery = (rentalId) => {
-  return axios.post(`/api/rentals/${rentalId}/confirm-delivery`);
-};
-
 // Staff xác nhận đã thu hồi thiết bị từ customer
 const confirmReturn = (rentalId) => {
   return axios.post(`/api/rentals/${rentalId}/confirm-return`);
@@ -162,6 +157,5 @@ export {
   getReturningRentals,
   claimDeliveryTask,
   confirmPickup,
-  confirmDelivery,
   confirmReturn
 };

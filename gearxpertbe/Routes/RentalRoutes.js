@@ -20,7 +20,6 @@ const {
   getReturningRentals,
   claimDeliveryTask,
   confirmPickup,
-  confirmDelivery,
   confirmReturn,
   previewContract,getRentalById
 } = require('../controllers/Rental/RentalController');
@@ -59,7 +58,6 @@ rentalRouter.post(
   checkAccessToken,startDelivery
 );
 rentalRouter.post('/:rentalId/confirm-pickup', checkAccessToken, confirmPickup);
-rentalRouter.post('/:rentalId/confirm-delivery', checkAccessToken, confirmDelivery);
 rentalRouter.post('/:rentalId/confirm-return', checkAccessToken, confirmReturn);
 rentalRouter.post('/:rentalId/cancelpay', checkAccessToken, cancelPayRental);
 rentalRouter.post("/:rentalId/repay", checkAccessToken, repayRental);

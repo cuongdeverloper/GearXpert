@@ -92,9 +92,6 @@ export default function TasksTab({ onOpenHandover }) {
     }
   }, []);
 
-  // Keep legacy name for refresh button compatibility
-  const fetchDeliveryTasks = fetchAllTasks;
-
   useEffect(() => {
     fetchAllTasks();
   }, [fetchAllTasks]);
@@ -281,7 +278,7 @@ export default function TasksTab({ onOpenHandover }) {
               {tasks.length} đơn
             </span>
             <button
-              onClick={fetchDeliveryTasks}
+              onClick={fetchAllTasks}
               title="Làm mới"
               className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
             >
@@ -324,7 +321,7 @@ export default function TasksTab({ onOpenHandover }) {
             <CheckCircle className="w-12 h-12 mb-3 text-slate-300" />
             <p>Không có nhiệm vụ nào</p>
             <button
-              onClick={fetchDeliveryTasks}
+              onClick={fetchAllTasks}
               className="mt-3 px-4 py-2 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition-colors"
             >
               Tải lại

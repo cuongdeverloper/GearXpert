@@ -1897,68 +1897,6 @@ exports.confirmReturn = async (req, res) => {
     session.endSession();
   }
 };
-exports.confirmDelivery = async (req, res) => {
-  try {
-    const { rentalId } = req.params;
-    const actorId = req.user?.id;
-    const actorRole = req.user?.role;
-
-    const rental = await Rental.findById(rentalId);
-    if (!rental) return res.status(404).json({ message: "Rental not found" });
-
-    if (actorRole === "OPERATION_STAFF") {
-      if (!rental.assignedOperationStaffId) {
-        return res.status(409).json({ message: "Đơn chưa có staff nhận. Vui lòng nhận đơn trước" });
-      }
-      if (String(rental.assignedOperationStaffId) !== String(actorId)) {
-        return res.status(403).json({ message: "Đơn đã được lock cho staff khác" });
-      }
-    }
-
-    if (rental.status !== "DELIVERING")
-      return res
-        .status(400)
-        .json({ message: "Rental is not in DELIVERING status" });
-    if (!rental.pickedUpAt)
-      return res
-        .status(400)
-        .json({ message: "Please confirm pickup before confirming delivery" });
-    if (rental.deliveredAt)
-      return res.status(400).json({ message: "Delivery already confirmed" });
-
-    rental.deliveredAt = new Date();
-    await rental.save();
-
-    await DeliveryTask.findOneAndUpdate(
-      {
-        rentalId: rental._id,
-        type: "DELIVERY",
-        status: { $in: ["ASSIGNED", "IN_TRANSIT"] },
-      },
-      {
-        $set: {
-          status: "COMPLETED",
-          completedAt: new Date(),
-        },
-      }
-    );
-
-    await sendRentalNotification(
-      rental,
-      "CUSTOMER",
-      "Thiết bị đã được giao đến bạn!",
-      "Nhân viên đã xác nhận giao hàng thành công. Vui lòng kiểm tra và xác nhận đã nhận hàng."
-    );
-
-    return res
-      .status(200)
-      .json({ message: "Delivery confirmed", deliveredAt: rental.deliveredAt });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
 exports.repayRental = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
