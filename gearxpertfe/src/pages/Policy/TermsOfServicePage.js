@@ -51,7 +51,7 @@ export default function TermsOfServicePage() {
 
       <main className="flex-grow w-full pb-12">
         {/* Hero Section */}
-        <section className="relative w-full bg-slate-900 overflow-hidden mb-10 pt-16 pb-24 lg:pt-24 lg:pb-32">
+        <section className="relative w-full bg-slate-900 overflow-hidden mb-10 pt-48 pb-24 lg:pt-56 lg:pb-32">
           <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1485846234645-a62644f84728?w=1920&q=80')] bg-cover bg-center opacity-30 mix-blend-overlay" />
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-900/80 to-background-light" />
 

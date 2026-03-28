@@ -588,7 +588,7 @@ export default function MyRentals() {
     <div className="min-h-screen bg-[#F8F9FB] pb-20 font-sans">
       <Header />
 
-      <div className="max-w-screen-2xl mx-auto px-4 lg:px-12 xl:px-16 pt-12">
+      <div className="max-w-screen-2xl mx-auto px-4 lg:px-12 xl:px-16 pt-32">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
           <div>
             <h1 className="text-5xl font-black text-gray-900 tracking-tighter italic uppercase">

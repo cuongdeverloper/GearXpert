@@ -60,7 +60,7 @@ useEffect(() => {
           <div className="text-red-500">
              <h2 className="text-2xl font-bold">Có lỗi xảy ra</h2>
              <p>Không thể xác định giao dịch. Vui lòng kiểm tra lại lịch sử ví.</p>
-             <button onClick={() => navigate("/wallet")} className="mt-4 text-indigo-600 font-bold underline">Quay lại</button>
+             <button onClick={() => navigate("/user/wallet")} className="mt-4 text-indigo-600 font-bold underline">Quay lại</button>
           </div>
         )}
       </div>

@@ -1,7 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { useState } from "react";
 import { useSelector } from "react-redux";
-import SupplierTopbar from "./supplier/SupplierTopbar";
+import Header from "../navigation/Header";
 import SupplierSidebar from "./supplier/SupplierSidebar";
 import SupplierMobileDrawer from "./supplier/SupplierMobileDrawer";
 
@@ -17,19 +17,19 @@ export default function SupplierLayout() {
   const me = useSelector((state) => state.user.account);
   return (
     <div className="min-h-screen bg-background-light flex flex-col text-[15px]">
-      {/* TOPBAR */}
-      <SupplierTopbar onMenuOpen={() => setOpen(true)} me={me} />
+      {/* HEADER */}
+      <Header onMenuOpen={() => setOpen(true)} />
 
       {/* BODY */}
       <div className={classNames(
-        "flex-1 flex lg:grid w-full transition-all duration-500",
+        "flex-1 flex lg:grid w-full transition-all duration-500 pt-32 lg:pt-32",
         collapsed ? "lg:grid-cols-[88px_1fr]" : "lg:grid-cols-[260px_1fr]"
       )}>
         {/* SIDEBAR Desktop */}
-        <SupplierSidebar 
-          collapsed={collapsed} 
-          onCollapse={() => setCollapsed(!collapsed)} 
-          me={me} 
+        <SupplierSidebar
+          collapsed={collapsed}
+          onCollapse={() => setCollapsed(!collapsed)}
+          me={me}
         />
 
         {/* SIDEBAR Mobile drawer */}

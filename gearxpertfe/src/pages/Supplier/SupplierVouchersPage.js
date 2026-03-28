@@ -6,7 +6,21 @@ import {
     updateVoucherStatusBySupplier
 } from "../../service/ApiService/VoucherApi";
 import { toast } from "react-toastify";
-import { FiPlus, FiClock, FiTag, FiSearch, FiMoreVertical, FiEye, FiEyeOff, FiRefreshCw, FiCalendar, FiDollarSign, FiHash, FiFileText, FiX } from "react-icons/fi";
+import { 
+    FiPlus, 
+    FiClock, 
+    FiTag, 
+    FiSearch, 
+    FiMoreVertical, 
+    FiEye, 
+    FiEyeOff, 
+    FiRefreshCw, 
+    FiCalendar, 
+    FiDollarSign, 
+    FiHash, 
+    FiFileText, 
+    FiX 
+} from "react-icons/fi";
 
 export default function SupplierVouchersPage() {
     const [vouchers, setVouchers] = useState([]);
@@ -121,12 +135,14 @@ export default function SupplierVouchersPage() {
                     <h1 className="text-2xl font-bold text-slate-800">Quản lý Voucher</h1>
                     <p className="text-sm text-slate-500">Xem và quản lý các chương trình khuyến mãi của bạn</p>
                 </div>
-                <button
-                    onClick={handleOpenCreate}
-                    className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl font-bold hover:bg-primary-dark transition-all shadow-lg shadow-primary/20"
-                >
-                    <FiPlus /> Tạo Voucher mới
-                </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={handleOpenCreate}
+                        className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl font-bold hover:bg-primary-dark transition-all shadow-lg shadow-primary/20"
+                    >
+                        <FiPlus /> Tạo Voucher mới
+                    </button>
+                </div>
             </div>
 
             <div className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">

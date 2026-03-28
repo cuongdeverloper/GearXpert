@@ -91,6 +91,11 @@ const deviceSchema = new mongoose.Schema(
     /* ===== REVIEW STATS ===== */
     ratingAvg: { type: Number, default: 0 },
     reviewCount: { type: Number, default: 0 },
+
+    /* ===== DYNAMIC PRICING ===== */
+    discountPrice: { type: Number, default: 0 },
+    discountReason: { type: String, default: "" },
+    discountExpiry: { type: Date },
   },
   {
     timestamps: true,

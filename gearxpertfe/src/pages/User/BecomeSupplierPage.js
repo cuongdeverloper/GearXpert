@@ -82,7 +82,7 @@ export default function BecomeSupplierPage() {
             <div className="absolute top-[-100px] right-[-100px] w-[500px] h-[500px] bg-purple-100/40 rounded-full blur-3xl -z-10"></div>
             <div className="absolute top-[200px] left-[-100px] w-[300px] h-[300px] bg-cyan-100/40 rounded-full blur-3xl -z-10"></div>
 
-            <main className="flex-grow w-full py-12 px-6 lg:px-10 max-w-[1000px] mx-auto z-10">
+            <main className="flex-grow w-full pt-40 lg:pt-48 pb-12 px-6 lg:px-10 max-w-[1000px] mx-auto z-10">
                 {/* Tiêu đề trang */}
                 <div className="mb-10 text-center">
                     <div className="inline-flex items-center gap-3 mb-2 text-primary font-bold tracking-wider text-xs uppercase bg-indigo-50 px-4 py-1.5 rounded-full border border-indigo-100">

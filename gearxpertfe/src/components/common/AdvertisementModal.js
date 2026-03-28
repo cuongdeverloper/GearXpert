@@ -119,7 +119,7 @@ export default function AdvertisementModal({ isOpen, onClose, onSuccess }) {
                 toast.error(response.message);
                 if (window.confirm("Số dư không đủ. Bạn có muốn nạp thêm tiền không?")) {
                     onClose();
-                    navigate('/wallet');
+                    navigate('/user/wallet');
                 }
             } else {
                 toast.error(response.message || 'Có lỗi xảy ra');
@@ -133,7 +133,7 @@ export default function AdvertisementModal({ isOpen, onClose, onSuccess }) {
                 toast.error(errorMessage);
                 if (window.confirm("Số dư không đủ. Bạn có muốn nạp thêm tiền không?")) {
                     onClose();
-                    navigate('/wallet');
+                    navigate('/user/wallet');
                 }
             } else {
                 toast.error(errorMessage || 'Có lỗi xảy ra khi đăng quảng cáo');
