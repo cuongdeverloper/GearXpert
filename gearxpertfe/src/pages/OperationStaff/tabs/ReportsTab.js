@@ -9,6 +9,16 @@ const DELIVERY_ISSUE_TYPE_LABELS = {
   WRONG_ITEM: 'Khách từ chối nhận',
 };
 
+const HANDOVER_FAILURE_REASON_LABELS = {
+  NO_SHOW: 'Khách không có mặt',
+  CUSTOMER_REJECT: 'Khách từ chối nhận',
+  MISSING_ACCESSORY: 'Thiếu phụ kiện',
+  DEVICE_MISMATCH: 'Sai thiết bị / sai serial',
+  DAMAGED_ITEM_AT_DELIVERY: 'Thiết bị hư hỏng khi giao',
+  DELIVERY_BLOCKED: 'Bị chặn giao / không thể tiếp cận',
+  OTHER: 'Khác',
+};
+
 const RETURN_ISSUE_TYPE_LABELS = {
   DAMAGED: 'Trầy xước / Hư hỏng / Cấn móp',
   MISSING: 'Mất / Thiếu phụ kiện',
@@ -40,7 +50,15 @@ function ReportCard({ report, issueTypeLabels, contextColor }) {
   const extraDevices = (report.deviceIds?.length || 1) - 1;
   const deviceLabel = extraDevices > 0 ? `${deviceName} (+${extraDevices} khác)` : deviceName;
   const customerName = report.rentalId?.customerId?.fullName || '—';
-  const issueLabel = issueTypeLabels[report.issueType] || report.issueType;
+  const handoverCodeMatch = report.description?.match(/Handover thất bại:\s*([A-Z_]+)/i);
+  const handoverLabelMatch = report.description?.match(/Đơn hàng không thành công vì lý do:\s*([^|.]+)/i);
+  const handoverReasonLabel = handoverLabelMatch?.[1]?.trim()
+    || (handoverCodeMatch?.[1] ? HANDOVER_FAILURE_REASON_LABELS[handoverCodeMatch[1].toUpperCase()] : null);
+
+  const issueLabel = handoverReasonLabel || issueTypeLabels[report.issueType] || report.issueType;
+  const descriptionText = handoverCodeMatch && handoverReasonLabel
+    ? `Đơn hàng không thành công vì lý do: ${handoverReasonLabel}`
+    : report.description;
   const statusLabel = STATUS_LABELS[report.status] || report.status;
   const statusStyle = STATUS_STYLES[report.status] || 'bg-slate-100 text-slate-700';
   const previewImg = report.images?.[0];
@@ -68,7 +86,7 @@ function ReportCard({ report, issueTypeLabels, contextColor }) {
 
           <h3 className="font-bold text-slate-900 mb-1 line-clamp-1">{deviceLabel}</h3>
           <p className="text-xs text-slate-500 mb-1">Khách: {customerName}</p>
-          <p className="text-sm text-slate-600 line-clamp-2 mb-4 flex-1">{report.description}</p>
+          <p className="text-sm text-slate-600 line-clamp-2 mb-4 flex-1">{descriptionText}</p>
 
           {report.images?.length > 1 && (
             <div className="flex gap-1.5 mb-3">

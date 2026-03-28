@@ -28,12 +28,32 @@ const ACTION_CONFIG = {
     status: 'warning',
     Icon: AlertTriangle,
   },
+  HANDOVER_CONFIRM_SUCCESS: {
+    label: 'Xác nhận bàn giao thành công',
+    status: 'success',
+    Icon: CheckCircle,
+  },
+  HANDOVER_CONFIRM_FAILED: {
+    label: 'Xác nhận bàn giao thất bại',
+    status: 'warning',
+    Icon: AlertTriangle,
+  },
 };
 
 const STATUS_CLASS = {
   success: 'bg-emerald-500',
   warning: 'bg-amber-500',
   info: 'bg-blue-500',
+};
+
+const HANDOVER_FAILURE_REASON_LABELS = {
+  NO_SHOW: 'Khách không có mặt',
+  CUSTOMER_REJECT: 'Khách từ chối nhận',
+  MISSING_ACCESSORY: 'Thiếu phụ kiện',
+  DEVICE_MISMATCH: 'Sai thiết bị / sai serial',
+  DAMAGED_ITEM_AT_DELIVERY: 'Thiết bị hư hỏng khi giao',
+  DELIVERY_BLOCKED: 'Bị chặn giao / không thể tiếp cận',
+  OTHER: 'Khác',
 };
 
 const formatTime = (isoString) => {
@@ -52,9 +72,11 @@ const formatTime = (isoString) => {
 const buildDetail = (log) => {
   const d = log.details || {};
   const parts = [];
+  const reasonLabel = d.reason ? (HANDOVER_FAILURE_REASON_LABELS[d.reason] || d.reason) : '';
   if (d.device) parts.push(d.device);
   if (d.customer) parts.push(`KH: ${d.customer}`);
   if (d.issueType) parts.push(`Loại: ${d.issueType}`);
+  if (reasonLabel) parts.push(`Lý do: ${reasonLabel}`);
   return parts.join(' · ') || `#${String(log.targetId).slice(-6).toUpperCase()}`;
 };
 

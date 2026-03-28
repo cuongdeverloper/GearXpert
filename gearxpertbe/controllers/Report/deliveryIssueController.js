@@ -218,12 +218,15 @@ exports.createStaffDeliveryIssue = async (req, res) => {
 exports.getStaffDeliveryIssues = async (req, res) => {
   try {
     const staffId = req.user.id;
+    const HANDOVER_FAIL_REGEX = /^(Handover thất bại:|Đơn hàng không thành công vì lý do:)/i;
     const reports = await DeliveryIssueReport.find({
       staffId,
       reportedBy: "STAFF",
       $or: [
         { reportContext: "DELIVERY" },
         { reportContext: { $exists: false } },
+        // Backward compatibility: old handover-failed records were mistakenly stored as RETURN.
+        { description: HANDOVER_FAIL_REGEX },
       ],
     })
       .populate({
@@ -315,10 +318,13 @@ exports.createStaffReturnIssue = async (req, res) => {
 exports.getStaffReturnIssues = async (req, res) => {
   try {
     const staffId = req.user.id;
+    const HANDOVER_FAIL_REGEX = /^(Handover thất bại:|Đơn hàng không thành công vì lý do:)/i;
     const reports = await DeliveryIssueReport.find({
       staffId,
       reportedBy: "STAFF",
       reportContext: "RETURN",
+      // Exclude failed-handover records so they only appear in Delivery tab.
+      description: { $not: HANDOVER_FAIL_REGEX },
     })
       .populate({
         path: "rentalId",

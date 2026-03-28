@@ -3,6 +3,7 @@ const Rental = require("../models/Rental");
 const RentalItem = require("../models/RentalItem");
 const DeliveryTask = require("../models/DeliveryTask");
 const DeviceItem = require("../models/DeviceItem");
+const DeliveryIssueReport = require("../models/DeliveryIssueReport");
 const {
   HandoverRecord,
   HANDOVER_STATUS,
@@ -36,6 +37,39 @@ const FAIL_REASON_NEEDS_DETAIL = new Set([
   HANDOVER_FAILURE_REASON.OTHER,
   HANDOVER_FAILURE_REASON.DELIVERY_BLOCKED,
 ]);
+
+const mapFailureReasonToIssueType = (reason) => {
+  switch (reason) {
+    case HANDOVER_FAILURE_REASON.MISSING_ACCESSORY:
+      return "MISSING";
+    case HANDOVER_FAILURE_REASON.CUSTOMER_REJECT:
+    case HANDOVER_FAILURE_REASON.DEVICE_MISMATCH:
+      return "WRONG_ITEM";
+    case HANDOVER_FAILURE_REASON.DAMAGED_ITEM_AT_DELIVERY:
+      return "DAMAGED";
+    default:
+      return "OTHER";
+  }
+};
+
+const mapFailureReasonToLabel = (reason) => {
+  switch (reason) {
+    case HANDOVER_FAILURE_REASON.NO_SHOW:
+      return "Khách không có mặt";
+    case HANDOVER_FAILURE_REASON.CUSTOMER_REJECT:
+      return "Khách từ chối nhận";
+    case HANDOVER_FAILURE_REASON.MISSING_ACCESSORY:
+      return "Thiếu phụ kiện";
+    case HANDOVER_FAILURE_REASON.DEVICE_MISMATCH:
+      return "Sai thiết bị / sai serial";
+    case HANDOVER_FAILURE_REASON.DAMAGED_ITEM_AT_DELIVERY:
+      return "Thiết bị hư hỏng khi giao";
+    case HANDOVER_FAILURE_REASON.DELIVERY_BLOCKED:
+      return "Bị chặn giao / không thể tiếp cận";
+    default:
+      return "Khác";
+  }
+};
 
 const mapRentalItemsToSnapshot = async (rentalId, session) => {
   const items = await RentalItem.find({ rentalId })
@@ -626,6 +660,40 @@ const failHandover = async ({
           status: "PENDING_RESOLUTION",
         },
       },
+      { session }
+    );
+
+    const rentalItems = await RentalItem.find({ rentalId: current.rentalId })
+      .select("_id deviceId")
+      .session(session)
+      .lean();
+
+    const issueType = mapFailureReasonToIssueType(normalizedFailure.reason);
+    const failureReasonLabel = mapFailureReasonToLabel(normalizedFailure.reason);
+    const descriptionParts = [
+      `Đơn hàng không thành công vì lý do: ${failureReasonLabel}`,
+      normalizedFailure.detail,
+      normalizedFailure.operatorNote,
+      normalizedFailure.noShowWaitMinutes
+        ? `No-show chờ ${normalizedFailure.noShowWaitMinutes} phút`
+        : "",
+    ].filter(Boolean);
+
+    await DeliveryIssueReport.create(
+      [
+        {
+          rentalId: current.rentalId,
+          rentalItemIds: rentalItems.map((item) => item._id),
+          deviceIds: rentalItems.map((item) => item.deviceId).filter(Boolean),
+          customerId: updated?.prefetchedSnapshot?.customerId,
+          staffId,
+          reportedBy: "STAFF",
+          reportContext: "DELIVERY",
+          issueType,
+          description: descriptionParts.join(" | "),
+          images: normalizedFailure.evidenceUrls,
+        },
+      ],
       { session }
     );
 

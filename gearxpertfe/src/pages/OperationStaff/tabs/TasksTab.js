@@ -4,8 +4,8 @@ import {
   Truck, PackageCheck, Wrench,
   AlertTriangle, CheckCircle, X, Camera, MapPin, Phone, FileText, XCircle,
 } from 'lucide-react';
-import { getDeliveringRentals, getReturningRentals, claimDeliveryTask, confirmPickup, confirmDelivery, confirmReturn } from '../../../service/ApiService/RentalApi';
-import { createStaffDeliveryIssue, createStaffReturnIssue } from '../../../service/ApiService/ReportApi';
+import { getDeliveringRentals, getReturningRentals, claimDeliveryTask, confirmPickup, confirmReturn } from '../../../service/ApiService/RentalApi';
+import { createStaffReturnIssue } from '../../../service/ApiService/ReportApi';
 import { logOperationAction } from '../../../service/ApiService/OperationLogApi';
 
 const mapRentalToTask = (rental) => {
@@ -58,16 +58,9 @@ export default function TasksTab({ onOpenHandover }) {
   const [tasks, setTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
-  const [showIssueModal, setShowIssueModal] = useState(false);
   const [pickupLoading, setPickupLoading] = useState(false);
-  const [completionLoading, setCompletionLoading] = useState(false);
   const [returnLoading, setReturnLoading] = useState(false);
   const [claimLoading, setClaimLoading] = useState(false);
-
-  // Delivery issue form state
-  const [issueForm, setIssueForm] = useState({ issueType: '', description: '', files: [] });
-  const [issueSubmitting, setIssueSubmitting] = useState(false);
-  const fileInputRef = useRef(null);
 
   // Return issue form state
   const [showReturnIssueModal, setShowReturnIssueModal] = useState(false);
@@ -75,13 +68,7 @@ export default function TasksTab({ onOpenHandover }) {
   const [returnIssueSubmitting, setReturnIssueSubmitting] = useState(false);
   const returnFileInputRef = useRef(null);
 
-  const resetIssueForm = () => setIssueForm({ issueType: '', description: '', files: [] });
   const resetReturnIssueForm = () => setReturnIssueForm({ issueType: '', description: '', files: [] });
-
-  const handleOpenIssueModal = () => {
-    resetIssueForm();
-    setShowIssueModal(true);
-  };
 
   const handleOpenReturnIssueModal = () => {
     resetReturnIssueForm();
@@ -150,40 +137,6 @@ export default function TasksTab({ onOpenHandover }) {
     }
   };
 
-  const handleConfirmDelivery = async () => {
-    if (!selectedTask || completionLoading) return;
-
-    if (selectedTask.type === 'delivery' && selectedTask.assignedOperationStaffId && String(selectedTask.assignedOperationStaffId) !== String(currentStaffId)) {
-      return alert('Đơn này đã được lock cho staff khác.');
-    }
-
-    setCompletionLoading(true);
-    try {
-      await confirmDelivery(selectedTask.rentalId);
-      const now = new Date().toISOString();
-      setTasks(prev => prev.map(t =>
-        t.id === selectedTask.id
-          ? { ...t, rentalData: { ...t.rentalData, deliveredAt: now } }
-          : t
-      ));
-      setSelectedTask(prev => ({
-        ...prev,
-        rentalData: { ...prev.rentalData, deliveredAt: now },
-      }));
-      logOperationAction('CONFIRM_DELIVERY', 'RENTAL', selectedTask.rentalId, {
-        device: selectedTask.device,
-        customer: selectedTask.customer,
-        address: selectedTask.address,
-      }).catch(() => {});
-      alert('Đã xác nhận giao hàng thành công! Đang chờ khách hàng xác nhận nhận hàng.');
-    } catch (err) {
-      console.error('Lỗi xác nhận giao hàng:', err);
-      alert(err?.response?.data?.message || 'Không thể xác nhận giao hàng');
-    } finally {
-      setCompletionLoading(false);
-    }
-  };
-
   const handleConfirmReturn = async () => {
     if (!selectedTask || returnLoading) return;
 
@@ -211,43 +164,6 @@ export default function TasksTab({ onOpenHandover }) {
     }
   };
 
-  const handleSubmitIssue = async () => {
-    if (!issueForm.issueType) return alert('Vui lòng chọn phân loại sự cố.');
-    if (!issueForm.description.trim()) return alert('Vui lòng mô tả chi tiết sự cố.');
-    if (!selectedTask) return;
-
-    if (selectedTask.assignedOperationStaffId && String(selectedTask.assignedOperationStaffId) !== String(currentStaffId)) {
-      return alert('Đơn này đã được lock cho staff khác.');
-    }
-
-    setIssueSubmitting(true);
-    try {
-      const formData = new FormData();
-      formData.append('rentalId', selectedTask.rentalId);
-      formData.append('issueType', issueForm.issueType);
-      formData.append('description', issueForm.description.trim());
-      issueForm.files.forEach(file => formData.append('images', file));
-
-      await createStaffDeliveryIssue(formData);
-      logOperationAction('LOG_DELIVERY_ISSUE', 'RENTAL', selectedTask.rentalId, {
-        device: selectedTask.device,
-        customer: selectedTask.customer,
-        issueType: issueForm.issueType,
-        description: issueForm.description.trim(),
-      }).catch(() => {});
-
-      setTasks(prev => prev.filter(t => t.id !== selectedTask.id));
-      setShowIssueModal(false);
-      setSelectedTask(null);
-      resetIssueForm();
-      alert('Biên bản sự cố đã được lưu. Đơn hàng chuyển sang trạng thái Kiểm tra.');
-    } catch (err) {
-      console.error('Lỗi lưu biên bản:', err);
-      alert(err?.response?.data?.message || 'Không thể lưu biên bản sự cố.');
-    } finally {
-      setIssueSubmitting(false);
-    }
-  };
 
   const handleSubmitReturnIssue = async () => {
     if (!returnIssueForm.issueType) return alert('Vui lòng chọn phân loại sự cố.');
@@ -295,6 +211,14 @@ export default function TasksTab({ onOpenHandover }) {
   const isSelectedLockedByOther =
     selectedTask?.assignedOperationStaffId &&
     String(selectedTask.assignedOperationStaffId) !== String(currentStaffId);
+
+  const isDeliveryTask = selectedTask?.type === 'delivery';
+  const isReturnTask = selectedTask?.type === 'return';
+  const hasOwner = Boolean(selectedTask?.assignedOperationStaffId);
+  const pickedUp = Boolean(selectedTask?.rentalData?.pickedUpAt);
+  const delivered = Boolean(selectedTask?.rentalData?.deliveredAt);
+  const showHandoverAsPrimaryCta =
+    isDeliveryTask && hasOwner && pickedUp && !delivered && !isSelectedLockedByOther;
 
   const handleClaimTask = async () => {
     if (!selectedTask || selectedTask.type !== 'delivery') return;
@@ -530,201 +454,89 @@ export default function TasksTab({ onOpenHandover }) {
               </div>
             </div>
 
-            <div className="p-4 border-t border-slate-200 bg-white flex flex-col md:flex-row gap-3 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] shrink-0">
-              {selectedTask?.type === 'delivery' && !selectedTask?.assignedOperationStaffId && (
+            <div className="p-4 border-t border-slate-200 bg-white shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] shrink-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+              {isDeliveryTask && !hasOwner && (
                 <button
                   onClick={handleClaimTask}
                   disabled={claimLoading}
-                  className="w-full md:w-auto px-6 py-3.5 bg-indigo-600 text-white rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-indigo-700 transition-colors disabled:opacity-60"
+                  className="w-full px-6 py-3.5 bg-indigo-600 text-white rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-indigo-700 transition-colors disabled:opacity-60"
                 >
                   <PackageCheck size={18} /> {claimLoading ? 'Đang nhận đơn...' : 'Nhận đơn'}
                 </button>
               )}
-              {selectedTask?.type === 'delivery' && (
+
+              {isDeliveryTask && hasOwner && !isSelectedLockedByOther && (
                 <button
                   onClick={() => {
                     onOpenHandover?.(selectedTask.rentalId);
                     setSelectedTask(null);
                   }}
-                  disabled={isSelectedLockedByOther || !selectedTask?.assignedOperationStaffId}
-                  className="w-full md:w-auto px-6 py-3.5 bg-indigo-50 text-indigo-700 rounded-xl font-bold flex justify-center items-center gap-2 border border-indigo-200 hover:bg-indigo-100 transition-colors disabled:opacity-50"
+                  className={`w-full px-6 py-3.5 rounded-xl font-bold flex justify-center items-center gap-2 transition-colors ${
+                    showHandoverAsPrimaryCta
+                      ? 'bg-indigo-600 text-white border border-indigo-600 hover:bg-indigo-700 sm:col-span-2 xl:col-span-3 shadow-md shadow-indigo-200'
+                      : 'bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
+                  }`}
                 >
-                  <FileText size={18} /> Mở biên bản bàn giao
+                  <FileText size={18} /> {showHandoverAsPrimaryCta ? 'Mở biên bản để hoàn tất' : 'Mở biên bản bàn giao'}
                 </button>
               )}
-              {selectedTask?.type === 'delivery' && selectedTask?.rentalData?.pickedUpAt && (
-                <button
-                  onClick={handleOpenIssueModal}
-                  disabled={isSelectedLockedByOther}
-                  className="w-full md:w-auto px-6 py-3.5 bg-red-50 text-red-600 rounded-xl font-bold flex justify-center items-center gap-2 active:bg-red-100 transition-colors disabled:opacity-50"
-                >
-                  <AlertTriangle size={18} /> Ghi nhận sự cố
-                </button>
-              )}
-              {selectedTask?.type === 'delivery' && !selectedTask?.rentalData?.pickedUpAt && (
+
+              {isDeliveryTask && !pickedUp && (
                 <button
                   onClick={handleConfirmPickup}
-                  disabled={pickupLoading || isSelectedLockedByOther || !selectedTask?.assignedOperationStaffId}
-                  className="w-full md:w-auto px-6 py-3.5 bg-amber-500 text-white rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-amber-600 active:bg-amber-700 transition-colors disabled:opacity-60 shadow-md shadow-amber-200"
+                  disabled={pickupLoading || isSelectedLockedByOther || !hasOwner}
+                  className="w-full px-6 py-3.5 bg-amber-500 text-white rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-amber-600 active:bg-amber-700 transition-colors disabled:opacity-60 shadow-md shadow-amber-200"
                 >
                   <PackageCheck size={18} /> {pickupLoading ? 'Đang xác nhận...' : 'Đã lấy hàng'}
                 </button>
               )}
-              {selectedTask?.type === 'delivery' && selectedTask?.rentalData?.pickedUpAt && (
-                <span className="w-full md:w-auto px-6 py-3.5 bg-amber-50 text-amber-700 rounded-xl font-bold flex justify-center items-center gap-2 border border-amber-200 text-sm">
-                  <PackageCheck size={18} /> Đã lấy hàng
+
+              {isDeliveryTask && pickedUp && !delivered && !isSelectedLockedByOther && (
+                <span className="w-full px-2 py-1 text-slate-500 font-medium flex justify-center items-center text-sm sm:col-span-2 xl:col-span-3">
+                  Xác nhận thành công hoặc ghi nhận sự cố được xử lý trong Biên bản bàn giao.
                 </span>
               )}
-              {selectedTask?.type === 'delivery' && selectedTask?.rentalData?.pickedUpAt && selectedTask?.rentalData?.deliveredAt && (
-                <span className="w-full md:flex-1 py-3.5 bg-emerald-50 text-emerald-700 rounded-xl font-bold flex justify-center items-center gap-2 border border-emerald-200 text-sm">
+
+              {isDeliveryTask && delivered && (
+                <span className="w-full px-6 py-3.5 bg-emerald-50 text-emerald-700 rounded-xl font-bold flex justify-center items-center gap-2 border border-emerald-200 text-sm sm:col-span-2 xl:col-span-3">
                   <CheckCircle size={18} /> Đã giao thành công (chờ khách xác nhận)
                 </span>
               )}
-              {selectedTask?.type === 'delivery' && selectedTask?.rentalData?.pickedUpAt && !selectedTask?.rentalData?.deliveredAt && (
-                <button
-                  onClick={handleConfirmDelivery}
-                  disabled={completionLoading || isSelectedLockedByOther}
-                  className="w-full md:flex-1 py-3.5 bg-slate-900 text-white rounded-xl font-bold flex justify-center items-center gap-2 active:bg-slate-800 shadow-md disabled:opacity-60"
-                >
-                  <CheckCircle size={18} /> {completionLoading ? 'Đang xác nhận...' : 'Xác nhận hoàn thành'}
-                </button>
+
+              {isDeliveryTask && isSelectedLockedByOther && (
+                <span className="w-full px-6 py-3.5 bg-slate-100 text-slate-600 rounded-xl font-semibold flex justify-center items-center border border-slate-200 text-sm sm:col-span-2 xl:col-span-3">
+                  Đơn đang được staff khác xử lý, bạn không thể thao tác.
+                </span>
               )}
+
               {/* RETURN task actions */}
-              {selectedTask?.type === 'return' && (
+              {isReturnTask && (
                 <button
                   onClick={handleOpenReturnIssueModal}
                   disabled={isSelectedLockedByOther}
-                  className="w-full md:w-auto px-6 py-3.5 bg-red-50 text-red-600 rounded-xl font-bold flex justify-center items-center gap-2 active:bg-red-100 transition-colors border border-red-200 disabled:opacity-50"
+                  className="w-full px-6 py-3.5 bg-red-50 text-red-600 rounded-xl font-bold flex justify-center items-center gap-2 active:bg-red-100 transition-colors border border-red-200 disabled:opacity-50"
                 >
                   <AlertTriangle size={18} /> Ghi nhận sự cố
                 </button>
               )}
-              {selectedTask?.type === 'return' && (
+
+              {isReturnTask && (
                 <button
                   onClick={handleConfirmReturn}
                   disabled={returnLoading || isSelectedLockedByOther}
-                  className="w-full md:flex-1 py-3.5 bg-orange-500 text-white rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-orange-600 active:bg-orange-700 transition-colors disabled:opacity-60 shadow-md shadow-orange-200"
+                  className="w-full px-6 py-3.5 bg-orange-500 text-white rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-orange-600 active:bg-orange-700 transition-colors disabled:opacity-60 shadow-md shadow-orange-200"
                 >
                   <PackageCheck size={18} /> {returnLoading ? 'Đang xác nhận...' : 'Xác nhận đã thu hồi'}
                 </button>
               )}
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Issue Report Modal */}
-      {showIssueModal && (
-        <div className="fixed inset-0 bg-slate-900/60 flex md:items-center items-end justify-center z-[60] backdrop-blur-sm p-0 md:p-4">
-          <div className="bg-white w-full md:max-w-md flex flex-col rounded-t-3xl md:rounded-2xl overflow-hidden h-fit max-h-[90vh] border border-slate-200 shadow-2xl animate-slide-up">
-            <div className="px-5 py-4 bg-red-50 border-b border-red-100 flex justify-between items-center shrink-0">
-              <h3 className="text-[17px] font-bold text-red-700 flex items-center gap-2">
-                <AlertTriangle size={20} className="fill-red-700/20" /> Lập biên bản sự cố
-              </h3>
-              <button
-                onClick={() => setShowIssueModal(false)}
-                className="text-red-400 hover:text-red-700 bg-white p-1.5 rounded-full transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-5 overflow-y-auto space-y-5">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  Phân loại <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={issueForm.issueType}
-                  onChange={e => setIssueForm(f => ({ ...f, issueType: e.target.value }))}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-[15px] focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-shadow appearance-none"
-                >
-                  <option value="">-- Chọn hiện trạng --</option>
-                  <option value="MISSING">Mất / Thiếu phụ kiện</option>
-                  <option value="DAMAGED">Trầy xước / Rơi vỡ / Cấn móp</option>
-                  <option value="OTHER">Lỗi kỹ thuật / Không lên nguồn</option>
-                  <option value="WRONG_ITEM">Khách từ chối nhận</option>
-                </select>
+              {isReturnTask && isSelectedLockedByOther && (
+                <span className="w-full px-6 py-3.5 bg-slate-100 text-slate-600 rounded-xl font-semibold flex justify-center items-center border border-slate-200 text-sm sm:col-span-2 xl:col-span-3">
+                  Đơn thu hồi đang được staff khác xử lý.
+                </span>
+              )}
               </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  Mô tả chi tiết <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  rows="3"
-                  value={issueForm.description}
-                  onChange={e => setIssueForm(f => ({ ...f, description: e.target.value }))}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-[15px] focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-shadow resize-none"
-                  placeholder="Ghi rõ tình trạng thực tế..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  Ảnh thực tế / Video
-                </label>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*,video/*"
-                  multiple
-                  className="hidden"
-                  onChange={e => {
-                    const newFiles = Array.from(e.target.files || []);
-                    setIssueForm(f => ({ ...f, files: [...f.files, ...newFiles] }));
-                    e.target.value = '';
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full border-2 border-dashed border-slate-300 rounded-xl p-6 flex flex-col items-center justify-center text-slate-500 hover:bg-slate-50 active:bg-slate-100 transition-colors"
-                >
-                  <div className="p-3 bg-red-50 text-red-500 rounded-full mb-3">
-                    <Camera size={26} />
-                  </div>
-                  <p className="text-[15px] font-bold text-slate-700">Chọn ảnh / video</p>
-                  <p className="text-xs mt-1 text-slate-400 text-center">Chụp cận cảnh vết xước hoặc serial</p>
-                </button>
-                {issueForm.files.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {issueForm.files.map((file, idx) => (
-                      <div key={idx} className="relative group">
-                        <img
-                          src={URL.createObjectURL(file)}
-                          alt="preview"
-                          className="w-16 h-16 object-cover rounded-xl border border-slate-200"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setIssueForm(f => ({ ...f, files: f.files.filter((_, i) => i !== idx) }))}
-                          className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <XCircle size={14} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="p-5 border-t border-slate-100 bg-white flex gap-3 shrink-0">
-              <button
-                onClick={() => { setShowIssueModal(false); resetIssueForm(); }}
-                disabled={issueSubmitting}
-                className="flex-1 py-3.5 bg-slate-100 text-slate-700 rounded-xl font-bold active:bg-slate-200 transition-colors disabled:opacity-50"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleSubmitIssue}
-                disabled={issueSubmitting}
-                className="flex-1 py-3.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 active:scale-95 transition-all shadow-md shadow-red-600/20 disabled:opacity-60"
-              >
-                {issueSubmitting ? 'Đang lưu...' : 'Lưu biên bản'}
-              </button>
             </div>
           </div>
         </div>

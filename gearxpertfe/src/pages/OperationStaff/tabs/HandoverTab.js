@@ -2,14 +2,12 @@ import React, { useCallback, useMemo, useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import {
   ClipboardCheck,
-  CircleCheck,
-  CircleX,
-  Package,
   RefreshCw,
   UserRound,
   MapPin,
   Phone,
-  ShieldCheck,
+  CircleCheck,
+  CircleX,
 } from "lucide-react";
 import { getDeliveringRentals } from "../../../service/ApiService/RentalApi";
 import {
@@ -21,80 +19,11 @@ import {
   confirmHandoverSuccess,
   failHandover,
 } from "../../../service/ApiService/HandoverApi";
-
-const FAILURE_OPTIONS = [
-  { value: "NO_SHOW", label: "Khách không có mặt" },
-  { value: "CUSTOMER_REJECT", label: "Khách từ chối nhận" },
-  { value: "MISSING_ACCESSORY", label: "Thiếu phụ kiện" },
-  { value: "DEVICE_MISMATCH", label: "Sai thiết bị / sai serial" },
-  { value: "DAMAGED_ITEM_AT_DELIVERY", label: "Thiết bị hư hỏng khi giao" },
-  { value: "DELIVERY_BLOCKED", label: "Bị chặn giao / không thể tiếp cận" },
-  { value: "OTHER", label: "Khác" },
-];
-
-const statusBadge = {
-  DRAFT: "bg-slate-100 text-slate-700 border-slate-200",
-  IN_PROGRESS: "bg-blue-100 text-blue-700 border-blue-200",
-  COMPLETED: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  FAILED: "bg-red-100 text-red-700 border-red-200",
-  VOID: "bg-amber-100 text-amber-700 border-amber-200",
-};
-
-const mapRentalCard = (rental) => {
-  const firstItem = rental.rentalItems?.[0];
-  const deviceName = firstItem?.deviceId?.name || "Thiết bị";
-  const extraCount = (rental.rentalItems?.length || 0) - 1;
-
-  return {
-    id: rental._id,
-    code: String(rental._id).slice(-6).toUpperCase(),
-    customerName:
-      rental.customerId?.fullName || rental.deliveryAddress?.receiverName || "Khách hàng",
-    phone: rental.phoneNumber || "-",
-    address: rental.deliveryAddress?.fullAddress || "-",
-    deviceLabel:
-      extraCount > 0 ? `${deviceName} (+${extraCount} thiết bị)` : deviceName,
-    raw: rental,
-  };
-};
-
-const makeInspectionPayload = (handover, inspectionForm) => {
-  const fallbackItems = handover?.prefetchedSnapshot?.items || [];
-  const currentItems =
-    Array.isArray(inspectionForm.items) && inspectionForm.items.length > 0
-      ? inspectionForm.items
-      : fallbackItems;
-
-  const items = currentItems.map((item) => ({
-    rentalItemId: item.rentalItemId,
-    deviceId: item.deviceId,
-    deliveredDeviceItemIds: Array.isArray(item.deliveredDeviceItemIds)
-      ? item.deliveredDeviceItemIds.filter(Boolean)
-      : [],
-    deliveredSerialNumbers: Array.isArray(item.deliveredSerialNumbers)
-      ? item.deliveredSerialNumbers.filter(Boolean)
-      : [],
-    accessories: Array.isArray(item.accessories) ? item.accessories : [],
-    deviceCondition: item.deviceCondition || "UNKNOWN",
-    mismatchNote: item.mismatchNote || "",
-    operatorNote: item.operatorNote || "",
-    evidenceUrls: Array.isArray(item.evidenceUrls) ? item.evidenceUrls : [],
-  }));
-
-  return {
-    checklist: {
-      customerPresent: Boolean(inspectionForm.customerPresent),
-      customerIdentityVerified: Boolean(inspectionForm.customerIdentityVerified),
-      deliveryAddressMatched: Boolean(inspectionForm.deliveryAddressMatched),
-    },
-    items,
-    operatorNote: inspectionForm.operatorNote || "",
-    evidenceUrls: inspectionForm.evidenceUrls
-      .split("\n")
-      .map((x) => x.trim())
-      .filter(Boolean),
-  };
-};
+import { logOperationAction } from "../../../service/ApiService/OperationLogApi";
+import { mapRentalCard, makeInspectionPayload } from "./handover/helpers";
+import SuccessConfirmCard from "./handover/components/SuccessConfirmCard";
+import FailureConfirmCard from "./handover/components/FailureConfirmCard";
+import AttemptsHistory from "./handover/components/AttemptsHistory";
 
 export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedSelectedRental }) {
   const account = useSelector((state) => state.user.account);
@@ -105,6 +34,7 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
   const [loadingAttempts, setLoadingAttempts] = useState(false);
   const [attempts, setAttempts] = useState([]);
   const [working, setWorking] = useState(false);
+  const [resolutionMode, setResolutionMode] = useState("SUCCESS");
 
   const [inspectionForm, setInspectionForm] = useState({
     customerPresent: false,
@@ -136,6 +66,18 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
     () => rentals.find((x) => x.id === selectedRentalId) || null,
     [rentals, selectedRentalId]
   );
+
+  useEffect(() => {
+    if (!selectedRental) return;
+
+    setConfirmForm((prev) => ({
+      ...prev,
+      confirmerName: selectedRental.customerName && selectedRental.customerName !== "Khách hàng"
+        ? selectedRental.customerName
+        : "",
+      confirmerPhone: selectedRental.phone && selectedRental.phone !== "-" ? selectedRental.phone : "",
+    }));
+  }, [selectedRental]);
 
   const isAssignedToMe = useMemo(() => {
     const owner = selectedRental?.raw?.assignedOperationStaffId?._id || selectedRental?.raw?.assignedOperationStaffId;
@@ -224,6 +166,10 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
     onConsumedSelectedRental?.();
   }, [selectedRentalIdFromTask, fetchAttempts, onConsumedSelectedRental]);
 
+  useEffect(() => {
+    setResolutionMode("SUCCESS");
+  }, [selectedRentalId]);
+
   const handleSelectRental = async (rentalId) => {
     setSelectedRentalId(rentalId);
     await fetchAttempts(rentalId);
@@ -278,7 +224,16 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
   const handleConfirmSuccess = async () => {
     if (!activeAttempt) return;
 
-    if (!confirmForm.confirmerName.trim()) {
+    const confirmerName =
+      confirmForm.confirmerName.trim() ||
+      (selectedRental?.customerName && selectedRental.customerName !== "Khách hàng"
+        ? selectedRental.customerName.trim()
+        : "");
+    const confirmerPhone =
+      confirmForm.confirmerPhone.trim() ||
+      (selectedRental?.phone && selectedRental.phone !== "-" ? selectedRental.phone.trim() : "");
+
+    if (!confirmerName) {
       alert("Vui lòng nhập tên người xác nhận nhận hàng.");
       return;
     }
@@ -291,12 +246,18 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
         inspection,
         customerConfirmation: {
           confirmed: true,
-          confirmerName: confirmForm.confirmerName.trim(),
-          confirmerPhone: confirmForm.confirmerPhone.trim(),
+          confirmerName,
+          confirmerPhone,
           signatureUrl: confirmForm.signatureUrl.trim(),
           otpVerified: Boolean(confirmForm.otpVerified),
         },
       });
+
+      logOperationAction("HANDOVER_CONFIRM_SUCCESS", "RENTAL", selectedRentalId, {
+        handoverId: activeAttempt.id,
+        confirmerName,
+        confirmerPhone,
+      }).catch(() => {});
 
       await fetchAttempts(selectedRentalId);
       await fetchDeliveringRentals();
@@ -344,6 +305,13 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
     setWorking(true);
     try {
       await failHandover(activeAttempt.id, payload);
+
+      logOperationAction("HANDOVER_CONFIRM_FAILED", "RENTAL", selectedRentalId, {
+        handoverId: activeAttempt.id,
+        reason: failureForm.reason,
+        detail: failureForm.detail,
+      }).catch(() => {});
+
       await fetchAttempts(selectedRentalId);
       alert("Đã ghi nhận bàn giao thất bại và lưu bằng chứng.");
     } catch (error) {
@@ -375,9 +343,6 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
             <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
               <ClipboardCheck size={20} className="text-primary" /> Biên bản bàn giao
             </h2>
-            <p className="text-sm text-slate-500 mt-1">
-              Quản lý đầy đủ draft, kiểm tra thực tế, xác nhận khách hàng và lịch sử attempt.
-            </p>
           </div>
           <button
             onClick={fetchDeliveringRentals}
@@ -529,161 +494,54 @@ export default function HandoverTab({ selectedRentalIdFromTask = "", onConsumedS
                 />
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div className="border border-emerald-200 bg-emerald-50 rounded-2xl p-4 space-y-3">
-                  <p className="font-semibold text-emerald-800 flex items-center gap-2">
-                    <ShieldCheck size={16} /> Xác nhận giao thành công
-                  </p>
-                  <input
-                    value={confirmForm.confirmerName}
-                    onChange={(e) =>
-                      setConfirmForm((prev) => ({ ...prev, confirmerName: e.target.value }))
-                    }
-                    className="w-full border border-emerald-200 rounded-xl px-3 py-2 text-sm"
-                    placeholder="Tên người nhận xác nhận"
-                  />
-                  <input
-                    value={confirmForm.confirmerPhone}
-                    onChange={(e) =>
-                      setConfirmForm((prev) => ({ ...prev, confirmerPhone: e.target.value }))
-                    }
-                    className="w-full border border-emerald-200 rounded-xl px-3 py-2 text-sm"
-                    placeholder="SĐT người xác nhận"
-                  />
-                  <input
-                    value={confirmForm.signatureUrl}
-                    onChange={(e) =>
-                      setConfirmForm((prev) => ({ ...prev, signatureUrl: e.target.value }))
-                    }
-                    className="w-full border border-emerald-200 rounded-xl px-3 py-2 text-sm"
-                    placeholder="URL chữ ký / ảnh xác nhận"
-                  />
-                  <label className="text-sm text-emerald-900 flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={confirmForm.otpVerified}
-                      onChange={(e) =>
-                        setConfirmForm((prev) => ({ ...prev, otpVerified: e.target.checked }))
-                      }
-                    />
-                    OTP đã xác minh
-                  </label>
-
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 p-1 rounded-xl bg-slate-100 border border-slate-200">
                   <button
-                    onClick={handleConfirmSuccess}
-                    disabled={working || !activeAttempt || !canProcessHandover}
-                    className="w-full px-3 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50"
+                    type="button"
+                    onClick={() => setResolutionMode("SUCCESS")}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${
+                      resolutionMode === "SUCCESS"
+                        ? "bg-emerald-600 text-white"
+                        : "text-slate-700 hover:bg-white"
+                    }`}
                   >
-                    <span className="inline-flex items-center gap-2">
-                      <CircleCheck size={15} /> Confirm Success
-                    </span>
+                    <CircleCheck size={16} /> Giao thành công
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setResolutionMode("FAILED")}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${
+                      resolutionMode === "FAILED"
+                        ? "bg-red-600 text-white"
+                        : "text-slate-700 hover:bg-white"
+                    }`}
+                  >
+                    <CircleX size={16} /> Giao thất bại
                   </button>
                 </div>
 
-                <div className="border border-red-200 bg-red-50 rounded-2xl p-4 space-y-3">
-                  <p className="font-semibold text-red-800">Đánh dấu giao thất bại</p>
-                  <select
-                    value={failureForm.reason}
-                    onChange={(e) =>
-                      setFailureForm((prev) => ({ ...prev, reason: e.target.value }))
-                    }
-                    className="w-full border border-red-200 rounded-xl px-3 py-2 text-sm"
-                  >
-                    <option value="">Chọn lý do thất bại</option>
-                    {FAILURE_OPTIONS.map((op) => (
-                      <option key={op.value} value={op.value}>
-                        {op.label}
-                      </option>
-                    ))}
-                  </select>
-                  <textarea
-                    value={failureForm.detail}
-                    onChange={(e) =>
-                      setFailureForm((prev) => ({ ...prev, detail: e.target.value }))
-                    }
-                    rows={2}
-                    className="w-full border border-red-200 rounded-xl px-3 py-2 text-sm"
-                    placeholder="Mô tả chi tiết"
+                {resolutionMode === "SUCCESS" ? (
+                  <SuccessConfirmCard
+                    confirmForm={confirmForm}
+                    setConfirmForm={setConfirmForm}
+                    onConfirmSuccess={handleConfirmSuccess}
+                    working={working}
+                    activeAttempt={activeAttempt}
+                    canProcessHandover={canProcessHandover}
                   />
-                  <input
-                    value={failureForm.noShowWaitMinutes}
-                    onChange={(e) =>
-                      setFailureForm((prev) => ({ ...prev, noShowWaitMinutes: e.target.value }))
-                    }
-                    className="w-full border border-red-200 rounded-xl px-3 py-2 text-sm"
-                    placeholder="No-show chờ bao nhiêu phút"
-                  />
-                  <input
-                    value={failureForm.missingAccessories}
-                    onChange={(e) =>
-                      setFailureForm((prev) => ({ ...prev, missingAccessories: e.target.value }))
-                    }
-                    className="w-full border border-red-200 rounded-xl px-3 py-2 text-sm"
-                    placeholder="Thiếu phụ kiện (ngăn cách dấu phẩy)"
-                  />
-                  <input
-                    value={failureForm.mismatchedSerials}
-                    onChange={(e) =>
-                      setFailureForm((prev) => ({ ...prev, mismatchedSerials: e.target.value }))
-                    }
-                    className="w-full border border-red-200 rounded-xl px-3 py-2 text-sm"
-                    placeholder="Serial sai (ngăn cách dấu phẩy)"
-                  />
-                  <textarea
-                    value={failureForm.evidenceUrls}
-                    onChange={(e) =>
-                      setFailureForm((prev) => ({ ...prev, evidenceUrls: e.target.value }))
-                    }
-                    rows={2}
-                    className="w-full border border-red-200 rounded-xl px-3 py-2 text-sm"
-                    placeholder="Evidence URL (mỗi dòng 1 link)"
-                  />
-                  <button
-                    onClick={handleFail}
-                    disabled={working || !activeAttempt || !canProcessHandover}
-                    className="w-full px-3 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50"
-                  >
-                    <span className="inline-flex items-center gap-2">
-                      <CircleX size={15} /> Confirm Failed
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <h4 className="font-semibold text-slate-800">Lịch sử attempts</h4>
-                {loadingAttempts ? (
-                  <p className="text-sm text-slate-500">Đang tải attempts...</p>
-                ) : attempts.length === 0 ? (
-                  <p className="text-sm text-slate-500">Chưa có biên bản nào.</p>
                 ) : (
-                  <div className="space-y-2">
-                    {attempts.map((attempt) => (
-                      <div
-                        key={attempt.id}
-                        className="rounded-xl border border-slate-200 p-3 flex items-start justify-between gap-3"
-                      >
-                        <div>
-                          <p className="font-semibold text-slate-800 flex items-center gap-2">
-                            <Package size={15} /> Attempt #{attempt.attemptNo}
-                          </p>
-                          <p className="text-sm text-slate-600 mt-1">
-                            Kết quả: {attempt.result || "-"}
-                            {attempt.failure?.reason ? ` | Lý do: ${attempt.failure.reason}` : ""}
-                          </p>
-                        </div>
-                        <span
-                          className={`px-2 py-1 rounded-lg text-xs font-semibold border ${
-                            statusBadge[attempt.status] || "bg-slate-100 text-slate-700 border-slate-200"
-                          }`}
-                        >
-                          {attempt.status}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                  <FailureConfirmCard
+                    failureForm={failureForm}
+                    setFailureForm={setFailureForm}
+                    onFail={handleFail}
+                    working={working}
+                    activeAttempt={activeAttempt}
+                    canProcessHandover={canProcessHandover}
+                  />
                 )}
               </div>
+
+              <AttemptsHistory loadingAttempts={loadingAttempts} attempts={attempts} />
             </div>
           )}
         </div>
