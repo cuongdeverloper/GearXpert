@@ -7,15 +7,6 @@ import {
 import { getDeliveringRentals, getReturningRentals, claimDeliveryTask, confirmPickup } from '../../../service/ApiService/RentalApi';
 import { logOperationAction } from '../../../service/ApiService/OperationLogApi';
 
-const RETURN_RECORD_STATUS_LABELS = {
-  DRAFT: 'Draft biên bản',
-  IN_PROGRESS: 'Đang thu hồi',
-  COMPLETED: 'Đã hoàn tất',
-  ISSUE_REPORTED: 'Đã ghi nhận bất thường',
-  FAILED: 'Thu hồi thất bại',
-  VOID: 'Đã hủy biên bản',
-};
-
 const mapRentalToTask = (rental) => {
   const items = rental.rentalItems || [];
   const firstItem = items[0];

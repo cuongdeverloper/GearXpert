@@ -14,6 +14,15 @@ const {
 } = require("../../services/HandoverService");
 const DeliveryTask = require("../../models/DeliveryTask");
 
+const tryParseJsonField = (value) => {
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    return value;
+  }
+};
+
 const sendError = (res, error) => {
   if (error instanceof DomainError) {
     return res.status(error.status).json({
@@ -175,7 +184,21 @@ exports.confirmSuccess = async (req, res) => {
   try {
     requireRole(req, ["OPERATION_STAFF", "ADMIN"]);
 
-    const { customerConfirmation, inspection } = req.body || {};
+    const parsedBody = req.body || {};
+    let customerConfirmation = tryParseJsonField(parsedBody.customerConfirmation) || {};
+    const inspection = tryParseJsonField(parsedBody.inspection);
+
+    const files = Array.isArray(req.files)
+      ? req.files
+      : Object.values(req.files || {}).flat();
+    const uploadedUrls = files.map((file) => file?.path).filter(Boolean);
+
+    if (uploadedUrls.length > 0) {
+      customerConfirmation = {
+        ...customerConfirmation,
+        signatureUrl: customerConfirmation.signatureUrl || uploadedUrls[0],
+      };
+    }
 
     const result = await confirmSuccess({
       handoverId: req.params.handoverId,
@@ -199,7 +222,22 @@ exports.fail = async (req, res) => {
   try {
     requireRole(req, ["OPERATION_STAFF", "ADMIN"]);
 
-    const { failure, inspection } = req.body || {};
+    const parsedBody = req.body || {};
+    let failure = tryParseJsonField(parsedBody.failure) || {};
+    const inspection = tryParseJsonField(parsedBody.inspection);
+
+    const files = Array.isArray(req.files)
+      ? req.files
+      : Object.values(req.files || {}).flat();
+    const uploadedUrls = files.map((file) => file?.path).filter(Boolean);
+
+    if (uploadedUrls.length > 0) {
+      const existingUrls = Array.isArray(failure.evidenceUrls) ? failure.evidenceUrls : [];
+      failure = {
+        ...failure,
+        evidenceUrls: [...existingUrls, ...uploadedUrls],
+      };
+    }
 
     const result = await failHandover({
       handoverId: req.params.handoverId,

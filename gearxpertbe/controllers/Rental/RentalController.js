@@ -56,6 +56,22 @@ const sendRentalNotification = async (
     type: "ORDER",
   });
 };
+
+const tryParseJsonField = (value) => {
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    return value;
+  }
+};
+
+const extractUploadedUrls = (filesInput) => {
+  const files = Array.isArray(filesInput)
+    ? filesInput
+    : Object.values(filesInput || {}).flat();
+  return files.map((file) => file?.path).filter(Boolean);
+};
 /**
  * GET /api/rentals/:rentalId
  * Lấy chi tiết một đơn thuê (dành cho customer xem chi tiết)
@@ -1828,6 +1844,11 @@ exports.confirmReturn = async (req, res) => {
       throw new Error("Đơn chưa ở trạng thái trả hàng");
     }
 
+    const parsedBody = req.body || {};
+    const requestedInspection = tryParseJsonField(parsedBody.inspection);
+    const requestedSettlement = tryParseJsonField(parsedBody.settlement);
+    const uploadedUrls = extractUploadedUrls(req.files);
+
     const returnDraft = await ensureDraftForReturn({
       rentalId: rental._id,
       staffId: actorId,
@@ -1907,13 +1928,19 @@ exports.confirmReturn = async (req, res) => {
       returnRecordId: returnDraft._id,
       inspection: {
         ...(returnDraft?.inspection || {}),
-        actualReturnedAt: new Date(),
+        ...(requestedInspection || {}),
+        actualReturnedAt: requestedInspection?.actualReturnedAt || new Date(),
+        evidenceUrls: [
+          ...(Array.isArray(requestedInspection?.evidenceUrls) ? requestedInspection.evidenceUrls : []),
+          ...uploadedUrls,
+        ],
       },
       settlement: {
         depositOutcome: rental.depositAmount > 0 ? "REFUND_FULL" : undefined,
         deductedAmount: 0,
         disputeReason: "",
         operatorNote: "Hoàn tất thu hồi - không phát hiện bất thường.",
+        ...(requestedSettlement || {}),
       },
       staffId: actorId,
       actorId,

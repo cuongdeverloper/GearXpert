@@ -12,6 +12,15 @@ const {
   syncClosedRental,
 } = require("../../services/ReturnService");
 
+const tryParseJsonField = (value) => {
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    return value;
+  }
+};
+
 const sendError = (res, error) => {
   if (error instanceof DomainError) {
     return res.status(error.status).json({
@@ -122,10 +131,30 @@ exports.confirmSuccess = async (req, res) => {
   try {
     requireRole(req, ["OPERATION_STAFF", "ADMIN"]);
 
+    const parsedBody = req.body || {};
+    const baseInspection = tryParseJsonField(parsedBody.inspection);
+    const settlement = tryParseJsonField(parsedBody.settlement);
+
+    const files = Array.isArray(req.files)
+      ? req.files
+      : Object.values(req.files || {}).flat();
+    const uploadedUrls = files.map((file) => file?.path).filter(Boolean);
+
+    let inspection = baseInspection;
+    if (uploadedUrls.length > 0) {
+      const existingUrls = Array.isArray(baseInspection?.evidenceUrls)
+        ? baseInspection.evidenceUrls
+        : [];
+      inspection = {
+        ...(baseInspection || {}),
+        evidenceUrls: [...existingUrls, ...uploadedUrls],
+      };
+    }
+
     const result = await completeReturn({
       returnRecordId: req.params.returnRecordId,
-      inspection: req.body?.inspection,
-      settlement: req.body?.settlement,
+      inspection,
+      settlement,
       staffId: req.user.id,
       actorId: req.user.id,
     });
@@ -144,10 +173,27 @@ exports.fail = async (req, res) => {
   try {
     requireRole(req, ["OPERATION_STAFF", "ADMIN"]);
 
+    const parsedBody = req.body || {};
+    let failure = tryParseJsonField(parsedBody.failure) || {};
+    const inspection = tryParseJsonField(parsedBody.inspection);
+
+    const files = Array.isArray(req.files)
+      ? req.files
+      : Object.values(req.files || {}).flat();
+    const uploadedUrls = files.map((file) => file?.path).filter(Boolean);
+
+    if (uploadedUrls.length > 0) {
+      const existingUrls = Array.isArray(failure.evidenceUrls) ? failure.evidenceUrls : [];
+      failure = {
+        ...failure,
+        evidenceUrls: [...existingUrls, ...uploadedUrls],
+      };
+    }
+
     const result = await failReturn({
       returnRecordId: req.params.returnRecordId,
-      failure: req.body?.failure,
-      inspection: req.body?.inspection,
+      failure,
+      inspection,
       staffId: req.user.id,
       actorId: req.user.id,
     });

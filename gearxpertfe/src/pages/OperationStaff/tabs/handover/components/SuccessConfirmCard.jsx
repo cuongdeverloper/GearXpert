@@ -12,24 +12,41 @@ export default function SuccessConfirmCard({
 }) {
   const fileInputRef = useRef(null);
 
-  const handleFileSelect = (e) => {
+  const toDataUrl = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error("Không thể đọc file ảnh"));
+      reader.readAsDataURL(file);
+    });
+
+  const handleFileSelect = async (e) => {
     const files = e.target.files;
     if (!files) return;
 
-    const newUrls = Array.from(files).map((file) => {
-      return URL.createObjectURL(file);
-    });
+    const selectedFiles = Array.from(files);
+    let newUrls = [];
+    try {
+      newUrls = await Promise.all(selectedFiles.map((file) => toDataUrl(file)));
+    } catch (error) {
+      alert("Không thể xem trước ảnh, vui lòng thử lại.");
+      return;
+    }
 
     setConfirmForm((prev) => ({
       ...prev,
       signatureUrls: [...(prev.signatureUrls || []), ...newUrls],
+      signatureFiles: [...(prev.signatureFiles || []), ...selectedFiles],
     }));
+
+    e.target.value = "";
   };
 
   const removeSignatureUrl = (index) => {
     setConfirmForm((prev) => ({
       ...prev,
       signatureUrls: prev.signatureUrls.filter((_, i) => i !== index),
+      signatureFiles: (prev.signatureFiles || []).filter((_, i) => i !== index),
     }));
   };
 

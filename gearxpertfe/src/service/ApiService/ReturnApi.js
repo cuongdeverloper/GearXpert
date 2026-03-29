@@ -13,10 +13,18 @@ export const saveReturnInspection = (returnRecordId, payload) =>
   axios.patch(`/api/returns/${returnRecordId}/inspection`, payload);
 
 export const confirmReturnRecordSuccess = (returnRecordId, payload) =>
-  axios.post(`/api/returns/${returnRecordId}/confirm-success`, payload);
+  payload instanceof FormData
+    ? axios.post(`/api/returns/${returnRecordId}/confirm-success`, payload, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+    : axios.post(`/api/returns/${returnRecordId}/confirm-success`, payload);
 
 export const failReturnRecord = (returnRecordId, payload) =>
-  axios.post(`/api/returns/${returnRecordId}/fail`, payload);
+  payload instanceof FormData
+    ? axios.post(`/api/returns/${returnRecordId}/fail`, payload, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+    : axios.post(`/api/returns/${returnRecordId}/fail`, payload);
 
 export const createReturnRetryAttempt = (rentalId, payload = {}) =>
   axios.post(`/api/returns/rentals/${rentalId}/retry`, payload);

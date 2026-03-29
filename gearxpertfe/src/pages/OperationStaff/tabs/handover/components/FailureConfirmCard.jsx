@@ -14,24 +14,41 @@ export default function FailureConfirmCard({
 }) {
   const fileInputRef = useRef(null);
 
-  const handleFileSelect = (e) => {
+  const toDataUrl = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error("Không thể đọc file ảnh"));
+      reader.readAsDataURL(file);
+    });
+
+  const handleFileSelect = async (e) => {
     const files = e.target.files;
     if (!files) return;
 
-    const newUrls = Array.from(files).map((file) => {
-      return URL.createObjectURL(file);
-    });
+    const selectedFiles = Array.from(files);
+    let newUrls = [];
+    try {
+      newUrls = await Promise.all(selectedFiles.map((file) => toDataUrl(file)));
+    } catch (error) {
+      alert("Không thể xem trước ảnh, vui lòng thử lại.");
+      return;
+    }
 
     setFailureForm((prev) => ({
       ...prev,
       evidenceUrls: [...(prev.evidenceUrls || []), ...newUrls],
+      evidenceFiles: [...(prev.evidenceFiles || []), ...selectedFiles],
     }));
+
+    e.target.value = "";
   };
 
   const removeEvidenceUrl = (index) => {
     setFailureForm((prev) => ({
       ...prev,
       evidenceUrls: prev.evidenceUrls.filter((_, i) => i !== index),
+      evidenceFiles: (prev.evidenceFiles || []).filter((_, i) => i !== index),
     }));
   };
 

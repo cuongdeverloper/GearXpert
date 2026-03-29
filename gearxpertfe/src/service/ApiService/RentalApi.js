@@ -119,8 +119,12 @@ const claimDeliveryTask = (taskId) => {
 };
 
 // Staff xác nhận đã thu hồi thiết bị từ customer
-const confirmReturn = (rentalId) => {
-  return axios.post(`/api/rentals/${rentalId}/confirm-return`);
+const confirmReturn = (rentalId, payload) => {
+  return payload instanceof FormData
+    ? axios.post(`/api/rentals/${rentalId}/confirm-return`, payload, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+    : axios.post(`/api/rentals/${rentalId}/confirm-return`, payload || {});
 };
 // Trong file ../../service/ApiService/RentalApi.js
 export const previewContract = async (data) => {
