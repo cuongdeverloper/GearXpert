@@ -52,7 +52,7 @@ export default function DeliveryReportModal({
               {DeliReportModal.selectedItems?.length || 0})
             </label>
             <div className="grid gap-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
-              {DeliReportModal.order?.items?.flatMap((item) => {
+              {(DeliReportModal.order?.items || []).flatMap((item) => {
                 if (
                   item.serialNumbers?.length > 0 &&
                   item.deviceItemIds?.length > 0
@@ -69,11 +69,7 @@ export default function DeliveryReportModal({
                       <div
                         key={`${item._id}-${serial}`}
                         onClick={() =>
-                          toggleSerialSelection(
-                            deviceItemId,
-                            setDeliReportModal,
-                            DeliReportModal
-                          )
+                          toggleSerialSelection(deviceItemId)
                         }
                         className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all cursor-pointer ${
                           isSelected
@@ -115,11 +111,7 @@ export default function DeliveryReportModal({
                   <div
                     key={item._id}
                     onClick={() =>
-                      toggleSerialSelection(
-                        item._id.toString(),
-                        setDeliReportModal,
-                        DeliReportModal
-                      )
+                      toggleSerialSelection(item._id.toString())
                     }
                     className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all cursor-pointer ${
                       DeliReportModal.selectedItems?.includes(
@@ -219,7 +211,7 @@ export default function DeliveryReportModal({
                 Hình ảnh/Video minh chứng
               </label>
               <div className="flex flex-wrap gap-3">
-                {DeliReportModal.files.map((file, idx) => (
+                {(DeliReportModal.files || []).map((file, idx) => (
                   <div key={idx} className="relative group">
                     {file.type.startsWith("image") ? (
                       <img

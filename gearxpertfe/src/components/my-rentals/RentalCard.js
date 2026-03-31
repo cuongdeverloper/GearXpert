@@ -157,7 +157,8 @@ export default function RentalCard({
 
   return (
     <div
-      className="bg-white rounded-3xl border border-slate-200/70 shadow-sm hover:shadow-md transition-shadow overflow-hidden"
+      className="bg-white rounded-3xl border border-slate-200/70 shadow-sm hover:shadow-md transition-shadow overflow-hidden cursor-pointer"
+      onClick={onClickDetail}
     >
       <div className="p-6">
         <div className="flex flex-col gap-4">
@@ -266,12 +267,11 @@ export default function RentalCard({
                     </div>
                   </div>
 
-                  {(order.status === "DELIVERING" || order.status === "RENTING") && (
+                  {order.status === "DELIVERING" && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (order.status === "DELIVERING") onReportDelivery(item);
-                        else onReportDamage(item);
+                        onReportDelivery(item);
                       }}
                       className={`px-4 py-2 rounded-xl text-[11px] font-black inline-flex items-center gap-2 border ${
                         hasReport
@@ -280,9 +280,10 @@ export default function RentalCard({
                       }`}
                     >
                       <AlertCircle size={14} />
-                      Báo cáo
+                      Báo cáo giao hàng
                     </button>
                   )}
+
                 </div>
               );
             })}

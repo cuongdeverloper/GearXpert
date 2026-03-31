@@ -14,11 +14,19 @@ exports.createDeliveryIssue = async (req, res) => {
 
     const {
       rentalId,
-      rentalItemIds, // mảng RentalItem _id
+      rentalItemIds: rentalItemIdsRaw, // mảng RentalItem _id
       deviceItemIds = [], // mảng serial (DeviceItem _id)
       issueType,
       description,
     } = req.body;
+
+    // Normalize rentalItemIds - có thể là string hoặc array từ FormData
+    let rentalItemIds = rentalItemIdsRaw;
+    if (typeof rentalItemIdsRaw === 'string') {
+      rentalItemIds = [rentalItemIdsRaw];
+    } else if (!Array.isArray(rentalItemIdsRaw)) {
+      rentalItemIds = [];
+    }
 
     // Validate rentalItemIds
     if (
@@ -63,7 +71,15 @@ exports.createDeliveryIssue = async (req, res) => {
     }
 
     // Validate deviceItemIds nếu có
-    if (deviceItemIds.length > 0) {
+    // Đảm bảo deviceItemIds luôn là array (có thể nhận string từ FormData)
+    let normalizedDeviceItemIds = deviceItemIds;
+    if (typeof deviceItemIds === 'string') {
+      normalizedDeviceItemIds = [deviceItemIds];
+    } else if (!Array.isArray(deviceItemIds)) {
+      normalizedDeviceItemIds = [];
+    }
+    
+    if (normalizedDeviceItemIds.length > 0) {
       const itemMap = {};
       selectedItems.forEach((item) => {
         itemMap[item._id.toString()] = (item.deviceItemIds || []).map((id) =>
@@ -71,8 +87,8 @@ exports.createDeliveryIssue = async (req, res) => {
         );
       });
 
-      for (let i = 0; i < deviceItemIds.length; i++) {
-        const devId = deviceItemIds[i].toString();
+      for (let i = 0; i < normalizedDeviceItemIds.length; i++) {
+        const devId = normalizedDeviceItemIds[i].toString();
         // Map theo index (giả sử frontend gửi theo thứ tự tương ứng)
         const rentalItemId = rentalItemIds[i % rentalItemIds.length].toString();
         const validIds = itemMap[rentalItemId] || [];
@@ -92,7 +108,7 @@ exports.createDeliveryIssue = async (req, res) => {
     const report = await DeliveryIssueReport.create({
       rentalId,
       rentalItemIds,
-      deviceItemIds: deviceItemIds.length > 0 ? deviceItemIds : undefined,
+      deviceItemIds: normalizedDeviceItemIds.length > 0 ? normalizedDeviceItemIds : undefined,
       deviceIds: selectedItems.map((item) => item.deviceId),
       customerId,
       reportedBy: "CUSTOMER",
@@ -333,4 +349,13 @@ exports.getStaffReturnIssues = async (req, res) => {
     console.error("Get Staff Return Issues Error:", err);
     res.status(500).json({ message: err.message });
   }
+};
+
+module.exports = {
+  createDeliveryIssue: exports.createDeliveryIssue,
+  getDeliveryIssueByRental: exports.getDeliveryIssueByRental,
+  createStaffDeliveryIssue: exports.createStaffDeliveryIssue,
+  getStaffDeliveryIssues: exports.getStaffDeliveryIssues,
+  createStaffReturnIssue: exports.createStaffReturnIssue,
+  getStaffReturnIssues: exports.getStaffReturnIssues,
 };
