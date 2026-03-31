@@ -24,16 +24,24 @@ const VoucherCard = ({ voucher, onApply, onViewDetails }) => {
             {/* Left Section - Icon/Type */}
             <div className={`ticket-cutout flex w-24 sm:w-32 flex-col items-center justify-center shrink-0 ${isGlobal ? 'bg-white/10 backdrop-blur-md' : 'bg-slate-50 dark:bg-slate-900/50'
                 }`}>
-                <div className={`flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl shadow-xl transition-transform duration-500 group-hover:rotate-12 ${isGlobal ? 'bg-white/20 ring-1 ring-white/30' : 'bg-indigo-50 dark:bg-indigo-900/30'
+                <div className={`flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl shadow-xl transition-transform duration-500 group-hover:rotate-12 ${isGlobal ? 'bg-white/20 ring-1 ring-white/30' : 'bg-indigo-50 dark:bg-indigo-900/30 overflow-hidden'
                     }`}>
-                    <span className={`material-symbols-outlined text-[32px] sm:text-[40px] ${isGlobal ? 'text-white material-symbols-filled' : 'text-indigo-600 dark:text-indigo-400'
-                        }`}>
-                        {isGlobal ? 'workspace_premium' : 'storefront'}
-                    </span>
+                    {!isGlobal && voucher.shopInfo?.avatar ? (
+                        <img 
+                            src={voucher.shopInfo.avatar} 
+                            alt={voucher.shopInfo.name} 
+                            className="h-full w-full object-cover rounded-2xl"
+                        />
+                    ) : (
+                        <span className={`material-symbols-outlined text-[32px] sm:text-[40px] ${isGlobal ? 'text-white material-symbols-filled' : 'text-indigo-600 dark:text-indigo-400'
+                            }`}>
+                            {isGlobal ? 'workspace_premium' : 'storefront'}
+                        </span>
+                    )}
                 </div>
-                <p className={`mt-3 text-[10px] font-black uppercase tracking-[0.2em] text-center px-2 ${isGlobal ? 'text-indigo-100' : 'text-slate-400 dark:text-slate-500'
+                <p className={`mt-3 text-[10px] font-black uppercase tracking-[0.2em] text-center px-2 line-clamp-2 ${isGlobal ? 'text-indigo-100' : 'text-slate-500 dark:text-slate-400'
                     }`}>
-                    {isGlobal ? 'Global' : 'Supplier'}
+                    {isGlobal ? 'Global' : (voucher.shopInfo?.name || 'Supplier')}
                 </p>
             </div>
 

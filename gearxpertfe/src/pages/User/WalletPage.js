@@ -428,7 +428,7 @@ export default function WalletPage() {
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 font-sans pb-20">
       <Header />
-      <div className="max-w-6xl mx-auto px-6 pt-10">
+      <div className="max-w-6xl mx-auto px-6 pt-32">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-6">
           <div>
             <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase italic">

@@ -1,7 +1,6 @@
 // modals/ExtendModal.jsx
 import React from "react";
-import { Clock, XCircle } from "lucide-react";
-import { toast } from "react-toastify";
+import { Clock } from "lucide-react";
 
 export default function ExtendModal({
   extendModal,

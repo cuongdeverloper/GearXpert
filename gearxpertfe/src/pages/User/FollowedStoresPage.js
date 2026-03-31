@@ -71,7 +71,7 @@ export default function FollowedStoresPage() {
 
       <main className="flex-grow w-full pb-12">
         {/* Header Section */}
-        <section className="relative w-full bg-slate-900 overflow-hidden mb-10 pt-10 pb-20 lg:pt-16 lg:pb-24">
+        <section className="relative w-full bg-slate-900 overflow-hidden mb-10 pt-32 pb-20 lg:pt-40 lg:pb-24">
           <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?q=80&w=2070')] bg-cover bg-center opacity-20" />
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/90 via-slate-900/95 to-cyan-900/90" />
 

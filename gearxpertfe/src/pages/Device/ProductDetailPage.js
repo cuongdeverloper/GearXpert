@@ -299,9 +299,14 @@ export default function ProductDetailPage() {
         )
       : 0;
 
+  const discountPrice = device?.discountPrice || 0;
+  const expiry = device?.discountExpiry ? new Date(device.discountExpiry) : null;
+  const isExpired = (expiry && expiry < new Date());
+  const effectivePrice = (discountPrice > 0 && !isExpired) ? discountPrice : (device?.rentPrice?.perDay || 0);
+  
   const totalPrice = device
     ? days *
-      (device.rentPrice.perDay +
+      (effectivePrice +
         addons.reduce((s, a) => s + a.rentPrice.perDay, 0)) *
       quantity
     : 0;
@@ -325,7 +330,7 @@ export default function ProductDetailPage() {
 
       <main className="flex-1">
         {/* HEADER NAV STICKY */}
-        <div className="sticky top-[84px] z-40 mx-4 sm:mx-6 bg-white/80 backdrop-blur-md border border-slate-200 rounded-2xl shadow-lg mt-3">
+        <div className="sticky top-[112px] z-40 mx-4 sm:mx-6 bg-white/80 backdrop-blur-md border border-slate-200 rounded-2xl shadow-lg mt-28">
           <div className="max-w-7xl mx-auto px-5 sm:px-6 py-3 flex items-center justify-between">
             <button
               onClick={() => navigate(-1)}
@@ -709,11 +714,18 @@ export default function ProductDetailPage() {
                     <p className="text-indigo-100 text-xs font-bold uppercase tracking-widest mb-1">
                       Giá thuê
                     </p>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-bold">
-                        {device.rentPrice?.perDay.toLocaleString()}đ
-                      </span>
-                      <span className="text-indigo-200 text-sm">/ ngày</span>
+                    <div className="flex flex-col gap-1">
+                      {device.discountPrice > 0 && !isExpired && (
+                        <span className="text-sm text-indigo-300/80 line-through font-bold">
+                          {device.rentPrice?.perDay.toLocaleString()}đ
+                        </span>
+                      )}
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-bold">
+                          {effectivePrice.toLocaleString()}đ
+                        </span>
+                        <span className="text-indigo-200 text-sm">/ ngày</span>
+                      </div>
                     </div>
                   </div>
                   <div className="text-right">

@@ -1,5 +1,6 @@
 const Voucher = require("../../models/Voucher");
 const Cart = require("../../models/Cart");
+const SupplierProfile = require("../../models/SupplierProfile");
 const { notifyFollowers } = require("../Supplier/SupplierController");
 
 exports.validateVoucher = async (req, res) => {
@@ -104,10 +105,31 @@ exports.getAllVouchers = async (req, res) => {
     const allVouchers = await Voucher.find({});
 
     // Find vouchers that are ACTIVE and not expired
-    const vouchers = await Voucher.find({
+    const vouchersRaw = await Voucher.find({
       status: "ACTIVE",
       expiredAt: { $gt: currentDate }
-    }).sort({ createdAt: -1 });
+    }).sort({ createdAt: -1 }).lean();
+
+    // Lấy thông tin shop cho các voucher SUPPLIER
+    const vouchers = await Promise.all(
+      vouchersRaw.map(async (v) => {
+        if (v.type === "SUPPLIER" && v.supplierId) {
+          const profile = await SupplierProfile.findOne({ userId: v.supplierId })
+            .select("businessName businessAvatar")
+            .lean();
+          if (profile) {
+            return {
+              ...v,
+              shopInfo: {
+                name: profile.businessName,
+                avatar: profile.businessAvatar
+              }
+            };
+          }
+        }
+        return v;
+      })
+    );
 
     res.status(200).json({
       success: true,
@@ -167,7 +189,29 @@ exports.createVoucherByAdmin = async (req, res) => {
 
 exports.getVouchersForAdmin = async (req, res) => {
   try {
-    const vouchers = await Voucher.find({}).sort({ createdAt: -1 });
+    const vouchersRaw = await Voucher.find({}).sort({ createdAt: -1 }).lean();
+    
+    // Lấy thông tin shop cho các voucher SUPPLIER
+    const vouchers = await Promise.all(
+      vouchersRaw.map(async (v) => {
+        if (v.type === "SUPPLIER" && v.supplierId) {
+          const profile = await SupplierProfile.findOne({ userId: v.supplierId })
+            .select("businessName businessAvatar")
+            .lean();
+          if (profile) {
+            return {
+              ...v,
+              shopInfo: {
+                name: profile.businessName,
+                avatar: profile.businessAvatar
+              }
+            };
+          }
+        }
+        return v;
+      })
+    );
+
     res.status(200).json({
       success: true,
       vouchers
@@ -261,7 +305,19 @@ exports.updateVoucherByAdmin = async (req, res) => {
 exports.getVouchersBySupplier = async (req, res) => {
   try {
     const supplierId = req.user.id;
-    const vouchers = await Voucher.find({ supplierId }).sort({ createdAt: -1 });
+    const vouchersRaw = await Voucher.find({ supplierId }).sort({ createdAt: -1 }).lean();
+
+    const profile = await SupplierProfile.findOne({ userId: supplierId })
+      .select("businessName businessAvatar")
+      .lean();
+
+    const vouchers = vouchersRaw.map(v => ({
+      ...v,
+      shopInfo: profile ? {
+        name: profile.businessName,
+        avatar: profile.businessAvatar
+      } : null
+    }));
 
     res.status(200).json({
       success: true,

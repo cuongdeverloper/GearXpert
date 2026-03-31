@@ -431,7 +431,7 @@ export default function ProfilePage() {
 
             <main className="flex-grow w-full pb-12">
                 {/* Premium Hero Section */}
-                <section className="relative w-full bg-slate-900 overflow-hidden mb-10 pt-16 pb-32 lg:pt-24 lg:pb-40">
+                <section className="relative w-full bg-slate-900 overflow-hidden mb-10 pt-48 pb-32 lg:pt-56 lg:pb-40">
                     {/* Background Image & Gradient */}
                     <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=1920')] bg-cover bg-center opacity-30 mix-blend-overlay"></div>
                     <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-900/80 to-slate-900"></div>
@@ -520,7 +520,7 @@ export default function ProfilePage() {
                                 <div
                                     className="flex items-center gap-3 p-4 rounded-xl mb-6 cursor-pointer hover:scale-105 transition-all duration-300 shadow-md hover:shadow-lg"
                                     style={{ backgroundColor: '#D1FAE5' }}
-                                    onClick={() => navigate('/wallet')}
+                                    onClick={() => navigate('/user/wallet')}
                                 >
                                     <span className="material-symbols-outlined text-2xl text-slate-900">account_balance_wallet</span>
                                     <div className="flex-1">

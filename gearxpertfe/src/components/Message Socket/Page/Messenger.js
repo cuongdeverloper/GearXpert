@@ -404,7 +404,7 @@ const Messenger = () => {
   );
 
   return (
-    <div className="messenger-page-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+    <div className="messenger-page-container pt-28 lg:pt-32" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
       <Header />
       <div className="messenger flex-1 flex overflow-hidden w-full bg-white">
         <div className="chatMenu">

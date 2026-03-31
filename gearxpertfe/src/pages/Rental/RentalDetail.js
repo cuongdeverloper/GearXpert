@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import * as rentalService from "../../service/ApiService/RentalApi";
@@ -7,7 +7,6 @@ import Footer from "../../components/homepage/Footer";
 
 import {
   Clock,
-  Calendar,
   MapPin,
   Truck,
   Package,
@@ -19,9 +18,7 @@ import {
   Phone,
   ChevronRight,
   Receipt,
-  ShieldCheck,
   HelpCircle,
-  History,
 } from "lucide-react";
 
 export default function RentalDetail() {
@@ -30,7 +27,7 @@ export default function RentalDetail() {
   const [rental, setRental] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchRentalDetail = async () => {
+  const fetchRentalDetail = useCallback(async () => {
     try {
       setLoading(true);
       const res = await rentalService.getRentalById(rentalId);
@@ -46,11 +43,11 @@ export default function RentalDetail() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [rentalId, navigate]);
 
   useEffect(() => {
     if (rentalId) fetchRentalDetail();
-  }, [rentalId]);
+  }, [rentalId, fetchRentalDetail]);
 
   if (loading)
     return (
@@ -70,7 +67,7 @@ export default function RentalDetail() {
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans pb-20">
       <Header />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 lg:pt-40">
         {/* Back Button */}
         <button
           onClick={() => navigate("/user/myrental")}
@@ -495,9 +492,9 @@ export default function RentalDetail() {
                 <div className="pt-4 mt-4 border-t border-slate-50 text-center">
                   <p className="text-xs text-slate-400 flex items-center justify-center gap-1">
                     <HelpCircle size={12} /> Gặp vấn đề?{" "}
-                    <a href="#" className="text-indigo-600 font-bold underline">
+                    <button className="text-indigo-600 font-bold underline hover:text-indigo-700">
                       Liên hệ hỗ trợ
-                    </a>
+                    </button>
                   </p>
                 </div>
               </div>
