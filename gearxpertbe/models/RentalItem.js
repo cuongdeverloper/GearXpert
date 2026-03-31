@@ -82,10 +82,11 @@ const rentalItemSchema = new mongoose.Schema(
 );
 
 // Virtuals báo cáo vẫn dùng _id của RentalItem (1 RentalItem đại diện cho cả lô)
+// NOTE: DeliveryIssueReport sử dụng rentalItemIds (array), không phải rentalItemId
 rentalItemSchema.virtual("deliveryIssues", {
   ref: "DeliveryIssueReport",
   localField: "_id",
-  foreignField: "rentalItemId",
+  foreignField: "rentalItemIds", // Sửa từ rentalItemId thành rentalItemIds
   justOne: false,
 });
 

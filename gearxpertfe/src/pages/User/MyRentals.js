@@ -107,6 +107,12 @@ export default function MyRentals() {
   const navigate = useNavigate();
   const ITEMS_PER_PAGE = 5;
   const [currentPage, setCurrentPage] = useState(1);
+  
+  // Pagination for sidebars
+  const REPORTS_PER_PAGE = 5;
+  const [reportsPage, setReportsPage] = useState(1);
+  const EXTEND_PER_PAGE = 5;
+  const [extendPage, setExtendPage] = useState(1);
 
   useEffect(() => {
     fetchRentals();
@@ -171,30 +177,45 @@ export default function MyRentals() {
   };
 
   const toggleSerialSelection = (deviceItemId, modalSetter) => {
-    modalSetter((prev) => {
-      const current = prev.selectedItems || [];
-      const next = current.includes(deviceItemId)
-        ? current.filter((id) => id !== deviceItemId)
-        : [...current, deviceItemId];
-      return { ...prev, selectedItems: next };
-    });
+    if (!modalSetter) {
+      // Default to delivery report modal if no setter provided
+      setDeliReportModal((prev) => {
+        const current = prev.selectedItems || [];
+        const next = current.includes(deviceItemId)
+          ? current.filter((id) => id !== deviceItemId)
+          : [...current, deviceItemId];
+        return { ...prev, selectedItems: next };
+      });
+    } else {
+      modalSetter((prev) => {
+        const current = prev.selectedItems || [];
+        const next = current.includes(deviceItemId)
+          ? current.filter((id) => id !== deviceItemId)
+          : [...current, deviceItemId];
+        return { ...prev, selectedItems: next };
+      });
+    }
   };
 
   const handleFileUpload = (files, setter) => {
     setter((prev) => ({
       ...prev,
-      files: [...prev.files, ...Array.from(files)],
+      files: [...(prev.files || []), ...Array.from(files)],
     }));
   };
 
   const handleSubmitDeliReport = async () => {
     if (!DeliReportModal.reasonType) return toast.warning("Vui lòng chọn lý do");
-    if (!DeliReportModal.selectedItems.length)
+    if (!DeliReportModal.selectedItems?.length)
       return toast.warning("Vui lòng chọn ít nhất một sản phẩm");
 
     try {
       const order = DeliReportModal.order;
       const items = order?.items || [];
+      
+      console.log("DEBUG - Selected items:", DeliReportModal.selectedItems);
+      console.log("DEBUG - Order items:", items.map(i => ({ id: i._id, name: i.deviceId?.name })));
+      
       const rentalItemIdSet = new Set(items.map((i) => i._id?.toString()).filter(Boolean));
 
       const rentalItemIds = new Set();
@@ -221,6 +242,9 @@ export default function MyRentals() {
         }
       }
 
+      console.log("DEBUG - rentalItemIds:", Array.from(rentalItemIds));
+      console.log("DEBUG - deviceItemIds:", deviceItemIds);
+
       if (rentalItemIds.size === 0) {
         return toast.warning("Không xác định được sản phẩm cần báo cáo");
       }
@@ -235,7 +259,7 @@ export default function MyRentals() {
         REPORT_REASON_MAP[DeliReportModal.reasonType]
       );
       formData.append("description", DeliReportModal.description);
-      DeliReportModal.files.forEach((file) => formData.append("images", file));
+      (DeliReportModal.files || []).forEach((file) => formData.append("images", file));
 
       await rentalService.reportDeliveryIssue(formData);
       toast.success("Báo cáo đã được gửi");
@@ -250,6 +274,7 @@ export default function MyRentals() {
       });
       fetchRentals();
     } catch (err) {
+      console.error("Submit Delivery Report Error:", err);
       toast.error(err.response?.data?.message || "Gửi báo cáo thất bại");
     }
   };
@@ -520,7 +545,10 @@ export default function MyRentals() {
 
     for (const rental of rentals) {
       for (const item of rental.items || []) {
-        for (const r of item.deliveryIssues || []) {
+        // Check delivery issues
+        const deliveryIssues = item.deliveryIssues || [];
+        console.log("DEBUG - Item:", item.deviceId?.name, "deliveryIssues:", deliveryIssues.length);
+        for (const r of deliveryIssues) {
           reports.push({
             type: "DELIVERY",
             rentalId: rental._id,
@@ -529,9 +557,13 @@ export default function MyRentals() {
             status: r.status,
             createdAt: r.createdAt,
             description: r.description,
+            issueType: r.issueType,
           });
         }
-        for (const r of item.damageReports || []) {
+        // Check damage reports
+        const damageReports = item.damageReports || [];
+        console.log("DEBUG - Item:", item.deviceId?.name, "damageReports:", damageReports.length);
+        for (const r of damageReports) {
           reports.push({
             type: "DAMAGE",
             rentalId: rental._id,
@@ -548,7 +580,8 @@ export default function MyRentals() {
     }
 
     reports.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    return reports.slice(0, 10);
+    console.log("DEBUG - Total reports:", reports.length);
+    return reports;
   }, [rentals]);
 
   const extendRequestsForSidebar = useMemo(() => {
@@ -568,7 +601,7 @@ export default function MyRentals() {
       }
     }
     reqs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    return reqs.slice(0, 10);
+    return reqs;
   }, [rentals]);
 
   const currentRentals = filteredAndSortedRentals.slice(
@@ -577,6 +610,19 @@ export default function MyRentals() {
   );
 
   const totalPages = Math.ceil(filteredAndSortedRentals.length / ITEMS_PER_PAGE);
+
+  // Pagination for sidebars
+  const currentReports = reportsForSidebar.slice(
+    (reportsPage - 1) * REPORTS_PER_PAGE,
+    reportsPage * REPORTS_PER_PAGE
+  );
+  const totalReportsPages = Math.ceil(reportsForSidebar.length / REPORTS_PER_PAGE);
+
+  const currentExtendRequests = extendRequestsForSidebar.slice(
+    (extendPage - 1) * EXTEND_PER_PAGE,
+    extendPage * EXTEND_PER_PAGE
+  );
+  const totalExtendPages = Math.ceil(extendRequestsForSidebar.length / EXTEND_PER_PAGE);
 
   const minExtendDate = extendModal.currentEndDate
     ? new Date(new Date(extendModal.currentEndDate).getTime() + 24 * 60 * 60 * 1000)
@@ -621,8 +667,9 @@ export default function MyRentals() {
               {reportsForSidebar.length === 0 ? (
                 <div className="text-sm text-gray-500">Chưa có báo cáo nào.</div>
               ) : (
+                <>
                 <div className="space-y-3">
-                  {reportsForSidebar.map((r, idx) => (
+                  {currentReports.map((r, idx) => (
                     <div
                       key={`${r.type}-${idx}`}
                       className="p-4 rounded-2xl bg-gray-50 border border-gray-100"
@@ -671,10 +718,48 @@ export default function MyRentals() {
                             <span className="text-gray-700">{r.severity}</span>
                           </div>
                         )}
+                        {r.type === "DELIVERY" && r.issueType && (
+                          <div className="text-[11px] font-bold text-gray-500">
+                            Type:{" "}
+                            <span className="text-gray-700">{r.issueType}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
                 </div>
+                
+                {/* Pagination for Reports */}
+                {totalReportsPages > 1 && (
+                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
+                    <button
+                      disabled={reportsPage <= 1}
+                      onClick={() => setReportsPage((p) => Math.max(1, p - 1))}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                        reportsPage <= 1
+                          ? "text-gray-300 cursor-not-allowed"
+                          : "text-gray-600 hover:bg-gray-100"
+                      }`}
+                    >
+                      ← Trước
+                    </button>
+                    <span className="text-xs font-semibold text-gray-500">
+                      {reportsPage} / {totalReportsPages}
+                    </span>
+                    <button
+                      disabled={reportsPage >= totalReportsPages}
+                      onClick={() => setReportsPage((p) => Math.min(totalReportsPages, p + 1))}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                        reportsPage >= totalReportsPages
+                          ? "text-gray-300 cursor-not-allowed"
+                          : "text-gray-600 hover:bg-gray-100"
+                      }`}
+                    >
+                      Sau →
+                    </button>
+                  </div>
+                )}
+                </>
               )}
             </div>
           </aside>
@@ -737,7 +822,7 @@ export default function MyRentals() {
                     })
                   }
                   onReview={() => openReviewModal(order)}
-                  onClickDetail={() => setDetailModal({ isOpen: true, order })}
+                  onClickDetail={() => navigate(`/my-rentals/${order._id}`)}
                   onReRent={() => handleReRent(order)}
                 />
               ))
@@ -782,8 +867,9 @@ export default function MyRentals() {
                   Chưa có yêu cầu gia hạn.
                 </div>
               ) : (
+                <>
                 <div className="space-y-3">
-                  {extendRequestsForSidebar.map((r, idx) => (
+                  {currentExtendRequests.map((r, idx) => (
                     <div
                       key={`${r.rentalId}-${idx}`}
                       className="p-4 rounded-2xl bg-indigo-50 border border-indigo-100"
@@ -822,6 +908,38 @@ export default function MyRentals() {
                     </div>
                   ))}
                 </div>
+                
+                {/* Pagination for Extend Requests */}
+                {totalExtendPages > 1 && (
+                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
+                    <button
+                      disabled={extendPage <= 1}
+                      onClick={() => setExtendPage((p) => Math.max(1, p - 1))}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                        extendPage <= 1
+                          ? "text-gray-300 cursor-not-allowed"
+                          : "text-gray-600 hover:bg-gray-100"
+                      }`}
+                    >
+                      ← Trước
+                    </button>
+                    <span className="text-xs font-semibold text-gray-500">
+                      {extendPage} / {totalExtendPages}
+                    </span>
+                    <button
+                      disabled={extendPage >= totalExtendPages}
+                      onClick={() => setExtendPage((p) => Math.min(totalExtendPages, p + 1))}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                        extendPage >= totalExtendPages
+                          ? "text-gray-300 cursor-not-allowed"
+                          : "text-gray-600 hover:bg-gray-100"
+                      }`}
+                    >
+                      Sau →
+                    </button>
+                  </div>
+                )}
+                </>
               )}
             </div>
           </aside>
