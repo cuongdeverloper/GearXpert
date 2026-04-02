@@ -252,11 +252,11 @@ export default function BlogPage() {
     };
 
     return (
-        <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#f6f6f8", fontFamily: "'Inter', sans-serif" }}>
+        <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#f6f6f8", fontFamily: "'Inter', sans-serif" }} data-theme="light">
             <Header />
 
             {/* ============ PREMIUM HERO BANNER ============ */}
-            <section className="relative w-full overflow-hidden bg-slate-900 pt-32 pb-20 lg:pt-48 lg:pb-32">
+            <section className="relative w-full overflow-hidden bg-slate-900 pt-32 pb-20 lg:pt-48 lg:pb-32" data-theme="dark">
                 {/* Background Image with Overlay */}
                 <div className="absolute inset-0 z-0">
                     <img

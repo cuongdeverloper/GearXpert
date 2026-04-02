@@ -426,12 +426,12 @@ export default function ProfilePage() {
     }
 
     return (
-        <div className="min-h-screen flex flex-col bg-slate-50">
+        <div className="min-h-screen flex flex-col bg-slate-50" data-theme="light">
             <Header />
 
             <main className="flex-grow w-full pb-12">
                 {/* Premium Hero Section */}
-                <section className="relative w-full bg-slate-900 overflow-hidden mb-10 pt-48 pb-32 lg:pt-56 lg:pb-40">
+                <section className="relative w-full bg-slate-900 overflow-hidden mb-10 pt-48 pb-32 lg:pt-56 lg:pb-40" data-theme="dark">
                     {/* Background Image & Gradient */}
                     <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=1920')] bg-cover bg-center opacity-30 mix-blend-overlay"></div>
                     <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-900/80 to-slate-900"></div>
