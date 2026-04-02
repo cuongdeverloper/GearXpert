@@ -127,8 +127,8 @@ export default function Homepage() {
     <div className="min-h-screen flex flex-col bg-background-light">
       <Header />
 
-      <main className="flex-grow w-full max-w-[1440px] mx-auto pt-32 pb-12">
-        <ScrollAnimation effect="fade" delay={0.05}>
+      <main className="flex-grow w-full max-w-[1440px] mx-auto pt-32 pb-12" data-theme="light">
+        <ScrollAnimation effect="fade" delay={0.05} className="w-full" data-theme="dark">
           <SmartGearPromoSection />
         </ScrollAnimation>
 
@@ -156,7 +156,7 @@ export default function Homepage() {
 
         <WhyChooseUsSection />
 
-        <section className="px-6 lg:px-10 mt-16">
+        <section className="px-6 lg:px-10 mt-16" data-theme="dark">
           <ScrollAnimation effect="fade" viewportAmount={0.3}>
             <TestimonialsSection />
           </ScrollAnimation>

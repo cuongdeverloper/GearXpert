@@ -22,9 +22,11 @@ exports.validateVoucher = async (req, res) => {
     return res.status(400).json({ message: "Voucher đã hết hạn" });
   }
 
-  // 3. Kiểm tra giới hạn sử dụng (nếu có)
-  if (voucher.usageLimit && voucher.usedCount >= voucher.usageLimit) {
-    return res.status(400).json({ message: "Voucher đã hết lượt sử dụng" });
+  // 3. Kiểm tra giới hạn sử dụng
+  if (voucher.usageLimit !== undefined && voucher.usageLimit !== null) {
+    if (voucher.usageLimit <= 0 || voucher.usedCount >= voucher.usageLimit) {
+      return res.status(400).json({ message: "Voucher đã hết lượt sử dụng" });
+    }
   }
 
   // 4. Lấy giỏ hàng
@@ -157,6 +159,20 @@ exports.createVoucherByAdmin = async (req, res) => {
       expiredAt
     } = req.body;
 
+    if (discountValue < 0 || minOrderValue < 0 || (maxDiscount !== undefined && maxDiscount < 0)) {
+      return res.status(400).json({
+        success: false,
+        message: "Các giá trị giảm giá, đơn tối thiểu không được là số âm"
+      });
+    }
+
+    if (usageLimit < 1) {
+      return res.status(400).json({
+        success: false,
+        message: "Lượt dùng tối đa phải ít nhất là 1"
+      });
+    }
+
     const newVoucher = new Voucher({
       code,
       type: "GLOBAL",
@@ -255,6 +271,24 @@ exports.updateVoucherByAdmin = async (req, res) => {
     const { id } = req.params;
     const updateData = req.body;
 
+    if (
+      (updateData.discountValue !== undefined && updateData.discountValue < 0) ||
+      (updateData.minOrderValue !== undefined && updateData.minOrderValue < 0) ||
+      (updateData.maxDiscount !== undefined && updateData.maxDiscount < 0)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Các giá trị giảm giá, đơn tối thiểu không được là số âm"
+      });
+    }
+
+    if (updateData.usageLimit !== undefined && updateData.usageLimit < 1) {
+      return res.status(400).json({
+        success: false,
+        message: "Lượt dùng tối đa phải ít nhất là 1"
+      });
+    }
+
     const voucher = await Voucher.findById(id);
     if (!voucher) {
       return res.status(404).json({
@@ -345,6 +379,20 @@ exports.createVoucherBySupplier = async (req, res) => {
       usageLimit,
       expiredAt
     } = req.body;
+
+    if (discountValue < 0 || minOrderValue < 0 || (maxDiscount !== undefined && maxDiscount < 0)) {
+      return res.status(400).json({
+        success: false,
+        message: "Các giá trị giảm giá, đơn tối thiểu không được là số âm"
+      });
+    }
+
+    if (usageLimit < 1) {
+      return res.status(400).json({
+        success: false,
+        message: "Lượt dùng tối đa phải ít nhất là 1"
+      });
+    }
 
     const newVoucher = new Voucher({
       code: code.toUpperCase(),
