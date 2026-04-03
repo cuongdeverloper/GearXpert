@@ -19,3 +19,7 @@ export const getAdminReports = () => {
 export const getAdminSuppliers = () => {
   return axios.get("/api/admin/suppliers");
 };
+
+export const getAdminDevices = (params = {}) => {
+  return axios.get("/api/admin/devices", { params });
+};

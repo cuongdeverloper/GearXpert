@@ -27,6 +27,8 @@ import SupplierMaintenance from "./pages/Supplier/SupplierMaintenance";
 import SupplierRevenue from "./pages/Supplier/SupplierRevenue";
 import SupplierInventoryPage from "./pages/Supplier/SupplierInventoryPage";
 import SupplierVouchersPage from "./pages/Supplier/SupplierVouchersPage";
+import SupplierIssuesPage from "./pages/Supplier/SupplierIssuesPage";
+import SupplierCalendarPage from "./pages/Supplier/SupplierCalendarPage";
 import SupplierAiPricingPage from "./pages/Supplier/SupplierAiPricingPage";
 import SupplierAdsPage from "./pages/Supplier/SupplierAdsPage";
 
@@ -172,6 +174,10 @@ export default function Layout() {
             element={<RentalReviewPage />}
           />
           <Route path="/my-rentals/:rentalId" element={<RentalDetail />} />
+          <Route
+            path="/my-rentals"
+            element={<Navigate to="/user/myrental" replace />}
+          />
           <Route path="/user/myrental" element={<MyRentals />} />
           <Route path="/user/cart" element={<CartPage />} />
           <Route path="/user/followed-stores" element={<FollowedStoresPage />} />
@@ -201,6 +207,8 @@ export default function Layout() {
             <Route path="maintenance" element={<SupplierMaintenance />} />
             <Route path="revenue" element={<SupplierRevenue />} />
             <Route path="vouchers" element={<SupplierVouchersPage />} />
+            <Route path="issues" element={<SupplierIssuesPage />} />
+            <Route path="calendar" element={<SupplierCalendarPage />} />
             <Route path="ai-pricing" element={<SupplierAiPricingPage />} />
             <Route path="advertisements" element={<SupplierAdsPage />} />
             <Route path="profile/edit" element={<SupplierProfileEdit />} />

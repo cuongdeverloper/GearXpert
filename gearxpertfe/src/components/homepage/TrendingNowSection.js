@@ -4,13 +4,8 @@ import ImageWithFallback from '../common/ImageWithFallback';
 export default function TrendingNowSection({ device = null }) {
   const navigate = useNavigate();
 
-  // Mock data if no device provided
-  const trendingDevice = device || {
-    _id: 'trending-1',
-    name: 'RED Komodo 6K',
-    description: 'Capture RAW brilliance in a compact form factor. Most requested this week.',
-    image: 'https://images.unsplash.com/photo-1606983340126-99ab4feaa64a?w=1200&q=80'
-  };
+  const trendingDevice = device;
+  if (!trendingDevice) return null;
 
   return (
     <div className="w-full">

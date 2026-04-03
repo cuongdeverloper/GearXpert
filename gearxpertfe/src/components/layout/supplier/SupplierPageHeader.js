@@ -4,33 +4,33 @@ import { useMemo } from "react";
 const menu = [
   {
     to: "/supplier/dashboard",
-    label: "Overview",
-    desc: "Monthly revenue, rentals, listings, and new requests.",
+    label: "Tổng quan",
+    desc: "Doanh thu, đơn thuê, thiết bị và yêu cầu mới.",
   },
   {
     to: "/supplier/devices",
-    label: "Products",
-    desc: "Manage your rental products, inventory, and status.",
+    label: "Sản phẩm",
+    desc: "Quản lý thiết bị cho thuê, kho và trạng thái.",
   },
   {
     to: "/supplier/inventory",
-    label: "Inventory",
-    desc: "Track stock levels, rentals, and availability.",
+    label: "Kho hàng",
+    desc: "Theo dõi tồn kho, lượng thuê và sẵn có.",
   },
   {
     to: "/supplier/rental-requests",
-    label: "Bookings",
-    desc: "Review, approve, and track booking requests.",
+    label: "Đặt thuê",
+    desc: "Xem, duyệt và theo dõi yêu cầu đặt thuê.",
   },
   {
     to: "/supplier/maintenance",
-    label: "Maintenance",
-    desc: "Handle maintenance and availability workflow.",
+    label: "Bảo trì",
+    desc: "Quy trình bảo trì và sẵn có thiết bị.",
   },
   {
     to: "/supplier/revenue",
-    label: "Finance",
-    desc: "Revenue, deposits held, fees, and withdrawals.",
+    label: "Tài chính",
+    desc: "Doanh thu, tiền cọc, phí và rút tiền.",
   },
 ];
 
@@ -44,13 +44,13 @@ export default function SupplierPageHeader() {
   return (
     <div className="mb-8">
       <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-        Supplier Center
+        Trung tâm nhà cung cấp
       </div>
       <h1 className="text-3xl font-bold text-slate-900 font-display tracking-tight mb-2">
-        {current?.label || "Dashboard"}
+        {current?.label || "Bảng điều khiển"}
       </h1>
       <p className="text-sm text-slate-600">
-        {current?.desc || "Manage your supply operations on GearXpert."}
+        {current?.desc || "Quản lý hoạt động cung ứng của bạn trên GearXpert."}
       </p>
     </div>
   );

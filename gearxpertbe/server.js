@@ -27,6 +27,7 @@ const favoriteRouter = require("./Routes/FavoriteRoutes");
 const walletRouter = require("./Routes/WalletRoutes");
 const payosRouter = require("./Routes/PayOsRoutes");
 const adminUserRouter = require("./Routes/AdminUserRoutes");
+const adminDisputeRouter = require("./Routes/AdminDisputeRoutes");
 const advertisementRouter = require("./Routes/AdvertisementRoutes");
 const ReportRouter = require("./Routes/ReportRoutes");
 const ContractRouter = require("./Routes/ContractRoutes");

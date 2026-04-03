@@ -2,12 +2,13 @@ const express = require('express');
 const supplierRouter = express.Router();
 
 const supplierProfileController = require('../controllers/Supplier/SupplierController');
-const { checkAccessToken } = require('../middleware/JWTAction');
+const { checkAccessToken, checkSupplier } = require('../middleware/JWTAction');
 const uploadCloud = require('../configs/cloudinaryConfig');
 
 // Customer: followed stores (phải đặt trước /:supplierId)
 supplierRouter.get('/me/followed-stores', checkAccessToken, supplierProfileController.getMyFollowedStores);
 supplierRouter.patch('/me/follow-prefs/:followId', checkAccessToken, supplierProfileController.updateFollowPrefs);
+supplierRouter.get('/me/follower-analytics', checkAccessToken, checkSupplier, supplierProfileController.getMyFollowerAnalytics);
 
 // Protected routes (chỉ Supplier)
 supplierRouter.get('/profile', checkAccessToken, supplierProfileController.getSupplierProfile);

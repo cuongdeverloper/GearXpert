@@ -10,6 +10,7 @@ import {
   FiEye,
   FiSearch,
   FiMoreVertical,
+  FiBox,
 } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { confirmDialog } from "../../utils/confirmDialog";
@@ -28,10 +29,9 @@ const CATEGORIES = [
 const STATUS_OPTIONS = [
   { value: "ALL", label: "Tất cả trạng thái" },
   { value: "AVAILABLE", label: "Sẵn sàng" },
-  { value: "RENTED", label: "Đang thuê" },
-  { value: "MAINTENANCE", label: "Bảo trì" },
-  { value: "BROKEN", label: "Hỏng" },
+  { value: "SUSPICIOUS", label: "Cần kiểm tra" },
   { value: "STOPPED", label: "Đã ẩn" },
+  { value: "DISCONTINUED", label: "Ngừng kinh doanh" },
 ];
 const SORT_OPTIONS = [
   { value: "createdAt", label: "Mới nhất" },
@@ -72,6 +72,7 @@ export default function SupplierDevicesList() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [failedImages, setFailedImages] = useState(new Set());
 
   const fetchDevices = async () => {
     if (!user?.id) return;
@@ -92,6 +93,7 @@ export default function SupplierDevicesList() {
       setDevices(response.devices || []);
       setTotal(response.total || 0);
       setTotalPages(response.totalPages || 1);
+      setFailedImages(new Set()); // reset khi load trang mới
     } catch (error) {
       console.error("Error fetching devices:", error);
       toast.error("Failed to load devices");
@@ -279,12 +281,19 @@ export default function SupplierDevicesList() {
                   return (
                     <tr key={device._id} className="hover:bg-slate-50">
                       <td className="px-4 py-3">
-                        <div className="h-12 w-12 rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
-                          <img
-                            src={device.images?.[0] || "https://via.placeholder.com/150"}
-                            alt={device.name}
-                            className="h-full w-full object-cover"
-                          />
+                        <div className="h-12 w-12 rounded-lg overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center">
+                          {device.images?.[0] && !failedImages.has(device.images[0]) ? (
+                            <img
+                              src={device.images[0]}
+                              alt={device.name}
+                              className="h-full w-full object-cover"
+                              onError={() => {
+                                setFailedImages((prev) => new Set(prev).add(device.images[0]));
+                              }}
+                            />
+                          ) : (
+                            <FiBox className="text-slate-300" size={20} />
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3">

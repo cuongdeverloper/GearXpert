@@ -11,6 +11,7 @@ import {
 } from "react-icons/fi";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { getSupplierRentalRequests } from "../../service/ApiService/RentalApi";
 import { rejectRental, startDelivery } from "../../service/ApiService/RentalActionApi";
 import { toast } from "react-toastify";
@@ -77,6 +78,22 @@ const formatDateTime = (dateString) => {
   });
 };
 
+/** Trùng logic BE `isRentalPeriodStillOpenForDelivery`: hết ngày trả → không giao được */
+const isRentalPeriodOpenForDelivery = (rental) => {
+  const items = rental?.rentalItems;
+  if (!items?.length) return false;
+  const now = Date.now();
+  let latestEndEod = 0;
+  for (const it of items) {
+    const d = new Date(it.rentalEndDate);
+    if (Number.isNaN(d.getTime())) continue;
+    const eod = new Date(d);
+    eod.setHours(23, 59, 59, 999);
+    latestEndEod = Math.max(latestEndEod, eod.getTime());
+  }
+  return latestEndEod >= now;
+};
+
 const getRentalCode = (rental, index) => {
   if (rental.orderCode) {
     return `BK${String(rental.orderCode).padStart(4, "0")}`;
@@ -126,8 +143,12 @@ const getDeliveryTimeline = (rental) => {
 
 export default function SupplierRentalRequests() {
   const user = useSelector((state) => state.user.account);
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const rentalFromNotif = searchParams.get("rental");
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [listFetched, setListFetched] = useState(false);
   const [activeTab, setActiveTab] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
@@ -138,7 +159,10 @@ export default function SupplierRentalRequests() {
   const [deliveryModal, setDeliveryModal] = useState({ open: false, rental: null });
 
   const fetchRequests = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setListFetched(true);
+      return;
+    }
     setLoading(true);
     try {
       const res = await getSupplierRentalRequests(user.id, {
@@ -150,6 +174,7 @@ export default function SupplierRentalRequests() {
       setRequests([]);
     } finally {
       setLoading(false);
+      setListFetched(true);
     }
   }, [user?.id]);
 
@@ -157,7 +182,29 @@ export default function SupplierRentalRequests() {
     fetchRequests();
   }, [fetchRequests]);
 
+  useEffect(() => {
+    if (!rentalFromNotif || !listFetched || loading) return;
+    const clearParam = () =>
+      navigate("/supplier/rental-requests", { replace: true });
+
+    const found = requests.find(
+      (r) => String(r._id) === String(rentalFromNotif)
+    );
+    if (found) {
+      setDetailModal({ open: true, rental: found });
+    } else if (requests.length > 0) {
+      toast.info("Không tìm thấy đơn trong danh sách.");
+    }
+    clearParam();
+  }, [rentalFromNotif, listFetched, loading, requests, navigate]);
+
   const handleStartDelivery = async (rental) => {
+    if (!isRentalPeriodOpenForDelivery(rental)) {
+      toast.error(
+        "Kỳ thuê đã kết thúc theo lịch đặt. Vui lòng từ chối đơn hoặc liên hệ khách hàng để đặt lại."
+      );
+      return;
+    }
     const result = await confirmDialog({
       title: "Xác nhận bắt đầu giao hàng?",
       text: "Đơn hàng sẽ chuyển sang trạng thái ĐANG GIAO và hợp đồng giao hàng sẽ được tạo.",
@@ -395,6 +442,7 @@ export default function SupplierRentalRequests() {
                   ? "bg-teal-50 text-teal-700 border-teal-200"
                   : STATUS_STYLES[rental.status] || STATUS_STYLES.INSPECTING;
                 const code = getRentalCode(rental, index + (page - 1) * pageSize);
+                const canStartDelivery = isRentalPeriodOpenForDelivery(rental);
 
                 return (
                   <tr key={rental._id || rental.id} className="hover:bg-slate-50">
@@ -442,9 +490,19 @@ export default function SupplierRentalRequests() {
                         {rental.status === "PENDING" && (
                           <>
                             <button
+                              type="button"
                               onClick={() => handleStartDelivery(rental)}
-                              className="text-blue-600 hover:text-blue-700"
-                              title="Bắt đầu giao hàng"
+                              disabled={!canStartDelivery}
+                              className={
+                                canStartDelivery
+                                  ? "text-blue-600 hover:text-blue-700"
+                                  : "text-slate-300 cursor-not-allowed"
+                              }
+                              title={
+                                canStartDelivery
+                                  ? "Bắt đầu giao hàng"
+                                  : "Kỳ thuê đã hết hạn — không thể bắt đầu giao. Có thể từ chối đơn."
+                              }
                             >
                               <FiTruck size={16} />
                             </button>
