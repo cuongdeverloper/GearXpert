@@ -5,8 +5,7 @@
   "main": "server.js",
   "scripts": {
     "test": "jest --runInBand",
-    "start": "nodemon ./src/server.js",
-    "migrate:device-items": "node scripts/migrateDeviceItemsFromLegacy.js"
+    "start": "nodemon ./src/server.js"
   },
   "keywords": [],
   "author": "",

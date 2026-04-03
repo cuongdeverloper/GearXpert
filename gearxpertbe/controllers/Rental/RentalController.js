@@ -51,7 +51,10 @@ const sendRentalNotification = async (
     type: "ORDER",
   });
 };
-
+/**
+ * GET /api/rentals/:rentalId
+ * Lấy chi tiết một đơn thuê (dành cho customer xem chi tiết)
+ */
 /** Cuối ngày trả (local 23:59:59.999) mới nhất trong line items vẫn ≥ hiện tại */
 const isRentalPeriodStillOpenForDelivery = (rentalItems) => {
   if (!rentalItems?.length) return false;
