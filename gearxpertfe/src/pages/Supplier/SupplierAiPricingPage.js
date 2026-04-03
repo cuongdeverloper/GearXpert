@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { 
     getAiDiscountSuggestions, 
     getActiveDiscounts,
@@ -17,11 +18,13 @@ import {
     FiCalendar,
     FiTrash2,
     FiTag,
-    FiArrowRight
+    FiArrowRight,
+    FiTarget
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function SupplierAiPricingPage() {
+    const navigate = useNavigate();
     const [suggestions, setSuggestions] = useState([]);
     const [activeDiscounts, setActiveDiscounts] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -191,11 +194,20 @@ export default function SupplierAiPricingPage() {
                                                 </div>
                                                 <p className="text-sm text-slate-500 italic mb-2">"{d.reason}"</p>
                                             </div>
-                                            <div className="md:w-48 shrink-0 flex flex-col justify-center border-l border-slate-100 pl-6 border-dashed">
+                                            <div className="md:w-48 shrink-0 flex flex-col justify-center border-l border-slate-100 pl-6 border-dashed pt-8">
                                                 <div className="mb-4">
-                                                     <div className="text-2xl font-black text-slate-900">{d.discountPrice.toLocaleString()}đ</div>
-                                                     <div className="text-xs text-slate-400 line-through">{d.originalPrice.toLocaleString()}đ</div>
+                                                     <div className="flex items-center gap-2 mb-1">
+                                                         <span className="text-[10px] bg-rose-100 text-rose-600 font-black px-1.5 py-0.5 rounded">-{d.discountPercent}%</span>
+                                                         <div className="text-xl font-black text-rose-600">{d.discountPrice.toLocaleString()}đ</div>
+                                                     </div>
+                                                     <div className="text-xs text-slate-400 line-through">Gốc: {d.originalPrice.toLocaleString()}đ</div>
                                                 </div>
+                                                <button 
+                                                    onClick={() => navigate('/supplier/advertisements', { state: { preselectDeviceSlug: d.slug, preselectDeviceName: d.name } })}
+                                                    className="w-full py-2.5 mb-2 rounded-xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-slate-200"
+                                                >
+                                                    <FiTarget size={14} className="text-cyan-400" /> Quảng cáo ngay
+                                                </button>
                                                 <button 
                                                     onClick={() => handleRemoveDiscount(d.deviceId)}
                                                     disabled={removingId === d.deviceId}
@@ -314,13 +326,13 @@ export default function SupplierAiPricingPage() {
                                     <span className="text-[10px] font-black uppercase tracking-widest">Hiệu quả thực tế</span>
                                 </div>
                                 <p className="text-xs text-emerald-800 leading-relaxed font-bold">
-                                    Các chương trình giảm giá ngắn hạn (3-7 ngày) thường tăng lượt click vào sản phẩm gấp **3 lần**.
+                                    Các chương trình giảm giá ngắn hạn (3-7 ngày) thường tăng lượt click vào sản phẩm gấp "3" lần.
                                 </p>
                             </div>
                             <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
                                 <h5 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-3">Thông tin hệ thống</h5>
-                                <p className="text-xs text-slate-600 leading-relaxed font-medium font-serif">
-                                    "Bạn có thể thay đổi hoặc hủy bỏ bất kỳ chương trình giảm giá nào bất cứ lúc nào bằng nút **Hủy giảm giá** bên cạnh."
+                                <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                                    "Bạn có thể thay đổi hoặc hủy bỏ bất kỳ chương trình giảm giá nào bất cứ lúc nào bằng nút "Hủy giảm giá" bên cạnh."
                                 </p>
                             </div>
                         </div>
