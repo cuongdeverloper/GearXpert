@@ -55,7 +55,13 @@ export default function ProductCard({
   };
   const category = getCategoryDisplay(device?.category);
   const description = device?.description || '';
-  const price = device?.price || device?.rentPrice?.perDay || 0;
+  const originalPrice = device?.rentPrice?.perDay || device?.price || 0;
+  const discountPrice = device?.discountPrice || 0;
+  const expiry = device?.discountExpiry ? new Date(device.discountExpiry) : null;
+  const isExpired = expiry && expiry < new Date();
+  const hasDiscount = discountPrice > 0 && discountPrice < originalPrice && !isExpired;
+  const price = hasDiscount ? discountPrice : originalPrice;
+
   const image = device?.image || device?.images?.[0] || '';
   const rating = device?.ratingAvg || device?.rating || null;
 
@@ -136,17 +142,11 @@ export default function ProductCard({
     return 'auto_fix_high';
   };
 
-  const getRingColor = (matchValue) => {
-    if (matchValue >= 95) return 'ring-accent-cyan/50';
-    if (matchValue >= 90) return 'ring-accent-cyan/30';
-    return 'ring-accent-cyan/20';
-  };
-
   // Simple variant
   if (variant === 'simple') {
     return (
       <div
-        className={`flex flex-col h-full w-full max-w-[320px] mx-auto snap-start group bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-500 cursor-pointer ${className}`}
+        className={`flex flex-col h-full w-full max-w-[320px] mx-auto snap-start group bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-500 cursor-pointer ${className}`}
         onClick={handleClick}
       >
         <div className="aspect-square rounded-xl overflow-hidden isolate mb-4 bg-slate-50 relative shrink-0">
@@ -201,14 +201,21 @@ export default function ProductCard({
         </div>
 
         <div className="flex flex-col flex-1">
-          <h4 className="font-bold text-slate-900 font-display text-base mb-2 line-clamp-2 h-12 leading-tight">
+          <h4 className="font-bold text-slate-900 font-display text-base mb-2 line-clamp-1 h-6 leading-tight" title={name}>
             {name}
           </h4>
           <div className="mt-auto pt-2 flex items-center justify-between border-t border-slate-50">
-            <p className="text-primary font-bold text-sm">
-              {price.toLocaleString('vi-VN')}đ
-              <span className="text-[10px] text-slate-400 font-normal ml-0.5">/day</span>
-            </p>
+            <div className="flex flex-col">
+              {hasDiscount && (
+                <span className="text-[10px] text-slate-400 line-through leading-none mb-0.5">
+                  {originalPrice.toLocaleString('vi-VN')}đ
+                </span>
+              )}
+              <p className={`${hasDiscount ? 'text-red-500' : 'text-primary'} font-bold text-sm`}>
+                {price.toLocaleString('vi-VN')}đ
+                <span className="text-[10px] text-slate-400 font-normal ml-0.5">/day</span>
+              </p>
+            </div>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{category}</span>
           </div>
         </div>
@@ -219,10 +226,10 @@ export default function ProductCard({
   // Detailed variant
   return (
     <div
-      className={`group relative bg-white rounded-3xl p-1 shadow-lg hover:shadow-glow-cyan transition-all duration-300 border border-slate-100 cursor-pointer ${match ? `ring-2 ${getRingColor(match)}` : ''} ${className}`}
+      className={`group relative bg-white rounded-3xl p-0 shadow-lg hover:shadow-2xl transition-all duration-300 border border-slate-100 cursor-pointer ${match ? `ring-1 ring-slate-900` : ''} ${className}`}
       onClick={handleClick}
     >
-      <div className="bg-white rounded-[22px] overflow-hidden isolate flex flex-col h-full">
+      <div className="bg-white rounded-3xl overflow-hidden isolate flex flex-col h-full">
         {/* Image Section */}
         <div className="relative h-64 overflow-hidden rounded-t-[22px]">
           {/* Rating Badge */}
@@ -233,8 +240,8 @@ export default function ProductCard({
             </div>
           )}
 
-          {/* Match Badge */}
-          {match !== null && (
+          {/* Match Badge hidden as requested */}
+          {false && match !== null && (
             <div className={`absolute ${rating !== null ? 'top-14' : 'top-4'} left-4 z-10 ${getMatchBadgeColor(match)} text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-lg flex items-center gap-1`}>
               <span className="material-symbols-outlined text-[12px] fill-current">{getMatchIcon(match)}</span>
               {match}% Match
@@ -285,19 +292,28 @@ export default function ProductCard({
         </div>
 
         {/* Content Section */}
-        <div className="p-6">
+        <div className="p-6 flex flex-col flex-1">
           <span className="text-[10px] font-bold text-primary uppercase tracking-[0.2em]">
             {category}
           </span>
-          <h3 className="text-xl font-bold text-slate-900 mt-1 font-display">{name}</h3>
+          <h3 className="text-xl font-bold text-slate-900 mt-1 font-display line-clamp-1 min-h-[1.75rem]" title={name}>
+            {name}
+          </h3>
           {description && (
-            <p className="text-sm text-slate-500 mt-2 line-clamp-2">{description}</p>
+            <p className="text-sm text-slate-500 mt-2 line-clamp-2 flex-1">{description}</p>
           )}
-          <div className="mt-6 flex items-center justify-between">
-            <span className="text-2xl font-bold text-slate-900">
-              {price.toLocaleString('vi-VN')}đ
-              <span className="text-sm text-slate-400 font-normal">/day</span>
-            </span>
+          <div className="mt-auto pt-6 flex items-center justify-between">
+            <div className="flex flex-col">
+              {hasDiscount && (
+                <span className="text-sm text-slate-400 line-through leading-none mb-1">
+                  {originalPrice.toLocaleString('vi-VN')}đ
+                </span>
+              )}
+              <span className={`text-2xl font-bold ${hasDiscount ? 'text-red-500' : 'text-slate-900'}`}>
+                {price.toLocaleString('vi-VN')}đ
+                <span className="text-sm text-slate-400 font-normal ml-1">/day</span>
+              </span>
+            </div>
             <button
               onClick={(e) => {
                 e.stopPropagation();

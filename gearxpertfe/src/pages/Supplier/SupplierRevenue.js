@@ -79,14 +79,14 @@ export default function SupplierRevenue() {
       labels: series.map((item) => item.label),
       datasets: [
         {
-          label: "Money In",
+          label: "Tiền vào",
           data: series.map((item) => item.in),
           backgroundColor: "#22c55e",
           borderRadius: 8,
           barThickness: 22
         },
         {
-          label: "Money Out",
+          label: "Tiền ra",
           data: series.map((item) => item.out),
           backgroundColor: "#ef4444",
           borderRadius: 8,
@@ -128,61 +128,61 @@ export default function SupplierRevenue() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-slate-900 font-display tracking-tight">Revenue Analytics</h2>
-        <p className="mt-1 text-sm text-slate-600">Monitor earnings and rental performance</p>
+        <h2 className="text-2xl font-bold text-slate-900 font-display tracking-tight">Phân tích doanh thu</h2>
+        <p className="mt-1 text-sm text-slate-600">Theo dõi thu nhập và hiệu suất cho thuê</p>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl border border-primary/20 p-6 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-slate-600 font-semibold uppercase tracking-tighter">Total Revenue</p>
+            <p className="text-sm text-slate-600 font-semibold uppercase tracking-tighter">Tổng doanh thu</p>
             <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
               <FiDollarSign size={20} className="text-primary" />
             </div>
           </div>
           <p className="text-3xl font-bold text-primary">{formatMillions(revenueData.totalRevenue)}</p>
-          <p className="text-xs text-primary/70 mt-2">All time earnings</p>
+          <p className="text-xs text-primary/70 mt-2">Tổng thu nhập từ trước đến nay</p>
         </div>
 
         <div className="bg-gradient-to-br from-green-100/10 to-green-50/5 rounded-2xl border border-green-200/30 p-6 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-slate-600 font-semibold uppercase tracking-tighter">This Month</p>
+            <p className="text-sm text-slate-600 font-semibold uppercase tracking-tighter">Tháng này</p>
             <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
               <FiTrendingUp size={20} className="text-green-600" />
             </div>
           </div>
           <p className="text-3xl font-bold text-green-600">{formatMillions(revenueData.monthlyRevenue)}</p>
-          <p className="text-xs text-green-600/70 mt-2">+15% vs last month</p>
+          <p className="text-xs text-green-600/70 mt-2">+15% so với tháng trước</p>
         </div>
 
         <div className="bg-gradient-to-br from-blue-100/10 to-blue-50/5 rounded-2xl border border-blue-200/30 p-6 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-slate-600 font-semibold uppercase tracking-tighter">Active Rentals</p>
+            <p className="text-sm text-slate-600 font-semibold uppercase tracking-tighter">Đơn thuê đang chạy</p>
             <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
               <FiTarget size={20} className="text-blue-600" />
             </div>
           </div>
           <p className="text-3xl font-bold text-blue-600">{revenueData.activeRentals}</p>
-          <p className="text-xs text-blue-600/70 mt-2">Current bookings</p>
+          <p className="text-xs text-blue-600/70 mt-2">Đơn đặt hiện tại</p>
         </div>
 
         <div className="bg-gradient-to-br from-amber-100/10 to-amber-50/5 rounded-2xl border border-amber-200/30 p-6 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-slate-600 font-semibold uppercase tracking-tighter">Rating</p>
+            <p className="text-sm text-slate-600 font-semibold uppercase tracking-tighter">Đánh giá</p>
             <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center text-lg">
               ⭐
             </div>
           </div>
           <p className="text-3xl font-bold text-amber-600">{revenueData.avgRating?.toFixed ? revenueData.avgRating.toFixed(1) : revenueData.avgRating}</p>
-          <p className="text-xs text-amber-600/70 mt-2">Customer satisfaction</p>
+          <p className="text-xs text-amber-600/70 mt-2">Sự hài lòng của khách hàng</p>
         </div>
       </div>
 
       {/* Cash Flow */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <h3 className="text-lg font-bold text-slate-900">Cash Flow</h3>
+          <h3 className="text-lg font-bold text-slate-900">Dòng tiền</h3>
           <div className="flex bg-slate-100 rounded-full p-1">
             {["DAY", "MONTH", "YEAR"].map((k) => (
               <button
@@ -192,7 +192,7 @@ export default function SupplierRevenue() {
                   range === k ? "bg-slate-900 text-white" : "hover:bg-slate-200"
                 }`}
               >
-                {k === "DAY" ? "Day" : k === "MONTH" ? "Month" : "Year"}
+                {k === "DAY" ? "Ngày" : k === "MONTH" ? "Tháng" : "Năm"}
               </button>
             ))}
           </div>
@@ -200,7 +200,7 @@ export default function SupplierRevenue() {
 
         <div className="relative h-[260px] mt-6">
           {loading ? (
-            <p className="text-sm text-slate-500">Loading data...</p>
+            <p className="text-sm text-slate-500">Đang tải dữ liệu...</p>
           ) : (
             <Bar data={chartData} options={chartOptions} />
           )}
@@ -213,12 +213,12 @@ export default function SupplierRevenue() {
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
           <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
             <FiCalendar className="text-primary" />
-            Monthly Revenue
+            Doanh thu hàng tháng
           </h3>
 
           <div className="space-y-4">
             {monthlyBreakdown.length === 0 && (
-              <p className="text-sm text-slate-500">No revenue data yet.</p>
+              <p className="text-sm text-slate-500">Chưa có dữ liệu doanh thu.</p>
             )}
             {monthlyBreakdown.map((item, idx) => {
               return (
@@ -233,7 +233,7 @@ export default function SupplierRevenue() {
                       style={{ width: `${(item.revenue / maxMonthlyRevenue) * 100}%` }}
                     ></div>
                   </div>
-                  <p className="text-xs text-slate-500 mt-1">{item.rentals} rentals</p>
+                  <p className="text-xs text-slate-500 mt-1">{item.rentals} lượt thuê</p>
                 </div>
               );
             })}
@@ -242,11 +242,11 @@ export default function SupplierRevenue() {
 
         {/* Top Devices */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-          <h3 className="text-lg font-bold text-slate-900 mb-6">Top Performing Devices</h3>
+          <h3 className="text-lg font-bold text-slate-900 mb-6">Thiết bị hiệu quả nhất</h3>
 
           <div className="space-y-4">
             {topDevices.length === 0 && (
-              <p className="text-sm text-slate-500">No top devices yet.</p>
+              <p className="text-sm text-slate-500">Chưa có dữ liệu thiết bị.</p>
             )}
             {topDevices.map((device, idx) => (
               <div
@@ -255,7 +255,7 @@ export default function SupplierRevenue() {
               >
                 <div>
                   <p className="font-semibold text-slate-900 group-hover:text-primary transition-colors">{device.name}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{device.rentals} rentals</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{device.rentals} lượt thuê</p>
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-primary">{formatMillions(device.revenue)}</p>
@@ -268,14 +268,14 @@ export default function SupplierRevenue() {
 
       {/* Earnings Timeline */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-        <h3 className="text-lg font-bold text-slate-900 mb-6">Recent Transactions</h3>
+        <h3 className="text-lg font-bold text-slate-900 mb-6">Giao dịch gần đây</h3>
 
         <div className="space-y-3">
           {loading && (
-            <p className="text-sm text-slate-500">Loading data...</p>
+            <p className="text-sm text-slate-500">Đang tải dữ liệu...</p>
           )}
           {!loading && transactions.length === 0 && (
-            <p className="text-sm text-slate-500">No transactions yet.</p>
+            <p className="text-sm text-slate-500">Chưa có giao dịch nào.</p>
           )}
           {transactions.map((item) => (
             <div

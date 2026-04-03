@@ -5,15 +5,8 @@ export default function NewArrivalsSection({ devices = [] }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const itemsPerPage = 3;
 
-  // Use provided devices or fallback to mock data
-  const items = devices.length > 0 ? devices : [
-    { _id: '1', name: 'DJI Mavic 3 Cine', price: 120, category: 'Drone', image: 'https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=800&q=80' },
-    { _id: '2', name: 'Rode Wireless GO II', price: 25, category: 'Audio', image: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80' },
-    { _id: '3', name: 'BMPCC 6K Pro', price: 110, category: 'Cinema', image: 'https://images.unsplash.com/photo-1606983340126-99ab4feaa64a?w=800&q=80' },
-    { _id: '4', name: 'Sony A7S III', price: 80, category: 'Cinema', image: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80' },
-    { _id: '5', name: 'Aputure 600d', price: 95, category: 'Lighting', image: 'https://images.unsplash.com/photo-1606983340126-99ab4feaa64a?w=800&q=80' },
-    { _id: '6', name: 'DJI Ronin RS3', price: 45, category: 'Accessory', image: 'https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=800&q=80' }
-  ];
+  const items = devices;
+  if (items.length === 0) return null;
 
   const handlePrev = () => {
     setCurrentIndex((prev) => (prev > 0 ? prev - itemsPerPage : Math.max(0, items.length - itemsPerPage)));
@@ -29,7 +22,7 @@ export default function NewArrivalsSection({ devices = [] }) {
     <div className="w-full h-full flex flex-col">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h3 className="text-2xl font-black text-slate-900 font-display uppercase tracking-tight">New Arrivals</h3>
+          <h3 className="text-2xl font-black text-slate-900 font-display uppercase tracking-tight">Sản phẩm mới</h3>
         </div>
         <div className="flex gap-3">
           <button

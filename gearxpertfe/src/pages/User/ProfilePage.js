@@ -426,12 +426,12 @@ export default function ProfilePage() {
     }
 
     return (
-        <div className="min-h-screen flex flex-col bg-slate-50">
+        <div className="min-h-screen flex flex-col bg-slate-50" data-theme="light">
             <Header />
 
             <main className="flex-grow w-full pb-12">
                 {/* Premium Hero Section */}
-                <section className="relative w-full bg-slate-900 overflow-hidden mb-10 pt-16 pb-32 lg:pt-24 lg:pb-40">
+                <section className="relative w-full bg-slate-900 overflow-hidden mb-10 pt-48 pb-32 lg:pt-56 lg:pb-40" data-theme="dark">
                     {/* Background Image & Gradient */}
                     <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=1920')] bg-cover bg-center opacity-30 mix-blend-overlay"></div>
                     <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-900/80 to-slate-900"></div>
@@ -520,7 +520,7 @@ export default function ProfilePage() {
                                 <div
                                     className="flex items-center gap-3 p-4 rounded-xl mb-6 cursor-pointer hover:scale-105 transition-all duration-300 shadow-md hover:shadow-lg"
                                     style={{ backgroundColor: '#D1FAE5' }}
-                                    onClick={() => navigate('/wallet')}
+                                    onClick={() => navigate('/user/wallet')}
                                 >
                                     <span className="material-symbols-outlined text-2xl text-slate-900">account_balance_wallet</span>
                                     <div className="flex-1">
@@ -549,6 +549,28 @@ export default function ProfilePage() {
                                             {userAccount.isVerifiedEkyc ? 'Đã xác thực' : 'Chưa xác thực'}
                                         </span>
                                     </div>
+
+                                    {userAccount?.role === 'CUSTOMER' && (
+                                    <div className="mt-6 pt-6 border-t border-slate-200">
+                                        <button
+                                            onClick={() => {
+                                                if (!userAccount.isVerifiedEkyc) {
+                                                    toast.warning('Vui lòng xác thực danh tính (eKYC) trước khi đăng ký Nhà cung cấp!');
+                                                    setShowEkycModal(true);
+                                                } else {
+                                                    navigate('/become-supplier');
+                                                }
+                                            }}
+                                            className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-indigo-600 to-cyan-500 text-white rounded-xl font-bold hover:shadow-lg hover:shadow-indigo-500/30 hover:scale-[1.02] active:scale-95 transition-all duration-300"
+                                        >
+                                            <span className="material-symbols-outlined text-[20px]">storefront</span>
+                                            Nâng cấp Nhà cung cấp
+                                        </button>
+                                        <p className="text-xs text-slate-500 text-center mt-2">
+                                            Cho thuê thiết bị nhàn rỗi để tạo thu nhập
+                                        </p>
+                                    </div>
+                                )}
                                 </div>
                             </div>
                         </div>

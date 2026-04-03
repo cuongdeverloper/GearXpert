@@ -17,67 +17,68 @@ import {
 const sections = [
   {
     id: "dashboard",
-    title: "Dashboard",
+    title: "Bảng điều khiển",
     icon: FiHome,
     items: [
-      { to: "/supplier/dashboard", label: "Dashboard" },
+      { to: "/supplier/dashboard", label: "Tổng quan" },
     ],
   },
   {
     id: "products",
-    title: "Rental Products",
+    title: "Sản phẩm cho thuê",
     icon: FiBox,
     items: [
-      { to: "/supplier/devices", label: "Product List" },
-      { to: "/supplier/devices/new", label: "Add New Product" },
-      { to: "/supplier/inventory", label: "Inventory Management" },
-      { to: "/supplier/vouchers", label: "Vouchers" },
+      { to: "/supplier/devices", label: "Danh sách thiết bị" },
+      { to: "/supplier/devices/new", label: "Thêm thiết bị mới" },
+      { to: "/supplier/inventory", label: "Quản lý kho" },
+      { to: "/supplier/vouchers", label: "Mã giảm giá" },
+      { to: "/supplier/ai-pricing", label: "Chiến lược giá AI" },
     ],
   },
   {
     id: "calendar",
-    title: "Availability Calendar",
+    title: "Lịch sẵn dụng",
     icon: FiCalendar,
     items: [
-      { to: "/supplier/calendar", label: "Rental Calendar" },
+      { to: "/supplier/calendar", label: "Lịch thuê" },
     ],
   },
   {
     id: "bookings",
-    title: "Bookings",
+    title: "Đơn đặt hàng",
     icon: FiClipboard,
     items: [
-      { to: "/supplier/rental-requests", label: "Booking Requests" },
+      { to: "/supplier/rental-requests", label: "Yêu cầu đặt thuê" },
     ],
   },
   {
     id: "issues",
-    title: "Issue Reports",
+    title: "Báo cáo sự cố",
     icon: FiAlertTriangle,
     items: [
-      { to: "/supplier/issues", label: "All Issues" },
+      { to: "/supplier/issues", label: "Tất cả sự cố" },
     ],
   },
   {
     id: "delivery",
-    title: "Delivery",
+    title: "Giao hàng",
     icon: FiTruck,
     items: [],
   },
   {
     id: "finance",
-    title: "Finance",
+    title: "Tài chính",
     icon: FiDollarSign,
     items: [
-      { to: "/supplier/revenue", label: "Revenue" },
+      { to: "/supplier/revenue", label: "Doanh thu" },
     ],
   },
   {
     id: "verification",
-    title: "Profile & Verification",
+    title: "Hồ sơ & Xác minh",
     icon: FiShield,
     items: [
-      { to: "/supplier/profile/edit", label: "Shop Profile" },
+      { to: "/supplier/profile/edit", label: "Hồ sơ cửa hàng" },
     ],
   },
 ];

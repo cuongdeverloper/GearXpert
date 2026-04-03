@@ -20,21 +20,21 @@ import { HiOutlineSpeakerphone } from "react-icons/hi";
 
 const navGroups = [
   {
-    title: "MENU",
+    title: "DANH MỤC",
     items: [
-      { to: "/admin", label: "Dashboards", icon: FiHome },
+      { to: "/admin", label: "Bảng điều khiển", icon: FiHome },
       {
         to: "/admin/users",
-        label: "Users",
+        label: "Người dùng",
         icon: FiUsers,
         subItems: [
-          { to: "/admin/advertisements", label: "Advertisements", icon: HiOutlineSpeakerphone }
+          { to: "/admin/advertisements", label: "Quảng cáo", icon: HiOutlineSpeakerphone }
         ]
       },
-      { to: "/admin/suppliers", label: "Suppliers", icon: FiUserCheck },
-      { to: "/admin/devices", label: "Devices", icon: FiBox },
-      { to: "/admin/rentals", label: "Rentals", icon: FiFileText },
-      { to: "/admin/vouchers", label: "Vouchers", icon: FiTag },
+      { to: "/admin/suppliers", label: "Nhà cung cấp", icon: FiUserCheck },
+      { to: "/admin/rentals", label: "Đơn thuê", icon: FiFileText },
+      { to: "/admin/devices", label: "Thiết bị", icon: FiBox },
+      { to: "/admin/vouchers", label: "Mã giảm giá", icon: FiTag },
       { 
         to: "/admin/blogs", 
         label: "Blog", 
@@ -44,13 +44,13 @@ const navGroups = [
           { to: "/admin/comments", label: "Quản lý bình luận", icon: FiMessageSquare },
         ]
       },
-      { to: "/admin/reports", label: "Reports", icon: FiBarChart2 },
-      { to: "/admin/notifications", label: "Broadcast", icon: FiBell },
+      { to: "/admin/reports", label: "Báo cáo", icon: FiBarChart2 },
+      { to: "/admin/notifications", label: "Thông báo hệ thống", icon: FiBell },
     ],
   },
   {
-    title: "SETTINGS",
-    items: [{ to: "/admin/settings", label: "System Settings", icon: FiSettings }],
+    title: "CÀI ĐẶT",
+    items: [{ to: "/admin/settings", label: "Cài đặt hệ thống", icon: FiSettings }],
   },
 ];
 

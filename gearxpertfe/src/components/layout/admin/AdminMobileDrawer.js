@@ -4,19 +4,19 @@ import logo from "../../../assets/logoGearXpert.png";
 
 const navGroups = [
   {
-    title: "MENU",
+    title: "DANH MỤC",
     items: [
-      { to: "/admin", label: "Dashboards", icon: FiHome },
-      { to: "/admin/users", label: "Users", icon: FiUsers },
-      { to: "/admin/suppliers", label: "Suppliers", icon: FiUserCheck },
-      { to: "/admin/devices", label: "Devices", icon: FiBox },
-      { to: "/admin/rentals", label: "Rentals", icon: FiFileText },
-      { to: "/admin/reports", label: "Reports", icon: FiBarChart2 },
+      { to: "/admin", label: "Bảng điều khiển", icon: FiHome },
+      { to: "/admin/users", label: "Người dùng", icon: FiUsers },
+      { to: "/admin/suppliers", label: "Nhà cung cấp", icon: FiUserCheck },
+      { to: "/admin/devices", label: "Thiết bị", icon: FiBox },
+      { to: "/admin/rentals", label: "Đơn thuê", icon: FiFileText },
+      { to: "/admin/reports", label: "Báo cáo", icon: FiBarChart2 },
     ],
   },
   {
-    title: "SETTINGS",
-    items: [{ to: "/admin/settings", label: "System Settings", icon: FiSettings }],
+    title: "CÀI ĐẶT",
+    items: [{ to: "/admin/settings", label: "Cài đặt hệ thống", icon: FiSettings }],
   },
 ];
 
@@ -49,7 +49,7 @@ export default function AdminMobileDrawer({ open, onClose }) {
             <img src={logo} alt="GearXpert Logo" className="h-9 w-auto object-contain" />
             <div>
               <div className="text-sm font-bold text-slate-900 font-display">GearXpert</div>
-              <div className="text-xs text-slate-500 font-medium">Admin</div>
+              <div className="text-xs text-slate-500 font-medium">Quản trị</div>
             </div>
           </div>
           <button

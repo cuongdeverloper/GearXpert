@@ -397,12 +397,6 @@ const EkycVerification = ({ isModal = false, onClose, onSuccess }) => {
                     <MainContent />
                 </div>
 
-                <div className="p-4 bg-slate-50/50 border-t border-slate-100 text-center">
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2">
-                        <span className="material-symbols-outlined text-[12px]">security</span>
-                        Mã hóa đầu cuối SSL 256-bit
-                    </p>
-                </div>
 
                 <style jsx>{`
                     @keyframes scan {

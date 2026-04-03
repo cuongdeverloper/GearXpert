@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { getDevices, getDeviceDetail } from "../../service/ApiService/DeviceApi";
+import { getDeviceReviews } from "../../service/ApiService/RentalApi";
 import Header from "../../components/navigation/Header";
 import CategoryPills from "../../components/common/CategoryPills";
 import ScrollAnimation from "../../components/common/ScrollAnimation";
@@ -11,6 +12,9 @@ import TopBannerAds from "../../components/homepage/TopBannerAds";
 import PopupAds from "../../components/homepage/PopupAds";
 import Footer from "../../components/homepage/Footer";
 import SmartGearPromoSection from "../../components/homepage/SmartGearPromoSection";
+import TestimonialsSection from "../../components/homepage/TestimonialsSection";
+import WhyChooseUsSection from "../../components/homepage/WhyChooseUsSection";
+import { RentalInstructionsSection, PaymentMethodsSection } from "../../components/homepage/InstructionSections";
 
 export default function Homepage() {
   const [devices, setDevices] = useState([]);
@@ -18,6 +22,7 @@ export default function Homepage() {
   const [loading, setLoading] = useState(true);
   const [trendingDevice, setTrendingDevice] = useState(null);
   const [newArrivals, setNewArrivals] = useState([]);
+  const [homeTestimonials, setHomeTestimonials] = useState([]);
 
   const fetchDevices = useCallback(async () => {
     try {
@@ -86,6 +91,39 @@ export default function Homepage() {
       if (newestDevices.length > 0) {
         setNewArrivals(newestDevices);
       }
+
+      const collected = [];
+      const seenIds = new Set();
+      if (popularDevices.length > 0) {
+        try {
+          const reviewBatches = await Promise.all(
+            popularDevices.slice(0, 8).map((d) =>
+              getDeviceReviews(d._id).catch(() => ({ data: [] }))
+            )
+          );
+          for (const batch of reviewBatches) {
+            const list = batch.data || [];
+            for (const rev of list) {
+              if (!rev.comment?.trim()) continue;
+              const rid = rev._id?.toString();
+              if (!rid || seenIds.has(rid)) continue;
+              seenIds.add(rid);
+              collected.push({
+                id: rid,
+                name: rev.userName || "Khách hàng",
+                avatar: rev.avatar || "",
+                role: "Khách hàng",
+                content: rev.comment,
+              });
+              if (collected.length >= 4) break;
+            }
+            if (collected.length >= 4) break;
+          }
+        } catch (err) {
+          console.error("Home testimonials:", err);
+        }
+      }
+      setHomeTestimonials(collected);
     } catch (error) {
       console.error("Error fetching devices:", error);
     } finally {
@@ -103,19 +141,19 @@ export default function Homepage() {
   };
 
   const categories = [
-    { name: 'Camera', id: 'CAMERA', category: 'CAMERA' },
-    { name: 'Lighting', id: 'LIGHTING', category: 'LIGHTING' },
-    { name: 'Audio', id: 'AUDIO', category: 'AUDIO' },
-    { name: 'Office', id: 'OFFICE', category: 'OFFICE' },
-    { name: 'Gaming', id: 'GAMING', category: 'GAMING' },
-    { name: 'Accessory', id: 'ACCESSORY', category: 'ACCESSORY' },
-    { name: 'Drone', id: 'DRONE', category: 'DRONE' },
+    { name: 'Máy ảnh', id: 'CAMERA', category: 'CAMERA' },
+    { name: 'Ánh sáng', id: 'LIGHTING', category: 'LIGHTING' },
+    { name: 'Âm thanh', id: 'AUDIO', category: 'AUDIO' },
+    { name: 'Văn phòng', id: 'OFFICE', category: 'OFFICE' },
+    { name: 'Trò chơi', id: 'GAMING', category: 'GAMING' },
+    { name: 'Phụ kiện', id: 'ACCESSORY', category: 'ACCESSORY' },
+    { name: 'Flycam', id: 'DRONE', category: 'DRONE' },
   ];
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background-light">
-        <div className="text-xl font-semibold text-gray-600 animate-pulse">Loading gear...</div>
+        <div className="text-xl font-semibold text-gray-600 animate-pulse">Đang tải thiết bị...</div>
       </div>
     );
   }
@@ -124,8 +162,8 @@ export default function Homepage() {
     <div className="min-h-screen flex flex-col bg-background-light">
       <Header />
 
-      <main className="flex-grow w-full max-w-[1440px] mx-auto pb-12">
-        <ScrollAnimation effect="fade" delay={0.05}>
+      <main className="flex-grow w-full max-w-[1440px] mx-auto pt-32 pb-12" data-theme="light">
+        <ScrollAnimation effect="fade" delay={0.05} className="w-full" data-theme="dark">
           <SmartGearPromoSection />
         </ScrollAnimation>
 
@@ -151,7 +189,18 @@ export default function Homepage() {
           <AISuggestedSection devices={suggestedDevices} />
         </ScrollAnimation>
 
-        <section className="px-6 lg:px-10">
+        <WhyChooseUsSection />
+
+        <section className="px-6 lg:px-10 mt-16" data-theme="dark">
+          <ScrollAnimation effect="fade" viewportAmount={0.3}>
+            <TestimonialsSection testimonials={homeTestimonials} />
+          </ScrollAnimation>
+        </section>
+
+        <RentalInstructionsSection />
+        <PaymentMethodsSection />
+
+        <section className="px-6 lg:px-10 mt-20">
           <div className="flex flex-col lg:flex-row gap-10">
             <ScrollAnimation direction="left" className="w-full lg:w-5/12">
               <TrendingNowSection device={trendingDevice} />

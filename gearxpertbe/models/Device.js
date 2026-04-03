@@ -31,9 +31,10 @@ const deviceSchema = new mongoose.Schema(
       index: true,
     },
 
+    // Cache đếm từ DeviceItem — không dùng làm “số nhập tay” khi tạo/sửa catalog
     stockQuantity: {
       type: Number,
-      default: 0, // fix: default 0 hợp lý hơn khi mới tạo
+      default: 0,
       min: 0,
     },
 
@@ -43,7 +44,7 @@ const deviceSchema = new mongoose.Schema(
       min: 0,
     },
 
-    // Thêm để khớp với updateDeviceCounts
+    // Đồng bộ từ DeviceItem.updateDeviceCounts
     availableQuantity: {
       type: Number,
       default: 0,
@@ -91,6 +92,11 @@ const deviceSchema = new mongoose.Schema(
     /* ===== REVIEW STATS ===== */
     ratingAvg: { type: Number, default: 0 },
     reviewCount: { type: Number, default: 0 },
+
+    /* ===== DYNAMIC PRICING ===== */
+    discountPrice: { type: Number, default: 0 },
+    discountReason: { type: String, default: "" },
+    discountExpiry: { type: Date },
   },
   {
     timestamps: true,

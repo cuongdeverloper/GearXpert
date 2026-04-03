@@ -1,32 +1,99 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch } from "react-redux";
 import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
-import { FiTrendingUp, FiUsers, FiBox, FiDollarSign, FiStar } from "react-icons/fi";
-import { Bar } from "react-chartjs-2";
+import { FiTrendingUp, FiUsers, FiBox, FiDollarSign } from "react-icons/fi";
+import { Bar, Doughnut, Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   BarElement,
+  PointElement,
+  LineElement,
+  ArcElement,
   Tooltip,
   Legend,
+  Filler,
 } from "chart.js";
-import { getAdminDashboard, getAdminDashboardCharts } from "../../service/ApiService/AdminDashboardApi";
+import {
+  getAdminDashboard,
+  getAdminDashboardCharts,
+} from "../../service/ApiService/AdminDashboardApi";
 
 ChartJS.register(
   CategoryScale,
   LinearScale,
   BarElement,
+  PointElement,
+  LineElement,
+  ArcElement,
   Tooltip,
-  Legend
+  Legend,
+  Filler
 );
+
+const fmtMoney = (n) => `${Number(n || 0).toLocaleString("vi-VN")} đ`;
+
+const RENTAL_STATUS_VI = {
+  PENDING: "Chờ xử lý",
+  PAID: "Đã thanh toán",
+  APPROVED: "Đã duyệt",
+  DELIVERING: "Đang giao",
+  RENTING: "Đang thuê",
+  RETURNING: "Hoàn trả",
+  INSPECTING: "Kiểm tra",
+  COMPLETED: "Hoàn tất",
+  CANCELLED: "Đã hủy",
+  PENDING_RESOLUTION: "Chờ xử lý khiếu nại",
+  REFUNDED: "Hoàn tiền",
+};
+
+const CATEGORY_VI = {
+  CAMERA: "Máy ảnh",
+  LIGHTING: "Ánh sáng",
+  AUDIO: "Âm thanh",
+  OFFICE: "Văn phòng",
+  GAMING: "Trò chơi",
+  ACCESSORY: "Phụ kiện",
+  DRONE: "Flycam",
+  OTHER: "Khác",
+};
+
+const KPI_LABEL_VI = {
+  "Total Users": "Người dùng",
+  "Active Rentals": "Đơn thuê hoạt động",
+  "Total Devices": "Thiết bị",
+  "Monthly Revenue": "Doanh thu tháng",
+};
+
+const STATUS_COLORS = [
+  "#6366f1",
+  "#22c55e",
+  "#f59e0b",
+  "#3b82f6",
+  "#ec4899",
+  "#8b5cf6",
+  "#14b8a6",
+  "#64748b",
+  "#ef4444",
+  "#84cc16",
+];
+
+const CHART_TOOLTIP = {
+  backgroundColor: "rgba(15, 23, 42, 0.92)",
+  titleFont: { size: 12 },
+  bodyFont: { size: 12 },
+  padding: 10,
+  cornerRadius: 8,
+};
 
 export default function AdminDashboard() {
   const dispatch = useDispatch();
   const [stats, setStats] = useState([]);
   const [topDevices, setTopDevices] = useState([]);
-  const [recentRentals, setRecentRentals] = useState([]);
   const [revenueSeries, setRevenueSeries] = useState([]);
+  const [statusBreakdown, setStatusBreakdown] = useState([]);
+  const [categoryBreakdown, setCategoryBreakdown] = useState([]);
 
   const withTimeout = (promise, ms, label) =>
     new Promise((resolve, reject) => {
@@ -56,13 +123,14 @@ export default function AdminDashboard() {
         if (dashboardRes.status === "fulfilled") {
           setStats(dashboardRes.value?.stats || []);
           setTopDevices(dashboardRes.value?.topDevices || []);
-          setRecentRentals(dashboardRes.value?.recentRentals || []);
         } else {
           console.error("Failed to load admin dashboard:", dashboardRes.reason);
         }
 
         if (chartsRes.status === "fulfilled") {
           setRevenueSeries(chartsRes.value?.revenueSeries || []);
+          setStatusBreakdown(chartsRes.value?.statusBreakdown || []);
+          setCategoryBreakdown(chartsRes.value?.categoryBreakdown || []);
         } else {
           console.error("Failed to load admin charts:", chartsRes.reason);
         }
@@ -76,172 +144,322 @@ export default function AdminDashboard() {
     fetchDashboard();
   }, [dispatch]);
 
-  const revenueChartData = useMemo(() => ({
-    labels: revenueSeries.map((item) => item.label),
-    datasets: [
-      {
-        label: "Revenue",
-        data: revenueSeries.map((item) => item.total),
-        backgroundColor: "#6366f1",
-        borderRadius: 8,
-        barThickness: 22,
-      },
-    ],
-  }), [revenueSeries]);
+  const revenueBarData = useMemo(
+    () => ({
+      labels: revenueSeries.map((item) => item.label),
+      datasets: [
+        {
+          label: "Doanh thu",
+          data: revenueSeries.map((item) => item.total),
+          backgroundColor: "rgba(99, 102, 241, 0.85)",
+          borderRadius: 6,
+          barThickness: 26,
+        },
+      ],
+    }),
+    [revenueSeries]
+  );
 
-  const revenueChartOptions = useMemo(() => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: "bottom",
-      },
-      tooltip: {
-        callbacks: {
-          label: (ctx) => `$${ctx.raw.toLocaleString("en-US")}`,
+  const revenueLineData = useMemo(
+    () => ({
+      labels: revenueSeries.map((item) => item.label),
+      datasets: [
+        {
+          label: "Xu hướng",
+          data: revenueSeries.map((item) => item.total),
+          borderColor: "#6366f1",
+          backgroundColor: "rgba(99, 102, 241, 0.12)",
+          borderWidth: 2,
+          fill: true,
+          tension: 0.35,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+        },
+      ],
+    }),
+    [revenueSeries]
+  );
+
+  const statusDoughnutData = useMemo(() => {
+    const labels = statusBreakdown.map(
+      (s) => RENTAL_STATUS_VI[s.status] || s.status || "Khác"
+    );
+    return {
+      labels,
+      datasets: [
+        {
+          data: statusBreakdown.map((s) => s.count),
+          backgroundColor: statusBreakdown.map(
+            (_, i) => STATUS_COLORS[i % STATUS_COLORS.length]
+          ),
+          borderWidth: 0,
+        },
+      ],
+    };
+  }, [statusBreakdown]);
+
+  const topDevicesHorizontalData = useMemo(() => {
+    const labels = topDevices.map((d) => {
+      const n = d.name || "—";
+      return n.length > 28 ? `${n.slice(0, 28)}…` : n;
+    });
+    return {
+      labels,
+      datasets: [
+        {
+          label: "Lượt cho thuê (gộp số lượng)",
+          data: topDevices.map((d) => d.totalRentals ?? 0),
+          backgroundColor: "rgba(14, 165, 233, 0.85)",
+          borderRadius: 4,
+          barThickness: 18,
+        },
+      ],
+    };
+  }, [topDevices]);
+
+  const categoryBarData = useMemo(() => {
+    const labels = categoryBreakdown.map(
+      (c) => CATEGORY_VI[c.category] || c.category
+    );
+    return {
+      labels,
+      datasets: [
+        {
+          label: "Số thiết bị",
+          data: categoryBreakdown.map((c) => c.count),
+          backgroundColor: categoryBreakdown.map(
+            (_, i) => STATUS_COLORS[(i + 3) % STATUS_COLORS.length]
+          ),
+          borderRadius: 6,
+          barThickness: 22,
+        },
+      ],
+    };
+  }, [categoryBreakdown]);
+
+  const moneyAxisCallback = (v) => fmtMoney(v);
+
+  const baseOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: "bottom",
+          labels: { boxWidth: 10, usePointStyle: true },
+        },
+        tooltip: {
+          ...CHART_TOOLTIP,
+          callbacks: {
+            label: (ctx) => {
+              const value = ctx.raw;
+              if (ctx.dataset.label === "Doanh thu" || ctx.dataset.label === "Xu hướng") {
+                return ` ${fmtMoney(value)}`;
+              }
+              if (ctx.dataset.label === "Lượt cho thuê (gộp số lượng)") {
+                return ` ${value} lượt`;
+              }
+              if (ctx.dataset.label === "Số thiết bị") {
+                return ` ${value} thiết bị`;
+              }
+              return ` ${value}`;
+            },
+          },
         },
       },
-    },
-    scales: {
-      x: { grid: { display: false } },
-      y: {
-        ticks: {
-          callback: (v) => `$${Number(v).toLocaleString("en-US")}`,
+    }),
+    []
+  );
+
+  const revenueBarOptions = useMemo(
+    () => ({
+      ...baseOptions,
+      scales: {
+        x: { grid: { display: false } },
+        y: {
+          ticks: { callback: moneyAxisCallback },
+          grid: { color: "rgba(148, 163, 184, 0.2)" },
         },
       },
-    },
-  }), []);
+    }),
+    [baseOptions]
+  );
+
+  const revenueLineOptions = useMemo(
+    () => ({
+      ...baseOptions,
+      scales: {
+        x: { grid: { display: false } },
+        y: {
+          ticks: { callback: moneyAxisCallback },
+          grid: { color: "rgba(148, 163, 184, 0.2)" },
+        },
+      },
+    }),
+    [baseOptions]
+  );
+
+  const doughnutOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: "right",
+          labels: { boxWidth: 10, usePointStyle: true, font: { size: 11 } },
+        },
+        tooltip: {
+          ...CHART_TOOLTIP,
+          callbacks: {
+            label: (ctx) => {
+              const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+              const pct = total ? Math.round((ctx.raw / total) * 100) : 0;
+              return ` ${ctx.raw} đơn (${pct}%)`;
+            },
+          },
+        },
+      },
+    }),
+    []
+  );
+
+  const horizontalBarOptions = useMemo(
+    () => ({
+      ...baseOptions,
+      indexAxis: "y",
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: { stepSize: 1 },
+          grid: { color: "rgba(148, 163, 184, 0.2)" },
+        },
+        y: { grid: { display: false } },
+      },
+    }),
+    [baseOptions]
+  );
+
+  const categoryBarOptions = useMemo(
+    () => ({
+      ...baseOptions,
+      scales: {
+        x: { grid: { display: false } },
+        y: {
+          beginAtZero: true,
+          ticks: { stepSize: 1 },
+          grid: { color: "rgba(148, 163, 184, 0.2)" },
+        },
+      },
+    }),
+    [baseOptions]
+  );
 
   return (
-    <div className="space-y-8">
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold text-slate-900">Tổng quan</h2>
+        <p className="text-sm text-slate-500 mt-0.5">
+          Biểu đồ theo dữ liệu thực từ hệ thống
+        </p>
+      </div>
+
+      {/* KPI — gọn */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map((stat, idx) => (
-          <div key={idx} className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition">
-            <div className={`mb-3 inline-block rounded-lg p-3 ${stat.color}`}>
-              {stat.icon === "users" && <FiUsers size={24} />}
-              {stat.icon === "box" && <FiBox size={24} />}
-              {stat.icon === "package" && <FiTrendingUp size={24} />}
-              {stat.icon === "dollar" && <FiDollarSign size={24} />}
+          <div
+            key={idx}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm"
+          >
+            <div className={`mb-2 inline-flex rounded-lg p-2 ${stat.color}`}>
+              {stat.icon === "users" && <FiUsers size={20} />}
+              {stat.icon === "box" && <FiBox size={20} />}
+              {stat.icon === "package" && <FiTrendingUp size={20} />}
+              {stat.icon === "dollar" && <FiDollarSign size={20} />}
             </div>
-            <p className="text-xs font-medium text-slate-600 mb-1">{stat.label}</p>
-            <p className="text-3xl font-bold text-slate-900 mb-2">{stat.value}</p>
-            <p className="text-xs font-semibold text-green-600">{stat.change} from last month</p>
+            <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wide">
+              {KPI_LABEL_VI[stat.label] || stat.label}
+            </p>
+            <p className="text-xl font-bold text-slate-900">{stat.value}</p>
+            <p className="text-[10px] font-semibold text-emerald-600 mt-0.5">
+              {stat.change} so với kỳ trước
+            </p>
           </div>
         ))}
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Revenue Chart */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-4 text-lg font-semibold text-slate-900">Revenue Trend</h3>
-          <div className="relative h-[220px]">
-            <Bar data={revenueChartData} options={revenueChartOptions} />
+      {/* Doanh thu: cột + đường */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h3 className="mb-1 text-base font-semibold text-slate-900">
+            Doanh thu theo tháng (đã thanh toán)
+          </h3>
+          <p className="text-xs text-slate-500 mb-4">6 tháng gần nhất</p>
+          <div className="relative h-[260px]">
+            <Bar data={revenueBarData} options={revenueBarOptions} />
           </div>
         </div>
-
-        {/* Top Devices */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-4 text-lg font-semibold text-slate-900">Top Rented Devices</h3>
-          <div className="space-y-3">
-            {topDevices.map((device, idx) => (
-              <div key={`${device.name}-${idx}`} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary font-semibold text-sm">
-                    {idx + 1}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{device.name}</p>
-                    <p className="text-xs text-slate-500">{device.supplierName}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <FiStar className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  <span className="text-sm font-medium">{device.ratingAvg}</span>
-                </div>
-              </div>
-            ))}
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h3 className="mb-1 text-base font-semibold text-slate-900">
+            Xu hướng doanh thu
+          </h3>
+          <p className="text-xs text-slate-500 mb-4">Cùng khoảng thời gian</p>
+          <div className="relative h-[260px]">
+            <Line data={revenueLineData} options={revenueLineOptions} />
           </div>
         </div>
       </div>
 
-      {/* Recent Activity */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Recent Rentals */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-4 text-lg font-semibold text-slate-900">Recent Rentals</h3>
-          <div className="space-y-3">
-            {recentRentals.map((rental) => (
-              <div key={rental.id} className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">{rental.customerName}</p>
-                  <p className="text-xs text-slate-500">{rental.deviceName}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-slate-900">${rental.totalAmount}</p>
-                  <span
-                    className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
-                      rental.status === "COMPLETED"
-                        ? "bg-green-100 text-green-700"
-                        : rental.status === "RENTING"
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-yellow-100 text-yellow-700"
-                    }`}
-                  >
-                    {rental.status}
-                  </span>
-                </div>
+      {/* Trạng thái đơn + Top thiết bị */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-1">
+          <h3 className="mb-1 text-base font-semibold text-slate-900">
+            Trạng thái đơn thuê
+          </h3>
+          <p className="text-xs text-slate-500 mb-4">Tổng hợp toàn hệ thống</p>
+          <div className="relative mx-auto h-[260px] max-w-[280px]">
+            {statusBreakdown.length > 0 ? (
+              <Doughnut data={statusDoughnutData} options={doughnutOptions} />
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-slate-400">
+                Chưa có dữ liệu
               </div>
-            ))}
+            )}
           </div>
         </div>
-
-        {/* Activity Timeline */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-4 text-lg font-semibold text-slate-900">Platform Activity</h3>
-          <div className="space-y-3">
-            {[
-              { time: "2 hours ago", action: "New rental request from John Doe", icon: "📦" },
-              { time: "4 hours ago", action: "Device moderation approved", icon: "✓" },
-              { time: "6 hours ago", action: "New supplier registration", icon: "👤" },
-              { time: "8 hours ago", action: "Payment received - $1,250", icon: "💰" },
-              { time: "10 hours ago", action: "Device maintenance scheduled", icon: "🔧" },
-            ].map((activity, idx) => (
-              <div key={idx} className="flex gap-3 pb-3 border-b border-slate-100">
-                <div className="text-2xl">{activity.icon}</div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-slate-900">{activity.action}</p>
-                  <p className="text-xs text-slate-500">{activity.time}</p>
-                </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
+          <h3 className="mb-1 text-base font-semibold text-slate-900">
+            Thiết bị được thuê nhiều nhất
+          </h3>
+          <p className="text-xs text-slate-500 mb-4">Theo tổng quantity trên RentalItem</p>
+          <div className="relative h-[280px]">
+            {topDevices.length > 0 ? (
+              <Bar data={topDevicesHorizontalData} options={horizontalBarOptions} />
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-slate-400">
+                Chưa có dữ liệu
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
 
-      {/* System Status */}
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="mb-4 text-lg font-semibold text-slate-900">System Status</h3>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          {[
-            { label: "API Status", status: "Operational", color: "green" },
-            { label: "Database", status: "Operational", color: "green" },
-            { label: "Payment Gateway", status: "Operational", color: "green" },
-            { label: "Email Service", status: "Operational", color: "green" },
-          ].map((item, idx) => (
-            <div key={idx} className="rounded-lg border border-slate-200 p-3 text-center">
-              <p className="text-xs text-slate-600 mb-1">{item.label}</p>
-              <div className={`flex items-center justify-center gap-1 text-sm font-medium ${
-                item.color === "green" ? "text-green-600" : "text-red-600"
-              }`}>
-                <div className={`w-2 h-2 rounded-full ${
-                  item.color === "green" ? "bg-green-600" : "bg-red-600"
-                }`} />
-                {item.status}
-              </div>
+      {/* Danh mục thiết bị */}
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h3 className="mb-1 text-base font-semibold text-slate-900">
+          Thiết bị theo danh mục
+        </h3>
+        <p className="text-xs text-slate-500 mb-4">
+          Số lượng listing (không tính add-on)
+        </p>
+        <div className="relative h-[280px] max-w-3xl">
+          {categoryBreakdown.length > 0 ? (
+            <Bar data={categoryBarData} options={categoryBarOptions} />
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-slate-400">
+              Chưa có dữ liệu
             </div>
-          ))}
+          )}
         </div>
       </div>
     </div>

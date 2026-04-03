@@ -428,7 +428,7 @@ export default function WalletPage() {
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 font-sans pb-20">
       <Header />
-      <div className="max-w-6xl mx-auto px-6 pt-10">
+      <div className="max-w-6xl mx-auto px-6 pt-32">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-6">
           <div>
             <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase italic">
@@ -522,11 +522,6 @@ export default function WalletPage() {
                   </span>
                 </div>
                 <div className="mt-12 flex items-center justify-between">
-                  <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl">
-                    <p className="text-[10px] font-mono text-white/80">
-                      {wallet?.user?._id.slice(-12).toUpperCase() || "USER_WALLET"}
-                    </p>
-                  </div>
                   <Wallet size={40} className="text-white/20" />
                 </div>
               </div>

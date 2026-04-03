@@ -18,15 +18,15 @@ import {
 const ACTIVE_STATUSES = "DELIVERING,RENTING,RETURNING,INSPECTING,PENDING_RESOLUTION";
 
 const STATUS_CFG = {
-  DELIVERING:         { label: "Delivering",         color: "bg-blue-500",   text: "text-blue-700",   bg: "bg-blue-50",   border: "border-blue-200",   dot: "bg-blue-400" },
-  RENTING:            { label: "Renting",             color: "bg-emerald-500",text: "text-emerald-700",bg: "bg-emerald-50",border: "border-emerald-200",dot: "bg-emerald-400" },
-  RETURNING:          { label: "Returning",           color: "bg-amber-500",  text: "text-amber-700",  bg: "bg-amber-50",  border: "border-amber-200",  dot: "bg-amber-400" },
-  INSPECTING:         { label: "Inspecting",          color: "bg-purple-500", text: "text-purple-700", bg: "bg-purple-50", border: "border-purple-200", dot: "bg-purple-400" },
-  PENDING_RESOLUTION: { label: "Pending Resolution",  color: "bg-red-500",    text: "text-red-700",    bg: "bg-red-50",    border: "border-red-200",    dot: "bg-red-400" },
-  PENDING:            { label: "Pending",             color: "bg-slate-400",  text: "text-slate-600",  bg: "bg-slate-50",  border: "border-slate-200",  dot: "bg-slate-400" },
+  DELIVERING:         { label: "Đang giao",           color: "bg-blue-500",   text: "text-blue-700",   bg: "bg-blue-50",   border: "border-blue-200",   dot: "bg-blue-400" },
+  RENTING:            { label: "Đang thuê",           color: "bg-emerald-500",text: "text-emerald-700",bg: "bg-emerald-50",border: "border-emerald-200",dot: "bg-emerald-400" },
+  RETURNING:          { label: "Đang hoàn trả",       color: "bg-amber-500",  text: "text-amber-700",  bg: "bg-amber-50",  border: "border-amber-200",  dot: "bg-amber-400" },
+  INSPECTING:         { label: "Đang kiểm tra",       color: "bg-purple-500", text: "text-purple-700", bg: "bg-purple-50", border: "border-purple-200", dot: "bg-purple-400" },
+  PENDING_RESOLUTION: { label: "Chờ xử lý",           color: "bg-red-500",    text: "text-red-700",    bg: "bg-red-50",    border: "border-red-200",    dot: "bg-red-400" },
+  PENDING:            { label: "Chờ xác nhận",        color: "bg-slate-400",  text: "text-slate-600",  bg: "bg-slate-50",  border: "border-slate-200",  dot: "bg-slate-400" },
 };
 
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const WEEKDAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 
 /* ─── date helpers ─── */
 const isSameDay = (a, b) =>
@@ -37,7 +37,7 @@ const isSameDay = (a, b) =>
 const toDateKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 const fmtDate = (d) =>
-  new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  new Date(d).toLocaleDateString("vi-VN", { day: "2-digit", month: "short", year: "numeric" });
 
 const fmtVND = (v) => (v || 0).toLocaleString("vi-VN") + "₫";
 
@@ -69,7 +69,7 @@ function buildEvents(rentals) {
         deviceName: device.name,
         deviceImage: device.images?.[0],
         category: device.category,
-        customer: rental.customerId?.fullName || "Customer",
+        customer: rental.customerId?.fullName || "Khách hàng",
         customerEmail: rental.customerId?.email,
         phone: rental.phoneNumber,
         address: rental.deliveryAddress?.fullAddress,
@@ -176,7 +176,7 @@ export default function SupplierCalendarPage() {
   };
   const goToday = () => { setViewYear(today.getFullYear()); setViewMonth(today.getMonth()); setSelectedDate(today); };
 
-  const monthLabel = new Date(viewYear, viewMonth).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const monthLabel = new Date(viewYear, viewMonth).toLocaleDateString("vi-VN", { month: "long", year: "numeric" });
 
   /* ═══════════ RENDER ═══════════ */
   return (
@@ -185,24 +185,24 @@ export default function SupplierCalendarPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <FiCalendar className="text-primary" /> Rental Calendar
+            <FiCalendar className="text-primary" /> Lịch thuê
           </h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Track active rentals, return dates, and issues at a glance
+            Theo dõi đơn thuê đang chạy, ngày trả và sự cố
           </p>
         </div>
       </div>
 
       {/* ── Stats row ── */}
       <div className="grid grid-cols-3 gap-3">
-        <StatCard label="Active Rentals" value={stats.total} icon={FiPackage} color="primary" />
-        <StatCard label="Returning Today" value={stats.returningToday} icon={FiClock} color="amber" />
-        <StatCard label="Has Issues" value={stats.issues} icon={FiAlertTriangle} color="red" />
+        <StatCard label="Đơn đang thuê" value={stats.total} icon={FiPackage} color="primary" />
+        <StatCard label="Trả hàng hôm nay" value={stats.returningToday} icon={FiClock} color="amber" />
+        <StatCard label="Có sự cố" value={stats.issues} icon={FiAlertTriangle} color="red" />
       </div>
 
       {/* ── Status filter chips ── */}
       <div className="flex flex-wrap gap-2">
-        <FilterChip active={filterStatus === "ALL"} onClick={() => setFilterStatus("ALL")} label="All" />
+        <FilterChip active={filterStatus === "ALL"} onClick={() => setFilterStatus("ALL")} label="Tất cả" />
         {Object.entries(STATUS_CFG).filter(([k]) => k !== "PENDING").map(([key, cfg]) => (
           <FilterChip
             key={key}
@@ -223,13 +223,13 @@ export default function SupplierCalendarPage() {
             <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600"><FiChevronLeft size={18} /></button>
             <div className="flex items-center gap-3">
               <h2 className="text-base font-bold text-slate-900">{monthLabel}</h2>
-              <button onClick={goToday} className="text-xs font-semibold text-primary hover:underline">Today</button>
+              <button onClick={goToday} className="text-xs font-semibold text-primary hover:underline">Hôm nay</button>
             </div>
             <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600"><FiChevronRight size={18} /></button>
           </div>
 
           {loading ? (
-            <div className="p-8 text-center text-slate-400 text-sm">Loading...</div>
+            <div className="p-8 text-center text-slate-400 text-sm">Đang tải…</div>
           ) : (
             <div className="p-3">
               {/* Weekday header */}
@@ -280,15 +280,15 @@ export default function SupplierCalendarPage() {
                             );
                           })}
                           {dayEvents.length > 3 && (
-                            <div className="text-[9px] text-slate-400 px-1">+{dayEvents.length - 3} more</div>
+                            <div className="text-[9px] text-slate-400 px-1">+{dayEvents.length - 3} khác</div>
                           )}
                         </div>
                       )}
 
                       {/* Indicators */}
                       <div className="absolute top-1 right-1 flex gap-0.5">
-                        {hasIssue && <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" title="Has issue" />}
-                        {hasReturn && <span className="w-2 h-2 rounded-full bg-amber-400" title="Return due" />}
+                        {hasIssue && <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" title="Có sự cố" />}
+                        {hasReturn && <span className="w-2 h-2 rounded-full bg-amber-400" title="Đến hạn trả" />}
                       </div>
                     </button>
                   );
@@ -306,10 +306,10 @@ export default function SupplierCalendarPage() {
               </div>
             ))}
             <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
-              <span className="w-2 h-2 rounded-full bg-red-400" /> Issue
+              <span className="w-2 h-2 rounded-full bg-red-400" /> Sự cố
             </div>
             <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
-              <span className="w-2 h-2 rounded-full bg-amber-400" /> Return due
+              <span className="w-2 h-2 rounded-full bg-amber-400" /> Đến hạn trả
             </div>
           </div>
         </div>
@@ -320,7 +320,7 @@ export default function SupplierCalendarPage() {
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
                 <h3 className="font-bold text-slate-900 text-sm">
-                  {selectedDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                  {selectedDate.toLocaleDateString("vi-VN", { weekday: "short", month: "short", day: "numeric" })}
                 </h3>
                 <button onClick={() => setSelectedDate(null)} className="p-1 rounded hover:bg-slate-100 text-slate-400">
                   <FiX size={16} />
@@ -330,7 +330,7 @@ export default function SupplierCalendarPage() {
               {selectedEvents.length === 0 ? (
                 <div className="p-8 text-center text-sm text-slate-400">
                   <FiCalendar className="mx-auto mb-2 text-slate-300" size={28} />
-                  No rentals on this day
+                  Không có đơn thuê trong ngày này
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100 max-h-[calc(100vh-340px)] overflow-y-auto">
@@ -342,15 +342,15 @@ export default function SupplierCalendarPage() {
 
               {selectedEvents.length > 0 && (
                 <div className="px-4 py-2.5 border-t border-slate-100 bg-slate-50 text-xs text-slate-500 text-center">
-                  {selectedEvents.length} rental{selectedEvents.length > 1 ? "s" : ""} on this day
+                  {selectedEvents.length} đơn trong ngày này
                 </div>
               )}
             </div>
           ) : (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center">
               <FiCalendar className="mx-auto mb-3 text-slate-300" size={32} />
-              <p className="text-sm text-slate-500 font-medium">Select a date</p>
-              <p className="text-xs text-slate-400 mt-1">Click any day on the calendar to see rental details</p>
+              <p className="text-sm text-slate-500 font-medium">Chọn một ngày</p>
+              <p className="text-xs text-slate-400 mt-1">Nhấn vào ngày trên lịch để xem chi tiết đơn thuê</p>
             </div>
           )}
         </div>
@@ -430,17 +430,17 @@ function EventCard({ event: ev, selectedDate }) {
       <div className="flex flex-wrap gap-1.5 mt-2">
         {isStartDay && (
           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 text-[10px] font-semibold border border-blue-100">
-            <FiPackage size={10} /> Pickup
+            <FiPackage size={10} /> Lấy hàng
           </span>
         )}
         {isReturnDay && (
           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 text-[10px] font-semibold border border-amber-100">
-            <FiClock size={10} /> Return Due
+            <FiClock size={10} /> Đến hạn trả
           </span>
         )}
         {ev.hasIssue && (
           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-50 text-red-600 text-[10px] font-semibold border border-red-100">
-            <FiAlertTriangle size={10} /> Issue
+            <FiAlertTriangle size={10} /> Sự cố
           </span>
         )}
       </div>
@@ -451,7 +451,7 @@ function EventCard({ event: ev, selectedDate }) {
           <FiUser size={11} /> <span className="truncate">{ev.customer}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <FiClock size={11} /> {fmtDate(ev.start)} → {fmtDate(ev.end)} ({ev.totalDays}d)
+          <FiClock size={11} /> {fmtDate(ev.start)} → {fmtDate(ev.end)} ({ev.totalDays} ngày)
         </div>
         {ev.address && (
           <div className="flex items-start gap-1.5">

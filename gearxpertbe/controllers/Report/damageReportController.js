@@ -64,12 +64,20 @@ exports.createDamageReport = async (req, res) => {
     }
 
     // 4. Validate deviceItemIds (nếu có)
+    // Đảm bảo deviceItemIds luôn là array (có thể nhận string từ FormData)
+    let normalizedDeviceItemIds = deviceItemIds;
+    if (typeof deviceItemIds === 'string') {
+      normalizedDeviceItemIds = [deviceItemIds];
+    } else if (!Array.isArray(deviceItemIds)) {
+      normalizedDeviceItemIds = [];
+    }
+    
     const hasSerials =
       Array.isArray(rentalItem.deviceItemIds) &&
       rentalItem.deviceItemIds.length > 0;
 
     if (hasSerials) {
-      if (deviceItemIds.length === 0) {
+      if (normalizedDeviceItemIds.length === 0) {
         return res.status(400).json({
           message: "Vui lòng chọn ít nhất một serial bị hỏng",
         });
@@ -79,7 +87,7 @@ exports.createDamageReport = async (req, res) => {
         id.toString()
       );
 
-      const invalidIds = deviceItemIds.filter((id) => {
+      const invalidIds = normalizedDeviceItemIds.filter((id) => {
         const strId = id?.toString();
         return strId && !validDeviceItemIds.includes(strId);
       });
@@ -89,7 +97,7 @@ exports.createDamageReport = async (req, res) => {
           `[DamageReport] Invalid deviceItemIds from user ${customerId}:`,
           {
             rentalItemId,
-            sent: deviceItemIds,
+            sent: normalizedDeviceItemIds,
             valid: validDeviceItemIds,
             invalid: invalidIds,
           }
@@ -104,12 +112,12 @@ exports.createDamageReport = async (req, res) => {
         });
       }
     } else {
-      if (deviceItemIds.length > 0) {
+      if (normalizedDeviceItemIds.length > 0) {
         console.warn(
           `[DamageReport] Item không có serial nhưng frontend gửi deviceItemIds:`,
           {
             rentalItemId,
-            sentDeviceItemIds: deviceItemIds,
+            sentDeviceItemIds: normalizedDeviceItemIds,
           }
         );
       }
@@ -127,7 +135,7 @@ exports.createDamageReport = async (req, res) => {
     const report = await DamageReport.create({
       rentalId,
       rentalItemId,
-      deviceItemIds: hasSerials ? deviceItemIds : [], // đảm bảo luôn là mảng
+      deviceItemIds: hasSerials ? normalizedDeviceItemIds : [], // đảm bảo luôn là mảng
       deviceId: rentalItem.deviceId,
       customerId,
       description: description.trim(),
@@ -200,4 +208,9 @@ exports.getDamageReportsByRental = async (req, res) => {
     rentalId: req.params.rentalId,
   }).populate("deviceId");
   res.json(reports);
+};
+
+module.exports = {
+  createDamageReport: exports.createDamageReport,
+  getDamageReportsByRental: exports.getDamageReportsByRental,
 };

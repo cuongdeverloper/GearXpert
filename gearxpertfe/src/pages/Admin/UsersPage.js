@@ -79,6 +79,21 @@ export default function UsersPage() {
     return colors[rank] || "bg-slate-100 text-slate-700";
   };
 
+  const roleMapping = {
+    CUSTOMER: "Khách hàng",
+    SUPPLIER: "Nhà cung cấp",
+    TECHNICIAN: "Kỹ thuật viên",
+    DELIVERY_STAFF: "Nhân viên giao hàng",
+  };
+
+  const rankMapping = {
+    BRONZE: "Đồng",
+    SILVER: "Bạc",
+    GOLD: "Vàng",
+    PLATINUM: "Bạch kim",
+    DIAMOND: "Kim cương",
+  };
+
   return (
     <div className="space-y-6">
       {/* Filters */}
@@ -144,12 +159,12 @@ export default function UsersPage() {
                 </td>
                 <td className="px-6 py-4">
                   <span className={`inline-block px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${getRoleColor(user.role)}`}>
-                    {user.role}
+                    {roleMapping[user.role] || user.role}
                   </span>
                 </td>
                 <td className="px-6 py-4">
                   <div className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold mb-1 ${getRankColor(user.rank)}`}>
-                    {user.rank}
+                    {rankMapping[user.rank] || user.rank}
                   </div>
                   <div className="text-[11px] text-slate-500 font-medium">{user.rewardPoints} điểm</div>
                 </td>

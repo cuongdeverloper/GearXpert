@@ -61,7 +61,6 @@ exports.handleWebhook = async (req, res) => {
     const body = req.body;
     const checksumKey = process.env.PAYOS_CHECKSUM_KEY;
 
-    // Test webhook hoặc empty request
     if (!body || Object.keys(body).length === 0 || body.desc === "test") {
       return res
         .status(200)
@@ -78,24 +77,30 @@ exports.handleWebhook = async (req, res) => {
     const webhookData = body.data;
     const orderCode = webhookData.orderCode;
 
-    const rentals = await Rental.find({ orderCode });
-
-    // 1. THANH TOÁN THẤT BẠI hoặc HỦY → KHÔNG CANCEL, giữ nguyên UNPAID + PENDING
+    // Chỉ xử lý khi thanh toán thành công
     if (body.code !== "00" || webhookData.code !== "00") {
-      console.log(`[WEBHOOK] Đơn ${orderCode} thất bại/hủy - Giữ nguyên UNPAID + PENDING, chờ cron restore quantity`);
+      console.log(`[WEBHOOK] Đơn ${orderCode} thất bại/hủy`);
       return res.status(200).json({ success: true });
     }
 
-    // 2. THANH TOÁN THÀNH CÔNG (BANK) → update paymentStatus + status + noti + voucher
-    if (rentals.length > 0 && rentals[0].paymentStatus !== "PAID") {
+    const rentals = await Rental.find({ orderCode });
+
+    if (rentals.length === 0) {
+      // Có thể là top-up wallet hoặc order khác → xử lý tiếp bên dưới
+    } else if (rentals[0].paymentStatus !== "PAID") {
+      // Đây là thanh toán rental (BANK)
       const customerId = rentals[0].customerId;
       let voucherCodeToUse = null;
       const isRepay = rentals.length === 1;
 
+      let totalPlatformFee = 0;
+
       for (const rental of rentals) {
         rental.paymentStatus = "PAID";
-        rental.status = "PENDING"; // hoặc "PENDING_DELIVERY" tùy flow của bạn
+        rental.status = "PENDING";
         await rental.save();
+
+        totalPlatformFee += rental.paymentBreakdown.platformFee;
 
         if (rental.voucherCode && !voucherCodeToUse) {
           voucherCodeToUse = rental.voucherCode;
@@ -104,11 +109,10 @@ exports.handleWebhook = async (req, res) => {
         const notiTitle = isRepay
           ? "Đơn thuê đã thanh toán thành công (thanh toán lại)"
           : "Đơn thuê đã thanh toán thành công";
-
         const notiMessage = isRepay
           ? `Khách hàng đã thanh toán lại ${rental.totalAmount.toLocaleString(
               "vi-VN"
-            )}₫ qua ngân hàng cho đơn này.`
+            )}₫ qua ngân hàng.`
           : `Khách hàng đã thanh toán ${rental.totalAmount.toLocaleString(
               "vi-VN"
             )}₫ qua ngân hàng.`;
@@ -123,7 +127,26 @@ exports.handleWebhook = async (req, res) => {
         });
       }
 
-      // Trừ voucher (chỉ 1 lần cho group)
+      // Cộng phí nền tảng vào ví system
+      const systemWallet = await Wallet.findOne({ isSystem: true });
+      if (systemWallet) {
+        const sysBalanceBefore = systemWallet.balance;
+        systemWallet.balance += totalPlatformFee;
+        await systemWallet.save();
+
+        await WalletTransaction.create({
+          wallet: systemWallet._id,
+          type: "PLATFORM_FEE",
+          amount: totalPlatformFee,
+          balanceBefore: sysBalanceBefore,
+          balanceAfter: systemWallet.balance,
+          referenceType: "RENTAL",
+          status: "SUCCESS",
+          description: `Thu phí nền tảng từ ${rentals.length} đơn thuê (PayOS - ${orderCode})`,
+        });
+      }
+
+      // Tăng usedCount voucher (chỉ 1 lần)
       if (voucherCodeToUse) {
         await Voucher.updateOne(
           { code: voucherCodeToUse, status: "ACTIVE" },
@@ -132,14 +155,12 @@ exports.handleWebhook = async (req, res) => {
       }
 
       console.log(
-        `[WEBHOOK SUCCESS] Đơn ${orderCode} - ${
-          isRepay ? "Repay single" : "Group checkout"
-        } - Voucher used: ${!!voucherCodeToUse}`
+        `[WEBHOOK SUCCESS] Rental ${orderCode} - Platform fee ${totalPlatformFee} đã cộng vào ví system`
       );
       return res.status(200).json({ success: true });
     }
 
-    // 3. TOP-UP WALLET (giữ nguyên)
+    // Xử lý top-up wallet (giữ nguyên)
     const payment = await Payment.findOne({ orderCode });
     if (payment && payment.status !== "PAID") {
       payment.status = "PAID";
@@ -163,14 +184,13 @@ exports.handleWebhook = async (req, res) => {
         description: `Nạp tiền PayOS (Mã: ${orderCode})`,
       });
 
-      console.log(`[WEBHOOK] Top-up thành công cho user ${payment.user}`);
       return res.status(200).json({ success: true });
     }
 
-    // Idempotent: đã xử lý trước đó
+    // Idempotent
     return res.status(200).json({ success: true });
   } catch (err) {
-    console.error("WEBHOOK GLOBAL ERROR:", err.message);
+    console.error("WEBHOOK ERROR:", err.message);
     return res.status(200).json({ success: true }); // Luôn trả 200 cho PayOS
   }
 };

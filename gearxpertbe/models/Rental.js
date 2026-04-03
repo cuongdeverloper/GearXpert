@@ -20,9 +20,34 @@ const rentalSchema = new mongoose.Schema(
 
     rentPriceTotal: { type: Number, required: true },
     depositAmount: { type: Number, required: true },
-    insuranceAmount: { type: Number, default: 0 },
     deliveryFee: { type: Number, default: 0 },
     totalAmount: { type: Number, required: true },
+
+    paymentBreakdown: {
+      rentAmount: { type: Number, required: true },
+      depositAmount: { type: Number, required: true },
+      platformFee: { type: Number, required: true },
+      supplierReceive: { type: Number, required: true },
+    },
+
+    escrowStatus: {
+      type: String,
+      enum: ["HOLDING", "RELEASED", "PARTIAL_REFUND"],
+      default: "HOLDING",
+      index: true,
+    },
+
+    depositStatus: {
+      type: String,
+      enum: ["HELD", "REFUNDED", "FORFEITED"],
+      default: "HELD",
+    },
+
+    supplierPayoutStatus: {
+      type: String,
+      enum: ["PENDING", "PAID"],
+      default: "PENDING",
+    },
 
     paymentMethod: { type: String, enum: ["BANK", "WALLET"], required: true },
     paymentStatus: {
@@ -76,6 +101,9 @@ const rentalSchema = new mongoose.Schema(
       type: String,
       enum: ["DELIVERY", "RETURN"],
     },
+    // Thêm vào trong rentalSchema
+    isRemindedToday: { type: Boolean, default: false },
+    isRemindedTomorrow: { type: Boolean, default: false },
   },
   {
     timestamps: true,

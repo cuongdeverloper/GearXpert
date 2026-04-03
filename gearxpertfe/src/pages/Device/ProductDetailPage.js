@@ -299,9 +299,14 @@ export default function ProductDetailPage() {
         )
       : 0;
 
+  const discountPrice = device?.discountPrice || 0;
+  const expiry = device?.discountExpiry ? new Date(device.discountExpiry) : null;
+  const isExpired = (expiry && expiry < new Date());
+  const effectivePrice = (discountPrice > 0 && !isExpired) ? discountPrice : (device?.rentPrice?.perDay || 0);
+  
   const totalPrice = device
     ? days *
-      (device.rentPrice.perDay +
+      (effectivePrice +
         addons.reduce((s, a) => s + a.rentPrice.perDay, 0)) *
       quantity
     : 0;
@@ -319,24 +324,24 @@ export default function ProductDetailPage() {
   const supplier = device.supplierId || {};
 
   return (
-    <div className="min-h-screen bg-background-light flex flex-col font-sans text-[15px]">
+    <div className="min-h-screen bg-background-light flex flex-col font-sans text-[15px]" data-theme="light">
       <Header />
       <Toaster richColors closeButton expand={true} />
 
       <main className="flex-1">
         {/* HEADER NAV STICKY */}
-        <div className="sticky top-[84px] z-40 mx-4 sm:mx-6 bg-white/80 backdrop-blur-md border border-slate-200 rounded-2xl shadow-lg mt-3">
+        <div className="sticky top-[112px] z-40 mx-4 sm:mx-6 bg-white/80 backdrop-blur-md border border-slate-200 rounded-2xl shadow-lg mt-28" data-theme="light">
           <div className="max-w-7xl mx-auto px-5 sm:px-6 py-3 flex items-center justify-between">
             <button
               onClick={() => navigate(-1)}
               className="flex items-center gap-2 text-slate-600 hover:text-indigo-600 transition-colors font-semibold text-sm"
             >
               <ArrowLeft className="w-5 h-5" />
-              Back to Catalog
+              Quay lại danh mục
             </button>
             <div className="hidden md:flex items-center gap-4">
               <span className="text-sm font-medium text-slate-400">
-                Home / Devices / {device?.category}
+                Trang chủ / Thiết bị / {device?.category}
               </span>
             </div>
           </div>
@@ -365,7 +370,7 @@ export default function ProductDetailPage() {
                     >
                       {device.stockQuantity > 0
                         ? device.status
-                        : "Out of Stock"}
+                        : "Hết hàng"}
                     </span>
                   </div>
                 </div>
@@ -394,7 +399,7 @@ export default function ProductDetailPage() {
               {/* OVERVIEW */}
               <div className="space-y-5">
                 <h2 className="text-2xl font-bold text-slate-900 font-display flex items-center gap-3">
-                  Overview
+                  Tổng quan
                   <div className="h-1 flex-1 bg-slate-100 rounded-full"></div>
                 </h2>
                 <p className="text-[15px] text-slate-600 leading-relaxed whitespace-pre-line font-medium">
@@ -407,7 +412,7 @@ export default function ProductDetailPage() {
                 <div className="mt-10 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
                   <h3 className="text-xl font-bold text-slate-900 mb-5 flex items-center gap-3">
                     <User className="w-5 h-5 text-indigo-600" />
-                    Review của tôi
+                    Đánh giá của tôi
                   </h3>
 
                   {hasMyReview ? (
@@ -572,7 +577,7 @@ export default function ProductDetailPage() {
               {/* REVIEWS */}
               <div className="space-y-7">
                 <h2 className="text-2xl font-bold text-slate-900 font-display flex items-center gap-3">
-                  Production Reviews
+                  Đánh giá thiết bị
                   <div className="h-1 flex-1 bg-slate-100 rounded-full"></div>
                 </h2>
 
@@ -621,7 +626,7 @@ export default function ProductDetailPage() {
                     <div className="text-center py-10 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
                       <AlertCircle className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                       <p className="text-slate-400 font-bold uppercase text-xs tracking-widest">
-                        No production reviews yet
+                        Chưa có đánh giá nào
                       </p>
                     </div>
                   )}
@@ -629,7 +634,7 @@ export default function ProductDetailPage() {
                   {!hasRented && (
                     <div className="flex items-center justify-center gap-3 p-4 bg-indigo-50 rounded-2xl text-indigo-600 text-sm font-bold">
                       <AlertCircle className="w-5 h-5" />
-                      Verified renters only can leave reviews
+                      Chỉ những người đã thuê mới có thể để lại đánh giá
                     </div>
                   )}
                 </div>
@@ -655,7 +660,7 @@ export default function ProductDetailPage() {
                       {device.ratingAvg}
                     </span>
                     <span className="text-slate-400 text-sm">
-                      ({device.reviewCount} reviews)
+                      ({device.reviewCount} đánh giá)
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 text-slate-500">
@@ -675,7 +680,7 @@ export default function ProductDetailPage() {
                 >
                   <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-3">
                     <User size={20} className="text-indigo-600" />
-                    Supplier
+                    Nhà cung cấp
                   </h3>
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-indigo-100 group-hover:border-indigo-300 transition-colors flex-shrink-0">
@@ -694,7 +699,7 @@ export default function ProductDetailPage() {
                         {supplier.businessName || supplier.fullName}
                       </p>
                       <p className="text-sm text-slate-500 truncate">
-                        Listed {device.name} on GearXpert
+                        Đã đăng {device.name} trên GearXpert
                       </p>
                     </div>
                     <ArrowLeft className="w-5 h-5 text-slate-300 rotate-180 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all flex-shrink-0" />
@@ -703,22 +708,29 @@ export default function ProductDetailPage() {
               )}
 
               {/* PRICING CARD */}
-              <div className="bg-indigo-600 rounded-3xl p-6 text-white shadow-xl shadow-indigo-200/50">
+              <div className="bg-indigo-600 rounded-3xl p-6 text-white shadow-xl shadow-indigo-200/50" data-theme="dark">
                 <div className="flex justify-between items-end">
                   <div>
                     <p className="text-indigo-100 text-xs font-bold uppercase tracking-widest mb-1">
-                      Rental Rate
+                      Giá thuê
                     </p>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-bold">
-                        {device.rentPrice?.perDay.toLocaleString()}đ
-                      </span>
-                      <span className="text-indigo-200 text-sm">/ day</span>
+                    <div className="flex flex-col gap-1">
+                      {device.discountPrice > 0 && !isExpired && (
+                        <span className="text-sm text-indigo-300/80 line-through font-bold">
+                          {device.rentPrice?.perDay.toLocaleString()}đ
+                        </span>
+                      )}
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-bold">
+                          {effectivePrice.toLocaleString()}đ
+                        </span>
+                        <span className="text-indigo-200 text-sm">/ ngày</span>
+                      </div>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest mb-1">
-                      Security Deposit
+                      Tiền đặt cọc
                     </p>
                     <p className="font-bold text-lg">
                       {device.depositAmount?.toLocaleString()}đ
@@ -733,12 +745,12 @@ export default function ProductDetailPage() {
                 <div className="space-y-4">
                   <label className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wider">
                     <CalendarIcon className="w-4 h-4 text-indigo-600" />
-                    Select Rental Period
+                    Chọn thời gian thuê
                   </label>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <p className="text-[10px] font-bold text-slate-400 uppercase ml-1.5">
-                        Start Date
+                        Ngày bắt đầu
                       </p>
                       <input
                         type="date"
@@ -754,7 +766,7 @@ export default function ProductDetailPage() {
                     </div>
                     <div className="space-y-2">
                       <p className="text-[10px] font-bold text-slate-400 uppercase ml-1.5">
-                        End Date
+                        Ngày kết thúc
                       </p>
                       <input
                         type="date"
@@ -772,10 +784,10 @@ export default function ProductDetailPage() {
                   <div className="flex items-center justify-between">
                     <label className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wider">
                       <Package className="w-4 h-4 text-indigo-600" />
-                      Rent Quantity
+                      Số lượng thuê
                     </label>
                     <span className="text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-widest border text-indigo-600 bg-indigo-50 border-indigo-100">
-                      Available: {device.stockQuantity}
+                      Có sẵn: {device.stockQuantity}
                     </span>
                   </div>
                   <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-2xl border border-slate-100 w-fit">
@@ -820,7 +832,7 @@ export default function ProductDetailPage() {
                 <div className="space-y-4">
                   <label className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wider">
                     <PlusCircle className="w-4 h-4 text-indigo-600" />
-                    Essential Add-ons
+                    Phụ kiện đi kèm
                   </label>
                   <div className="space-y-3">
                     {addonsList.map((a) => {
@@ -848,7 +860,7 @@ export default function ProductDetailPage() {
                               {a.name}
                             </p>
                             <p className="text-[10px] text-slate-400 uppercase font-bold mt-0.5">
-                              Compatible Gear
+                              Thiết bị tương thích
                             </p>
                           </div>
                           <span className="font-bold text-indigo-600 whitespace-nowrap">
@@ -865,7 +877,7 @@ export default function ProductDetailPage() {
                   <div className="pt-4 border-t border-dashed border-slate-200">
                     <div className="flex justify-between items-center">
                       <div className="text-sm font-bold text-slate-500 uppercase tracking-widest">
-                        Estimated Total ({days} days)
+                        Tổng cộng dự kiến ({days} ngày)
                       </div>
                       <div className="text-xl sm:text-2xl font-black text-indigo-600">
                         {totalPrice.toLocaleString()}đ
@@ -882,7 +894,7 @@ export default function ProductDetailPage() {
                     className="flex items-center justify-center gap-2 py-3.5 rounded-2xl border-2 border-slate-200 text-slate-700 font-bold hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                   >
                     <ShoppingCart className="w-5 h-5" />
-                    Add to Cart
+                    Thêm vào giỏ
                   </button>
                   <button
                     onClick={handleBuyNow}
@@ -890,7 +902,7 @@ export default function ProductDetailPage() {
                     className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-slate-900 text-white font-bold hover:bg-black shadow-lg shadow-slate-200/50 transition-all active:scale-95 disabled:bg-slate-400 disabled:shadow-none disabled:cursor-not-allowed text-sm"
                   >
                     <Zap className="w-5 h-5 fill-current" />
-                    Rent Now
+                    Thuê ngay
                   </button>
                 </div>
               </div>
@@ -899,15 +911,15 @@ export default function ProductDetailPage() {
               <div className="grid grid-cols-3 gap-4">
                 <Criteria
                   icon={<Shield className="w-5 h-5" />}
-                  text="Pro Insurance"
+                  text="Bảo hiểm Pro"
                 />
                 <Criteria
                   icon={<Package className="w-5 h-5" />}
-                  text="Same-day Delivery"
+                  text="Giao trong ngày"
                 />
                 <Criteria
                   icon={<CheckCircle className="w-5 h-5" />}
-                  text="Tech Inspected"
+                  text="Kiểm định kỹ thuật"
                 />
               </div>
             </div>
@@ -919,7 +931,7 @@ export default function ProductDetailPage() {
             <div className="lg:col-span-5">
               <div className="sticky top-24 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-5">
                 <h3 className="text-xl font-bold text-slate-900 font-display">
-                  Technical Specs
+                  Thông số kỹ thuật
                 </h3>
                 <div className="space-y-3">
                   {device.specs &&
@@ -950,14 +962,14 @@ export default function ProductDetailPage() {
               <div className="flex items-end justify-between">
                 <div>
                   <h2 className="text-3xl font-bold text-slate-900 font-display">
-                    Similar Equipment
+                    Thiết bị tương tự
                   </h2>
                   <p className="text-slate-500 font-medium mt-1.5 text-[15px]">
-                    Recommended gear based on this production kit.
+                    Gợi ý thiết bị dựa trên bộ quay phim này.
                   </p>
                 </div>
                 <button className="text-indigo-600 font-bold hover:underline flex items-center gap-2 text-sm">
-                  View All <ArrowLeft className="w-4 h-4 rotate-180" />
+                  Xem tất cả <ArrowLeft className="w-4 h-4 rotate-180" />
                 </button>
               </div>
 
@@ -996,7 +1008,7 @@ export default function ProductDetailPage() {
                         <div className="text-indigo-600 font-black text-base">
                           {d.rentPrice?.perDay.toLocaleString()}đ
                           <span className="text-[10px] text-slate-400 font-bold uppercase ml-1">
-                            / day
+                            / ngày
                           </span>
                         </div>
                         <div className="w-9 h-9 rounded-full bg-slate-900 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">

@@ -67,10 +67,19 @@ const updateFollowPrefs = async (followId, prefs) => {
   return res;
 };
 
+/** Supplier: tổng follower, mới 30 ngày, theo tháng (6 tháng) — cho dashboard */
+const getMyFollowerAnalytics = async () => {
+  const res = await axios.get("/api/suppliers/me/follower-analytics");
+  return res;
+};
+
 const getPublicSuppliers = async (params = {}) => {
   const res = await axios.get("/api/suppliers/public", { params });
   return res;
 };
+
+const requestBecomeSupplier = (data) =>
+    axios.post(`/api/suppliers-contract/become-supplier`, data); 
 
 export {
   getSupplierProfile,
@@ -83,5 +92,7 @@ export {
   getFollowStatus,
   getMyFollowedStores,
   updateFollowPrefs,
+  getMyFollowerAnalytics,
   getPublicSuppliers,
+  requestBecomeSupplier
 };

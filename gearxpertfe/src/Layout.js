@@ -29,6 +29,7 @@ import SupplierInventoryPage from "./pages/Supplier/SupplierInventoryPage";
 import SupplierVouchersPage from "./pages/Supplier/SupplierVouchersPage";
 import SupplierIssuesPage from "./pages/Supplier/SupplierIssuesPage";
 import SupplierCalendarPage from "./pages/Supplier/SupplierCalendarPage";
+import SupplierAiPricingPage from "./pages/Supplier/SupplierAiPricingPage";
 
 import AdminLayout from "./components/layout/AdminLayout";
 import DashboardPage from "./pages/Admin/DashboardPage";
@@ -83,6 +84,8 @@ import SupplierProfileEdit from "./pages/Supplier/SupplierProfileEdit";
 import SupplierPublicProfile from "./pages/User/SupplierPublicProfile";
 import FollowedStoresPage from "./pages/User/FollowedStoresPage";
 import SupplierListPage from "./pages/User/SupplierListPage";
+import BecomeSupplierPage from "./pages/User/BecomeSupplierPage";
+import RentalDetail from "./pages/Rental/RentalDetail";
 
 const ChatbotWrapper = () => {
   const location = useLocation();
@@ -169,6 +172,11 @@ export default function Layout() {
             path="/rental/checkout/review"
             element={<RentalReviewPage />}
           />
+          <Route path="/my-rentals/:rentalId" element={<RentalDetail />} />
+          <Route
+            path="/my-rentals"
+            element={<Navigate to="/user/myrental" replace />}
+          />
           <Route path="/user/myrental" element={<MyRentals />} />
           <Route path="/user/cart" element={<CartPage />} />
           <Route path="/user/followed-stores" element={<FollowedStoresPage />} />
@@ -176,6 +184,7 @@ export default function Layout() {
           <Route path="/payment/cancel" element={<PaymentCancel />} />
           <Route path="/supplier/:id" element={<SupplierPublicProfile />} />
           <Route path="/suppliers" element={<SupplierListPage />} />
+          <Route path="/become-supplier" element={<BecomeSupplierPage />} />
           <Route path="/supplier" element={<SupplierLayout />}>
             <Route
               index
@@ -199,6 +208,7 @@ export default function Layout() {
             <Route path="vouchers" element={<SupplierVouchersPage />} />
             <Route path="issues" element={<SupplierIssuesPage />} />
             <Route path="calendar" element={<SupplierCalendarPage />} />
+            <Route path="ai-pricing" element={<SupplierAiPricingPage />} />
             <Route path="profile/edit" element={<SupplierProfileEdit />} />
           </Route>
 

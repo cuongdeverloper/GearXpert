@@ -128,6 +128,7 @@ exports.getAdminDashboard = async (req, res) => {
           name: "$device.name",
           supplierName: "$supplier.fullName",
           ratingAvg: "$device.ratingAvg",
+          totalRentals: 1,
         },
       },
     ]);
@@ -243,7 +244,7 @@ exports.getAdminSuppliers = async (req, res) => {
           _id: "$supplierId",
           totalDevices: { $sum: 1 },
           rentedDevices: {
-            $sum: { $cond: [{ $eq: ["$status", "RENTED"] }, 1, 0] },
+            $sum: { $cond: [{ $gt: ["$rentedQuantity", 0] }, 1, 0] },
           },
         },
       },
@@ -323,7 +324,17 @@ exports.getAdminDashboardCharts = async (req, res) => {
       count: item.count,
     }));
 
-    res.json({ revenueSeries, statusBreakdown });
+    const categoryAgg = await Device.aggregate([
+      { $match: { isAddon: false } },
+      { $group: { _id: "$category", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+    ]);
+    const categoryBreakdown = categoryAgg.map((item) => ({
+      category: item._id || "OTHER",
+      count: item.count,
+    }));
+
+    res.json({ revenueSeries, statusBreakdown, categoryBreakdown });
   } catch (error) {
     console.error("Admin charts error:", error);
     res.status(500).json({ message: "Failed to load dashboard charts" });

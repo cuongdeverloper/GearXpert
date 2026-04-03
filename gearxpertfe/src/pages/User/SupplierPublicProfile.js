@@ -15,7 +15,6 @@ import {
   ArrowLeft,
   Store,
   Ticket,
-  Copy,
   Check,
   Heart,
   Users,
@@ -25,6 +24,7 @@ import {
   ChevronDown,
   UserMinus,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   getSupplierStorefront,
   getSupplierStorefrontDevices,
@@ -37,14 +37,37 @@ import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
 import { ApiCreateConversation, ApiGetUserByUserId } from "../../components/Message Socket/ApiMessage";
 import { openChatWindow } from "../../redux/reducer/chatWindowReducer";
+import Map, { Marker } from "react-map-gl/mapbox";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
+import gearXpertLogo from "../../assets/logoGearXpert.png";
 
 const SORT_OPTIONS = [
-  { value: "newest", label: "Newest" },
-  { value: "popular", label: "Most Popular" },
-  { value: "price-asc", label: "Price: Low to High" },
-  { value: "price-desc", label: "Price: High to Low" },
-  { value: "rating-desc", label: "Top Rated" },
+  { value: "newest", label: "Hàng mới nhất" },
+  { value: "popular", label: "Phổ biến nhất" },
+  { value: "price-asc", label: "Giá: Thấp đến Cao" },
+  { value: "price-desc", label: "Giá: Cao xuống Thấp" },
+  { value: "rating-desc", label: "Đánh giá cao" },
 ];
+
+const CATEGORY_MAP = {
+  CAMERA: { name: "Máy ảnh", icon: "videocam" },
+  LIGHTING: { name: "Ánh sáng", icon: "lightbulb" },
+  AUDIO: { name: "Âm thanh", icon: "mic" },
+  OFFICE: { name: "Văn phòng", icon: "business_center" },
+  GAMING: { name: "Trò chơi", icon: "sports_esports" },
+  ACCESSORY: { name: "Phụ kiện", icon: "handyman" },
+  DRONE: { name: "Flycam", icon: "flight" },
+  OTHER: { name: "Khác", icon: "category" },
+};
+
+/** Khớp SupplierProfile.warehouseAddress: ưu tiên fullAddress, sau đó ghép street/district/city */
+function formatWarehouseLine(addr) {
+  if (!addr) return "";
+  const full = typeof addr.fullAddress === "string" ? addr.fullAddress.trim() : "";
+  if (full) return full;
+  return [addr.street, addr.district, addr.city].filter(Boolean).join(", ");
+}
 
 export default function SupplierPublicProfile() {
   const { id } = useParams();
@@ -73,7 +96,15 @@ export default function SupplierPublicProfile() {
   const [followLoading, setFollowLoading] = useState(false);
   const [followData, setFollowData] = useState(null); // { followId, notifyVoucher, notifyNewDevice, notifyPost }
   const [showFollowMenu, setShowFollowMenu] = useState(false);
+  const [showSort, setShowSort] = useState(false);
+  const sortRef = useRef(null);
   const followMenuRef = useRef(null);
+  const [showMapModal, setShowMapModal] = useState(false);
+  const [mapViewState, setMapViewState] = useState({
+    latitude: 16.0544,
+    longitude: 108.2022,
+    zoom: 15
+  });
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -81,10 +112,10 @@ export default function SupplierPublicProfile() {
       if (res?.success) {
         setSupplier(res.data);
       } else {
-        toast.error("Supplier not found");
+        toast.error("Không tìm thấy cửa hàng");
       }
     } catch {
-      toast.error("Failed to load supplier profile");
+      toast.error("Không thể tải thông tin cửa hàng");
     }
   }, [id]);
 
@@ -103,7 +134,7 @@ export default function SupplierPublicProfile() {
         if (res.data?.categories) setCategories(res.data.categories);
       }
     } catch {
-      toast.error("Failed to load devices");
+      toast.error("Không thể tải danh sách thiết bị");
     } finally {
       setDevicesLoading(false);
     }
@@ -141,6 +172,9 @@ export default function SupplierPublicProfile() {
       if (followMenuRef.current && !followMenuRef.current.contains(e.target)) {
         setShowFollowMenu(false);
       }
+      if (sortRef.current && !sortRef.current.contains(e.target)) {
+        setShowSort(false);
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -160,7 +194,6 @@ export default function SupplierPublicProfile() {
         setFollowerCount(res.data.followerCount);
         if (res.data.isFollowing) {
           toast.success("Đã theo dõi cửa hàng!");
-          // Re-fetch to get followData with prefs
           fetchFollowStatus();
         } else {
           toast.success("Đã bỏ theo dõi");
@@ -175,7 +208,6 @@ export default function SupplierPublicProfile() {
     }
   };
 
-  // Compute current notification level from prefs
   const getNotifLevel = () => {
     if (!followData) return "all";
     const { notifyVoucher, notifyNewDevice, notifyPost } = followData;
@@ -192,7 +224,6 @@ export default function SupplierPublicProfile() {
     } else if (level === "none") {
       prefs = { notifyVoucher: false, notifyNewDevice: false, notifyPost: false };
     } else {
-      // personalized = only new devices (default personalized choice)
       prefs = { notifyVoucher: false, notifyNewDevice: true, notifyPost: false };
     }
     try {
@@ -207,7 +238,7 @@ export default function SupplierPublicProfile() {
 
   const handleUnfollow = async () => {
     setShowFollowMenu(false);
-    await handleFollow(); // toggleFollowStore will unfollow
+    await handleFollow();
   };
 
   useEffect(() => {
@@ -219,6 +250,16 @@ export default function SupplierPublicProfile() {
     init();
     fetchFollowStatus();
   }, [fetchProfile, fetchFollowStatus]);
+
+  useEffect(() => {
+    if (supplier?.warehouseAddress?.lat && supplier?.warehouseAddress?.lng) {
+      setMapViewState({
+        latitude: supplier.warehouseAddress.lat,
+        longitude: supplier.warehouseAddress.lng,
+        zoom: 15
+      });
+    }
+  }, [supplier]);
 
   useEffect(() => {
     fetchVouchers();
@@ -246,12 +287,6 @@ export default function SupplierPublicProfile() {
     setTimeout(() => setCopiedCode(""), 2000);
   };
 
-  const daysLeft = (dateStr) => {
-    const diff = new Date(dateStr) - new Date();
-    const d = Math.ceil(diff / 86400000);
-    return d > 0 ? d : 0;
-  };
-
   const checkVoucherScroll = useCallback(() => {
     const el = voucherScrollRef.current;
     if (!el) return;
@@ -263,7 +298,6 @@ export default function SupplierPublicProfile() {
     const el = voucherScrollRef.current;
     if (!el) return;
     checkVoucherScroll();
-    // Recheck after DOM paint to ensure scroll dimensions are calculated
     const timer = setTimeout(checkVoucherScroll, 100);
     el.addEventListener("scroll", checkVoucherScroll, { passive: true });
     window.addEventListener("resize", checkVoucherScroll);
@@ -281,10 +315,10 @@ export default function SupplierPublicProfile() {
   };
 
   const memberSince = supplier?.memberSince
-    ? new Date(supplier.memberSince).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-      })
+    ? new Date(supplier.memberSince).toLocaleDateString("vi-VN", {
+      year: "numeric",
+      month: "long",
+    })
     : null;
 
   if (loading) {
@@ -307,16 +341,16 @@ export default function SupplierPublicProfile() {
           <div className="bg-white rounded-3xl p-12 text-center shadow-xl border border-slate-200 max-w-lg mx-auto">
             <Store className="w-20 h-20 text-slate-300 mx-auto mb-6" />
             <h2 className="text-2xl font-bold text-slate-900 mb-3">
-              Supplier not found
+              Không tìm thấy nhà cung cấp
             </h2>
             <p className="text-slate-500 mb-8">
-              This supplier may have been deactivated or does not exist.
+              Nhà cung cấp này có thể đã bị vô hiệu hóa hoặc không tồn tại.
             </p>
             <Link
               to="/products"
               className="inline-flex items-center gap-2 px-8 py-3 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all"
             >
-              Browse all devices
+              Xem tất cả thiết bị
             </Link>
           </div>
         </div>
@@ -326,153 +360,189 @@ export default function SupplierPublicProfile() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-slate-50" data-theme="light">
       <Header />
 
       <main className="flex-grow">
-        {/* Back nav */}
-        <div className="max-w-[1440px] mx-auto px-6 pt-6">
+        <div className="max-w-[1440px] mx-auto px-6 pt-40 lg:pt-38">
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 transition-colors text-sm font-semibold"
+            className="group inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm active:scale-95"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Back
+            <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+            <span>Quay lại</span>
           </button>
         </div>
 
         {/* ===== SHOP HEADER ===== */}
-        <div className="max-w-[1440px] mx-auto px-6 py-8">
-          <div className="bg-white rounded-[28px] border border-slate-200 shadow-sm">
-            {/* Top gradient accent bar */}
-            <div className="h-2 bg-gradient-to-r from-indigo-600 via-violet-500 to-cyan-500 rounded-t-[28px]" />
+        <div className="max-w-[1440px] mx-auto px-6 py-6">
+          <div className="relative bg-white rounded-[32px] border border-slate-200 shadow-xl overflow-hidden group/header">
+            {/* Main Background Accent - SHRUNK */}
+            <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-r from-indigo-700 via-violet-600 to-indigo-500 opacity-95 group-hover/header:opacity-100 transition-opacity duration-700" data-theme="dark" />
 
-            <div className="p-8 flex flex-col lg:flex-row items-center lg:items-start gap-8">
-              {/* Avatar */}
-              <div className="relative flex-shrink-0">
-                <div className="w-28 h-28 lg:w-32 lg:h-32 rounded-2xl overflow-hidden ring-4 ring-indigo-50 shadow-lg">
-                  <img
-                    src={
-                      supplier.businessAvatar ||
-                      supplier.userId?.avatar ||
-                      "/default-shop.jpg"
-                    }
-                    alt={supplier.businessName}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="absolute -bottom-2 -right-2 bg-emerald-500 text-white p-1.5 rounded-xl shadow-md">
-                  <ShieldCheck className="w-4 h-4" />
+            <div className="relative px-8">
+              {/* Banner Content: logoGearXpert X Shop Name */}
+              <div className="h-32 flex items-center justify-center lg:justify-start gap-5">
+                <div className="flex items-center gap-4 bg-white/20 backdrop-blur-xl px-4 py-2 rounded-2xl border border-white/30 shadow-2xl">
+                  <img src={gearXpertLogo} alt="GearXpert" className="h-8 w-auto brightness-0 invert" />
+                  <span className="text-white/40 font-light text-2xl">|</span>
+                  <h1 className="text-xl lg:text-2xl font-black text-white drop-shadow-sm truncate max-w-[400px] uppercase tracking-wider">
+                    {supplier.businessName}
+                  </h1>
                 </div>
               </div>
 
-              {/* Info */}
-              <div className="flex-1 text-center lg:text-left min-w-0">
-                <h1 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-2 truncate">
-                  {supplier.businessName}
-                </h1>
-                {supplier.businessDescription && (
-                  <p className="text-slate-500 text-sm mb-5 max-w-2xl line-clamp-2">
-                    {supplier.businessDescription}
-                  </p>
-                )}
-
-                {/* Stats row */}
-                <div className="flex flex-wrap justify-center lg:justify-start gap-6">
-                  <StatItem
-                    icon={<Package className="w-4 h-4" />}
-                    value={supplier.deviceCount || 0}
-                    label="Devices"
-                  />
-                  <StatItem
-                    icon={<Star className="w-4 h-4 fill-amber-400 text-amber-400" />}
-                    value={(supplier.supplierRating || 0).toFixed(1)}
-                    label={`${supplier.supplierReviewCount || 0} reviews`}
-                  />
-
-                  {memberSince && (
-                    <StatItem
-                      icon={<Clock className="w-4 h-4" />}
-                      value={memberSince}
-                      label="Member since"
-                      isText
-                    />
-                  )}
-                  <StatItem
-                    icon={<Users className="w-4 h-4" />}
-                    value={followerCount}
-                    label="Followers"
-                  />
-                </div>
-              </div>
-
-              {/* Contact & Follow buttons */}
-              <div className="flex flex-col gap-3 flex-shrink-0">
-                {/* YouTube-style follow button */}
-                {!isFollowing ? (
-                  <button
-                    onClick={handleFollow}
-                    disabled={followLoading}
-                    className={`inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full font-semibold text-sm bg-slate-900 text-white hover:bg-slate-800 transition-all shadow-sm ${followLoading ? "opacity-60 cursor-not-allowed" : ""}`}
-                  >
-                    <Heart className="w-4 h-4" />
-                    {followLoading ? "..." : "Theo dõi"}
-                  </button>
-                ) : (
-                  <div className="relative" ref={followMenuRef}>
-                    <button
-                      onClick={() => setShowFollowMenu(!showFollowMenu)}
-                      disabled={followLoading}
-                      className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full font-semibold text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all border border-slate-200"
-                    >
-                      {getNotifLevel() === "none" ? (
-                        <BellOff className="w-4 h-4" />
-                      ) : getNotifLevel() === "all" ? (
-                        <BellRing className="w-4 h-4" />
-                      ) : (
-                        <Bell className="w-4 h-4" />
-                      )}
-                      Đã theo dõi
-                      <ChevronDown className="w-3.5 h-3.5" />
-                    </button>
-
-                    {/* Dropdown menu */}
-                    {showFollowMenu && (
-                      <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50">
-                        {[
-                          { level: "all", icon: BellRing, label: "Tất cả", desc: "Nhận mọi thông báo" },
-                          { level: "personalized", icon: Bell, label: "Dành riêng cho bạn", desc: "Chỉ thiết bị mới" },
-                          { level: "none", icon: BellOff, label: "Không nhận thông báo", desc: "" },
-                        ].map(({ level, icon: Icon, label, desc }) => (
-                          <button
-                            key={level}
-                            onClick={() => handleSetNotifLevel(level)}
-                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left"
-                          >
-                            <Icon className="w-5 h-5 text-slate-500 flex-shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-slate-800">{label}</p>
-                              {desc && <p className="text-xs text-slate-400">{desc}</p>}
-                            </div>
-                            {getNotifLevel() === level && (
-                              <Check className="w-4 h-4 text-indigo-600 flex-shrink-0" />
-                            )}
-                          </button>
-                        ))}
-
-                        <div className="border-t border-slate-100" />
-                        <button
-                          onClick={handleUnfollow}
-                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition-colors text-left"
-                        >
-                          <UserMinus className="w-5 h-5 text-red-400 flex-shrink-0" />
-                          <p className="text-sm font-semibold text-red-500">Hủy theo dõi</p>
-                        </button>
-                      </div>
-                    )}
+              {/* Sub Header Content: Avatar inline with Description */}
+              <div className="pt-8 pb-8 flex flex-col lg:flex-row items-start gap-10">
+                {/* Shop Avatar */}
+                <div className="relative flex-shrink-0 z-10">
+                  <div className="w-24 h-24 lg:w-32 lg:h-32 rounded-[28px] overflow-hidden bg-white p-2 shadow-2xl ring-1 ring-slate-100/50">
+                    <div className="w-full h-full rounded-[20px] overflow-hidden bg-slate-50 relative group/avatar">
+                      <img
+                        src={supplier.businessAvatar || supplier.userId?.avatar || "/default-shop.jpg"}
+                        alt={supplier.businessName}
+                        className="w-full h-full object-cover group-hover/avatar:scale-110 transition-transform duration-700"
+                      />
+                    </div>
                   </div>
-                )}
+                  <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-1.5 rounded-xl shadow-lg border-2 border-white">
+                    <ShieldCheck className="w-4 h-4" />
+                  </div>
+                </div>
+
+                <div className="flex-1 min-w-0 lg:pt-2">
+                  {/* Description & Stats */}
+                  {supplier.businessDescription && (
+                    <p className="text-slate-600 text-base font-medium leading-relaxed mb-6 max-w-3xl line-clamp-3">
+                      {supplier.businessDescription}
+                    </p>
+                  )}
+
+                  {/* Modern Stat Row */}
+                  <div className="flex flex-wrap gap-4 p-1 bg-slate-50/50 rounded-[22px] border border-slate-100 shadow-sm w-fit">
+                    <StatItem
+                      icon={<Package className="w-5 h-5" />}
+                      value={supplier.deviceCount || 0}
+                      label="Thiết bị"
+                      theme="indigo"
+                    />
+                    <StatItem
+                      icon={<Star className="w-5 h-5" />}
+                      value={(supplier.supplierRating || 0).toFixed(1)}
+                      label="Đánh giá"
+                      theme="amber"
+                    />
+                    {memberSince && (
+                      <StatItem
+                        icon={<Clock className="w-5 h-5" />}
+                        value={memberSince}
+                        label="Tham gia"
+                        theme="violet"
+                        isText
+                      />
+                    )}
+                    <StatItem
+                      icon={<Users className="w-5 h-5" />}
+                      value={followerCount}
+                      label="Người theo dõi"
+                      theme="cyan"
+                    />
+                  </div>
+                </div>
+
+                {/* Actions Section */}
+                <div className="flex flex-col gap-3 min-w-[240px] w-full lg:w-auto lg:pt-2">
+                  {!isFollowing ? (
+                    <button
+                      onClick={handleFollow}
+                      disabled={followLoading}
+                      className="group/follow relative inline-flex items-center justify-center gap-3 px-8 py-4 rounded-[20px] bg-slate-900 text-white font-black text-sm uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-xl active:scale-95 disabled:opacity-50"
+                    >
+                      <Heart className="w-5 h-5" />
+                      <span>{followLoading ? "..." : "Theo dõi"}</span>
+                    </button>
+                  ) : (
+                    <div className="relative" ref={followMenuRef}>
+                      <button
+                        onClick={() => setShowFollowMenu(!showFollowMenu)}
+                        disabled={followLoading}
+                        className="w-full inline-flex items-center justify-center gap-3 px-8 py-4 rounded-[20px] bg-white border-2 border-slate-100 text-slate-800 font-black text-sm uppercase tracking-widest hover:border-indigo-500 hover:text-indigo-600 transition-all shadow-sm active:scale-95"
+                      >
+                        <Bell size={18} />
+                        <span>Đã theo dõi</span>
+                        <ChevronDown size={14} className={showFollowMenu ? 'rotate-180' : ''} />
+                      </button>
+                      {showFollowMenu && (
+                        <div className="absolute left-0 right-0 top-full mt-3 bg-white rounded-[24px] shadow-2xl border border-slate-100 overflow-hidden z-[60] py-2 animate-in fade-in slide-in-from-top-2">
+                          {[
+                            { level: "all", icon: BellRing, label: "Tất cả", desc: "Mọi thông báo" },
+                            { level: "personalized", icon: Bell, label: "Cá nhân hóa", desc: "Chỉ thiết bị mới" },
+                            { level: "none", icon: BellOff, label: "Tắt", desc: "Không nhận thông báo" },
+                          ].map(({ level, icon: Icon, label, desc }) => (
+                            <button
+                              key={level}
+                              onClick={() => handleSetNotifLevel(level)}
+                              className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 transition-colors group/item"
+                            >
+                              <div className={`p-2 rounded-xl transition-colors ${getNotifLevel() === level ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-400 group-hover/item:bg-white group-hover/item:text-slate-600'}`}>
+                                <Icon size={20} />
+                              </div>
+                              <div className="flex-1 text-left">
+                                <p className="text-sm font-bold text-slate-800">{label}</p>
+                                <p className="text-[10px] text-slate-400 font-semibold uppercase">{desc}</p>
+                              </div>
+                              {getNotifLevel() === level && <Check size={16} className="text-indigo-600" />}
+                            </button>
+                          ))}
+                          <div className="h-px bg-slate-100 my-2 mx-4" />
+                          <button onClick={handleUnfollow} className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-red-50 transition-colors group/unfollow text-red-500">
+                            <div className="p-2 bg-red-50 text-red-400 rounded-xl group-hover/unfollow:bg-white group-hover/unfollow:text-red-500 transition-colors">
+                              <UserMinus size={20} />
+                            </div>
+                            <span className="text-sm font-black uppercase tracking-wider">Bỏ theo dõi</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <a href={`tel:${supplier.contactPhone}`} className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-4 bg-indigo-50 text-indigo-700 rounded-[20px] font-black text-xs uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm active:scale-95">
+                      <MessageCircle size={18} />
+                      Liên hệ
+                    </a>
+                    <button onClick={() => setShowMapModal(true)} className="flex-shrink-0 p-4 bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 hover:border-indigo-100 rounded-[20px] transition-all shadow-sm active:scale-95">
+                      <MapPin size={22} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Address bar bottom */}
+            <div className="px-8 py-4 bg-slate-50/80 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-sm text-slate-400 font-bold max-w-lg overflow-hidden">
+                <div className="p-1.5 bg-white rounded-lg shadow-sm">
+                  <MapPin size={14} className="text-indigo-500" />
+                </div>
+                <span className="truncate">
+                  {formatWarehouseLine(supplier.warehouseAddress) || "Chưa cập nhật địa chỉ kho"}
+                </span>
+              </div>
+              <div className="flex items-center gap-6">
+                <div className="flex -space-x-3 overflow-hidden">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-slate-200" />
+                  ))}
+                                    <div className="flex items-center justify-center h-8 w-8 rounded-full ring-2 ring-white bg-indigo-600 text-[10px] font-black text-white">
+                    +{followerCount}
+                  </div>
+                </div>
+                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                  đang theo dõi
+                </span>
                 <button
+                  type="button"
                   onClick={async () => {
                     if (!isAuthenticated) {
                       toast.info("Vui lòng đăng nhập để nhắn tin");
@@ -493,16 +563,70 @@ export default function SupplierPublicProfile() {
                   <MessageCircle className="w-4 h-4" />
                   Nhắn tin
                 </button>
-                {supplier.warehouseAddress?.city && (
-                  <div className="flex items-center gap-2 text-sm text-slate-500 justify-center">
-                    <MapPin className="w-3.5 h-3.5" />
-                    {supplier.warehouseAddress.city}
-                  </div>
-                )}
               </div>
             </div>
           </div>
         </div>
+
+        {/* ===== MAP MODAL ===== */}
+        {showMapModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <div className="bg-white rounded-[32px] w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white relative z-10">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-indigo-100 rounded-xl">
+                    <MapPin className="text-indigo-600 w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">Vị trí cửa hàng</h3>
+                    <p className="text-sm text-slate-500 truncate max-w-md">
+                      {formatWarehouseLine(supplier.warehouseAddress) || "Chưa có địa chỉ chi tiết"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowMapModal(false)}
+                  className="p-2 hover:bg-slate-100 rounded-full transition-colors flex items-center justify-center"
+                >
+                  <span className="material-symbols-outlined text-slate-500 scale-125">close</span>
+                </button>
+              </div>
+
+              <div className="relative w-full bg-slate-100" style={{ height: '550px' }}>
+                <Map
+                  {...mapViewState}
+                  onMove={(evt) => setMapViewState(evt.viewState)}
+                  mapStyle="mapbox://styles/mapbox/streets-v12"
+                  mapboxAccessToken={process.env.REACT_APP_MAPBOX_ACCESS_TOKEN}
+                  style={{ width: '100%', height: '100%' }}
+                  reuseMaps
+                  mapLib={mapboxgl}
+                >
+                  {supplier.warehouseAddress?.lat && supplier.warehouseAddress?.lng && (
+                    <Marker
+                      latitude={supplier.warehouseAddress.lat}
+                      longitude={supplier.warehouseAddress.lng}
+                      anchor="bottom"
+                    >
+                      <div className="flex flex-col items-center">
+                        <div className="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-[10px] font-bold shadow-lg mb-1 whitespace-nowrap">
+                          {supplier.businessName}
+                        </div>
+                        <div className="w-10 h-10 bg-indigo-600 rounded-full border-4 border-white shadow-xl flex items-center justify-center">
+                          <Store className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="w-1 h-3 bg-indigo-600 shadow-lg"></div>
+                      </div>
+                    </Marker>
+                  )}
+                </Map>
+                <div className="absolute top-4 right-4 z-10 bg-white/90 backdrop-blur-md px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 shadow-xl pointer-events-none">
+                  Sử dụng con lăn chuột hoặc nút (+/-) để zoom
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ===== VOUCHERS SECTION ===== */}
         {vouchers.length > 0 && (
@@ -510,12 +634,11 @@ export default function SupplierPublicProfile() {
             <div className="flex items-center gap-3 mb-4">
               <Ticket className="w-5 h-5 text-rose-500" />
               <h2 className="text-lg font-bold text-slate-900">
-                Shop Vouchers
+                Mã giảm giá cửa hàng
               </h2>
             </div>
 
             <div className="relative group/carousel">
-              {/* Left arrow */}
               {canScrollLeft && (
                 <button
                   onClick={() => scrollVouchers(-1)}
@@ -524,8 +647,6 @@ export default function SupplierPublicProfile() {
                   <ChevronLeft className="w-5 h-5" />
                 </button>
               )}
-
-              {/* Right arrow */}
               {canScrollRight && (
                 <button
                   onClick={() => scrollVouchers(1)}
@@ -542,88 +663,44 @@ export default function SupplierPublicProfile() {
               >
                 {vouchers.map((v) => {
                   const isPercent = v.discountType === "PERCENT";
-                  const remaining = daysLeft(v.expiredAt);
                   const isCopied = copiedCode === v.code;
-
                   return (
-                    <div
-                      key={v._id}
-                      className="flex-shrink-0 w-[280px] bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-md transition-shadow"
-                    >
+                    <div key={v._id} className="flex-shrink-0 w-[280px] bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
                       <div className="flex h-full">
-                        <div className="w-[90px] bg-gradient-to-b from-rose-500 to-rose-600 flex flex-col items-center justify-center text-white relative">
-                          <div className="absolute -right-2 top-4 w-4 h-4 bg-white rounded-full" />
-                          <div className="absolute -right-2 bottom-4 w-4 h-4 bg-white rounded-full" />
-                          <span className="text-2xl font-black leading-none">
-                            {isPercent
-                              ? `${v.discountValue}%`
-                              : `${(v.discountValue / 1000).toFixed(0)}k`}
-                          </span>
-                          <span className="text-[10px] font-bold uppercase tracking-wider mt-1 opacity-80">
-                            {isPercent ? "Off" : "đ Off"}
-                          </span>
-                          {v.type === "GLOBAL" && (
-                            <span className="mt-2 text-[9px] bg-white/20 px-2 py-0.5 rounded-full font-semibold">
-                              Platform
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex-1 p-3.5 flex flex-col justify-between min-h-[110px]">
-                          <div>
-                            <p className="text-sm font-semibold text-slate-800 line-clamp-1">
-                              {v.description ||
-                                `Discount ${
-                                  isPercent
-                                    ? `${v.discountValue}%`
-                                    : `${v.discountValue.toLocaleString("vi-VN")}đ`
-                                }`}
-                            </p>
-                            <p className="text-xs text-slate-400 mt-1">
-                              Min. order:{" "}
-                              {v.minOrderValue?.toLocaleString("vi-VN")}đ
-                            </p>
-                            {isPercent && v.maxDiscount && (
-                              <p className="text-xs text-slate-400">
-                                Max discount:{" "}
-                                {v.maxDiscount.toLocaleString("vi-VN")}đ
-                              </p>
-                            )}
+                        <div className="w-[95px] bg-gradient-to-br from-indigo-600 to-violet-700 flex flex-col items-center justify-center text-white relative">
+                          <div className="absolute -right-1.5 top-0 bottom-0 w-3 flex flex-col justify-around py-1">
+                            {[...Array(6)].map((_, i) => (
+                              <div key={i} className="w-3 h-3 bg-white rounded-full -mr-1.5" />
+                            ))}
                           </div>
-
-                          <div className="flex items-center justify-between mt-2">
-                            <span
-                              className={`text-[11px] font-semibold ${
-                                remaining <= 3
-                                  ? "text-rose-500"
-                                  : "text-slate-400"
-                              }`}
-                            >
-                              {remaining <= 0
-                                ? "Expired"
-                                : remaining === 1
-                                ? "Ends tomorrow"
-                                : `${remaining} days left`}
-                            </span>
+                          <span className="text-2xl font-black leading-none tracking-tighter">
+                            {isPercent ? `${v.discountValue}%` : `${(v.discountValue / 1000).toFixed(0)}k`}
+                          </span>
+                          <span className="text-[10px] font-black uppercase tracking-widest mt-1 opacity-70">
+                            {isPercent ? "Giảm" : "VNĐ"}
+                          </span>
+                        </div>
+                        <div className="flex-1 p-4 flex flex-col justify-between min-h-[120px]">
+                          <div>
+                            <p className="text-sm font-black text-slate-800 line-clamp-1 mb-1">
+                              {v.description || `Giảm ${isPercent ? `${v.discountValue}%` : `${v.discountValue.toLocaleString()}đ`}`}
+                            </p>
+                            <div className="flex items-center gap-1 text-[10px] text-slate-400 font-bold uppercase">
+                              <Clock size={10} />
+                              Hết hạn: {new Date(v.expiredAt).toLocaleDateString('vi-VN')}
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between mt-3 pt-3 border-t border-dashed border-slate-100">
+                            <div className="flex flex-col">
+                              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Đơn tối thiểu</span>
+                              <span className="text-xs font-black text-indigo-600">{v.minOrderValue?.toLocaleString()}đ</span>
+                            </div>
                             <button
                               onClick={() => handleCopyCode(v.code)}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                                isCopied
-                                  ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
-                                  : "bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100"
-                              }`}
+                              className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isCopied ? "bg-emerald-500 text-white shadow-lg shadow-emerald-100" : "bg-slate-900 text-white hover:bg-indigo-600 shadow-lg shadow-slate-100"
+                                }`}
                             >
-                              {isCopied ? (
-                                <>
-                                  <Check className="w-3 h-3" />
-                                  Copied
-                                </>
-                              ) : (
-                                <>
-                                  <Copy className="w-3 h-3" />
-                                  Save
-                                </>
-                              )}
+                              {isCopied ? "Đã Lưu" : "Lưu Mã"}
                             </button>
                           </div>
                         </div>
@@ -637,79 +714,106 @@ export default function SupplierPublicProfile() {
         )}
 
         {/* ===== PRODUCTS SECTION ===== */}
-        <div className="max-w-[1440px] mx-auto px-6 pb-16">
-          {/* Toolbar */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
-            <div className="flex items-center gap-4">
-              <h2 className="text-xl font-bold text-slate-900">
-                All Devices
-                <span className="text-sm font-normal text-slate-400 ml-2">
-                  ({totalItems})
-                </span>
-              </h2>
+        <div className="max-w-[1440px] mx-auto px-6 pb-20">
+          <div className="flex flex-col space-y-8 mb-12">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+              <div>
+                <h2 className="text-4xl font-black text-slate-900 mb-2 tracking-tightest">
+                  Danh sách sản phẩm
+                </h2>
+                <div className="flex items-center gap-2">
+                  <div className="h-1 w-12 bg-indigo-600 rounded-full" />
+                  <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">
+                    {totalItems} thiết bị khả dụng
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <form onSubmit={handleSearch} className="relative group/search">
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm tại cửa hàng..."
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    className="pl-12 pr-6 py-4 bg-white border-2 border-slate-100 rounded-[22px] text-sm w-72 focus:border-indigo-500 outline-none transition-all shadow-sm focus:shadow-indigo-100/50"
+                  />
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within/search:text-indigo-500 transition-colors" />
+                </form>
+                <div className="relative" ref={sortRef}>
+                  <button
+                    onClick={() => setShowSort(!showSort)}
+                    className="flex items-center justify-between gap-4 pl-6 pr-5 py-4 bg-white border-2 border-slate-100 rounded-[22px] text-sm font-black text-slate-700 hover:border-indigo-500 hover:bg-slate-50 transition-all shadow-sm min-w-[200px]"
+                  >
+                    <span>{SORT_OPTIONS.find(o => o.value === sortBy)?.label}</span>
+                    <ChevronDown size={16} className={`text-slate-400 transition-transform duration-300 ${showSort ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  <AnimatePresence>
+                    {showSort && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        className="absolute right-0 top-full mt-3 w-64 bg-white/95 backdrop-blur-xl border border-slate-100 rounded-[24px] shadow-2xl z-50 overflow-hidden py-2"
+                      >
+                        <div className="px-4 py-2 border-b border-slate-50 mb-1">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sắp xếp theo</p>
+                        </div>
+                        {SORT_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.value}
+                            onClick={() => {
+                              setSortBy(opt.value);
+                              setPage(1);
+                              setShowSort(false);
+                            }}
+                            className={`w-full flex items-center justify-between px-5 py-3.5 hover:bg-slate-50 transition-all group/item ${sortBy === opt.value ? 'bg-indigo-50/50' : ''
+                              }`}
+                          >
+                            <span className={`text-sm font-bold transition-colors ${sortBy === opt.value ? 'text-indigo-600' : 'text-slate-600 group-hover/item:text-slate-900'
+                              }`}>
+                              {opt.label}
+                            </span>
+                            {sortBy === opt.value && (
+                              <div className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
+                            )}
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
             </div>
 
-            <div className="flex items-center gap-3 flex-wrap">
-              {/* Search */}
-              <form onSubmit={handleSearch} className="relative">
-                <input
-                  type="text"
-                  placeholder="Search in this shop..."
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  className="pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm w-64 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                />
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              </form>
-
-              {/* Sort */}
-              <select
-                value={sortBy}
-                onChange={(e) => {
-                  setSortBy(e.target.value);
-                  setPage(1);
-                }}
-                className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition-all cursor-pointer"
-              >
-                {SORT_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
+            {categories.length > 0 && (
+              <div className="flex items-center gap-3 overflow-x-auto pb-4 scrollbar-none">
+                <button
+                  onClick={() => handleCategoryClick("")}
+                  className={`flex-shrink-0 flex items-center gap-2 px-8 py-3.5 rounded-full text-sm font-black uppercase tracking-widest transition-all ${!activeCategory ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100 scale-105" : "bg-white text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+                    }`}
+                >
+                  <span className="material-symbols-outlined text-[20px]">grid_view</span>
+                  Tất cả
+                </button>
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => handleCategoryClick(cat)}
+                    className={`flex-shrink-0 flex items-center gap-2 px-8 py-3.5 rounded-full text-sm font-black uppercase tracking-widest transition-all ${activeCategory === cat ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100 scale-105" : "bg-white text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-100"
+                      }`}
+                  >
+                    {CATEGORY_MAP[cat]?.icon && (
+                      <span className="material-symbols-outlined text-[20px]">{CATEGORY_MAP[cat].icon}</span>
+                    )}
+                    {CATEGORY_MAP[cat]?.name || cat}
+                  </button>
                 ))}
-              </select>
-            </div>
+              </div>
+            )}
           </div>
 
-          {/* Category pills */}
-          {categories.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-8">
-              <button
-                onClick={() => handleCategoryClick("")}
-                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                  !activeCategory
-                    ? "bg-indigo-600 text-white shadow-md"
-                    : "bg-white text-slate-600 border border-slate-200 hover:border-indigo-300"
-                }`}
-              >
-                All
-              </button>
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => handleCategoryClick(cat)}
-                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                    activeCategory === cat
-                      ? "bg-indigo-600 text-white shadow-md"
-                      : "bg-white text-slate-600 border border-slate-200 hover:border-indigo-300"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Device Grid */}
           {devicesLoading ? (
             <div className="flex items-center justify-center py-20">
               <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
@@ -717,158 +821,79 @@ export default function SupplierPublicProfile() {
           ) : devices.length === 0 ? (
             <div className="bg-white rounded-3xl p-16 text-center border border-slate-200">
               <Package className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-slate-800 mb-2">
-                No devices found
-              </h3>
-              <p className="text-slate-500 max-w-md mx-auto">
-                {searchTerm || activeCategory
-                  ? "Try adjusting your filters or search terms."
-                  : "This supplier hasn't listed any devices yet."}
-              </p>
+              <h3 className="text-xl font-bold text-slate-800 mb-2">Không tìm thấy thiết bị</h3>
+              <p className="text-slate-500 max-w-md mx-auto">Hãy thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm của bạn.</p>
             </div>
-          ) : (() => {
-            const inStock = devices.filter((d) => d.stockQuantity > 0);
-            const outOfStock = devices.filter((d) => d.stockQuantity <= 0);
-            const DeviceCard = ({ device }) => (
-              <Link
-                to={`/device/${device.slug || device._id}`}
-                className="group bg-white rounded-2xl overflow-hidden border border-slate-100 hover:border-indigo-200 hover:shadow-lg transition-all duration-300 flex flex-col"
-              >
-                <div className="relative aspect-square overflow-hidden bg-slate-100">
-                  <img
-                    src={device.images?.[0] || "/default-device.jpg"}
-                    alt={device.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute top-3 left-3">
-                    <span className="bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg uppercase tracking-wider">
-                      {device.category}
-                    </span>
-                  </div>
-                  {device.stockQuantity <= 0 && (
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                      <span className="bg-rose-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg">
-                        Out of Stock
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+              {devices.map((device) => (
+                <Link
+                  key={device._id}
+                  to={`/device/${device.slug || device._id}`}
+                  className="group bg-white rounded-[32px] overflow-hidden border border-slate-100 hover:border-indigo-200 hover:shadow-2xl hover:shadow-indigo-100/50 transition-all duration-500 flex flex-col relative"
+                >
+                  <div className="relative aspect-[4/5] overflow-hidden bg-slate-50">
+                    <img
+                      src={device.images?.[0] || "/default-device.jpg"}
+                      alt={device.name}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    />
+                    <div className="absolute top-4 left-4 z-10">
+                      <span className="bg-white/80 backdrop-blur-md text-slate-900 text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest shadow-sm">
+                        {CATEGORY_MAP[device.category]?.name || device.category}
                       </span>
                     </div>
-                  )}
-                </div>
-
-                <div className="p-4 flex flex-col flex-grow">
-                  <h3 className="font-semibold text-sm text-slate-800 line-clamp-2 mb-2 group-hover:text-indigo-600 transition-colors min-h-[40px]">
-                    {device.name}
-                  </h3>
-
-                  <div className="mt-auto space-y-2">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-lg font-bold text-rose-600">
-                        {device.rentPrice?.perDay?.toLocaleString("vi-VN")}đ
-                      </span>
-                      <span className="text-xs text-slate-400">/ day</span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-1">
-                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                        <span className="font-semibold text-slate-700">
-                          {(device.ratingAvg || 0).toFixed(1)}
-                        </span>
-                        <span className="text-slate-400">
-                          ({device.reviewCount || 0})
+                    {device.stockQuantity <= 0 && (
+                      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-[2px] flex items-center justify-center p-6 text-center">
+                        <span className="bg-white text-rose-600 text-[10px] font-black px-4 py-2 rounded-full uppercase tracking-widest shadow-2xl">
+                          Hết hàng
                         </span>
                       </div>
-                      {device.location?.city && (
-                        <span className="text-slate-400 truncate max-w-[80px]">
-                          {device.location.city}
+                    )}
+                    <div className="absolute bottom-4 right-4 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
+                      <div className="p-3 bg-indigo-600 text-white rounded-2xl shadow-xl">
+                        <ArrowLeft className="w-5 h-5 rotate-180" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-6 flex flex-col flex-grow">
+                    <h3 className="font-bold text-slate-800 line-clamp-2 mb-4 group-hover:text-indigo-600 transition-colors leading-snug">
+                      {device.name}
+                    </h3>
+                    <div className="mt-auto pt-4 border-t border-slate-50">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Giá thuê</span>
+                        <div className="flex items-center gap-1">
+                          <Star size={12} className="fill-amber-400 text-amber-400" />
+                          <span className="text-xs font-black text-slate-700">{(device.ratingAvg || 0).toFixed(1)}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-xl font-black text-indigo-600">
+                          {device.rentPrice?.perDay?.toLocaleString() || "0"}
                         </span>
-                      )}
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">vnđ / ngày</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Link>
-            );
+                </Link>
+              ))}
+            </div>
+          )}
 
-            return (
-              <div className="space-y-10">
-                {/* In Stock */}
-                {inStock.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-                      <Package className="w-5 h-5 text-emerald-500" />
-                      Available ({inStock.length})
-                    </h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
-                      {inStock.map((device) => (
-                        <DeviceCard key={device._id} device={device} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Out of Stock */}
-                {outOfStock.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-400 mb-4 flex items-center gap-2">
-                      <Package className="w-5 h-5 text-slate-300" />
-                      Out of Stock ({outOfStock.length})
-                    </h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5 opacity-70">
-                      {outOfStock.map((device) => (
-                        <DeviceCard key={device._id} device={device} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
-          {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-3 mt-10">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="p-2.5 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 disabled:opacity-40 transition-all"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-
-              {Array.from({ length: totalPages }, (_, i) => i + 1)
-                .filter(
-                  (p) =>
-                    p === 1 ||
-                    p === totalPages ||
-                    Math.abs(p - page) <= 1
-                )
-                .map((p, idx, arr) => {
-                  const showEllipsis = idx > 0 && p - arr[idx - 1] > 1;
-                  return (
-                    <React.Fragment key={p}>
-                      {showEllipsis && (
-                        <span className="px-2 text-slate-400">...</span>
-                      )}
-                      <button
-                        onClick={() => setPage(p)}
-                        className={`min-w-[40px] h-10 rounded-xl text-sm font-semibold transition-all ${
-                          p === page
-                            ? "bg-indigo-600 text-white shadow-md"
-                            : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
-                        }`}
-                      >
-                        {p}
-                      </button>
-                    </React.Fragment>
-                  );
-                })}
-
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="p-2.5 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 disabled:opacity-40 transition-all"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
+              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-2.5 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 disabled:opacity-40"><ChevronLeft size={16} /></button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
+                  className={`w-10 h-10 rounded-xl text-sm font-bold transition-all ${p === page ? "bg-indigo-600 text-white shadow-lg" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                >
+                  {p}
+                </button>
+              ))}
+              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-2.5 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 disabled:opacity-40"><ChevronRight size={16} /></button>
             </div>
           )}
         </div>
@@ -879,19 +904,20 @@ export default function SupplierPublicProfile() {
   );
 }
 
-function StatItem({ icon, value, label, isText }) {
+function StatItem({ icon, value, label, isText, theme = "indigo" }) {
+  const themes = {
+    indigo: "bg-indigo-50/50 text-indigo-600 border-indigo-100/50",
+    amber: "bg-amber-50/50 text-amber-600 border-amber-100/50",
+    violet: "bg-violet-50/50 text-violet-600 border-violet-100/50",
+    cyan: "bg-cyan-50/50 text-cyan-600 border-cyan-100/50",
+    emerald: "bg-emerald-50/50 text-emerald-600 border-emerald-100/50",
+  };
   return (
-    <div className="flex items-center gap-3 bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-100">
-      <span className="text-indigo-500">{icon}</span>
+    <div className={`flex items-center gap-3 px-4 py-2 rounded-[20px] transition-all duration-300 hover:shadow-md hover:scale-105 border ${themes[theme]}`}>
+      <div className="p-2 bg-white rounded-xl shadow-sm">{icon}</div>
       <div>
-        <p
-          className={`font-bold text-slate-900 ${
-            isText ? "text-sm" : "text-lg"
-          }`}
-        >
-          {value}
-        </p>
-        <p className="text-[11px] text-slate-500">{label}</p>
+        <p className={`font-black text-slate-900 leading-none ${isText ? "text-xs" : "text-lg"}`}>{value}</p>
+        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-wider">{label}</p>
       </div>
     </div>
   );

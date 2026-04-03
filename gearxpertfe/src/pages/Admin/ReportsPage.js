@@ -34,11 +34,22 @@ const SEVERITY_COLORS = {
 };
 
 const STATUS_LABELS = {
-  OPEN:             "Open",
-  PROCESSING:       "Processing",
-  WAITING_EVIDENCE: "Waiting Evidence",
-  RESOLVED:         "Resolved",
-  REJECTED:         "Rejected",
+  OPEN:             "Mở",
+  PROCESSING:       "Đang xử lý",
+  WAITING_EVIDENCE: "Chờ bổ sung chứng cứ",
+  RESOLVED:         "Đã xử lý",
+  REJECTED:         "Từ chối",
+};
+
+const CASE_TYPE_LABELS = {
+  DELIVERY: "Giao hàng",
+  DAMAGE: "Hư hỏng",
+};
+
+const SEVERITY_LABELS = {
+  LOW: "Thấp",
+  MEDIUM: "Trung bình",
+  HIGH: "Cao",
 };
 
 function Badge({ value, map, label }) {
@@ -289,7 +300,7 @@ export default function ReportsPage() {
 
         {/* Recent Reports Cards */}
         <div>
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">Recent Reports</h2>
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">Báo cáo gần đây</h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {reports.length > 0 ? reports.map((report) => (
               <div
@@ -312,15 +323,15 @@ export default function ReportsPage() {
                   {report.type === "revenue" && (
                     <>
                       <div className="flex justify-between">
-                        <span className="text-slate-600">Total Revenue:</span>
+                        <span className="text-slate-600">Tổng doanh thu:</span>
                         <span className="font-semibold text-slate-900">${report.totalRevenue?.toLocaleString() ?? "—"}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-600">Total Rentals:</span>
+                        <span className="text-slate-600">Tổng đơn thuê:</span>
                         <span className="font-semibold text-slate-900">{report.totalRentals ?? "—"}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-600">Active Users:</span>
+                        <span className="text-slate-600">Người dùng hoạt động:</span>
                         <span className="font-semibold text-slate-900">{report.totalUsers ?? "—"}</span>
                       </div>
                     </>
@@ -328,15 +339,15 @@ export default function ReportsPage() {
                   {report.type === "device" && (
                     <>
                       <div className="flex justify-between">
-                        <span className="text-slate-600">Top Device:</span>
+                        <span className="text-slate-600">Thiết bị hàng đầu:</span>
                         <span className="font-semibold text-slate-900">{report.topDevice ?? "—"}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-600">Total Rentals:</span>
+                        <span className="text-slate-600">Tổng đơn thuê:</span>
                         <span className="font-semibold text-slate-900">{report.totalRentals ?? "—"}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-600">Avg Rating:</span>
+                        <span className="text-slate-600">Đánh giá TB:</span>
                         <span className="font-semibold text-slate-900">{report.averageRating ?? "—"} ⭐</span>
                       </div>
                     </>
@@ -344,15 +355,15 @@ export default function ReportsPage() {
                   {report.type === "user" && (
                     <>
                       <div className="flex justify-between">
-                        <span className="text-slate-600">New Users:</span>
+                        <span className="text-slate-600">Người dùng mới:</span>
                         <span className="font-semibold text-slate-900">{report.newUsers ?? "—"}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-600">Active Users:</span>
+                        <span className="text-slate-600">Người dùng hoạt động:</span>
                         <span className="font-semibold text-slate-900">{report.activeUsers ?? "—"}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-600">Churn Rate:</span>
+                        <span className="text-slate-600">Tỷ lệ rời bỏ:</span>
                         <span className="font-semibold text-slate-900">{report.churnRate ?? "—"}</span>
                       </div>
                     </>
@@ -361,12 +372,12 @@ export default function ReportsPage() {
 
                 <button className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition">
                   <FiDownload size={16} />
-                  Download Report
+                  Tải báo cáo
                 </button>
               </div>
             )) : (
               <div className="col-span-full text-center py-8 text-slate-400 text-sm">
-                No reports available
+                Chưa có báo cáo
               </div>
             )}
           </div>
@@ -377,9 +388,9 @@ export default function ReportsPage() {
       <section>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">Dispute Cases</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Vụ khiếu nại</h2>
             <p className="text-sm text-slate-500 mt-0.5">
-              {totalCases > 0 ? `${totalCases} case${totalCases !== 1 ? "s" : ""} total` : "Manage and resolve disputes"}
+              {totalCases > 0 ? `Tổng ${totalCases} vụ` : "Quản lý và xử lý khiếu nại"}
             </p>
           </div>
         </div>
@@ -394,60 +405,60 @@ export default function ReportsPage() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search customer, supplier, rental..."
+                placeholder="Tìm khách, nhà cung cấp, đơn thuê…"
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition text-sm bg-white"
               />
             </div>
 
             {/* Type filter */}
             <FilterSelect
-              label="Type"
+              label="Loại"
               value={typeFilter}
               onChange={setTypeFilter}
               options={[
-                { value: "", label: "All Types" },
-                { value: "DELIVERY", label: "Delivery" },
-                { value: "DAMAGE", label: "Damage" },
+                { value: "", label: "Tất cả loại" },
+                { value: "DELIVERY", label: "Giao hàng" },
+                { value: "DAMAGE", label: "Hư hỏng" },
               ]}
             />
 
             {/* Status filter */}
             <FilterSelect
-              label="Status"
+              label="Trạng thái"
               value={statusFilter}
               onChange={setStatusFilter}
               options={[
-                { value: "", label: "All Status" },
-                { value: "OPEN", label: "Open" },
-                { value: "PROCESSING", label: "Processing" },
-                { value: "WAITING_EVIDENCE", label: "Waiting Evidence" },
-                { value: "RESOLVED", label: "Resolved" },
-                { value: "REJECTED", label: "Rejected" },
+                { value: "", label: "Mọi trạng thái" },
+                { value: "OPEN", label: "Mở" },
+                { value: "PROCESSING", label: "Đang xử lý" },
+                { value: "WAITING_EVIDENCE", label: "Chờ bổ sung chứng cứ" },
+                { value: "RESOLVED", label: "Đã xử lý" },
+                { value: "REJECTED", label: "Từ chối" },
               ]}
             />
 
             {/* Severity filter */}
             <FilterSelect
-              label="Severity"
+              label="Mức độ"
               value={severityFilter}
               onChange={setSeverityFilter}
               options={[
-                { value: "", label: "All Severity" },
-                { value: "LOW", label: "Low" },
-                { value: "MEDIUM", label: "Medium" },
-                { value: "HIGH", label: "High" },
+                { value: "", label: "Mọi mức độ" },
+                { value: "LOW", label: "Thấp" },
+                { value: "MEDIUM", label: "Trung bình" },
+                { value: "HIGH", label: "Cao" },
               ]}
             />
 
             {/* Reported By filter */}
             <FilterSelect
-              label="Reported By"
+              label="Nguồn báo cáo"
               value={reportedByFilter}
               onChange={setReportedByFilter}
               options={[
-                { value: "", label: "All Sources" },
-                { value: "CUSTOMER", label: "Customer" },
-                { value: "STAFF", label: "Staff" },
+                { value: "", label: "Mọi nguồn" },
+                { value: "CUSTOMER", label: "Khách hàng" },
+                { value: "STAFF", label: "Nhân viên" },
               ]}
             />
 
@@ -463,7 +474,7 @@ export default function ReportsPage() {
                 }}
                 className="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1 rounded-lg hover:bg-red-50 transition"
               >
-                Clear filters
+                Xóa bộ lọc
               </button>
             )}
           </div>
@@ -475,15 +486,15 @@ export default function ReportsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="px-5 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Case</th>
-                  <th className="px-5 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Type</th>
-                  <th className="px-5 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Status</th>
-                  <th className="px-5 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Severity</th>
-                  <th className="px-5 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Customer</th>
-                  <th className="px-5 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Supplier</th>
-                  <th className="px-5 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Reported</th>
-                  <th className="px-5 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Assigned</th>
-                  <th className="px-5 py-3 text-center font-semibold text-slate-700 whitespace-nowrap">Action</th>
+                  <th className="px-5 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Vụ</th>
+                  <th className="px-5 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Loại</th>
+                  <th className="px-5 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Trạng thái</th>
+                  <th className="px-5 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Mức độ</th>
+                  <th className="px-5 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Khách</th>
+                  <th className="px-5 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Nhà cung cấp</th>
+                  <th className="px-5 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Thời điểm</th>
+                  <th className="px-5 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Phụ trách</th>
+                  <th className="px-5 py-3 text-center font-semibold text-slate-700 whitespace-nowrap">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -509,7 +520,7 @@ export default function ReportsPage() {
 
                       {/* Type */}
                       <td className="px-5 py-3 whitespace-nowrap">
-                        <Badge value={c.caseType} map={CASE_TYPE_COLORS} />
+                        <Badge value={c.caseType} map={CASE_TYPE_COLORS} label={CASE_TYPE_LABELS[c.caseType]} />
                         {c.reportContext && (
                           <p className="text-[10px] text-slate-400 mt-0.5">{c.reportContext}</p>
                         )}
@@ -517,13 +528,13 @@ export default function ReportsPage() {
 
                       {/* Status */}
                       <td className="px-5 py-3 whitespace-nowrap">
-                        <Badge value={c.status} map={STATUS_COLORS} />
+                        <Badge value={c.status} map={STATUS_COLORS} label={STATUS_LABELS[c.status]} />
                       </td>
 
                       {/* Severity */}
                       <td className="px-5 py-3 whitespace-nowrap">
                         {c.severity ? (
-                          <Badge value={c.severity} map={SEVERITY_COLORS} />
+                          <Badge value={c.severity} map={SEVERITY_COLORS} label={SEVERITY_LABELS[c.severity]} />
                         ) : (
                           <span className="text-slate-400 text-xs">—</span>
                         )}
@@ -555,7 +566,7 @@ export default function ReportsPage() {
                             <span className="text-xs text-slate-700 truncate max-w-20">{c.assignedAdmin.fullName}</span>
                           </div>
                         ) : (
-                          <span className="text-slate-400 text-xs">Unassigned</span>
+                          <span className="text-slate-400 text-xs">Chưa phân công</span>
                         )}
                       </td>
 
@@ -566,7 +577,7 @@ export default function ReportsPage() {
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:border-primary hover:text-primary transition"
                         >
                           <FiEye size={13} />
-                          View
+                          Xem
                         </button>
                       </td>
                     </tr>
@@ -578,9 +589,9 @@ export default function ReportsPage() {
                         <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-slate-100 mb-3">
                           <FiAlertTriangle size={24} className="text-slate-400" />
                         </div>
-                        <p className="font-medium text-slate-700">No disputes found</p>
+                        <p className="font-medium text-slate-700">Không có vụ khiếu nại</p>
                         <p className="text-sm text-slate-500 mt-1">
-                          {casesError || "Try adjusting your filters or search query"}
+                          {casesError || "Thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm"}
                         </p>
                       </div>
                     </td>
