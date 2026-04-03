@@ -156,7 +156,7 @@ const assertRentalCanCreateReturnDraft = (rental) => {
     throw new DomainError("Không tìm thấy rental", 404, "RENTAL_NOT_FOUND");
   }
 
-  if (!["RETURNING", "INSPECTING", "PENDING_RESOLUTION"].includes(rental.status)) {
+  if (!["RETURNING", "INSPECTING"].includes(rental.status)) {
     throw new DomainError(
       "Rental chưa ở trạng thái phù hợp để tạo biên bản thu hồi",
       409,
@@ -582,6 +582,47 @@ const failReturn = async ({ returnRecordId, failure, inspection, staffId, actorI
       throw new DomainError("Biên bản bị thay đổi đồng thời, vui lòng tải lại", 409, "STATE_RACE_CONFLICT");
     }
 
+    const rental = await Rental.findById(updated.rentalId).session(session);
+    if (!rental) {
+      throw new DomainError("Không tìm thấy rental", 404, "RENTAL_NOT_FOUND");
+    }
+
+    rental.status = "PENDING_RESOLUTION";
+    rental.inspectedContext = "RETURN";
+    await rental.save({ session });
+
+    const rentalItems = await RentalItem.find({ rentalId: updated.rentalId })
+      .select("_id deviceId")
+      .session(session)
+      .lean();
+
+    const failureReasonLabel = mapReturnFailureToLabel(failure.reason);
+    const issueType = mapReturnFailureToIssueType(failure.reason);
+
+    await DeliveryIssueReport.create(
+      [
+        {
+          rentalId: updated.rentalId,
+          rentalItemIds: rentalItems.map((item) => item._id),
+          deviceIds: rentalItems.map((item) => item.deviceId).filter(Boolean),
+          customerId: updated?.prefetchedSnapshot?.customerId,
+          staffId,
+          reportedBy: "STAFF",
+          reportContext: "RETURN",
+          issueType,
+          description: [
+            `Thu hồi thất bại: ${failureReasonLabel}`,
+            failure.detail || "",
+            failure.operatorNote || "",
+          ]
+            .filter(Boolean)
+            .join(" | "),
+          images: Array.isArray(failure.evidenceUrls) ? failure.evidenceUrls : [],
+        },
+      ],
+      { session }
+    );
+
     await session.commitTransaction();
     return { idempotent: false, record: updated };
   } catch (error) {
@@ -605,8 +646,12 @@ const createRetryAttempt = async ({ rentalId, staffId, actorId }) => {
       throw new DomainError("Không tìm thấy rental", 404, "RENTAL_NOT_FOUND");
     }
 
-    if (["CANCELLED", "COMPLETED"].includes(rental.status)) {
-      throw new DomainError("Rental đã đóng, không thể tạo retry attempt", 409, "INVALID_RENTAL_STATUS");
+    if (rental.status !== "RETURNING") {
+      throw new DomainError(
+        "Chỉ có thể tạo retry attempt khi đơn đang ở trạng thái RETURNING",
+        409,
+        "INVALID_RENTAL_STATUS"
+      );
     }
 
     const active = await ReturnRecord.findOne({

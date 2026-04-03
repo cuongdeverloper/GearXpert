@@ -10,7 +10,6 @@ import {
 } from "../../../../../service/ApiService/HandoverApi";
 import {
   createReturnDraft,
-  startReturnRecord,
   saveReturnInspection,
   failReturnRecord,
   createReturnRetryAttempt,
@@ -55,13 +54,15 @@ export default function useRecordActions({
   const ensureStartedAttempt = useCallback(
     async (attempt) => {
       if (!attempt) return null;
+
+      // Return flow allows DRAFT for save/fail/confirm, so skip explicit start API call.
+      if (flowContext === "RETURN") {
+        return attempt;
+      }
+
       if (attempt.status === "IN_PROGRESS") return attempt;
 
-      if (flowContext === "DELIVERY") {
-        await startHandover(attempt.id);
-      } else {
-        await startReturnRecord(attempt.id);
-      }
+      await startHandover(attempt.id);
 
       await fetchAttempts(selectedRentalId);
       return { ...attempt, status: "IN_PROGRESS" };
@@ -79,19 +80,19 @@ export default function useRecordActions({
   }, [activeAttempt, ensureDraftForRental, ensureStartedAttempt, selectedRentalId]);
 
   const handleSaveInspection = useCallback(async () => {
-    const attempt = await resolveReadyAttempt();
-    if (!attempt) {
-      alert("Không thể chuẩn bị biên bản để lưu kiểm tra.");
-      return;
-    }
-
-    const payload =
-      flowContext === "DELIVERY"
-        ? makeInspectionPayload(attempt, inspectionForm)
-        : makeReturnInspectionPayload(attempt);
-
     setWorking(true);
     try {
+      const attempt = await resolveReadyAttempt();
+      if (!attempt) {
+        alert("Không thể chuẩn bị biên bản để lưu kiểm tra.");
+        return;
+      }
+
+      const payload =
+        flowContext === "DELIVERY"
+          ? makeInspectionPayload(attempt, inspectionForm)
+          : makeReturnInspectionPayload(attempt);
+
       if (flowContext === "DELIVERY") {
         await saveHandoverInspection(attempt.id, payload);
       } else {
@@ -115,56 +116,56 @@ export default function useRecordActions({
   ]);
 
   const handleConfirmSuccess = useCallback(async () => {
-    const attempt = await resolveReadyAttempt();
-    if (!attempt) {
-      alert("Không thể chuẩn bị biên bản để xác nhận thành công.");
-      return;
-    }
-
-    if (flowContext === "DELIVERY") {
-      const requiredChecklist = [
-        ["customerPresent", "Khách có mặt"],
-        ["customerIdentityVerified", "Xác minh danh tính"],
-        ["deliveryAddressMatched", "Đúng địa chỉ giao"],
-      ];
-      const missingChecklist = requiredChecklist
-        .filter(([key]) => !inspectionForm[key])
-        .map(([, label]) => label);
-
-      if (missingChecklist.length > 0) {
-        alert(
-          `Để xác nhận giao thành công, vui lòng hoàn tất Inspection Checklist: ${missingChecklist.join(", ")}.`
-        );
-        return;
-      }
-    }
-
-    if (!confirmForm.operatorNote?.trim()) {
-      alert("Vui lòng ghi chú chi tiết kiểm tra thiết bị/phụ kiện.");
-      return;
-    }
-
-    const confirmerName =
-      confirmForm.confirmerName.trim() ||
-      (selectedRental?.customerName && selectedRental.customerName !== "Khách hàng"
-        ? selectedRental.customerName.trim()
-        : "");
-    const confirmerPhone =
-      confirmForm.confirmerPhone.trim() ||
-      (selectedRental?.phone && selectedRental.phone !== "-" ? selectedRental.phone.trim() : "");
-
-    if (!confirmerName) {
-      alert("Vui lòng nhập tên người xác nhận nhận hàng.");
-      return;
-    }
-
-    const inspection =
-      flowContext === "DELIVERY"
-        ? makeInspectionPayload(attempt, inspectionForm)
-        : makeReturnInspectionPayload(attempt);
-
     setWorking(true);
     try {
+      const attempt = await resolveReadyAttempt();
+      if (!attempt) {
+        alert("Không thể chuẩn bị biên bản để xác nhận thành công.");
+        return;
+      }
+
+      if (flowContext === "DELIVERY") {
+        const requiredChecklist = [
+          ["customerPresent", "Khách có mặt"],
+          ["customerIdentityVerified", "Xác minh danh tính"],
+          ["deliveryAddressMatched", "Đúng địa chỉ giao"],
+        ];
+        const missingChecklist = requiredChecklist
+          .filter(([key]) => !inspectionForm[key])
+          .map(([, label]) => label);
+
+        if (missingChecklist.length > 0) {
+          alert(
+            `Để xác nhận giao thành công, vui lòng hoàn tất Inspection Checklist: ${missingChecklist.join(", ")}.`
+          );
+          return;
+        }
+      }
+
+      if (!confirmForm.operatorNote?.trim()) {
+        alert("Vui lòng ghi chú chi tiết kiểm tra thiết bị/phụ kiện.");
+        return;
+      }
+
+      const confirmerName =
+        confirmForm.confirmerName.trim() ||
+        (selectedRental?.customerName && selectedRental.customerName !== "Khách hàng"
+          ? selectedRental.customerName.trim()
+          : "");
+      const confirmerPhone =
+        confirmForm.confirmerPhone.trim() ||
+        (selectedRental?.phone && selectedRental.phone !== "-" ? selectedRental.phone.trim() : "");
+
+      if (!confirmerName) {
+        alert("Vui lòng nhập tên người xác nhận nhận hàng.");
+        return;
+      }
+
+      const inspection =
+        flowContext === "DELIVERY"
+          ? makeInspectionPayload(attempt, inspectionForm)
+          : makeReturnInspectionPayload(attempt);
+
       if (flowContext === "DELIVERY") {
         const formData = new FormData();
         formData.append("inspection", JSON.stringify(inspection));
@@ -247,41 +248,41 @@ export default function useRecordActions({
   ]);
 
   const handleFail = useCallback(async () => {
-    const attempt = await resolveReadyAttempt();
-    if (!attempt) {
-      alert("Không thể chuẩn bị biên bản để ghi nhận thất bại.");
-      return;
-    }
-
-    if (!failureForm.reason) {
-      alert("Vui lòng chọn lý do giao thất bại.");
-      return;
-    }
-
-    const inspection =
-      flowContext === "DELIVERY"
-        ? makeInspectionPayload(attempt, inspectionForm)
-        : makeReturnInspectionPayload(attempt);
-
-    const baseFailurePayload = {
-      reason: failureForm.reason,
-      detail: failureForm.detail,
-      noShowWaitMinutes: failureForm.noShowWaitMinutes
-        ? Number(failureForm.noShowWaitMinutes)
-        : undefined,
-      missingAccessories: failureForm.missingAccessories
-        .split(",")
-        .map((x) => x.trim())
-        .filter(Boolean),
-      mismatchedSerials: failureForm.mismatchedSerials
-        .split(",")
-        .map((x) => x.trim())
-        .filter(Boolean),
-      operatorNote: failureForm.operatorNote,
-    };
-
     setWorking(true);
     try {
+      const attempt = await resolveReadyAttempt();
+      if (!attempt) {
+        alert("Không thể chuẩn bị biên bản để ghi nhận thất bại.");
+        return;
+      }
+
+      if (!failureForm.reason) {
+        alert("Vui lòng chọn lý do giao thất bại.");
+        return;
+      }
+
+      const inspection =
+        flowContext === "DELIVERY"
+          ? makeInspectionPayload(attempt, inspectionForm)
+          : makeReturnInspectionPayload(attempt);
+
+      const baseFailurePayload = {
+        reason: failureForm.reason,
+        detail: failureForm.detail,
+        noShowWaitMinutes: failureForm.noShowWaitMinutes
+          ? Number(failureForm.noShowWaitMinutes)
+          : undefined,
+        missingAccessories: failureForm.missingAccessories
+          .split(",")
+          .map((x) => x.trim())
+          .filter(Boolean),
+        mismatchedSerials: failureForm.mismatchedSerials
+          .split(",")
+          .map((x) => x.trim())
+          .filter(Boolean),
+        operatorNote: failureForm.operatorNote,
+      };
+
       const formData = new FormData();
       formData.append(
         "failure",
@@ -307,12 +308,18 @@ export default function useRecordActions({
         await failReturnRecord(attempt.id, formData);
         logOperationAction("RETURN_CONFIRM_FAILED", "RENTAL", selectedRentalId, {
           returnRecordId: attempt.id,
+          customerName: selectedRental?.customerName || "Khách hàng",
+          customerPhone: selectedRental?.phone || "-",
           reason: failureForm.reason,
           detail: failureForm.detail,
+          operatorNote: failureForm.operatorNote,
         }).catch(() => {});
       }
 
       await fetchAttempts(selectedRentalId);
+      if (flowContext === "RETURN") {
+        await fetchRentals();
+      }
       alert(
         flowContext === "DELIVERY"
           ? "Đã ghi nhận bàn giao thất bại và lưu bằng chứng."
@@ -331,7 +338,9 @@ export default function useRecordActions({
     failureForm,
     setWorking,
     selectedRentalId,
+    selectedRental,
     fetchAttempts,
+    fetchRentals,
   ]);
 
   const handleCreateRedelivery = useCallback(async () => {

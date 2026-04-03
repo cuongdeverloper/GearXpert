@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, History, RefreshCw, Truck, PackageCheck, CheckCircle, AlertTriangle, Info } from 'lucide-react';
 import { getMyOperationLogs } from '../../../service/ApiService/OperationLogApi';
+import { getReturnRecordById } from '../../../service/ApiService/ReturnApi';
+import ReturnFailureDetailDialog from './handover/components/ReturnFailureDetailDialog';
 
 const ACTION_CONFIG = {
   CONFIRM_PICKUP: {
@@ -94,6 +96,7 @@ export default function HistoryTab({ setActiveMenu }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [dialogDetail, setDialogDetail] = useState(null);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -112,6 +115,36 @@ export default function HistoryTab({ setActiveMenu }) {
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
+
+  const openReturnFailDetail = async (log) => {
+    if (log?.action !== 'RETURN_CONFIRM_FAILED') return;
+    const details = log?.details || {};
+    const returnRecordId = details?.returnRecordId;
+    if (!returnRecordId) return;
+
+    setDialogDetail({
+      title: 'Chi tiết thu hồi thất bại',
+      customerName: details?.customerName || 'Khách hàng',
+      phone: details?.customerPhone || '-',
+      reason: details?.reason || '',
+      operatorNote: details?.operatorNote || details?.detail || '',
+      images: [],
+    });
+
+    try {
+      const res = await getReturnRecordById(returnRecordId);
+      const record = res?.returnRecord || res?.data?.returnRecord;
+      if (!record) return;
+      setDialogDetail((prev) => ({
+        ...(prev || {}),
+        reason: record?.failure?.reason || prev?.reason || '',
+        operatorNote: record?.failure?.operatorNote || prev?.operatorNote || '',
+        images: Array.isArray(record?.failure?.evidenceUrls) ? record.failure.evidenceUrls : [],
+      }));
+    } catch (_) {
+      // Keep fallback data from operation log if return record is unavailable.
+    }
+  };
 
   return (
     <div className="p-4 md:p-8 flex-1">
@@ -168,7 +201,11 @@ export default function HistoryTab({ setActiveMenu }) {
                   Icon: Info,
                 };
                 return (
-                  <div key={log._id} className="relative pl-6 md:pl-8">
+                  <div
+                    key={log._id}
+                    className={`relative pl-6 md:pl-8 ${log.action === 'RETURN_CONFIRM_FAILED' ? 'cursor-pointer' : ''}`}
+                    onClick={() => openReturnFailDetail(log)}
+                  >
                     <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-white ${STATUS_CLASS[config.status] || 'bg-blue-500'}`}></div>
 
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-1 md:gap-4 mb-1">
@@ -188,6 +225,11 @@ export default function HistoryTab({ setActiveMenu }) {
           )}
         </div>
       </div>
+      <ReturnFailureDetailDialog
+        open={Boolean(dialogDetail)}
+        onClose={() => setDialogDetail(null)}
+        detail={dialogDetail}
+      />
     </div>
   );
 }

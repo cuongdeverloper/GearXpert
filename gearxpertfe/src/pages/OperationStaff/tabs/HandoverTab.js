@@ -39,6 +39,7 @@ export default function HandoverTab({
   const [selectedRentalId, setSelectedRentalId] = useState("");
   const [loadingAttempts, setLoadingAttempts] = useState(false);
   const [attempts, setAttempts] = useState([]);
+  const [deliveryReference, setDeliveryReference] = useState(null);
   const [working, setWorking] = useState(false);
   const [resolutionMode, setResolutionMode] = useState("SUCCESS");
 
@@ -210,6 +211,33 @@ export default function HandoverTab({
     [hydrateInspectionFromAttempt, flowContext]
   );
 
+  const fetchDeliveryReference = useCallback(async (rentalId) => {
+    if (!rentalId) {
+      setDeliveryReference(null);
+      return;
+    }
+
+    try {
+      const res = await getHandoverAttemptsByRental(rentalId);
+      const handovers = res?.handovers || [];
+
+      const sorted = [...handovers].sort(
+        (a, b) =>
+          new Date(b.finishedAt || b.updatedAt || b.createdAt || 0) -
+          new Date(a.finishedAt || a.updatedAt || a.createdAt || 0)
+      );
+
+      const latestSuccess =
+        sorted.find((item) => item.status === "COMPLETED" && item.result === "SUCCESS") ||
+        sorted.find((item) => item.status === "COMPLETED") ||
+        null;
+
+      setDeliveryReference(latestSuccess);
+    } catch (error) {
+      setDeliveryReference(null);
+    }
+  }, []);
+
   useEffect(() => {
     if (!selectedRentalIdFromTask) return;
 
@@ -255,6 +283,15 @@ export default function HandoverTab({
     if (!selectedRentalId) return;
     ensureDraftForRental(selectedRentalId, { silent: true });
   }, [selectedRentalId, ensureDraftForRental]);
+
+  useEffect(() => {
+    if (flowContext !== "RETURN" || !selectedRentalId) {
+      setDeliveryReference(null);
+      return;
+    }
+
+    fetchDeliveryReference(selectedRentalId);
+  }, [flowContext, selectedRentalId, fetchDeliveryReference]);
 
   return (
     <div className="p-4 md:p-8 space-y-5">
@@ -319,6 +356,7 @@ export default function HandoverTab({
             <ReturnRecordPanel
               selectedRental={selectedRental}
               selectedRentalId={selectedRentalId}
+              deliveryReference={deliveryReference}
               working={working}
               loadingAttempts={loadingAttempts}
               attempts={attempts}

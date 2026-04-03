@@ -1,8 +1,28 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { Package } from "lucide-react";
 import { STATUS_BADGE } from "../constants";
+import ReturnFailureDetailDialog from "./ReturnFailureDetailDialog";
 
-export default function AttemptsHistory({ loadingAttempts, attempts }) {
+export default function AttemptsHistory({
+  loadingAttempts,
+  attempts,
+  fallbackCustomerName = "Khách hàng",
+  fallbackPhone = "-",
+}) {
+  const [selectedAttempt, setSelectedAttempt] = useState(null);
+
+  const detail = useMemo(() => {
+    if (!selectedAttempt) return null;
+    return {
+      title: `Chi tiết attempt #${selectedAttempt.attemptNo || "-"}`,
+      customerName: selectedAttempt?.prefetchedSnapshot?.deliveryAddress?.receiverName || fallbackCustomerName,
+      phone: selectedAttempt?.prefetchedSnapshot?.phoneNumber || fallbackPhone,
+      reason: selectedAttempt?.failure?.reason || "",
+      operatorNote: selectedAttempt?.failure?.operatorNote || selectedAttempt?.failure?.detail || "",
+      images: selectedAttempt?.failure?.evidenceUrls || [],
+    };
+  }, [selectedAttempt, fallbackCustomerName, fallbackPhone]);
+
   return (
     <div className="space-y-2">
       <h4 className="font-semibold text-slate-800">Lịch sử attempts</h4>
@@ -15,7 +35,16 @@ export default function AttemptsHistory({ loadingAttempts, attempts }) {
           {attempts.map((attempt) => (
             <div
               key={attempt.id}
-              className="rounded-xl border border-slate-200 p-3 flex items-start justify-between gap-3"
+              className={`rounded-xl border p-3 flex items-start justify-between gap-3 ${
+                attempt?.failure?.reason
+                  ? "border-red-200 bg-red-50/40 cursor-pointer hover:bg-red-50"
+                  : "border-slate-200"
+              }`}
+              onClick={() => {
+                if (attempt?.failure?.reason) {
+                  setSelectedAttempt(attempt);
+                }
+              }}
             >
               <div>
                 <p className="font-semibold text-slate-800 flex items-center gap-2">
@@ -37,6 +66,11 @@ export default function AttemptsHistory({ loadingAttempts, attempts }) {
           ))}
         </div>
       )}
+      <ReturnFailureDetailDialog
+        open={Boolean(selectedAttempt)}
+        onClose={() => setSelectedAttempt(null)}
+        detail={detail}
+      />
     </div>
   );
 }

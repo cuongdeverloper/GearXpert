@@ -3,6 +3,9 @@ import axios from "../AxiosCustomize";
 export const getReturnRecordsByRental = (rentalId) =>
   axios.get(`/api/returns/rentals/${rentalId}`);
 
+export const getReturnRecordById = (returnRecordId) =>
+  axios.get(`/api/returns/${returnRecordId}`);
+
 export const createReturnDraft = (rentalId, payload = {}) =>
   axios.post(`/api/returns/rentals/${rentalId}/draft`, payload);
 

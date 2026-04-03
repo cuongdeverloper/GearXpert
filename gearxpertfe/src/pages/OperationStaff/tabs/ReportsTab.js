@@ -10,6 +10,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { getStaffDeliveryIssues, getStaffReturnIssues } from '../../../service/ApiService/ReportApi';
+import ReturnFailureDetailDialog from './handover/components/ReturnFailureDetailDialog';
 
 const DELIVERY_ISSUE_TYPE_LABELS = {
   MISSING: 'Mất / Thiếu phụ kiện',
@@ -52,7 +53,31 @@ const STATUS_LABELS = {
 const formatDate = (iso) =>
   iso ? new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 
-function ReportCard({ report, issueTypeLabels, contextColor }) {
+const parseReturnFailDescription = (description = '') => {
+  const text = String(description || '');
+  const [first = '', ...rest] = text.split('|').map((x) => x.trim()).filter(Boolean);
+  const reason = first.replace(/^Thu hồi thất bại:\s*/i, '').trim();
+  const operatorNote = rest[rest.length - 1] || '';
+  return { reason, operatorNote };
+};
+
+const parseDeliveryFailDescription = (description = '') => {
+  const text = String(description || '');
+  const codeMatch = text.match(/Handover thất bại:\s*([A-Z_]+)/i);
+  const labelMatch = text.match(/Đơn hàng không thành công vì lý do:\s*([^|.]+)/i);
+  const segments = text.split('|').map((x) => x.trim()).filter(Boolean);
+  const operatorNote = segments[segments.length - 1] || '';
+
+  return {
+    reason:
+      labelMatch?.[1]?.trim() ||
+      (codeMatch?.[1] ? HANDOVER_FAILURE_REASON_LABELS[codeMatch[1].toUpperCase()] : '') ||
+      '',
+    operatorNote,
+  };
+};
+
+function ReportCard({ report, issueTypeLabels, contextColor, onOpenDetail }) {
   const [lightboxIndex, setLightboxIndex] = useState(null);
 
   const deviceName = report.deviceIds?.[0]?.name || 'Thiết bị';
@@ -87,7 +112,10 @@ function ReportCard({ report, issueTypeLabels, contextColor }) {
 
   return (
     <>
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm flex flex-col hover:shadow-md transition-shadow">
+      <div
+        className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm flex flex-col hover:shadow-md transition-shadow cursor-pointer"
+        onClick={() => onOpenDetail?.(report)}
+      >
         <div className="p-4 flex flex-col flex-1">
           <div className="flex justify-between items-start mb-3">
             <span className={`px-2.5 py-1 text-xs font-bold rounded-lg ${contextColor.badge}`}>{issueLabel}</span>
@@ -104,7 +132,10 @@ function ReportCard({ report, issueTypeLabels, contextColor }) {
                 <button
                   key={`${report._id}-img-${i}`}
                   type="button"
-                  onClick={() => openImageAt(i)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openImageAt(i);
+                  }}
                   className="w-10 h-10 rounded-full overflow-hidden border border-slate-200 cursor-pointer hover:opacity-90 transition-opacity"
                 >
                   <img src={img} alt={`Bằng chứng ${i + 1}`} className="w-full h-full object-cover" />
@@ -113,7 +144,10 @@ function ReportCard({ report, issueTypeLabels, contextColor }) {
               {extraImageCount > 0 && (
                 <button
                   type="button"
-                  onClick={() => openImageAt(3)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openImageAt(3);
+                  }}
                   className="w-10 h-10 rounded-2xl bg-slate-100/80 text-slate-500 text-2xl font-semibold leading-none hover:bg-slate-200/80 transition-colors"
                 >
                   +{extraImageCount}
@@ -190,6 +224,7 @@ export default function ReportsTab() {
   const [returnReports, setReturnReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [dialogDetail, setDialogDetail] = useState(null);
 
   const fetchReports = useCallback(async () => {
     setLoading(true);
@@ -222,6 +257,23 @@ export default function ReportsTab() {
   };
   const currentContext = activeTab === 'delivery' ? deliveryContext : returnContext;
   const currentIssueLabels = activeTab === 'delivery' ? DELIVERY_ISSUE_TYPE_LABELS : RETURN_ISSUE_TYPE_LABELS;
+
+  const openIssueDetail = (report) => {
+    const isReturn = activeTab === 'return';
+    const parsed = isReturn
+      ? parseReturnFailDescription(report?.description || '')
+      : parseDeliveryFailDescription(report?.description || '');
+
+    setDialogDetail({
+      title: isReturn ? 'Chi tiết sự cố thu hồi' : 'Chi tiết sự cố giao hàng',
+      customerName: report?.rentalId?.customerId?.fullName || 'Khách hàng',
+      phone: report?.rentalId?.phoneNumber || '-',
+      reason: parsed.reason || report?.issueType || 'Khác',
+      operatorNote: parsed.operatorNote || report?.description || '',
+      images: Array.isArray(report?.images) ? report.images : [],
+      reasonLabel: isReturn ? 'Lý do thu hồi thất bại' : 'Lý do giao hàng thất bại',
+    });
+  };
 
   return (
     <div className="p-4 md:p-8">
@@ -300,10 +352,16 @@ export default function ReportsTab() {
               report={report}
               issueTypeLabels={currentIssueLabels}
               contextColor={currentContext}
+              onOpenDetail={openIssueDetail}
             />
           ))}
         </div>
       )}
+      <ReturnFailureDetailDialog
+        open={Boolean(dialogDetail)}
+        onClose={() => setDialogDetail(null)}
+        detail={dialogDetail}
+      />
     </div>
   );
 }
