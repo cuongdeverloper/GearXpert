@@ -9,6 +9,7 @@ import {
   FiArrowUpRight,
   FiClock,
   FiCheckCircle,
+  FiTarget,
 } from "react-icons/fi";
 import { getSupplierRevenue } from "../../service/ApiService/SupplierRevenueApi";
 import { getSupplierRentalRequests } from "../../service/ApiService/RentalApi";
@@ -178,7 +179,7 @@ export default function SupplierDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           {
             title: "Yêu cầu thuê",
@@ -200,6 +201,13 @@ export default function SupplierDashboard() {
             to: "/supplier/revenue",
             icon: FiDollarSign,
             color: "text-green-600",
+          },
+          {
+            title: "Quảng cáo",
+            desc: "Quảng bá sản phẩm của bạn",
+            to: "/supplier/advertisements",
+            icon: FiTarget,
+            color: "text-indigo-600",
           },
         ].map((item) => {
           const Icon = item.icon;
