@@ -11,7 +11,7 @@ import {
   FiTruck,
   FiShield,
   FiChevronDown,
-  FiAlertTriangle,
+  FiTarget,
 } from "react-icons/fi";
 
 const sections = [
@@ -25,23 +25,29 @@ const sections = [
   },
   {
     id: "products",
-    title: "Sản phẩm cho thuê",
+    title: "Quản lý thiết bị",
     icon: FiBox,
     items: [
       { to: "/supplier/devices", label: "Danh sách thiết bị" },
       { to: "/supplier/devices/new", label: "Thêm thiết bị mới" },
       { to: "/supplier/inventory", label: "Quản lý kho" },
-      { to: "/supplier/vouchers", label: "Mã giảm giá" },
-      { to: "/supplier/ai-pricing", label: "Chiến lược giá AI" },
+    ],
+  },
+  {
+    id: "marketing",
+    title: "Trung tâm tiếp thị",
+    icon: FiTarget,
+    items: [
+      { to: "/supplier/advertisements", label: "Chiến dịch quảng cáo" },
+      { to: "/supplier/vouchers", label: "Mã giảm giá shop" },
+      { to: "/supplier/ai-pricing", label: "Giá linh động AI" },
     ],
   },
   {
     id: "calendar",
     title: "Lịch sẵn dụng",
     icon: FiCalendar,
-    items: [
-      { to: "/supplier/calendar", label: "Lịch thuê" },
-    ],
+    items: [],
   },
   {
     id: "bookings",
@@ -49,14 +55,6 @@ const sections = [
     icon: FiClipboard,
     items: [
       { to: "/supplier/rental-requests", label: "Yêu cầu đặt thuê" },
-    ],
-  },
-  {
-    id: "issues",
-    title: "Báo cáo sự cố",
-    icon: FiAlertTriangle,
-    items: [
-      { to: "/supplier/issues", label: "Tất cả sự cố" },
     ],
   },
   {
@@ -93,7 +91,6 @@ export default function SupplierSidebar({ collapsed, onCollapse, me }) {
     products: true,
     calendar: false,
     bookings: true,
-    issues: true,
     delivery: false,
     finance: true,
     verification: true,
@@ -123,7 +120,6 @@ export default function SupplierSidebar({ collapsed, onCollapse, me }) {
                 <NavLink
                   key={item.to}
                   to={item.to}
-                  end
                   className={({ isActive }) =>
                     classNames(
                       "flex items-center justify-center rounded-xl px-2 py-2.5 transition-all group",
@@ -181,7 +177,6 @@ export default function SupplierSidebar({ collapsed, onCollapse, me }) {
                             <NavLink
                               key={item.to}
                               to={item.to}
-                              end
                               className={({ isActive }) =>
                                 classNames(
                                   "block rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all",

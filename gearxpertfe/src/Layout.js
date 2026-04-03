@@ -30,6 +30,7 @@ import SupplierVouchersPage from "./pages/Supplier/SupplierVouchersPage";
 import SupplierIssuesPage from "./pages/Supplier/SupplierIssuesPage";
 import SupplierCalendarPage from "./pages/Supplier/SupplierCalendarPage";
 import SupplierAiPricingPage from "./pages/Supplier/SupplierAiPricingPage";
+import SupplierAdsPage from "./pages/Supplier/SupplierAdsPage";
 
 import AdminLayout from "./components/layout/AdminLayout";
 import DashboardPage from "./pages/Admin/DashboardPage";
@@ -209,6 +210,7 @@ export default function Layout() {
             <Route path="issues" element={<SupplierIssuesPage />} />
             <Route path="calendar" element={<SupplierCalendarPage />} />
             <Route path="ai-pricing" element={<SupplierAiPricingPage />} />
+            <Route path="advertisements" element={<SupplierAdsPage />} />
             <Route path="profile/edit" element={<SupplierProfileEdit />} />
           </Route>
 

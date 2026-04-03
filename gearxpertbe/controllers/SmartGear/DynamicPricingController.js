@@ -22,7 +22,7 @@ exports.getDiscountSuggestions = async (req, res) => {
             supplierId, 
             status: "AVAILABLE",
             _id: { $nin: excludedIds }
-        }).select("_id name category rentPrice stockQuantity");
+        }).select("_id name category rentPrice stockQuantity slug");
 
         if (!devices || devices.length === 0) {
             return res.status(200).json({ success: true, suggestions: [], message: "No items available for new suggestions." });
@@ -40,6 +40,7 @@ exports.getDiscountSuggestions = async (req, res) => {
             allStats.push({
                 deviceId: device._id,
                 name: device.name,
+                slug: device.slug,
                 originalPrice: device.rentPrice.perDay,
                 rentalCount: rentalCount,
                 category: device.category
@@ -127,11 +128,12 @@ exports.getActiveDiscounts = async (req, res) => {
                 { discountExpiry: null },
                 { discountExpiry: { $gt: now } }
             ]
-        }).select("_id name category rentPrice discountPrice discountReason discountExpiry");
+        }).select("_id name category rentPrice discountPrice discountReason discountExpiry slug");
 
         const formatted = activeDiscounts.map(d => ({
             deviceId: d._id,
             name: d.name,
+            slug: d.slug,
             category: d.category,
             originalPrice: d.rentPrice.perDay,
             discountPrice: d.discountPrice,
