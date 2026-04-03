@@ -11,6 +11,9 @@ import TopBannerAds from "../../components/homepage/TopBannerAds";
 import PopupAds from "../../components/homepage/PopupAds";
 import Footer from "../../components/homepage/Footer";
 import SmartGearPromoSection from "../../components/homepage/SmartGearPromoSection";
+import TestimonialsSection from "../../components/homepage/TestimonialsSection";
+import WhyChooseUsSection from "../../components/homepage/WhyChooseUsSection";
+import { RentalInstructionsSection, PaymentMethodsSection } from "../../components/homepage/InstructionSections";
 
 export default function Homepage() {
   const [devices, setDevices] = useState([]);
@@ -124,8 +127,8 @@ export default function Homepage() {
     <div className="min-h-screen flex flex-col bg-background-light">
       <Header />
 
-      <main className="flex-grow w-full max-w-[1440px] mx-auto pb-12">
-        <ScrollAnimation effect="fade" delay={0.05}>
+      <main className="flex-grow w-full max-w-[1440px] mx-auto pt-32 pb-12" data-theme="light">
+        <ScrollAnimation effect="fade" delay={0.05} className="w-full" data-theme="dark">
           <SmartGearPromoSection />
         </ScrollAnimation>
 
@@ -151,7 +154,18 @@ export default function Homepage() {
           <AISuggestedSection devices={suggestedDevices} />
         </ScrollAnimation>
 
-        <section className="px-6 lg:px-10">
+        <WhyChooseUsSection />
+
+        <section className="px-6 lg:px-10 mt-16" data-theme="dark">
+          <ScrollAnimation effect="fade" viewportAmount={0.3}>
+            <TestimonialsSection />
+          </ScrollAnimation>
+        </section>
+
+        <RentalInstructionsSection />
+        <PaymentMethodsSection />
+
+        <section className="px-6 lg:px-10 mt-20">
           <div className="flex flex-col lg:flex-row gap-10">
             <ScrollAnimation direction="left" className="w-full lg:w-5/12">
               <TrendingNowSection device={trendingDevice} />

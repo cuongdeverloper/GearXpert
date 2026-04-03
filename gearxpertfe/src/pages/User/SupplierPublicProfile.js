@@ -349,11 +349,11 @@ export default function SupplierPublicProfile() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-slate-50" data-theme="light">
       <Header />
 
       <main className="flex-grow">
-        <div className="max-w-[1440px] mx-auto px-6 pt-6">
+        <div className="max-w-[1440px] mx-auto px-6 pt-40 lg:pt-38">
           <button
             onClick={() => navigate(-1)}
             className="group inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm active:scale-95"
@@ -367,7 +367,7 @@ export default function SupplierPublicProfile() {
         <div className="max-w-[1440px] mx-auto px-6 py-6">
           <div className="relative bg-white rounded-[32px] border border-slate-200 shadow-xl overflow-hidden group/header">
             {/* Main Background Accent - SHRUNK */}
-            <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-r from-indigo-700 via-violet-600 to-indigo-500 opacity-95 group-hover/header:opacity-100 transition-opacity duration-700" />
+            <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-r from-indigo-700 via-violet-600 to-indigo-500 opacity-95 group-hover/header:opacity-100 transition-opacity duration-700" data-theme="dark" />
 
             <div className="relative px-8">
               {/* Banner Content: logoGearXpert X Shop Name */}

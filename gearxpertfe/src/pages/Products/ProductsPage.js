@@ -220,12 +220,12 @@ export default function ProductsPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-slate-50" data-theme="light">
       <Header />
 
       <main className="flex-grow w-full pb-12">
         {/* Premium Hero Section - giữ nguyên */}
-        <section className="relative w-full bg-slate-900 overflow-hidden mb-10 pt-16 pb-24 lg:pt-24 lg:pb-32">
+        <section className="relative w-full bg-slate-900 overflow-hidden mb-10 pt-48 pb-24 lg:pt-56 lg:pb-32" data-theme="dark">
           <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?q=80&w=2070')] bg-cover bg-center opacity-30 mix-blend-overlay"></div>
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-900/80 to-slate-50"></div>
 
@@ -418,7 +418,7 @@ export default function ProductsPage() {
 
 
 
-                <div className="mt-10 p-6 bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl text-white relative overflow-hidden">
+                <div className="mt-10 p-6 bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl text-white relative overflow-hidden" data-theme="dark">
                   <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
                   <h4 className="font-bold font-display text-lg mb-2 relative z-10">Bạn cần một combo?</h4>
                   <p className="text-xs text-indigo-100 mb-4 relative z-10 leading-relaxed">Giảm ngay 15% khi bạn thuê trọn bộ máy ảnh chuyên nghiệp.</p>

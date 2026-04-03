@@ -12,6 +12,7 @@ import Footer from "../../homepage/Footer";
 import RequestPasswordReset from "../reset password/RequestPasswordReset";
 import BlockedAccountModal from "./BlockedAccountModal";
 import PasswordStrengthMeter from "./PasswordStrengthMeter";
+import brandLogo from "../../../assets/logoGearXpert.png";
 
 const SignIn = () => {
   const location = useLocation();
@@ -154,7 +155,7 @@ const SignIn = () => {
       <Header />
 
       {/* Main Content Area */}
-      <main className="flex-grow flex items-center justify-center p-4 md:p-6 relative z-10 w-full">
+      <main className="flex-grow flex items-center justify-center p-4 md:p-6 pt-32 lg:pt-32 relative z-10 w-full">
         {/* Main Container */}
         <div className="relative w-full max-w-5xl">
           {/* Outer wrapper for toggle button positioning */}
@@ -171,9 +172,8 @@ const SignIn = () => {
                     <div className="relative z-10 text-white max-w-md mx-auto w-full">
                       <div className="mb-4">
                         {/* Logo removed here as it is in Header now, or keep as sub-brand? I'll keep it but maybe smaller or adjusted if needed. Keeping it for now as "Form Header". */}
-                        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-panel border-white/30 mb-3">
-                          <span className="material-symbols-outlined text-accent-cyan text-[20px] fill-current">videocam</span>
-                          <span className="text-sm font-bold tracking-wide font-display">GearXpert</span>
+                        <div className="mb-6">
+                          <img src={brandLogo} alt="GearXpert Logo" className="h-16 md:h-20 w-auto" />
                         </div>
                         <h2 className="font-bold mb-2 font-display leading-tight" style={{ fontSize: 'clamp(1.75rem, 4vw, 2.25rem)' }}>
                           Chào mừng trở lại!

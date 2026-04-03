@@ -913,7 +913,7 @@ exports.getMyRentals = async (req, res) => {
           rentalItems.map(async (item) => {
             const deliveryIssues = await mongoose
               .model("DeliveryIssueReport")
-              .find({ rentalItemId: item._id })
+              .find({ rentalItemIds: { $in: [item._id] } })
               .sort({ createdAt: -1 })
               .select(
                 "issueType description status images resolvedNote createdAt updatedAt"

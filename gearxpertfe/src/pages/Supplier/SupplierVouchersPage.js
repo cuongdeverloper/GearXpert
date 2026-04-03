@@ -6,7 +6,21 @@ import {
     updateVoucherStatusBySupplier
 } from "../../service/ApiService/VoucherApi";
 import { toast } from "react-toastify";
-import { FiPlus, FiClock, FiTag, FiSearch, FiMoreVertical, FiEye, FiEyeOff, FiRefreshCw, FiCalendar, FiDollarSign, FiHash, FiFileText, FiX } from "react-icons/fi";
+import { 
+    FiPlus, 
+    FiClock, 
+    FiTag, 
+    FiSearch, 
+    FiMoreVertical, 
+    FiEye, 
+    FiEyeOff, 
+    FiRefreshCw, 
+    FiCalendar, 
+    FiDollarSign, 
+    FiHash, 
+    FiFileText, 
+    FiX 
+} from "react-icons/fi";
 
 export default function SupplierVouchersPage() {
     const [vouchers, setVouchers] = useState([]);
@@ -121,12 +135,14 @@ export default function SupplierVouchersPage() {
                     <h1 className="text-2xl font-bold text-slate-800">Quản lý Voucher</h1>
                     <p className="text-sm text-slate-500">Xem và quản lý các chương trình khuyến mãi của bạn</p>
                 </div>
-                <button
-                    onClick={handleOpenCreate}
-                    className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl font-bold hover:bg-primary-dark transition-all shadow-lg shadow-primary/20"
-                >
-                    <FiPlus /> Tạo Voucher mới
-                </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={handleOpenCreate}
+                        className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl font-bold hover:bg-primary-dark transition-all shadow-lg shadow-primary/20"
+                    >
+                        <FiPlus /> Tạo Voucher mới
+                    </button>
+                </div>
             </div>
 
             <div className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
@@ -352,9 +368,10 @@ export default function SupplierVouchersPage() {
                                             <input
                                                 required
                                                 type="number"
+                                                min="0"
                                                 className="w-full pl-4 pr-10 py-3.5 bg-white border-2 border-transparent rounded-[18px] focus:border-indigo-500/20 outline-none transition-all font-black text-slate-800 shadow-sm"
                                                 value={formData.discountValue}
-                                                onChange={(e) => setFormData({ ...formData, discountValue: e.target.value })}
+                                                onChange={(e) => setFormData({ ...formData, discountValue: Math.max(0, parseFloat(e.target.value) || 0) })}
                                             />
                                             <span className="absolute right-4 top-1/2 -translate-y-1/2 font-black text-indigo-500">
                                                 {formData.discountType === 'PERCENT' ? '%' : 'đ'}
@@ -368,19 +385,22 @@ export default function SupplierVouchersPage() {
                                         <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Lượt dùng tối đa</label>
                                         <input
                                             type="number"
+                                            required
+                                            min="1"
                                             className="w-full px-4 py-3.5 bg-white border-2 border-transparent rounded-[18px] focus:border-indigo-500/20 outline-none transition-all font-bold text-slate-700 shadow-sm"
                                             value={formData.usageLimit}
-                                            onChange={(e) => setFormData({ ...formData, usageLimit: e.target.value })}
+                                            onChange={(e) => setFormData({ ...formData, usageLimit: parseInt(e.target.value) || 1 })}
                                         />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Giảm tối đa (đ)</label>
                                         <input
                                             type="number"
+                                            min="0"
                                             placeholder="Không giới hạn"
                                             className="w-full px-4 py-3.5 bg-white border-2 border-transparent rounded-[18px] focus:border-indigo-500/20 outline-none transition-all font-bold text-slate-700 shadow-sm placeholder:text-slate-200"
                                             value={formData.maxDiscount}
-                                            onChange={(e) => setFormData({ ...formData, maxDiscount: e.target.value })}
+                                            onChange={(e) => setFormData({ ...formData, maxDiscount: Math.max(0, parseFloat(e.target.value) || 0) })}
                                         />
                                     </div>
                                 </div>
@@ -391,9 +411,10 @@ export default function SupplierVouchersPage() {
                                     </label>
                                     <input
                                         type="number"
+                                        min="0"
                                         className="w-full px-4 py-3.5 bg-white border-2 border-transparent rounded-[18px] focus:border-indigo-500/20 outline-none transition-all font-bold text-slate-700 shadow-sm"
                                         value={formData.minOrderValue}
-                                        onChange={(e) => setFormData({ ...formData, minOrderValue: e.target.value })}
+                                        onChange={(e) => setFormData({ ...formData, minOrderValue: Math.max(0, parseFloat(e.target.value) || 0) })}
                                     />
                                 </div>
                             </div>

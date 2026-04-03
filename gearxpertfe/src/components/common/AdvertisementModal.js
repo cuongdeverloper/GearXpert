@@ -1,14 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
 import { postAdvertisement } from '../../service/ApiService/AdvertisementApi';
-import { FiX, FiUpload, FiCheckCircle, FiInfo, FiLayout, FiLayers } from 'react-icons/fi';
+import { getSupplierDevices } from '../../service/ApiService/DeviceApi';
+import { FiX, FiUpload, FiCheckCircle, FiInfo, FiLayout, FiLayers, FiLink, FiPackage, FiSearch } from 'react-icons/fi';
 
-export default function AdvertisementModal({ isOpen, onClose, onSuccess }) {
+export default function AdvertisementModal({ isOpen, onClose, onSuccess, preselectSlug, preselectName }) {
     const navigate = useNavigate();
+    const userAccount = useSelector((state) => state.user.account);
     const [loading, setLoading] = useState(false);
     const [imagePreview, setImagePreview] = useState(null);
+    const [linkMode, setLinkMode] = useState('MANUAL'); // 'MANUAL' or 'PRODUCT'
+    const [devices, setDevices] = useState([]);
+    const [loadingDevices, setLoadingDevices] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedName, setSelectedName] = useState('');
     const [formData, setFormData] = useState({
         title: '',
         description: '',
@@ -18,6 +26,39 @@ export default function AdvertisementModal({ isOpen, onClose, onSuccess }) {
         endDate: '',
         dailyBudget: 100000, // Default 100k
     });
+
+    const fetchDevices = useCallback(async () => {
+        setLoadingDevices(true);
+        try {
+            const response = await getSupplierDevices(userAccount.id, { limit: 100 });
+            if (response && response.devices) {
+                setDevices(response.devices);
+            }
+        } catch (error) {
+            console.error("Error fetching supplier devices:", error);
+            // toast.error("Không thể tải danh sách sản phẩm");
+        } finally {
+            setLoadingDevices(false);
+        }
+    }, [userAccount?.id]);
+
+    useEffect(() => {
+        if (isOpen) {
+            if (preselectSlug) {
+                setLinkMode('PRODUCT');
+                setFormData(prev => ({ ...prev, link: `/device/${preselectSlug}` }));
+                if (preselectName) setSelectedName(preselectName);
+            }
+            
+            if (linkMode === 'PRODUCT' && userAccount?.id) {
+                fetchDevices();
+            }
+        }
+    }, [isOpen, linkMode, userAccount?.id, preselectSlug, preselectName, fetchDevices]);
+
+    const filteredDevices = devices.filter(d => 
+        d.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     const calculateDays = () => {
         if (!formData.startDate || !formData.endDate) return 0;
@@ -115,11 +156,13 @@ export default function AdvertisementModal({ isOpen, onClose, onSuccess }) {
                 // Reset form
                 setFormData({ title: '', description: '', link: '', adsType: [], startDate: '', endDate: '', dailyBudget: 100000 });
                 setImagePreview(null);
+                setSelectedName('');
+                setLinkMode('PRODUCT'); // Default back to product
             } else if (response.errorCode === 2) {
                 toast.error(response.message);
                 if (window.confirm("Số dư không đủ. Bạn có muốn nạp thêm tiền không?")) {
                     onClose();
-                    navigate('/wallet');
+                    navigate('/user/wallet');
                 }
             } else {
                 toast.error(response.message || 'Có lỗi xảy ra');
@@ -133,7 +176,7 @@ export default function AdvertisementModal({ isOpen, onClose, onSuccess }) {
                 toast.error(errorMessage);
                 if (window.confirm("Số dư không đủ. Bạn có muốn nạp thêm tiền không?")) {
                     onClose();
-                    navigate('/wallet');
+                    navigate('/user/wallet');
                 }
             } else {
                 toast.error(errorMessage || 'Có lỗi xảy ra khi đăng quảng cáo');
@@ -210,18 +253,104 @@ export default function AdvertisementModal({ isOpen, onClose, onSuccess }) {
                                         ></textarea>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                            Đường dẫn (Link) <span className="text-rose-500">*</span>
+                                        <label className="block text-sm font-semibold text-slate-700 mb-3">
+                                            Đường dẫn quảng bá <span className="text-rose-500">*</span>
                                         </label>
-                                        <input
-                                            type="url"
-                                            name="link"
-                                            value={formData.link}
-                                            onChange={handleInputChange}
-                                            required
-                                            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-slate-400"
-                                            placeholder="https://example.com/promotion"
-                                        />
+                                        
+                                        {/* Link mode switcher */}
+                                        <div className="flex p-1 bg-slate-100 rounded-xl mb-4">
+                                            <button
+                                                type="button"
+                                                onClick={() => setLinkMode('PRODUCT')}
+                                                className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${
+                                                    linkMode === 'PRODUCT' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                                                }`}
+                                            >
+                                                <FiPackage size={14} />
+                                                Chọn sản phẩm
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setLinkMode('MANUAL')}
+                                                className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${
+                                                    linkMode === 'MANUAL' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                                                }`}
+                                            >
+                                                <FiLink size={14} />
+                                                Link tùy chỉnh
+                                            </button>
+                                        </div>
+
+                                        {linkMode === 'PRODUCT' ? (
+                                            <div className="space-y-3">
+                                                <div className="relative">
+                                                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Tìm kiếm sản phẩm của bạn..."
+                                                        value={searchTerm}
+                                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                                        className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary outline-none"
+                                                    />
+                                                </div>
+
+                                                <div className="max-h-[200px] overflow-y-auto border border-slate-200 rounded-xl bg-slate-50 p-2 space-y-1 custom-scrollbar">
+                                                    {loadingDevices ? (
+                                                        <div className="py-8 text-center">
+                                                            <div className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin mx-auto"></div>
+                                                        </div>
+                                                    ) : filteredDevices.length > 0 ? (
+                                                        filteredDevices.map(device => (
+                                                            <div
+                                                                key={device._id}
+                                                                onClick={() => {
+                                                                    setFormData(prev => ({ ...prev, link: `/device/${device.slug}` }));
+                                                                    setSelectedName(device.name);
+                                                                }}
+                                                                className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all ${
+                                                                    formData.link === `/device/${device.slug}`
+                                                                        ? 'bg-primary/10 border border-primary/20'
+                                                                        : 'hover:bg-white border border-transparent'
+                                                                }`}
+                                                            >
+                                                                <img src={device.images?.[0] || 'https://via.placeholder.com/150'} alt="" className="w-10 h-10 rounded-md object-cover" />
+                                                                <div className="min-w-0">
+                                                                    <p className="text-xs font-bold text-slate-900 truncate">{device.name}</p>
+                                                                    <p className="text-[10px] text-slate-500">{device.rentPrice?.perDay?.toLocaleString()}₫/ngày</p>
+                                                                </div>
+                                                                {formData.link === `/device/${device.slug}` && (
+                                                                    <FiCheckCircle className="ml-auto text-primary" size={16} />
+                                                                )}
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <p className="text-center py-8 text-xs text-slate-400 italic">Không tìm thấy sản phẩm nào</p>
+                                                    )}
+                                                </div>
+                                                
+                                                {formData.link && formData.link.startsWith('/device/') && (
+                                                    <div className="flex items-center gap-2 p-2 bg-emerald-50 border border-emerald-100 rounded-lg animate-fade-in">
+                                                        <FiCheckCircle className="text-emerald-500 shrink-0" size={14} />
+                                                        <p className="text-[10px] text-emerald-700 font-bold truncate">Đã chọn: {selectedName || formData.link}</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                <input
+                                                    type="text"
+                                                    name="link"
+                                                    value={formData.link}
+                                                    onChange={handleInputChange}
+                                                    required
+                                                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-slate-400 text-sm"
+                                                    placeholder="Dán đường dẫn (https://... hoặc /device/...)"
+                                                />
+                                                <p className="text-[10px] text-slate-400 italic">
+                                                    * Bạn có thể dán link trang shop, link bộ sưu tập hoặc bất kỳ trang nào hợp lệ.
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-4">

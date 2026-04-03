@@ -11,6 +11,7 @@ import {
   FiTruck,
   FiShield,
   FiChevronDown,
+  FiTarget,
 } from "react-icons/fi";
 
 const sections = [
@@ -24,13 +25,22 @@ const sections = [
   },
   {
     id: "products",
-    title: "Sản phẩm cho thuê",
+    title: "Quản lý thiết bị",
     icon: FiBox,
     items: [
       { to: "/supplier/devices", label: "Danh sách thiết bị" },
       { to: "/supplier/devices/new", label: "Thêm thiết bị mới" },
       { to: "/supplier/inventory", label: "Quản lý kho" },
-      { to: "/supplier/vouchers", label: "Mã giảm giá" },
+    ],
+  },
+  {
+    id: "marketing",
+    title: "Trung tâm tiếp thị",
+    icon: FiTarget,
+    items: [
+      { to: "/supplier/advertisements", label: "Chiến dịch quảng cáo" },
+      { to: "/supplier/vouchers", label: "Mã giảm giá shop" },
+      { to: "/supplier/ai-pricing", label: "Giá linh động AI" },
     ],
   },
   {
