@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector } from 'react-redux';
+import { toast } from 'react-toastify';
 import {
   Truck, PackageCheck, Wrench,
   CheckCircle, X, MapPin, Phone, FileText,
@@ -85,7 +86,8 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
     if (!selectedTask || pickupLoading) return;
 
     if (selectedTask.type === 'delivery' && selectedTask.assignedOperationStaffId && String(selectedTask.assignedOperationStaffId) !== String(currentStaffId)) {
-      return alert('Đơn này đã được lock cho staff khác.');
+      toast.error('Đơn này đã được lock cho staff khác.');
+      return;
     }
 
     setPickupLoading(true);
@@ -113,7 +115,7 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
       }).catch(() => {});
     } catch (err) {
       console.error('Lỗi xác nhận lấy hàng:', err);
-      alert(err?.response?.data?.message || 'Không thể xác nhận lấy hàng');
+      toast.error(err?.response?.data?.message || 'Không thể xác nhận lấy hàng');
     } finally {
       setPickupLoading(false);
     }
@@ -148,11 +150,13 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
   const handleClaimTask = async () => {
     if (!selectedTask || selectedTask.type !== 'delivery') return;
     if (!selectedTask.deliveryTaskId) {
-      return alert('Task giao hàng chưa sẵn sàng để nhận.');
+      toast.error('Task giao hàng chưa sẵn sàng để nhận.');
+      return;
     }
 
     if (isSelectedLockedByOther) {
-      return alert('Đơn đã được lock cho staff khác.');
+      toast.error('Đơn đã được lock cho staff khác.');
+      return;
     }
 
     setClaimLoading(true);
@@ -187,9 +191,9 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
           : prev
       );
 
-      alert('Nhận đơn thành công. Đơn đã lock cho bạn.');
+      toast.success('Nhận đơn thành công. Đơn đã lock cho bạn.');
     } catch (err) {
-      alert(err?.response?.data?.message || 'Không thể nhận đơn');
+      toast.error(err?.response?.data?.message || 'Không thể nhận đơn');
     } finally {
       setClaimLoading(false);
     }

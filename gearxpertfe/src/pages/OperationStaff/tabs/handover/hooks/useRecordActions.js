@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { toast } from "react-toastify";
 import { confirmReturn } from "../../../../../service/ApiService/RentalApi";
 import {
   createHandoverDraft,
@@ -44,7 +45,7 @@ export default function useRecordActions({
       const refreshed = await fetchAttempts(rentalId);
       const nextActive = refreshed.find((x) => ["DRAFT", "IN_PROGRESS"].includes(x.status)) || null;
       if (!silent) {
-        alert("Đã chuẩn bị biên bản draft.");
+        toast.info("Đã chuẩn bị biên bản draft.");
       }
       return nextActive;
     },
@@ -84,7 +85,7 @@ export default function useRecordActions({
     try {
       const attempt = await resolveReadyAttempt();
       if (!attempt) {
-        alert("Không thể chuẩn bị biên bản để lưu kiểm tra.");
+        toast.error("Không thể chuẩn bị biên bản để lưu kiểm tra.");
         return;
       }
 
@@ -99,9 +100,9 @@ export default function useRecordActions({
         await saveReturnInspection(attempt.id, payload);
       }
       await fetchAttempts(selectedRentalId);
-      alert("Đã lưu kiểm tra thiết bị/phụ kiện.");
+      toast.success("Đã lưu kiểm tra thiết bị/phụ kiện.");
     } catch (error) {
-      alert(error?.response?.data?.message || "Không lưu được kiểm tra");
+      toast.error(error?.response?.data?.message || "Không lưu được kiểm tra");
     } finally {
       setWorking(false);
     }
@@ -120,7 +121,7 @@ export default function useRecordActions({
     try {
       const attempt = await resolveReadyAttempt();
       if (!attempt) {
-        alert("Không thể chuẩn bị biên bản để xác nhận thành công.");
+        toast.error("Không thể chuẩn bị biên bản để xác nhận thành công.");
         return;
       }
 
@@ -135,7 +136,7 @@ export default function useRecordActions({
           .map(([, label]) => label);
 
         if (missingChecklist.length > 0) {
-          alert(
+          toast.error(
             `Để xác nhận giao thành công, vui lòng hoàn tất Inspection Checklist: ${missingChecklist.join(", ")}.`
           );
           return;
@@ -143,7 +144,7 @@ export default function useRecordActions({
       }
 
       if (!confirmForm.operatorNote?.trim()) {
-        alert("Vui lòng ghi chú chi tiết kiểm tra thiết bị/phụ kiện.");
+        toast.error("Vui lòng ghi chú chi tiết kiểm tra thiết bị/phụ kiện.");
         return;
       }
 
@@ -157,7 +158,7 @@ export default function useRecordActions({
         (selectedRental?.phone && selectedRental.phone !== "-" ? selectedRental.phone.trim() : "");
 
       if (!confirmerName) {
-        alert("Vui lòng nhập tên người xác nhận nhận hàng.");
+        toast.error("Vui lòng nhập tên người xác nhận nhận hàng.");
         return;
       }
 
@@ -232,13 +233,13 @@ export default function useRecordActions({
 
       await fetchAttempts(selectedRentalId);
       await fetchRentals();
-      alert(
+      toast.success(
         flowContext === "DELIVERY"
           ? "Xác nhận bàn giao thành công. Đơn đã chuyển RENTING."
           : "Xác nhận thu hồi thành công. Đơn đã hoàn tất."
       );
     } catch (error) {
-      alert(
+      toast.error(
         error?.response?.data?.message ||
           (flowContext === "DELIVERY"
             ? "Không thể xác nhận bàn giao thành công"
@@ -265,12 +266,12 @@ export default function useRecordActions({
     try {
       const attempt = await resolveReadyAttempt();
       if (!attempt) {
-        alert("Không thể chuẩn bị biên bản để ghi nhận thất bại.");
+        toast.error("Không thể chuẩn bị biên bản để ghi nhận thất bại.");
         return;
       }
 
       if (!failureForm.reason) {
-        alert("Vui lòng chọn lý do giao thất bại.");
+        toast.error("Vui lòng chọn lý do giao thất bại.");
         return;
       }
 
@@ -333,13 +334,13 @@ export default function useRecordActions({
       if (flowContext === "RETURN") {
         await fetchRentals();
       }
-      alert(
+      toast.success(
         flowContext === "DELIVERY"
           ? "Đã ghi nhận bàn giao thất bại và lưu bằng chứng."
           : "Đã ghi nhận thu hồi thất bại và lưu bằng chứng."
       );
     } catch (error) {
-      alert(error?.response?.data?.message || "Không thể ghi nhận thất bại");
+      toast.error(error?.response?.data?.message || "Không thể ghi nhận thất bại");
     } finally {
       setWorking(false);
     }
@@ -367,13 +368,13 @@ export default function useRecordActions({
         await createReturnRetryAttempt(selectedRentalId, {});
       }
       await fetchAttempts(selectedRentalId);
-      alert(
+      toast.success(
         flowContext === "DELIVERY"
           ? "Đã tạo attempt giao lại mới."
           : "Đã tạo attempt thu hồi lại mới."
       );
     } catch (error) {
-      alert(
+      toast.error(
         error?.response?.data?.message ||
           (flowContext === "DELIVERY"
             ? "Không thể tạo attempt giao lại"

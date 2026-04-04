@@ -1,4 +1,5 @@
 import React, { useRef } from "react";
+import { toast } from "react-toastify";
 import { CircleX, Upload, X } from "lucide-react";
 import { FAILURE_OPTIONS } from "../constants";
 
@@ -31,7 +32,7 @@ export default function FailureConfirmCard({
     try {
       newUrls = await Promise.all(selectedFiles.map((file) => toDataUrl(file)));
     } catch (error) {
-      alert("Không thể xem trước ảnh, vui lòng thử lại.");
+      toast.error("Không thể xem trước ảnh, vui lòng thử lại.");
       return;
     }
 
@@ -54,7 +55,7 @@ export default function FailureConfirmCard({
 
   const handleConfirmFail = () => {
     if (!failureForm.operatorNote?.trim()) {
-      alert("Vui lòng ghi chú chi tiết lý do giao thất bại.");
+      toast.error("Vui lòng ghi chú chi tiết lý do giao thất bại.");
       return;
     }
     onFail();

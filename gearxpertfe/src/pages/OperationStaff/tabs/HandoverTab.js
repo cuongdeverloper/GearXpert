@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState, useEffect } from "react";
+import { toast } from "react-toastify";
 import { useSelector } from "react-redux";
 import {
   ClipboardCheck,
@@ -159,7 +160,7 @@ export default function HandoverTab({
       });
       setRentals(mineOnly);
     } catch (error) {
-      alert(
+      toast.error(
         error?.response?.data?.message ||
           (flowContext === "DELIVERY"
             ? "Không tải được danh sách đơn đang giao"
@@ -195,7 +196,7 @@ export default function HandoverTab({
         }
         return data;
       } catch (error) {
-        alert(error?.response?.data?.message || "Không tải được lịch sử bàn giao");
+        toast.error(error?.response?.data?.message || "Không tải được lịch sử bàn giao");
         return [];
       } finally {
         setLoadingAttempts(false);

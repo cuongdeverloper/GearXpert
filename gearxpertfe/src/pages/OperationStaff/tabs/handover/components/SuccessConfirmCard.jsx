@@ -1,4 +1,5 @@
 import React, { useRef } from "react";
+import { toast } from "react-toastify";
 import { CircleCheck, ShieldCheck, Upload, X } from "lucide-react";
 
 export default function SuccessConfirmCard({
@@ -29,7 +30,7 @@ export default function SuccessConfirmCard({
     try {
       newUrls = await Promise.all(selectedFiles.map((file) => toDataUrl(file)));
     } catch (error) {
-      alert("Không thể xem trước ảnh, vui lòng thử lại.");
+      toast.error("Không thể xem trước ảnh, vui lòng thử lại.");
       return;
     }
 
@@ -52,7 +53,7 @@ export default function SuccessConfirmCard({
 
   const handleConfirmSuccess = () => {
     if (!confirmForm.operatorNote?.trim()) {
-      alert("Vui lòng ghi chú chi tiết kiểm tra thiết bị/phụ kiện.");
+      toast.error("Vui lòng ghi chú chi tiết kiểm tra thiết bị/phụ kiện.");
       return;
     }
     onConfirmSuccess();
