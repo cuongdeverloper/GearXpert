@@ -23,14 +23,24 @@ const menu = [
     desc: "Xem, duyệt và theo dõi yêu cầu đặt thuê.",
   },
   {
+    to: "/supplier/reviews",
+    label: "Đánh giá",
+    desc: "Theo dõi nhận xét và số sao của khách cho từng thiết bị.",
+  },
+  {
     to: "/supplier/maintenance",
     label: "Bảo trì",
     desc: "Quy trình bảo trì và sẵn có thiết bị.",
   },
   {
     to: "/supplier/revenue",
-    label: "Tài chính",
-    desc: "Doanh thu, tiền cọc, phí và rút tiền.",
+    label: "Doanh thu",
+    desc: "Theo dõi doanh thu và báo cáo tài chính.",
+  },
+  {
+    to: "/supplier/wallet",
+    label: "Ví tiền",
+    desc: "Nạp, rút và lịch sử giao dịch ví.",
   },
 ];
 

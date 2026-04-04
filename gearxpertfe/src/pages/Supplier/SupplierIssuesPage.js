@@ -1,3 +1,4 @@
+/** Báo cáo sự cố supplier — chỉ dữ liệu API (không mock). */
 import { useEffect, useState, useMemo } from "react";
 import {
   FiAlertTriangle,
@@ -41,6 +42,7 @@ const ISSUE_TYPE_STYLES = {
 const STATUS_LABELS = {
   OPEN: "Mở",
   PROCESSING: "Đang xử lý",
+  WAITING_EVIDENCE: "Chờ bằng chứng",
   RESOLVED: "Đã xử lý",
   REJECTED: "Từ chối",
   VERIFIED: "Đã xác nhận",
@@ -49,6 +51,7 @@ const STATUS_LABELS = {
 const STATUS_STYLES = {
   OPEN: "bg-red-50 text-red-700 border-red-200",
   PROCESSING: "bg-amber-50 text-amber-700 border-amber-200",
+  WAITING_EVIDENCE: "bg-violet-50 text-violet-800 border-violet-200",
   RESOLVED: "bg-green-50 text-green-700 border-green-200",
   REJECTED: "bg-slate-50 text-slate-700 border-slate-200",
   VERIFIED: "bg-blue-50 text-blue-700 border-blue-200",
@@ -99,21 +102,24 @@ export default function SupplierIssuesPage() {
   const [lightboxImg, setLightboxImg] = useState(null);
 
   useEffect(() => {
+    const fetchIssues = async () => {
+      try {
+        setLoading(true);
+        const res = await getSupplierIssues();
+        const deliveryIssues =
+          res?.deliveryIssues ?? res?.data?.deliveryIssues ?? [];
+        const damageReports =
+          res?.damageReports ?? res?.data?.damageReports ?? [];
+        setDeliveryIssues(deliveryIssues);
+        setDamageReports(damageReports);
+      } catch {
+        toast.error("Không thể tải danh sách sự cố");
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchIssues();
   }, []);
-
-  const fetchIssues = async () => {
-    try {
-      setLoading(true);
-      const res = await getSupplierIssues();
-      setDeliveryIssues(res.data?.deliveryIssues || []);
-      setDamageReports(res.data?.damageReports || []);
-    } catch {
-      toast.error("Không thể tải danh sách sự cố");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Normalize into unified list for display
   const allIssues = useMemo(() => {
@@ -511,13 +517,13 @@ function IssueCard({ issue, onImageClick }) {
           </div>
 
           {/* Resolved note */}
-          {issue.resolvedNote && (
+          {(issue.resolutionNote || issue.resolvedNote) && (
             <div>
               <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">
                 Ghi chú xử lý
               </h4>
               <p className="text-sm text-slate-700 whitespace-pre-wrap">
-                {issue.resolvedNote}
+                {issue.resolutionNote || issue.resolvedNote}
               </p>
             </div>
           )}

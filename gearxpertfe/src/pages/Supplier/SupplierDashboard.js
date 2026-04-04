@@ -51,7 +51,9 @@ const EMPTY_FOLLOWER_STATS = {
   monthlyNewFollows: [],
 };
 
-const formatMillions = (value) => `${((value || 0) / 1_000_000).toFixed(1)} tr`;
+/** Số tiền đầy đủ (không viết tắt tr/M) */
+const formatVnd = (value) =>
+  `${Number(value ?? 0).toLocaleString("vi-VN")} đ`;
 
 /** So sánh % cur so với prev; null nếu không tính được */
 function pctVersusPrevious(prev, cur) {
@@ -315,7 +317,7 @@ export default function SupplierDashboard() {
               const i = item.dataIndex;
               const v = recentTxChartSlice[i]?.amount ?? item.raw ?? 0;
               const sign = v >= 0 ? "+" : "−";
-              return ` ${sign}${Math.abs(v).toLocaleString("vi-VN")} ₫`;
+              return ` ${sign}${Math.abs(v).toLocaleString("vi-VN")} đ`;
             },
             afterLabel: (item) => {
               const i = item.dataIndex;
@@ -330,10 +332,7 @@ export default function SupplierDashboard() {
           grid: { color: "rgba(0,0,0,0.04)" },
           ticks: {
             font: CHART_FONT,
-            callback: (v) =>
-              v >= 1e6 || v <= -1e6
-                ? `${(v / 1e6).toFixed(1)} tr ₫`
-                : `${v.toLocaleString("vi-VN")} ₫`,
+            callback: (v) => `${Number(v).toLocaleString("vi-VN")} đ`,
           },
         },
       },
@@ -400,8 +399,8 @@ export default function SupplierDashboard() {
               <FiDollarSign size={20} className="text-violet-600" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-slate-900 tracking-tight">
-            {formatMillions(summary.monthlyRevenue)}
+          <p className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight break-words">
+            {formatVnd(summary.monthlyRevenue)}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <KpiTrend trend={revenuePeriodTrend} />
@@ -424,8 +423,8 @@ export default function SupplierDashboard() {
               <FiTrendingUp size={20} className="text-emerald-600" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-slate-900 tracking-tight">
-            {formatMillions(summary.totalRevenue)}
+          <p className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight break-words">
+            {formatVnd(summary.totalRevenue)}
           </p>
           <p className="text-xs text-slate-400 mt-3">Đã thanh toán, trừ hoàn tiền</p>
         </div>
@@ -720,11 +719,11 @@ const barOptions = {
   maintainAspectRatio: false,
   plugins: {
     legend: { position: "top", align: "end", labels: { font: CHART_FONT, boxWidth: 12, padding: 12 } },
-    tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${(c.raw || 0).toLocaleString("vi-VN")} ₫` } },
+    tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${(c.raw || 0).toLocaleString("vi-VN")} đ` } },
   },
   scales: {
     x: { grid: { display: false }, ticks: { font: CHART_FONT } },
-    y: { grid: { color: "rgba(0,0,0,0.04)" }, ticks: { font: CHART_FONT, callback: (v) => v >= 1e6 ? `${(v / 1e6).toFixed(1)} tr ₫` : v.toLocaleString("vi-VN") + " ₫" } },
+    y: { grid: { color: "rgba(0,0,0,0.04)" }, ticks: { font: CHART_FONT, callback: (v) => `${Number(v).toLocaleString("vi-VN")} đ` } },
   },
 };
 
@@ -738,14 +737,14 @@ const lineOptions = {
       callbacks: {
         label: (c) =>
           c.datasetIndex === 0
-            ? `${c.dataset.label}: ${(c.raw || 0).toLocaleString("vi-VN")} ₫`
+            ? `${c.dataset.label}: ${(c.raw || 0).toLocaleString("vi-VN")} đ`
             : `${c.dataset.label}: ${c.raw}`,
       },
     },
   },
   scales: {
     x: { grid: { display: false }, ticks: { font: CHART_FONT } },
-    y: { position: "left", grid: { color: "rgba(0,0,0,0.04)" }, ticks: { font: CHART_FONT, callback: (v) => v >= 1e6 ? `${(v / 1e6).toFixed(1)} tr ₫` : v.toLocaleString("vi-VN") + " ₫" } },
+    y: { position: "left", grid: { color: "rgba(0,0,0,0.04)" }, ticks: { font: CHART_FONT, callback: (v) => `${Number(v).toLocaleString("vi-VN")} đ` } },
     y1: { position: "right", grid: { display: false }, ticks: { font: CHART_FONT, stepSize: 1 } },
   },
 };
@@ -756,10 +755,10 @@ const horizontalBarOptions = {
   indexAxis: "y",
   plugins: {
     legend: { display: false },
-    tooltip: { callbacks: { label: (c) => `${(c.raw || 0).toLocaleString("vi-VN")} ₫` } },
+    tooltip: { callbacks: { label: (c) => `${(c.raw || 0).toLocaleString("vi-VN")} đ` } },
   },
   scales: {
-    x: { grid: { color: "rgba(0,0,0,0.04)" }, ticks: { font: CHART_FONT, callback: (v) => v >= 1e6 ? `${(v / 1e6).toFixed(1)} tr ₫` : v.toLocaleString("vi-VN") + " ₫" } },
+    x: { grid: { color: "rgba(0,0,0,0.04)" }, ticks: { font: CHART_FONT, callback: (v) => `${Number(v).toLocaleString("vi-VN")} đ` } },
     y: { grid: { display: false }, ticks: { font: { ...CHART_FONT, size: 10 } } },
   },
 };

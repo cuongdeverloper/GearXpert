@@ -10,6 +10,7 @@ import {
   FiShield,
   FiChevronDown,
   FiAlertTriangle,
+  FiBell,
 } from "react-icons/fi";
 import { NavLink } from "react-router-dom";
 import logo from "../../../assets/logoGearXpert.png";
@@ -57,6 +58,7 @@ const sections = [
     icon: FiClipboard,
     items: [
       { to: "/supplier/rental-requests", label: "Yêu cầu đặt thuê" },
+      { to: "/supplier/reviews", label: "Quản lý đánh giá" },
       { label: "Chờ xác nhận", muted: true },
       { label: "Đã xác nhận", muted: true },
       { label: "Đang thuê", muted: true },
@@ -86,6 +88,7 @@ const sections = [
     icon: FiDollarSign,
     items: [
       { to: "/supplier/revenue", label: "Doanh thu" },
+      { to: "/supplier/wallet", label: "Ví tiền" },
       { label: "Tiền cọc đang giữ", muted: true },
       { label: "Phí nền tảng", muted: true },
       { label: "Rút tiền", muted: true },
@@ -111,8 +114,9 @@ function classNames(...xs) {
 export default function SupplierMobileDrawer({ open, onClose }) {
   const [openSections, setOpenSections] = useState({
     dashboard: true,
+    alerts: true,
     products: true,
-    calendar: false,
+    calendar: true,
     bookings: true,
     issues: true,
     delivery: false,
