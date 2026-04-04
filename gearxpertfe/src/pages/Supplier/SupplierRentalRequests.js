@@ -13,7 +13,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getSupplierRentalRequests } from "../../service/ApiService/RentalApi";
-import { rejectRental, startDelivery } from "../../service/ApiService/RentalActionApi";
+import {
+  rejectRental,
+  startDelivery,
+} from "../../service/ApiService/RentalActionApi";
 import { toast } from "react-toastify";
 import { confirmDialog } from "../../utils/confirmDialog";
 import RentalDetail from "../../components/common/RentalDetail";
@@ -25,6 +28,7 @@ const STATUS_LABELS = {
   RENTING: "Đang thuê",
   RETURNING: "Đang trả",
   INSPECTING: "Đang kiểm tra",
+  PENDING_RESOLUTION: "Sự cố / Chờ giải quyết",
   COMPLETED: "Đã trả",
   REJECTED: "Từ chối",
   CANCELLED: "Đã hủy",
@@ -36,6 +40,7 @@ const STATUS_STYLES = {
   RENTING: "bg-indigo-50 text-indigo-700 border-indigo-200",
   RETURNING: "bg-purple-50 text-purple-700 border-purple-200",
   INSPECTING: "bg-slate-50 text-slate-700 border-slate-200",
+  PENDING_RESOLUTION: "bg-red-50 text-red-700 border-red-200",
   COMPLETED: "bg-green-50 text-green-700 border-green-200",
   REJECTED: "bg-rose-50 text-rose-700 border-rose-200",
   CANCELLED: "bg-red-50 text-red-700 border-red-200",
@@ -43,7 +48,13 @@ const STATUS_STYLES = {
 
 const STATUS_GROUPS = {
   PENDING: ["PENDING"],
-  RENTING: ["DELIVERING", "RENTING", "RETURNING", "INSPECTING"],
+  RENTING: [
+    "DELIVERING",
+    "RENTING",
+    "RETURNING",
+    "INSPECTING",
+    "PENDING_RESOLUTION",
+  ],
   RETURNED: ["COMPLETED"],
   CANCELLED: ["CANCELLED", "REJECTED"],
 };
@@ -53,10 +64,15 @@ const TABS = [
   { key: "PENDING", label: "Chờ xử lý", statuses: STATUS_GROUPS.PENDING },
   { key: "RENTING", label: "Đang thuê", statuses: STATUS_GROUPS.RENTING },
   { key: "RETURNED", label: "Đã trả", statuses: STATUS_GROUPS.RETURNED },
-  { key: "CANCELLED", label: "Hủy / Từ chối", statuses: STATUS_GROUPS.CANCELLED },
+  {
+    key: "CANCELLED",
+    label: "Hủy / Từ chối",
+    statuses: STATUS_GROUPS.CANCELLED,
+  },
 ];
 
-const formatMoney = (value) => new Intl.NumberFormat("vi-VN").format(value || 0);
+const formatMoney = (value) =>
+  new Intl.NumberFormat("vi-VN").format(value || 0);
 
 const formatDate = (dateString) => {
   if (!dateString) return "—";
@@ -156,7 +172,10 @@ export default function SupplierRentalRequests() {
   const [detailModal, setDetailModal] = useState({ open: false, rental: null });
   const [rejectModal, setRejectModal] = useState({ open: false, rental: null });
   const [rejectSubmitting, setRejectSubmitting] = useState(false);
-  const [deliveryModal, setDeliveryModal] = useState({ open: false, rental: null });
+  const [deliveryModal, setDeliveryModal] = useState({
+    open: false,
+    rental: null,
+  });
 
   const fetchRequests = useCallback(async () => {
     if (!user?.id) {
@@ -166,11 +185,14 @@ export default function SupplierRentalRequests() {
     setLoading(true);
     try {
       const res = await getSupplierRentalRequests(user.id, {
-        status: "PENDING,REJECTED,DELIVERING,RENTING,RETURNING,INSPECTING,COMPLETED,CANCELLED",
+        status:
+          "PENDING,REJECTED,DELIVERING,RENTING,RETURNING,INSPECTING,PENDING_RESOLUTION,COMPLETED,CANCELLED",
       });
       setRequests(res?.rentals || []);
     } catch (error) {
-      toast.error(error?.response?.data?.message || "Không tải được danh sách đơn hàng");
+      toast.error(
+        error?.response?.data?.message || "Không tải được danh sách đơn hàng",
+      );
       setRequests([]);
     } finally {
       setLoading(false);
@@ -188,7 +210,7 @@ export default function SupplierRentalRequests() {
       navigate("/supplier/rental-requests", { replace: true });
 
     const found = requests.find(
-      (r) => String(r._id) === String(rentalFromNotif)
+      (r) => String(r._id) === String(rentalFromNotif),
     );
     if (found) {
       setDetailModal({ open: true, rental: found });
@@ -201,7 +223,7 @@ export default function SupplierRentalRequests() {
   const handleStartDelivery = async (rental) => {
     if (!isRentalPeriodOpenForDelivery(rental)) {
       toast.error(
-        "Kỳ thuê đã kết thúc theo lịch đặt. Vui lòng từ chối đơn hoặc liên hệ khách hàng để đặt lại."
+        "Kỳ thuê đã kết thúc theo lịch đặt. Vui lòng từ chối đơn hoặc liên hệ khách hàng để đặt lại.",
       );
       return;
     }
@@ -221,7 +243,9 @@ export default function SupplierRentalRequests() {
       toast.success("Đã bắt đầu giao hàng!");
       fetchRequests();
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Không thể bắt đầu giao hàng");
+      toast.error(
+        err?.response?.data?.message || "Không thể bắt đầu giao hàng",
+      );
     }
   };
 
@@ -318,7 +342,9 @@ export default function SupplierRentalRequests() {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
         <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary"></div>
-        <span className="ml-3 text-slate-500 font-medium">Đang tải dữ liệu...</span>
+        <span className="ml-3 text-slate-500 font-medium">
+          Đang tải dữ liệu...
+        </span>
       </div>
     );
   }
@@ -359,7 +385,9 @@ export default function SupplierRentalRequests() {
           </span>
           <div>
             <p className="text-xs text-slate-500">Đã trả</p>
-            <p className="text-lg font-bold text-slate-900">{counts.RETURNED}</p>
+            <p className="text-lg font-bold text-slate-900">
+              {counts.RETURNED}
+            </p>
           </div>
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center gap-3">
@@ -368,7 +396,9 @@ export default function SupplierRentalRequests() {
           </span>
           <div>
             <p className="text-xs text-slate-500">Hủy / Từ chối</p>
-            <p className="text-lg font-bold text-slate-900">{counts.CANCELLED}</p>
+            <p className="text-lg font-bold text-slate-900">
+              {counts.CANCELLED}
+            </p>
           </div>
         </div>
       </div>
@@ -376,12 +406,17 @@ export default function SupplierRentalRequests() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
         <div className="p-4 border-b border-slate-100 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">Danh sách đơn thuê</h3>
+            <h3 className="text-lg font-semibold text-slate-900">
+              Danh sách đơn thuê
+            </h3>
             <p className="text-sm text-slate-500">Tổng {requests.length} đơn</p>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <FiSearch
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                size={16}
+              />
               <input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -408,7 +443,10 @@ export default function SupplierRentalRequests() {
                     : "bg-transparent text-slate-600 border-transparent hover:text-slate-900"
                 }`}
               >
-                {tab.label} <span className="ml-2 text-xs text-slate-500">{counts[tab.key] || 0}</span>
+                {tab.label}{" "}
+                <span className="ml-2 text-xs text-slate-500">
+                  {counts[tab.key] || 0}
+                </span>
               </button>
             ))}
           </div>
@@ -433,20 +471,32 @@ export default function SupplierRentalRequests() {
                 const primaryItem = getPrimaryItem(rental);
                 const deviceName = primaryItem?.deviceId?.name || "Thiết bị";
                 const extraCount = (rental.rentalItems?.length || 0) - 1;
-                const rentalStart = primaryItem?.rentalStartDate || rental.rentalStartDate;
-                const rentalEnd = primaryItem?.rentalEndDate || rental.rentalEndDate;
-                const statusLabel = rental.status === "DELIVERING" && rental.deliveredAt
-                  ? "Đã giao thành công (chờ xác nhận)"
-                  : STATUS_LABELS[rental.status] || rental.status;
-                const statusClass = rental.status === "DELIVERING" && rental.deliveredAt
-                  ? "bg-teal-50 text-teal-700 border-teal-200"
-                  : STATUS_STYLES[rental.status] || STATUS_STYLES.INSPECTING;
-                const code = getRentalCode(rental, index + (page - 1) * pageSize);
+                const rentalStart =
+                  primaryItem?.rentalStartDate || rental.rentalStartDate;
+                const rentalEnd =
+                  primaryItem?.rentalEndDate || rental.rentalEndDate;
+                const statusLabel =
+                  rental.status === "DELIVERING" && rental.deliveredAt
+                    ? "Đã giao thành công (chờ xác nhận)"
+                    : STATUS_LABELS[rental.status] || rental.status;
+                const statusClass =
+                  rental.status === "DELIVERING" && rental.deliveredAt
+                    ? "bg-teal-50 text-teal-700 border-teal-200"
+                    : STATUS_STYLES[rental.status] || STATUS_STYLES.INSPECTING;
+                const code = getRentalCode(
+                  rental,
+                  index + (page - 1) * pageSize,
+                );
                 const canStartDelivery = isRentalPeriodOpenForDelivery(rental);
 
                 return (
-                  <tr key={rental._id || rental.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-4 font-semibold text-slate-900">{code}</td>
+                  <tr
+                    key={rental._id || rental.id}
+                    className="hover:bg-slate-50"
+                  >
+                    <td className="px-4 py-4 font-semibold text-slate-900">
+                      {code}
+                    </td>
                     <td className="px-4 py-4 text-slate-900">
                       <span className="font-medium">{deviceName}</span>
                       {extraCount > 0 && (
@@ -459,7 +509,9 @@ export default function SupplierRentalRequests() {
                       <div className="font-medium text-slate-900">
                         {rental.customerId?.fullName || "Khách hàng"}
                       </div>
-                      <div className="text-xs text-slate-500">{rental.phoneNumber || "—"}</div>
+                      <div className="text-xs text-slate-500">
+                        {rental.phoneNumber || "—"}
+                      </div>
                     </td>
                     <td className="px-4 py-4 text-slate-700">
                       {formatDate(rentalStart)} - {formatDate(rentalEnd)}
@@ -532,14 +584,20 @@ export default function SupplierRentalRequests() {
               })}
               {!loading && filteredRequests.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-slate-500">
+                  <td
+                    colSpan={8}
+                    className="px-4 py-10 text-center text-slate-500"
+                  >
                     Không tìm thấy đơn hàng phù hợp
                   </td>
                 </tr>
               )}
               {loading && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-slate-500">
+                  <td
+                    colSpan={8}
+                    className="px-4 py-10 text-center text-slate-500"
+                  >
                     Đang tải...
                   </td>
                 </tr>
@@ -552,7 +610,8 @@ export default function SupplierRentalRequests() {
           <div className="flex items-center justify-between px-4 py-4 border-t border-slate-100 text-sm text-slate-600">
             <span>
               Hiển thị {(page - 1) * pageSize + 1}-
-              {Math.min(page * pageSize, filteredRequests.length)} / {filteredRequests.length}
+              {Math.min(page * pageSize, filteredRequests.length)} /{" "}
+              {filteredRequests.length}
             </span>
             <div className="flex items-center gap-2">
               <button
@@ -568,7 +627,9 @@ export default function SupplierRentalRequests() {
               </span>
               <button
                 type="button"
-                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                onClick={() =>
+                  setPage((prev) => Math.min(totalPages, prev + 1))
+                }
                 disabled={page === totalPages}
                 className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
               >
@@ -619,11 +680,17 @@ export default function SupplierRentalRequests() {
                         : "bg-slate-100 text-slate-400"
                     }`}
                   >
-                    {step.done ? <FiCheckCircle size={20} /> : <FiClock size={20} />}
+                    {step.done ? (
+                      <FiCheckCircle size={20} />
+                    ) : (
+                      <FiClock size={20} />
+                    )}
                   </div>
 
                   <div className="flex-1 pt-1">
-                    <p className={`font-medium ${step.done ? "text-green-700" : "text-slate-800"}`}>
+                    <p
+                      className={`font-medium ${step.done ? "text-green-700" : "text-slate-800"}`}
+                    >
                       {step.status}
                     </p>
                     {step.time && (
@@ -632,7 +699,9 @@ export default function SupplierRentalRequests() {
                       </p>
                     )}
                     {step.location && (
-                      <p className="text-sm text-slate-600 mt-1 italic">{step.location}</p>
+                      <p className="text-sm text-slate-600 mt-1 italic">
+                        {step.location}
+                      </p>
                     )}
                   </div>
                 </div>

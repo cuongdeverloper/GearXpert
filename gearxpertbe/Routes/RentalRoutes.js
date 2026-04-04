@@ -18,13 +18,14 @@ const {
   repaySingleRental,
   getDeliveringRentals,
   getReturningRentals,
+  claimDeliveryTask,
   confirmPickup,
-  confirmDelivery,
   confirmReturn,
   previewContract,getRentalById
 } = require('../controllers/Rental/RentalController');
 const { hasReviewed, createReview, getDeviceReviews, uploadReviewImages } = require('../controllers/Review/ReviewController');  // Thêm getDeviceReviews và uploadReviewImages
 const { checkAccessToken,requireEkyc } = require('../middleware/JWTAction');
+const uploadCloud = require('../configs/cloudinaryConfig');
 
 
 rentalRouter.post('/checkout', checkAccessToken,requireEkyc, checkoutRental);
@@ -32,6 +33,7 @@ rentalRouter.get('/has-rented/:deviceId', checkAccessToken, hasRentedDevice);
 rentalRouter.post('/verify-payment', checkAccessToken, verifyRentalPayment);
 rentalRouter.get('/delivering', checkAccessToken, getDeliveringRentals);
 rentalRouter.get('/returning', checkAccessToken, getReturningRentals);
+rentalRouter.post('/delivery-tasks/:taskId/claim', checkAccessToken, claimDeliveryTask);
 rentalRouter.get('/supplier/:supplierId', checkAccessToken, getSupplierRentals);
 rentalRouter.get('/supplier/:supplierId/revenue', checkAccessToken, getSupplierRevenue);
 // Approve rental
@@ -57,8 +59,7 @@ rentalRouter.post(
   checkAccessToken,startDelivery
 );
 rentalRouter.post('/:rentalId/confirm-pickup', checkAccessToken, confirmPickup);
-rentalRouter.post('/:rentalId/confirm-delivery', checkAccessToken, confirmDelivery);
-rentalRouter.post('/:rentalId/confirm-return', checkAccessToken, confirmReturn);
+rentalRouter.post('/:rentalId/confirm-return', checkAccessToken, uploadCloud.array('images', 8), confirmReturn);
 rentalRouter.post('/:rentalId/cancelpay', checkAccessToken, cancelPayRental);
 rentalRouter.post("/:rentalId/repay", checkAccessToken, repayRental);
 rentalRouter.post("/:rentalId/singlerepay", checkAccessToken, repaySingleRental);
