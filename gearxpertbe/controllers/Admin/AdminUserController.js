@@ -69,7 +69,32 @@ const toggleUserStatus = async (req, res) => {
     }
 };
 
+const getAdmins = async (req, res) => {
+    try {
+        const admins = await User.find(
+            { role: 'ADMIN' },
+            { password: 0 }
+        ).sort({ fullName: 1 });
+
+        res.status(200).json({
+            success: true,
+            admins: admins.map((a) => ({
+                _id: a._id,
+                fullName: a.fullName,
+                role: a.role,
+            })),
+        });
+    } catch (error) {
+        console.error("Get admins error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Lỗi server khi lấy danh sách admin",
+        });
+    }
+};
+
 module.exports = {
     getAllUsers,
-    toggleUserStatus
+    toggleUserStatus,
+    getAdmins,
 };

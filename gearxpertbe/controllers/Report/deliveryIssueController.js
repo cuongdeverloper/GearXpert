@@ -1,4 +1,5 @@
 const DeliveryIssueReport = require("../../models/DeliveryIssueReport");
+const DamageReport = require("../../models/DamageReport");
 const Rental = require("../../models/Rental");
 const RentalItem = require("../../models/RentalItem");
 const { ReturnRecord, RETURN_FAILURE_REASON } = require("../../models/ReturnRecord");
@@ -467,6 +468,49 @@ exports.getStaffReturnIssues = async (req, res) => {
   }
 };
 
+// ── Supplier xem tất cả sự cố liên quan đến đơn hàng của mình ──────────────
+exports.getSupplierIssues = async (req, res) => {
+  try {
+    const supplierId = req.user.id;
+
+    // Lấy tất cả rental IDs thuộc supplier
+    const rentals = await Rental.find({ supplierId }).select("_id").lean();
+    const rentalIds = rentals.map((r) => r._id);
+
+    // Lấy delivery/return issues
+    const deliveryIssues = await DeliveryIssueReport.find({
+      rentalId: { $in: rentalIds },
+    })
+      .populate({
+        path: "rentalId",
+        select: "customerId phoneNumber status inspectedContext",
+        populate: { path: "customerId", select: "fullName email phone image" },
+      })
+      .populate({ path: "staffId", select: "fullName" })
+      .populate({ path: "deviceIds", select: "name images" })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Lấy damage reports (customer báo hư hỏng khi đang thuê)
+    const damageReports = await DamageReport.find({
+      rentalId: { $in: rentalIds },
+    })
+      .populate({
+        path: "rentalId",
+        select: "customerId phoneNumber status",
+        populate: { path: "customerId", select: "fullName email phone image" },
+      })
+      .populate({ path: "deviceId", select: "name images" })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json({ deliveryIssues, damageReports });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
   createDeliveryIssue: exports.createDeliveryIssue,
   getDeliveryIssueByRental: exports.getDeliveryIssueByRental,
@@ -474,4 +518,5 @@ module.exports = {
   getStaffDeliveryIssues: exports.getStaffDeliveryIssues,
   createStaffReturnIssue: exports.createStaffReturnIssue,
   getStaffReturnIssues: exports.getStaffReturnIssues,
+  getSupplierIssues: exports.getSupplierIssues,
 };

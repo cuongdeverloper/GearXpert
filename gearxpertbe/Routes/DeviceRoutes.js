@@ -8,12 +8,20 @@ routerDevice.post('/', checkAccessToken, checkSupplier, uploadCloud.array('image
 
 routerDevice.get('/', deviceController.getDevices);
 routerDevice.get('/supplier/:supplierId', deviceController.getSupplierDevices);
+routerDevice.get('/:deviceId/items', checkAccessToken, checkSupplier, deviceController.getDeviceItemsForSupplier);
+routerDevice.post(
+  '/:deviceId/items',
+  checkAccessToken,
+  checkSupplier,
+  uploadCloud.array('images', 5),
+  deviceController.createDeviceItemForSupplier
+);
 routerDevice.get('/:slug', deviceController.getDeviceDetail);
 routerDevice.get('/:slug/addons', deviceController.getDeviceAddons);
 routerDevice.get('/:slug/related', deviceController.getRelatedDevices);
 
-// Update device
-routerDevice.put('/:id', checkAccessToken, uploadCloud.array('images', 10), deviceController.updateDevice);
+// Update device (Supplier only)
+routerDevice.put('/:id', checkAccessToken, checkSupplier, uploadCloud.array('images', 5), deviceController.updateDevice);
 
 // Delete device (with rental check)
 routerDevice.delete('/:id', checkAccessToken, deviceController.deleteDevice);

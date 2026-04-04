@@ -2,7 +2,6 @@ const cron = require("node-cron");
 const mongoose = require("mongoose");
 const Rental = require("../models/Rental");
 const RentalItem = require("../models/RentalItem");
-const Device = require("../models/Device");
 const DeviceItem = require("../models/DeviceItem");
 const CartItem = require("../models/CartItem");
 const { sendRentalNotification } = require("../controllers/Rental/RentalController"); 
@@ -44,21 +43,10 @@ cron.schedule("5 0 * * *", async () => {
             { session }
           );
 
-          // Restore quantity: tăng stock/available, giảm rented
-          await Device.updateOne(
-            { _id: item.deviceId },
-            {
-              $inc: {
-                stockQuantity: item.quantity,     // tăng tổng tồn kho
-                availableQuantity: item.quantity, // tăng khả dụng
-                rentedQuantity: -item.quantity,   // giảm đang thuê
-              },
-            },
-            { session }
-          );
+          await DeviceItem.updateDeviceCounts(item.deviceId, session);
 
           console.log(
-            `[CRON RESTORE] Đơn ${rental._id}: +${item.quantity} cho device ${item.deviceId}`
+            `[CRON RESTORE] Đơn ${rental._id}: restored ${item.quantity} DeviceItem(s) for device ${item.deviceId}`
           );
         }
       }

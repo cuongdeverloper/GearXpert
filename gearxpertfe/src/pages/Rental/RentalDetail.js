@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import * as rentalService from "../../service/ApiService/RentalApi";
 import Header from "../../components/navigation/Header";
@@ -24,30 +25,67 @@ import {
 export default function RentalDetail() {
   const { rentalId } = useParams();
   const navigate = useNavigate();
+  const account = useSelector((state) => state.user.account);
   const [rental, setRental] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [confirmingReceive, setConfirmingReceive] = useState(false);
 
-  const fetchRentalDetail = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await rentalService.getRentalById(rentalId);
-      if (!res?.success || !res.rental) {
-        toast.error("Không tìm thấy đơn thuê");
-        navigate("/my-rentals");
-        return;
+  const rentalsListPath =
+    account?.role === "SUPPLIER" ? "/supplier/rental-requests" : "/user/myrental";
+
+  const fetchRentalDetail = useCallback(
+    async (opts = {}) => {
+      const silent = !!opts.silent;
+      try {
+        if (!silent) setLoading(true);
+        const res = await rentalService.getRentalById(rentalId);
+        const data = res?.rental ?? (res?._id ? res : null);
+        if (res?.success === false || !data) {
+          toast.error("Không tìm thấy đơn thuê");
+          navigate(rentalsListPath, { replace: true });
+          return;
+        }
+        setRental(data);
+      } catch (error) {
+        toast.error("Lỗi khi tải dữ liệu");
+        navigate(rentalsListPath, { replace: true });
+      } finally {
+        if (!silent) setLoading(false);
       }
-      setRental(res.rental);
-    } catch (error) {
-      toast.error("Lỗi khi tải dữ liệu");
-      navigate("/my-rentals");
-    } finally {
-      setLoading(false);
-    }
-  }, [rentalId, navigate]);
+    },
+    [rentalId, navigate, rentalsListPath]
+  );
 
   useEffect(() => {
     if (rentalId) fetchRentalDetail();
   }, [rentalId, fetchRentalDetail]);
+
+  const handleConfirmReceived = async () => {
+    if (!rentalId || !rental?.deliveredAt) {
+      toast.warning(
+        "Chưa thể xác nhận: nhân viên vận hành cần xác nhận đã giao hàng trước."
+      );
+      return;
+    }
+    if (account?.role === "SUPPLIER") {
+      toast.error("Chỉ khách hàng mới xác nhận nhận hàng được.");
+      return;
+    }
+    setConfirmingReceive(true);
+    try {
+      await rentalService.confirmReceived(rentalId);
+      toast.success("Xác nhận đã nhận hàng thành công!");
+      await fetchRentalDetail({ silent: true });
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Không thể xác nhận nhận hàng";
+      toast.error(msg);
+    } finally {
+      setConfirmingReceive(false);
+    }
+  };
 
   if (loading)
     return (
@@ -61,7 +99,22 @@ export default function RentalDetail() {
       </div>
     );
 
-  if (!rental) return null;
+  if (!rental) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-4 px-4">
+        <p className="text-slate-600 text-center">
+          Không tìm thấy đơn thuê hoặc đang chuyển hướng…
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate(rentalsListPath)}
+          className="rounded-xl bg-indigo-600 text-white px-5 py-2.5 font-semibold text-sm hover:bg-indigo-700"
+        >
+          Về danh sách đơn
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans pb-20">
@@ -70,7 +123,7 @@ export default function RentalDetail() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 lg:pt-40">
         {/* Back Button */}
         <button
-          onClick={() => navigate("/user/myrental")}
+          onClick={() => navigate(rentalsListPath)}
           className="group flex items-center gap-2 text-slate-500 hover:text-indigo-600 transition-all mb-8"
         >
           <div className="p-2 rounded-full group-hover:bg-indigo-50 transition-colors">
@@ -467,9 +520,25 @@ export default function RentalDetail() {
                   )}
 
                 {rental.status === "DELIVERING" && (
-                  <button className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2">
-                    <CheckCircle2 size={18} /> Xác nhận đã nhận hàng
-                  </button>
+                  <div className="space-y-2">
+                    {!rental.deliveredAt && (
+                      <p className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
+                        Đơn đang giao. Bạn chỉ có thể xác nhận sau khi nhân viên xác nhận đã
+                        giao thiết bị tới bạn.
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleConfirmReceived}
+                      disabled={
+                        confirmingReceive || !rental.deliveredAt || account?.role === "SUPPLIER"
+                      }
+                      className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2"
+                    >
+                      <CheckCircle2 size={18} />
+                      {confirmingReceive ? "Đang xử lý…" : "Xác nhận đã nhận hàng"}
+                    </button>
+                  </div>
                 )}
 
                 {rental.status === "RENTING" && (
