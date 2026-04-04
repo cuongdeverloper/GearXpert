@@ -6,13 +6,24 @@ const FRONTEND_URL = process.env.FRONTEND_URL
 
 router.get('/auth/google', (req, res, next) => {
     const isMobile = req.query.mobile === 'true';
-    const state = isMobile ? 'mobile' : 'web';
+    const state = req.query.state || (isMobile ? 'mobile' : 'web');
     passport.authenticate('google', { scope: ['profile', 'email'], state: state })(req, res, next);
 });
 
 router.get('/google/redirect', (req, res, next) => {
     passport.authenticate('google', (err, user, info) => {
-        const isMobile = req.query.state === 'mobile';
+        let isMobile = false;
+        let mobileRedirectBase = 'gearxpertmobile://oauth2/callback';
+        
+        try {
+            const stateObj = JSON.parse(req.query.state);
+            if (stateObj && stateObj.mobile) {
+                isMobile = true;
+                if (stateObj.redirectUrl) mobileRedirectBase = stateObj.redirectUrl;
+            }
+        } catch (e) {
+            isMobile = req.query.state === 'mobile';
+        }
         
         const sendMobileRedirect = (url) => {
             res.send(`
@@ -38,13 +49,15 @@ router.get('/google/redirect', (req, res, next) => {
             console.error("Google auth error:", err);
             const errorMessage = encodeURIComponent(err.message || 'Xác thực thất bại');
             if (isMobile) {
-                return sendMobileRedirect(`gearxpertmobile://oauth2/callback?error=${errorMessage}`);
+                const separator = mobileRedirectBase.includes('?') ? '&' : '?';
+                return sendMobileRedirect(`${mobileRedirectBase}${separator}error=${errorMessage}`);
             }
             return res.redirect(`${FRONTEND_URL}/signin?error=${errorMessage}`);
         }
         if (!user) {
             if (isMobile) {
-                return sendMobileRedirect(`gearxpertmobile://oauth2/callback?error=user_not_found`);
+                const separator = mobileRedirectBase.includes('?') ? '&' : '?';
+                return sendMobileRedirect(`${mobileRedirectBase}${separator}error=user_not_found`);
             }
             return res.redirect(`${FRONTEND_URL}/signin`);
         }
@@ -63,7 +76,8 @@ router.get('/google/redirect', (req, res, next) => {
             const refreshToken = createRefreshToken(payload);
 
             if (isMobile) {
-                const redirectUrl = `gearxpertmobile://oauth2/callback?accessToken=${encodeURIComponent(accessToken)}`;
+                const separator = mobileRedirectBase.includes('?') ? '&' : '?';
+                const redirectUrl = `${mobileRedirectBase}${separator}accessToken=${encodeURIComponent(accessToken)}`;
                 return sendMobileRedirect(redirectUrl);
             } else {
                 const redirectUrl = `${FRONTEND_URL}/auth/callback?accessToken=${encodeURIComponent(accessToken)}&refreshToken=${encodeURIComponent(refreshToken)}&user=${encodeURIComponent(JSON.stringify(user))}`;
