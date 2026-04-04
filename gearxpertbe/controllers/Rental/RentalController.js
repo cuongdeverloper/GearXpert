@@ -2016,6 +2016,18 @@ exports.confirmReturn = async (req, res) => {
     rental.escrowStatus = "RELEASED";
     await rental.save({ session });
 
+    // Cập nhật trạng thái DeviceItems sang AVAILABLE
+    const rentalItems = await RentalItem.find({ rentalId: rental._id }).session(session);
+    for (const rItem of rentalItems) {
+      if (rItem.deviceItemIds && rItem.deviceItemIds.length > 0) {
+        await DeviceItem.updateMany(
+          { _id: { $in: rItem.deviceItemIds } },
+          { $set: { status: 'AVAILABLE' } },
+          { session }
+        );
+      }
+    }
+
     await completeReturn({
       returnRecordId: returnDraft._id,
       inspection: {
