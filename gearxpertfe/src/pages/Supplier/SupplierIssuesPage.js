@@ -155,6 +155,22 @@ export default function SupplierIssuesPage() {
   const [dialogDetail, setDialogDetail] = useState(null);
 
   useEffect(() => {
+    const fetchIssues = async () => {
+      try {
+        setLoading(true);
+        const res = await getSupplierIssues();
+        const deliveryIssues =
+          res?.deliveryIssues ?? res?.data?.deliveryIssues ?? [];
+        const damageReports =
+          res?.damageReports ?? res?.data?.damageReports ?? [];
+        setDeliveryIssues(deliveryIssues);
+        setDamageReports(damageReports);
+      } catch {
+        toast.error("Không thể tải danh sách sự cố");
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchIssues();
   }, []);
 
@@ -625,13 +641,13 @@ function IssueCard({ issue, onImageClick, onOperationalDetail }) {
           </div>
 
           {/* Resolved note */}
-          {issue.resolvedNote && (
+          {(issue.resolutionNote || issue.resolvedNote) && (
             <div>
               <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">
                 Ghi chú xử lý
               </h4>
               <p className="text-sm text-slate-700 whitespace-pre-wrap">
-                {issue.resolvedNote}
+                {issue.resolutionNote || issue.resolvedNote}
               </p>
             </div>
           )}

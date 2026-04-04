@@ -4,12 +4,41 @@ const { getUsers } = require('../../utils/socketUser');
 
 exports.getMyNotifications = async (req, res) => {
   try {
-    const notifications = await Notification.find({ receiverId: req.user.id })
-      .sort({ createdAt: -1 })
-      .limit(30)
-      .lean();
+    const userId = req.user.id;
+    const pageRaw = req.query.page;
+    const usePaged =
+      pageRaw !== undefined && pageRaw !== null && String(pageRaw).trim() !== '';
 
-    res.status(200).json(notifications);
+    if (!usePaged) {
+      const notifications = await Notification.find({ receiverId: userId })
+        .sort({ createdAt: -1 })
+        .limit(30)
+        .lean();
+      return res.status(200).json(notifications);
+    }
+
+    const page = Math.max(parseInt(pageRaw, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
+    const skip = (page - 1) * limit;
+
+    const filter = { receiverId: userId };
+    if (req.query.type) filter.type = req.query.type;
+    if (req.query.read === 'unread') filter.isRead = false;
+    else if (req.query.read === 'read') filter.isRead = true;
+
+    const [notifications, total, unreadCount] = await Promise.all([
+      Notification.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Notification.countDocuments(filter),
+      Notification.countDocuments({ receiverId: userId, isRead: false }),
+    ]);
+
+    res.status(200).json({
+      notifications,
+      total,
+      page,
+      limit,
+      unreadCount,
+    });
   } catch (error) {
     console.error('Get notifications error:', error);
     res.status(500).json({ message: 'Lỗi server' });

@@ -31,6 +31,8 @@ import SupplierIssuesPage from "./pages/Supplier/SupplierIssuesPage";
 import SupplierCalendarPage from "./pages/Supplier/SupplierCalendarPage";
 import SupplierAiPricingPage from "./pages/Supplier/SupplierAiPricingPage";
 import SupplierAdsPage from "./pages/Supplier/SupplierAdsPage";
+import SupplierNotificationsPage from "./pages/Supplier/SupplierNotificationsPage";
+import SupplierReviewsPage from "./pages/Supplier/SupplierReviewsPage";
 
 import AdminLayout from "./components/layout/AdminLayout";
 import DashboardPage from "./pages/Admin/DashboardPage";
@@ -192,6 +194,7 @@ export default function Layout() {
               element={<Navigate to="/supplier/dashboard" replace />}
             />
             <Route path="dashboard" element={<SupplierDashboard />} />
+            <Route path="notifications" element={<SupplierNotificationsPage />} />
             <Route path="devices" element={<SupplierDevicesList />} />
             <Route path="devices/new" element={<SupplierAddDevicePage />} />
             <Route
@@ -206,7 +209,12 @@ export default function Layout() {
             />
             <Route path="maintenance" element={<SupplierMaintenance />} />
             <Route path="revenue" element={<SupplierRevenue />} />
+            <Route
+              path="wallet"
+              element={<WalletPage embeddedInSupplier />}
+            />
             <Route path="vouchers" element={<SupplierVouchersPage />} />
+            <Route path="reviews" element={<SupplierReviewsPage />} />
             <Route path="issues" element={<SupplierIssuesPage />} />
             <Route
               path="delivery/incidents"

@@ -1,7 +1,140 @@
+const mongoose = require('mongoose');
 const Review = require('../../models/Review');
 const Rental = require('../../models/Rental');
 const RentalItem = require('../../models/RentalItem');
+const Device = require('../../models/Device');
 const uploadCloud = require('../../configs/cloudinaryConfig');  // Thêm dòng này
+
+/**
+ * GET /api/reviews/supplier/me
+ * Supplier: tất cả đánh giá cho thiết bị của mình (lọc, phân trang).
+ */
+exports.getSupplierReviews = async (req, res) => {
+  try {
+    const rawSupplierId = req.user.id ?? req.user._id;
+    if (!rawSupplierId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+    const supplierId = mongoose.Types.ObjectId.isValid(rawSupplierId)
+      ? new mongoose.Types.ObjectId(String(rawSupplierId))
+      : rawSupplierId;
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 15));
+    const deviceIdFilter = req.query.deviceId;
+    const ratingFilter = req.query.rating != null && req.query.rating !== ''
+      ? parseInt(req.query.rating, 10)
+      : null;
+    const q = (req.query.q || '').trim();
+
+    const allDevices = await Device.find({ supplierId })
+      .select('_id name slug ratingAvg reviewCount')
+      .sort({ name: 1 })
+      .lean();
+
+    const allDeviceIds = allDevices.map((d) => d._id);
+
+    let listDeviceIds = allDeviceIds;
+    if (deviceIdFilter && mongoose.Types.ObjectId.isValid(deviceIdFilter)) {
+      const belongs = allDevices.some((d) => String(d._id) === String(deviceIdFilter));
+      if (!belongs) {
+        return res.json({
+          success: true,
+          reviews: [],
+          total: 0,
+          page,
+          limit,
+          stats: {
+            avgRating: 0,
+            totalReviews: 0,
+            byStar: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+          },
+          devices: allDevices,
+        });
+      }
+      listDeviceIds = [new mongoose.Types.ObjectId(deviceIdFilter)];
+    }
+
+    if (allDeviceIds.length === 0) {
+      return res.json({
+        success: true,
+        reviews: [],
+        total: 0,
+        page,
+        limit,
+        stats: {
+          avgRating: 0,
+          totalReviews: 0,
+          byStar: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+        },
+        devices: [],
+      });
+    }
+
+    const match = { deviceId: { $in: listDeviceIds } };
+    if (ratingFilter >= 1 && ratingFilter <= 5) {
+      match.rating = ratingFilter;
+    }
+    if (q) {
+      const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      match.comment = new RegExp(esc, 'i');
+    }
+
+    const statsAgg = await Review.aggregate([
+      { $match: { deviceId: { $in: allDeviceIds } } },
+      { $group: { _id: '$rating', count: { $sum: 1 } } },
+    ]);
+    const byStar = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    let totalReviews = 0;
+    let sumStars = 0;
+    statsAgg.forEach(({ _id: star, count }) => {
+      if (star >= 1 && star <= 5) {
+        byStar[star] = count;
+        totalReviews += count;
+        sumStars += star * count;
+      }
+    });
+    const avgRating = totalReviews ? Math.round((sumStars / totalReviews) * 10) / 10 : 0;
+
+    const total = await Review.countDocuments(match);
+    const reviews = await Review.find(match)
+      .populate('userId', 'fullName avatar')
+      .populate('deviceId', 'name slug')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+    const formatted = reviews.map((r) => ({
+      _id: r._id,
+      rating: r.rating,
+      comment: r.comment,
+      images: r.images || [],
+      createdAt: r.createdAt,
+      userName: r.userId?.fullName || 'Khách hàng',
+      userAvatar: r.userId?.avatar || null,
+      device: r.deviceId
+        ? {
+            _id: r.deviceId._id,
+            name: r.deviceId.name,
+            slug: r.deviceId.slug,
+          }
+        : null,
+    }));
+
+    res.json({
+      success: true,
+      reviews: formatted,
+      total,
+      page,
+      limit,
+      stats: { avgRating, totalReviews, byStar },
+      devices: allDevices,
+    });
+  } catch (err) {
+    console.error('getSupplierReviews:', err);
+    res.status(500).json({ message: 'Không thể tải đánh giá' });
+  }
+};
 
 /**
  * ===============================
