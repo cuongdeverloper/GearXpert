@@ -32,7 +32,7 @@ const sections = [
     title: "Sản phẩm cho thuê",
     icon: FiBox,
     items: [
-      { to: "/supplier/devices", label: "Danh sách thiết bị" },
+      { to: "/supplier/devices", label: "Danh sách thiết bị", end: true },
       { to: "/supplier/devices/new", label: "Thêm thiết bị mới" },
       { to: "/supplier/inventory", label: "Quản lý kho" },
       { to: "/supplier/vouchers", label: "Mã giảm giá" },
@@ -186,6 +186,7 @@ export default function SupplierMobileDrawer({ open, onClose }) {
                             <NavLink
                               key={item.to}
                               to={item.to}
+                              end={!!item.end}
                               onClick={onClose}
                               className={({ isActive }) =>
                                 classNames(
