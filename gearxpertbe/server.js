@@ -49,6 +49,7 @@ const io = socketIo(server, {
   },
 });
 app.set("io", io);
+app.set("trust proxy", 1);
 
 app.use(
   cors({
