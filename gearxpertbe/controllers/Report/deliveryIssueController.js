@@ -5,6 +5,7 @@ const RentalItem = require("../../models/RentalItem");
 const { ReturnRecord, RETURN_FAILURE_REASON } = require("../../models/ReturnRecord");
 const NotificationConfig = require("../../configs/NotificationConfig"); // ← THÊM DÒNG NÀY (điều chỉnh path nếu cần)
 const { ensureDraftForReturn, reportIssue } = require("../../services/ReturnService");
+const { emitOperationStaffUpdate } = require("../../utils/operationStaffSocket");
 
 const RETURN_FAILURE_LABELS = {
   [RETURN_FAILURE_REASON.CUSTOMER_UNAVAILABLE]: "Khách vắng mặt / Không liên hệ được",
@@ -15,6 +16,8 @@ const RETURN_FAILURE_LABELS = {
   [RETURN_FAILURE_REASON.CUSTOMER_NO_SHOW]: "Khách không có mặt",
   [RETURN_FAILURE_REASON.CUSTOMER_REJECT_RETURN]: "Khách từ chối trả",
   [RETURN_FAILURE_REASON.CONTACT_FAILED]: "Không liên hệ được khách",
+  [RETURN_FAILURE_REASON.LOCATION_BLOCKED]: "Không thể tiếp cận điểm thu hồi",
+  [RETURN_FAILURE_REASON.ORDER_CLOSED_ELSEWHERE]: "Đơn đã đóng ở nhánh khác",
 };
 
 exports.createDeliveryIssue = async (req, res) => {
@@ -257,6 +260,13 @@ exports.createStaffDeliveryIssue = async (req, res) => {
       console.error("Lỗi gửi notification supplier (staff delivery issue):", notifySupplierErr);
     }
 
+    emitOperationStaffUpdate({
+      action: "STAFF_DELIVERY_ISSUE",
+      message: "Có biên bản sự cố giao hàng mới.",
+      rentalId: String(rental._id),
+      actorId: String(staffId),
+    });
+
     res.status(201).json({
       message:
         "Biên bản sự cố đã được lưu. Đơn hàng chuyển sang trạng thái Kiểm tra.",
@@ -406,6 +416,13 @@ exports.createStaffReturnIssue = async (req, res) => {
     } catch (notifySupplierErr) {
       console.error("Lỗi gửi notification supplier (staff return issue):", notifySupplierErr);
     }
+
+    emitOperationStaffUpdate({
+      action: "STAFF_RETURN_ISSUE",
+      message: "Có biên bản sự cố thu hồi mới.",
+      rentalId: String(rental._id),
+      actorId: String(staffId),
+    });
 
     res.status(201).json({
       message:

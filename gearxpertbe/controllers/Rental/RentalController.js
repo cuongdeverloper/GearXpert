@@ -31,6 +31,7 @@ const payos = new PayOS(
 );
 // Đầu file RentalController.js (hoặc nơi bạn định nghĩa các hàm)
 const NotificationConfig = require("../../configs/NotificationConfig"); // điều chỉnh path cho đúng
+const { emitOperationStaffUpdate } = require("../../utils/operationStaffSocket");
 
 // Helper gửi noti cho supplier hoặc customer
 const sendRentalNotification = async (
@@ -871,6 +872,15 @@ exports.claimDeliveryTask = async (req, res) => {
     }
 
     await session.commitTransaction();
+
+    emitOperationStaffUpdate({
+      action: "RENTAL_LOCKED",
+      message: "Một đơn giao hàng vừa được nhận (lock).",
+      rentalId: String(claimedTask.rentalId),
+      deliveryTaskId: String(claimedTask._id),
+      assignedOperationStaffId: String(staffId),
+      actorId: String(staffId),
+    });
 
     return res.status(200).json({
       success: true,
@@ -1811,6 +1821,13 @@ exports.startDelivery = async (req, res) => {
       });
     }
 
+    emitOperationStaffUpdate({
+      action: "DELIVERY_STARTED",
+      message: "Nhà cung cấp đã mở giao hàng — có đơn mới cần xử lý.",
+      rentalId: String(rental._id),
+      deliveryTaskId: task?._id ? String(task._id) : undefined,
+    });
+
     return res.status(200).json({
       message: "Delivery started & contract created",
       contractId: contract._id,
@@ -1872,6 +1889,13 @@ exports.confirmPickup = async (req, res) => {
       deliveryTaskId: deliveryTask?._id,
       staffId: rental.assignedOperationStaffId || actorId,
       actorId,
+    });
+
+    emitOperationStaffUpdate({
+      action: "PICKUP_CONFIRMED",
+      message: "Đã xác nhận lấy hàng — danh sách nhiệm vụ cập nhật.",
+      rentalId: String(rental._id),
+      actorId: String(actorId),
     });
 
     return res
@@ -2033,6 +2057,14 @@ exports.confirmReturn = async (req, res) => {
     );
 
     await session.commitTransaction();
+
+    emitOperationStaffUpdate({
+      action: "RETURN_COMPLETED",
+      message: "Một đơn vừa hoàn tất thu hồi.",
+      rentalId: String(rental._id),
+      actorId: String(actorId),
+    });
+
     res.status(200).json({
       message: "Đơn thuê đã hoàn tất thành công",
       rentalId: rental._id,

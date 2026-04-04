@@ -11,6 +11,7 @@ const {
   createRetryAttempt,
   syncClosedRental,
 } = require("../../services/ReturnService");
+const { emitOperationStaffUpdate } = require("../../utils/operationStaffSocket");
 
 const tryParseJsonField = (value) => {
   if (typeof value !== "string") return value;
@@ -159,6 +160,15 @@ exports.confirmSuccess = async (req, res) => {
       actorId: req.user.id,
     });
 
+    if (result.record?.rentalId) {
+      emitOperationStaffUpdate({
+        action: "RETURN_SUCCESS",
+        message: "Thu hồi thành công — danh sách cập nhật.",
+        rentalId: String(result.record.rentalId),
+        actorId: String(req.user.id),
+      });
+    }
+
     return res.status(200).json({
       success: true,
       idempotent: result.idempotent,
@@ -198,6 +208,15 @@ exports.fail = async (req, res) => {
       actorId: req.user.id,
     });
 
+    if (result.record?.rentalId) {
+      emitOperationStaffUpdate({
+        action: "RETURN_FAILED",
+        message: "Đã ghi nhận thu hồi thất bại — kiểm tra đơn / sự cố.",
+        rentalId: String(result.record.rentalId),
+        actorId: String(req.user.id),
+      });
+    }
+
     return res.status(200).json({
       success: true,
       idempotent: result.idempotent,
@@ -216,6 +235,13 @@ exports.createRetryAttempt = async (req, res) => {
       rentalId: req.params.rentalId,
       staffId: req.user.id,
       actorId: req.user.id,
+    });
+
+    emitOperationStaffUpdate({
+      action: "RETURN_RETRY",
+      message: "Có attempt thu hồi mới.",
+      rentalId: String(req.params.rentalId),
+      actorId: String(req.user.id),
     });
 
     return res.status(201).json({ success: true, returnRecord: serialize(created) });

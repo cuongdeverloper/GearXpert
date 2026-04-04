@@ -92,7 +92,7 @@ const buildDetail = (log) => {
   return parts.join(' · ') || `#${String(log.targetId).slice(-6).toUpperCase()}`;
 };
 
-export default function HistoryTab({ setActiveMenu }) {
+export default function HistoryTab({ setActiveMenu, realtimeTick = 0 }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -114,7 +114,7 @@ export default function HistoryTab({ setActiveMenu }) {
 
   useEffect(() => {
     fetchLogs();
-  }, [fetchLogs]);
+  }, [fetchLogs, realtimeTick]);
 
   const openReturnFailDetail = async (log) => {
     if (log?.action !== 'RETURN_CONFIRM_FAILED') return;

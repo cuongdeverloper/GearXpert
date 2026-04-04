@@ -13,6 +13,7 @@ const {
   syncCancelledRental,
 } = require("../../services/HandoverService");
 const DeliveryTask = require("../../models/DeliveryTask");
+const { emitOperationStaffUpdate } = require("../../utils/operationStaffSocket");
 
 const tryParseJsonField = (value) => {
   if (typeof value !== "string") return value;
@@ -208,6 +209,15 @@ exports.confirmSuccess = async (req, res) => {
       actorId: req.user.id,
     });
 
+    if (result.record?.rentalId) {
+      emitOperationStaffUpdate({
+        action: "HANDOVER_SUCCESS",
+        message: "Bàn giao thành công — đơn chuyển sang đang thuê.",
+        rentalId: String(result.record.rentalId),
+        actorId: String(req.user.id),
+      });
+    }
+
     return res.status(200).json({
       success: true,
       idempotent: result.idempotent,
@@ -247,6 +257,15 @@ exports.fail = async (req, res) => {
       actorId: req.user.id,
     });
 
+    if (result.record?.rentalId) {
+      emitOperationStaffUpdate({
+        action: "HANDOVER_FAILED",
+        message: "Đã ghi nhận bàn giao thất bại.",
+        rentalId: String(result.record.rentalId),
+        actorId: String(req.user.id),
+      });
+    }
+
     return res.status(200).json({
       success: true,
       idempotent: result.idempotent,
@@ -266,6 +285,13 @@ exports.createRedeliveryAttempt = async (req, res) => {
       deliveryTaskId: req.body?.deliveryTaskId,
       staffId: req.user.id,
       actorId: req.user.id,
+    });
+
+    emitOperationStaffUpdate({
+      action: "REDELIVERY_ATTEMPT",
+      message: "Có attempt bàn giao mới.",
+      rentalId: String(req.params.rentalId),
+      actorId: String(req.user.id),
     });
 
     return res.status(201).json({

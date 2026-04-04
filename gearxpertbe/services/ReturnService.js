@@ -21,6 +21,13 @@ class DomainError extends Error {
 
 const ACTIVE_STATUSES = [RETURN_RECORD_STATUS.DRAFT, RETURN_RECORD_STATUS.IN_PROGRESS];
 
+/** .lean() + populate: ref có thể là subdoc {_id} hoặc ObjectId thuần */
+const resolveRefId = (ref) => {
+  if (ref == null) return null;
+  if (typeof ref === "object" && ref._id != null) return ref._id;
+  return ref;
+};
+
 const mapReturnFailureToIssueType = (reason) => {
   switch (reason) {
     case RETURN_FAILURE_REASON.MISSING_DEVICE:
@@ -98,30 +105,30 @@ const serialize = (record) => {
 };
 
 const getNextAttemptNo = async (rentalId, session) => {
-  const latest = await ReturnRecord.findOne({ rentalId })
+  let q = ReturnRecord.findOne({ rentalId })
     .sort({ attemptNo: -1 })
-    .select("attemptNo")
-    .session(session)
-    .lean();
+    .select("attemptNo");
+  if (session) q = q.session(session);
+  const latest = await q.lean();
 
   return (latest?.attemptNo || 0) + 1;
 };
 
 const mapRentalItemsToSnapshot = async (rentalId, session) => {
-  const rentalItems = await RentalItem.find({ rentalId })
+  let rq = RentalItem.find({ rentalId })
     .populate("deviceId", "name")
-    .populate("deviceItemIds", "serialNumber")
-    .session(session)
-    .lean();
+    .populate("deviceItemIds", "serialNumber");
+  if (session) rq = rq.session(session);
+  const rentalItems = await rq.lean();
 
-  const latestHandover = await HandoverRecord.findOne({
+  let hq = HandoverRecord.findOne({
     rentalId,
     status: "COMPLETED",
   })
     .sort({ attemptNo: -1 })
-    .select("inspection.items")
-    .session(session)
-    .lean();
+    .select("inspection.items");
+  if (session) hq = hq.session(session);
+  const latestHandover = await hq.lean();
 
   const handoverItemMap = new Map(
     (latestHandover?.inspection?.items || []).map((item) => [String(item.rentalItemId), item])
@@ -129,16 +136,32 @@ const mapRentalItemsToSnapshot = async (rentalId, session) => {
 
   return rentalItems.map((item) => {
     const handoverItem = handoverItemMap.get(String(item._id));
+    const deviceId = resolveRefId(item.deviceId);
+    const deviceDoc =
+      item.deviceId && typeof item.deviceId === "object" && item.deviceId._id != null
+        ? item.deviceId
+        : null;
+
+    if (!deviceId) {
+      throw new DomainError(
+        `Dòng đơn thiếu thiết bị (rentalItem ${item._id}). Kiểm tra RentalItem.deviceId.`,
+        400,
+        "INVALID_RENTAL_ITEM"
+      );
+    }
+
     return {
       rentalItemId: item._id,
-      deviceId: item.deviceId?._id,
-      deviceName: item.deviceId?.name || "Thiết bị",
+      deviceId,
+      deviceName: deviceDoc?.name || item.deviceSnapshot?.name || "Thiết bị",
       expectedQuantity: item.quantity || 1,
       expectedDeviceItemIds: Array.isArray(item.deviceItemIds)
-        ? item.deviceItemIds.map((x) => x._id)
+        ? item.deviceItemIds.map((x) => resolveRefId(x)).filter(Boolean)
         : [],
       expectedSerialNumbers: Array.isArray(item.deviceItemIds)
-        ? item.deviceItemIds.map((x) => x.serialNumber).filter(Boolean)
+        ? item.deviceItemIds
+            .map((x) => (x && typeof x === "object" && x.serialNumber ? x.serialNumber : null))
+            .filter(Boolean)
         : [],
       baselineCondition: handoverItem?.deviceCondition || "UNKNOWN",
       returnedDeviceItemIds: [],
@@ -176,30 +199,29 @@ const ensureDraftForReturn = async ({ rentalId, staffId, actorId, session }) => 
   ensureObjectId(rentalId, "rentalId");
   if (staffId) ensureObjectId(staffId, "staffId");
 
-  const dbSession = session || (await mongoose.startSession());
-  const ownSession = !session;
+  const sess = session || null;
 
+  let rq = Rental.findById(rentalId);
+  if (sess) rq = rq.session(sess);
+  const rental = await rq.lean();
+  assertRentalCanCreateReturnDraft(rental);
+
+  let eq = ReturnRecord.findOne({
+    rentalId,
+    status: { $in: ACTIVE_STATUSES },
+  }).sort({ attemptNo: -1 });
+  if (sess) eq = eq.session(sess);
+  const existing = await eq;
+
+  if (existing) {
+    return existing;
+  }
+
+  const attemptNo = await getNextAttemptNo(rentalId, sess);
+  const snapshotItems = await mapRentalItemsToSnapshot(rentalId, sess);
+
+  const createOpts = sess ? { session: sess } : {};
   try {
-    if (ownSession) dbSession.startTransaction();
-
-    const rental = await Rental.findById(rentalId).session(dbSession).lean();
-    assertRentalCanCreateReturnDraft(rental);
-
-    const existing = await ReturnRecord.findOne({
-      rentalId,
-      status: { $in: ACTIVE_STATUSES },
-    })
-      .sort({ attemptNo: -1 })
-      .session(dbSession);
-
-    if (existing) {
-      if (ownSession) await dbSession.commitTransaction();
-      return existing;
-    }
-
-    const attemptNo = await getNextAttemptNo(rentalId, dbSession);
-    const snapshotItems = await mapRentalItemsToSnapshot(rentalId, dbSession);
-
     const [created] = await ReturnRecord.create(
       [
         {
@@ -235,16 +257,21 @@ const ensureDraftForReturn = async ({ rentalId, staffId, actorId, session }) => 
           updatedBy: actorId || staffId || rental.assignedOperationStaffId,
         },
       ],
-      { session: dbSession }
+      createOpts
     );
 
-    if (ownSession) await dbSession.commitTransaction();
     return created;
   } catch (error) {
-    if (ownSession) await dbSession.abortTransaction();
+    if (error?.code === 11000) {
+      const recovered = await ReturnRecord.findOne({
+        rentalId,
+        status: { $in: ACTIVE_STATUSES },
+      })
+        .sort({ attemptNo: -1 })
+        .lean();
+      if (recovered) return recovered;
+    }
     throw error;
-  } finally {
-    if (ownSession) dbSession.endSession();
   }
 };
 

@@ -218,7 +218,7 @@ function ReportCard({ report, issueTypeLabels, contextColor, onOpenDetail }) {
   );
 }
 
-export default function ReportsTab() {
+export default function ReportsTab({ realtimeTick = 0 }) {
   const [activeTab, setActiveTab] = useState('delivery');
   const [deliveryReports, setDeliveryReports] = useState([]);
   const [returnReports, setReturnReports] = useState([]);
@@ -246,7 +246,7 @@ export default function ReportsTab() {
 
   useEffect(() => {
     fetchReports();
-  }, [fetchReports]);
+  }, [fetchReports, realtimeTick]);
 
   const currentReports = activeTab === 'delivery' ? deliveryReports : returnReports;
   const deliveryContext = {

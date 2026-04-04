@@ -22,6 +22,7 @@ export default function HandoverTab({
   selectedRentalIdFromTask = "",
   selectedFlowContextFromTask = "DELIVERY",
   onConsumedSelectedRental,
+  realtimeTick = 0,
 }) {
   const account = useSelector((state) => state.user.account);
   const currentStaffId = account?.id;
@@ -171,7 +172,7 @@ export default function HandoverTab({
 
   useEffect(() => {
     fetchRentals();
-  }, [fetchRentals]);
+  }, [fetchRentals, realtimeTick]);
 
   const fetchAttempts = useCallback(
     async (rentalId) => {
@@ -229,6 +230,20 @@ export default function HandoverTab({
       setDeliveryReference(null);
     }
   }, []);
+
+  useEffect(() => {
+    if (realtimeTick === 0 || !selectedRentalId) return;
+    fetchAttempts(selectedRentalId);
+    if (flowContext === "RETURN") {
+      fetchDeliveryReference(selectedRentalId);
+    }
+  }, [
+    realtimeTick,
+    selectedRentalId,
+    flowContext,
+    fetchAttempts,
+    fetchDeliveryReference,
+  ]);
 
   useEffect(() => {
     if (!selectedRentalIdFromTask) return;

@@ -33,6 +33,7 @@ const ReportRouter = require("./Routes/ReportRoutes");
 const ContractRouter = require("./Routes/ContractRoutes");
 const NotificationRouter = require("./Routes/NotificationRoutes");
 const NotificationConfig = require("./configs/NotificationConfig");
+const operationStaffSocket = require("./utils/operationStaffSocket");
 const blogRouter = require("./Routes/BlogRoutes");
 const smartgearRoutes = require("./Routes/SmartGearRoutes");
 const supplierRouter = require("./Routes/SupplierRoutes");
@@ -114,6 +115,7 @@ app.use((err, req, res, next) => {
 });
 require("./jobs/autoCancelUnpaidRentals");
 NotificationConfig.init(io);
+operationStaffSocket.init(io);
 startRentalDueReminders();
 socketHandler(io);
 startAutoConfirmJob();

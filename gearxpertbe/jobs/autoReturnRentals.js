@@ -3,6 +3,7 @@ const Rental = require('../models/Rental');
 const RentalItem = require('../models/RentalItem');
 const NotificationConfig = require('../configs/NotificationConfig');
 const { ensureDraftForReturn } = require('../services/ReturnService');
+const { emitOperationStaffUpdate } = require('../utils/operationStaffSocket');
 
 async function runAutoReturn() {
   const now = new Date();
@@ -60,6 +61,12 @@ async function runAutoReturn() {
       } catch (notifErr) {
         console.error(`[AutoReturn] Notification to supplier failed:`, notifErr.message);
       }
+
+      emitOperationStaffUpdate({
+        action: 'RENTAL_AUTO_RETURNING',
+        message: 'Có đơn chuyển sang thu hồi (hết hạn).',
+        rentalId: String(rental._id),
+      });
 
       console.log(`[AutoReturn] Rental ${rental._id} → RETURNING`);
     } catch (err) {

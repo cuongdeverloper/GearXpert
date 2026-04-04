@@ -1,5 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useSelector } from 'react-redux';
 import { LayoutDashboard, ShieldAlert, QrCode, Bell, User, History, ClipboardCheck } from 'lucide-react';
+import { toast } from 'react-toastify';
+import { useSocket } from '../../SocketContext';
+import { OPERATION_STAFF_SOCKET_ROOM } from './operationStaffSocketConstants';
 
 import TasksTab from './tabs/TasksTab';
 import QRTab from './tabs/QRTab';
@@ -9,9 +13,50 @@ import ProfileTab from './tabs/ProfileTab';
 import HandoverTab from './tabs/HandoverTab';
 
 export default function StaffLayout() {
+  const account = useSelector((state) => state.user.account);
+  const { socket } = useSocket();
   const [activeMenu, setActiveMenu] = useState('tasks');
   const [handoverRentalId, setHandoverRentalId] = useState('');
   const [handoverContext, setHandoverContext] = useState('DELIVERY');
+  const [realtimeTick, setRealtimeTick] = useState(0);
+  const [notifUnread, setNotifUnread] = useState(0);
+
+  const bumpRealtime = useCallback(() => {
+    setRealtimeTick((t) => t + 1);
+  }, []);
+
+  useEffect(() => {
+    if (!socket || account?.role !== 'OPERATION_STAFF') return;
+
+    socket.emit('joinRoom', OPERATION_STAFF_SOCKET_ROOM);
+
+    const onBoard = (data) => {
+      bumpRealtime();
+      const actorId = data?.actorId;
+      const isSelf = actorId && account?.id && String(actorId) === String(account.id);
+      if (!isSelf && data?.message) {
+        toast.info(data.message, { autoClose: 3800 });
+      }
+    };
+
+    const onNotif = (notif) => {
+      const title = notif?.title || 'Thông báo';
+      const body = notif?.message || '';
+      toast.info(body ? `${title}: ${body}` : title, { autoClose: 4500 });
+      setNotifUnread((n) => n + 1);
+    };
+
+    socket.on('operationStaffUpdate', onBoard);
+    socket.on('newNotification', onNotif);
+    socket.on('getNotification', onNotif);
+
+    return () => {
+      socket.emit('leaveRoom', OPERATION_STAFF_SOCKET_ROOM);
+      socket.off('operationStaffUpdate', onBoard);
+      socket.off('newNotification', onNotif);
+      socket.off('getNotification', onNotif);
+    };
+  }, [socket, account?.role, account?.id, bumpRealtime]);
 
   const openHandoverForRental = (rentalId, context = 'DELIVERY') => {
     if (!rentalId) return;
@@ -79,25 +124,38 @@ export default function StaffLayout() {
               {activeMenu === 'history' && 'Lịch sử'}
             </h1>
           </div>
-          <button className="relative p-2 text-slate-600 hover:bg-slate-50 rounded-full">
+          <button
+            type="button"
+            className="relative p-2 text-slate-600 hover:bg-slate-50 rounded-full"
+            title="Thông báo (realtime): mở trang chủ hoặc mục Tài khoản để xem đầy đủ"
+          >
             <Bell size={20} />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+            {notifUnread > 0 && (
+              <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold text-white bg-red-500 rounded-full border-2 border-white">
+                {notifUnread > 9 ? '9+' : notifUnread}
+              </span>
+            )}
           </button>
         </header>
 
         {/* CÃC VIEW CONTENT */}
         <div className="flex-1 overflow-y-auto pb-20 md:pb-0 scroll-smooth w-full">
-          {activeMenu === 'tasks' && <TasksTab onOpenHandover={openHandoverForRental} />}
+          {activeMenu === 'tasks' && (
+            <TasksTab onOpenHandover={openHandoverForRental} realtimeTick={realtimeTick} />
+          )}
           {activeMenu === 'handover' && (
             <HandoverTab
               selectedRentalIdFromTask={handoverRentalId}
               selectedFlowContextFromTask={handoverContext}
               onConsumedSelectedRental={clearHandoverRental}
+              realtimeTick={realtimeTick}
             />
           )}
           {activeMenu === 'qr' && <QRTab />}
-          {activeMenu === 'reports' && <ReportsTab />}
-          {activeMenu === 'history' && <HistoryTab setActiveMenu={setActiveMenu} />}
+          {activeMenu === 'reports' && <ReportsTab realtimeTick={realtimeTick} />}
+          {activeMenu === 'history' && (
+            <HistoryTab setActiveMenu={setActiveMenu} realtimeTick={realtimeTick} />
+          )}
           {activeMenu === 'profile' && <ProfileTab setActiveMenu={setActiveMenu} />}
         </div>
 

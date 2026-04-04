@@ -50,7 +50,7 @@ const mapRentalToReturnTask = (rental) => {
   };
 };
 
-export default function TasksTab({ onOpenHandover }) {
+export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
   const account = useSelector((state) => state.user.account);
   const currentStaffId = account?.id;
   const [activeTab, setActiveTab] = useState('all');
@@ -79,7 +79,7 @@ export default function TasksTab({ onOpenHandover }) {
 
   useEffect(() => {
     fetchAllTasks();
-  }, [fetchAllTasks]);
+  }, [fetchAllTasks, realtimeTick]);
 
   const handleConfirmPickup = async () => {
     if (!selectedTask || pickupLoading) return;
