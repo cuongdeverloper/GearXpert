@@ -115,6 +115,12 @@ exports.getRentalById = async (req, res) => {
       _id: rentalId,
       $or: [{ customerId: userId }, { supplierId: userId }],
     })
+      .populate("customerId", "fullName avatar email phone")
+      .populate("supplierId", "fullName avatar email phone")
+      .populate(
+        "assignedOperationStaffId",
+        "fullName avatar email phone role"
+      )
       .populate({
         path: "extensionRequests",
         match: { status: "PENDING" },

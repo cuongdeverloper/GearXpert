@@ -10,8 +10,12 @@ const GlobalLoadingOverlay = ({ forceShow = false, text = "Đang tải dữ li�
     const isLoadingHome = useSelector((state) => state.app?.isLoadingHome);
     const isLoadingAdmin = useSelector((state) => state.app?.isLoadingAdmin);
     
-    // Trigger overlay on every route change
+    // Full-screen overlay on route change (skipped for supplier dashboard — feels slow on in-app nav)
     useEffect(() => {
+        if (location.pathname.startsWith("/supplier")) {
+            setIsNavigating(false);
+            return;
+        }
         setIsNavigating(true);
         const timer = setTimeout(() => setIsNavigating(false), 700);
         return () => clearTimeout(timer);
