@@ -635,9 +635,23 @@ const failReturn = async ({ returnRecordId, failure, inspection, staffId, actorI
     await rental.save({ session });
 
     const rentalItems = await RentalItem.find({ rentalId: updated.rentalId })
-      .select("_id deviceId")
+      .select("_id deviceId deviceItemIds")
       .session(session)
       .lean();
+
+    const deviceItemIdsToUpdate = rentalItems.flatMap(item => item.deviceItemIds || []);
+    if (deviceItemIdsToUpdate.length > 0) {
+      await mongoose.model("DeviceItem").updateMany(
+        { _id: { $in: deviceItemIdsToUpdate } },
+        { $set: { status: "PENDING_RESOLUTION" } },
+        { session }
+      );
+      // Manually trigger count sync since updateMany with _id bypasses the deviceId hook
+      const uniqueDeviceIds = [...new Set(rentalItems.map(i => i.deviceId?.toString()).filter(Boolean))];
+      for (const dId of uniqueDeviceIds) {
+        await mongoose.model("DeviceItem").updateDeviceCounts(dId, session);
+      }
+    }
 
     const failureReasonLabel = mapReturnFailureToLabel(failure.reason);
     const issueType = mapReturnFailureToIssueType(failure.reason);
