@@ -41,11 +41,9 @@ router.get('/google/redirect', (req, res, next) => {
             const accessToken = createJWT(payload);
             const refreshToken = createRefreshToken(payload);
 
-            const isMobile = req.query.state === 'mobile';
-
             let redirectUrl;
             if (isMobile) {
-                redirectUrl = `gearxpertmobile://oauth2/callback?accessToken=${encodeURIComponent(accessToken)}&refreshToken=${encodeURIComponent(refreshToken)}&user=${encodeURIComponent(JSON.stringify(user))}`;
+                redirectUrl = `gearxpertmobile://oauth2/callback?accessToken=${encodeURIComponent(accessToken)}`;
             } else {
                 redirectUrl = `${FRONTEND_URL}/auth/callback?accessToken=${encodeURIComponent(accessToken)}&refreshToken=${encodeURIComponent(refreshToken)}&user=${encodeURIComponent(JSON.stringify(user))}`;
             }
