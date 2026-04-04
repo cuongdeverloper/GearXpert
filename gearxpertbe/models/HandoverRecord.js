@@ -147,6 +147,8 @@ const handoverRecordSchema = new mongoose.Schema(
       confirmedAt: Date,
       confirmerName: { type: String, trim: true, maxlength: 120 },
       confirmerPhone: { type: String, trim: true, maxlength: 30 },
+      /** Ghi chú kiểm tra thiết bị/phụ kiện lúc xác nhận nhận hàng (đồng bộ với FE confirmForm.operatorNote) */
+      operatorNote: { type: String, trim: true, maxlength: 2000 },
       signatureUrl: String,
       otpVerified: { type: Boolean, default: false },
     },

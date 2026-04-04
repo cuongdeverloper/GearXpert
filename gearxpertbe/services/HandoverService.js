@@ -534,6 +534,7 @@ const confirmSuccess = async ({
             confirmedAt: customerConfirmation.confirmedAt || new Date(),
             confirmerName: customerConfirmation.confirmerName,
             confirmerPhone: customerConfirmation.confirmerPhone || "",
+            operatorNote: (customerConfirmation.operatorNote || "").trim(),
             signatureUrl: customerConfirmation.signatureUrl || "",
             otpVerified: Boolean(customerConfirmation.otpVerified),
           },

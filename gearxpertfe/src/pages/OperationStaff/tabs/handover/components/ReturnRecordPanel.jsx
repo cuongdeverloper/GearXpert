@@ -27,7 +27,10 @@ export default function ReturnRecordPanel({
   handleFail,
   returnFailureOptions,
 }) {
-  const deliveryOperatorNote = deliveryReference?.inspection?.operatorNote || "";
+  const deliveryOperatorNote =
+    deliveryReference?.inspection?.operatorNote?.trim() ||
+    deliveryReference?.customerConfirmation?.operatorNote?.trim() ||
+    "";
   const signatureSource =
     deliveryReference?.customerConfirmation?.signatureUrls ||
     deliveryReference?.customerConfirmation?.signatureUrl ||

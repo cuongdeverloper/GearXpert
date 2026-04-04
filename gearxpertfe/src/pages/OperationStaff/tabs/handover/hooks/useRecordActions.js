@@ -166,9 +166,22 @@ export default function useRecordActions({
           ? makeInspectionPayload(attempt, inspectionForm)
           : makeReturnInspectionPayload(attempt);
 
+      // Bàn giao: ghi chú bắt buộc nằm ở confirmForm (SuccessConfirmCard), không phải inspectionForm.
+      // Phải gộp vào inspection.operatorNote để backend lưu vào biên bản — phần thu hồi đọc inspection.operatorNote khi đối chiếu.
+      const deliveryInspection =
+        flowContext === "DELIVERY"
+          ? {
+              ...inspection,
+              operatorNote:
+                confirmForm.operatorNote?.trim() ||
+                inspection.operatorNote ||
+                "",
+            }
+          : inspection;
+
       if (flowContext === "DELIVERY") {
         const formData = new FormData();
-        formData.append("inspection", JSON.stringify(inspection));
+        formData.append("inspection", JSON.stringify(deliveryInspection));
         formData.append(
           "customerConfirmation",
           JSON.stringify({
