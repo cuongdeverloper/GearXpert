@@ -7,12 +7,14 @@ const NotificationConfig = require("../../configs/NotificationConfig"); // ← T
 const { ensureDraftForReturn, reportIssue } = require("../../services/ReturnService");
 
 const RETURN_FAILURE_LABELS = {
+  [RETURN_FAILURE_REASON.CUSTOMER_UNAVAILABLE]: "Khách vắng mặt / Không liên hệ được",
+  [RETURN_FAILURE_REASON.WRONG_ADDRESS]: "Sai địa chỉ / Không tìm thấy vị trí",
+  [RETURN_FAILURE_REASON.MISSING_DEVICE]: "Khách báo làm mất thiết bị",
+  [RETURN_FAILURE_REASON.DAMAGED_DEVICE]: "Thiết bị hỏng hóc",
+  [RETURN_FAILURE_REASON.OTHER]: "Lý do khác",
   [RETURN_FAILURE_REASON.CUSTOMER_NO_SHOW]: "Khách không có mặt",
   [RETURN_FAILURE_REASON.CUSTOMER_REJECT_RETURN]: "Khách từ chối trả",
   [RETURN_FAILURE_REASON.CONTACT_FAILED]: "Không liên hệ được khách",
-  [RETURN_FAILURE_REASON.LOCATION_BLOCKED]: "Không thể tiếp cận điểm thu hồi",
-  [RETURN_FAILURE_REASON.ORDER_CLOSED_ELSEWHERE]: "Đơn đã đóng ở nhánh khác",
-  [RETURN_FAILURE_REASON.OTHER]: "Khác",
 };
 
 exports.createDeliveryIssue = async (req, res) => {

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Package } from "lucide-react";
-import { STATUS_BADGE } from "../constants";
+import { STATUS_BADGE, formatReturnFailureReason } from "../constants";
 import ReturnFailureDetailDialog from "./ReturnFailureDetailDialog";
 
 export default function AttemptsHistory({
@@ -52,7 +52,9 @@ export default function AttemptsHistory({
                 </p>
                 <p className="text-sm text-slate-600 mt-1">
                   Kết quả: {attempt.result || "-"}
-                  {attempt.failure?.reason ? ` | Lý do: ${attempt.failure.reason}` : ""}
+                  {attempt.failure?.reason
+                    ? ` | Lý do: ${formatReturnFailureReason(attempt.failure.reason)}`
+                    : ""}
                 </p>
               </div>
               <span

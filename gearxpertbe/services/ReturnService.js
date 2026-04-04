@@ -23,15 +23,16 @@ const ACTIVE_STATUSES = [RETURN_RECORD_STATUS.DRAFT, RETURN_RECORD_STATUS.IN_PRO
 
 const mapReturnFailureToIssueType = (reason) => {
   switch (reason) {
+    case RETURN_FAILURE_REASON.MISSING_DEVICE:
+      return "MISSING";
+    case RETURN_FAILURE_REASON.DAMAGED_DEVICE:
+      return "DAMAGED";
     case RETURN_FAILURE_REASON.CUSTOMER_REJECT_RETURN:
       return "WRONG_ITEM";
+    case RETURN_FAILURE_REASON.CUSTOMER_UNAVAILABLE:
+    case RETURN_FAILURE_REASON.WRONG_ADDRESS:
     case RETURN_FAILURE_REASON.CUSTOMER_NO_SHOW:
     case RETURN_FAILURE_REASON.CONTACT_FAILED:
-      return "OTHER";
-    case RETURN_FAILURE_REASON.LOCATION_BLOCKED:
-      return "OTHER";
-    case RETURN_FAILURE_REASON.ORDER_CLOSED_ELSEWHERE:
-      return "OTHER";
     default:
       return "OTHER";
   }
@@ -39,16 +40,22 @@ const mapReturnFailureToIssueType = (reason) => {
 
 const mapReturnFailureToLabel = (reason) => {
   switch (reason) {
+    case RETURN_FAILURE_REASON.CUSTOMER_UNAVAILABLE:
+      return "Khách vắng mặt / Không liên hệ được";
+    case RETURN_FAILURE_REASON.WRONG_ADDRESS:
+      return "Sai địa chỉ / Không tìm thấy vị trí";
+    case RETURN_FAILURE_REASON.MISSING_DEVICE:
+      return "Khách báo làm mất thiết bị";
+    case RETURN_FAILURE_REASON.DAMAGED_DEVICE:
+      return "Thiết bị hỏng hóc";
+    case RETURN_FAILURE_REASON.OTHER:
+      return "Lý do khác";
     case RETURN_FAILURE_REASON.CUSTOMER_NO_SHOW:
       return "Khách không có mặt";
     case RETURN_FAILURE_REASON.CUSTOMER_REJECT_RETURN:
       return "Khách từ chối trả";
     case RETURN_FAILURE_REASON.CONTACT_FAILED:
       return "Không liên hệ được khách";
-    case RETURN_FAILURE_REASON.LOCATION_BLOCKED:
-      return "Không thể tiếp cận điểm thu hồi";
-    case RETURN_FAILURE_REASON.ORDER_CLOSED_ELSEWHERE:
-      return "Đơn đã đóng ở nhánh khác";
     default:
       return "Khác";
   }

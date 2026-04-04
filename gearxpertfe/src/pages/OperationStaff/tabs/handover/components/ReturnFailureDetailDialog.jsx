@@ -1,18 +1,11 @@
 import React from "react";
 import { X, Phone, UserRound, CircleAlert } from "lucide-react";
-
-const RETURN_FAILURE_REASON_LABELS = {
-  CUSTOMER_NO_SHOW: "Khách không có mặt",
-  CUSTOMER_REJECT_RETURN: "Khách từ chối trả",
-  CONTACT_FAILED: "Không liên hệ được khách",
-  LOCATION_BLOCKED: "Không thể tiếp cận điểm thu hồi",
-  ORDER_CLOSED_ELSEWHERE: "Đơn đã đóng ở nhánh khác",
-  OTHER: "Khác",
-};
+import { formatReturnFailureReason } from "../constants";
 
 const resolveReasonLabel = (reason) => {
   if (!reason) return "-";
-  return RETURN_FAILURE_REASON_LABELS[reason] || reason;
+  const t = formatReturnFailureReason(reason);
+  return t === "—" ? "-" : t;
 };
 
 export default function ReturnFailureDetailDialog({ open, onClose, detail }) {

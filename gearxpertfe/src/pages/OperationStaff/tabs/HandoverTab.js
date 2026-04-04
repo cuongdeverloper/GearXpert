@@ -16,15 +16,7 @@ import ReturnRecordPanel from "./handover/components/ReturnRecordPanel";
 import RecordContextSidebar from "./handover/components/RecordContextSidebar";
 import RecordFlowSwitch from "./handover/components/RecordFlowSwitch";
 import useRecordActions from "./handover/hooks/useRecordActions";
-
-const RETURN_FAILURE_OPTIONS = [
-  { value: "CUSTOMER_NO_SHOW", label: "Khách không có mặt" },
-  { value: "CUSTOMER_REJECT_RETURN", label: "Khách từ chối trả" },
-  { value: "CONTACT_FAILED", label: "Không liên hệ được khách" },
-  { value: "LOCATION_BLOCKED", label: "Không thể tiếp cận điểm thu hồi" },
-  { value: "ORDER_CLOSED_ELSEWHERE", label: "Đơn đã đóng ở nhánh khác" },
-  { value: "OTHER", label: "Khác" },
-];
+import { RETURN_FAILURE_OPTIONS } from "./handover/constants";
 
 export default function HandoverTab({
   selectedRentalIdFromTask = "",

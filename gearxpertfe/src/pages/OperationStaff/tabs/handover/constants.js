@@ -4,9 +4,34 @@ export const FAILURE_OPTIONS = [
   { value: "MISSING_ACCESSORY", label: "Thiếu phụ kiện" },
   { value: "DEVICE_MISMATCH", label: "Sai thiết bị / sai serial" },
   { value: "DAMAGED_ITEM_AT_DELIVERY", label: "Thiết bị hư hỏng khi giao" },
-  { value: "DELIVERY_BLOCKED", label: "Bị chặn giao / không thể tiếp cận" },
   { value: "OTHER", label: "Khác" },
 ];
+
+/** Lý do thu hồi thất bại (đồng bộ enum backend ReturnRecord.failure.reason) */
+export const RETURN_FAILURE_OPTIONS = [
+  { value: "CUSTOMER_UNAVAILABLE", label: "Khách vắng mặt / Không liên hệ được" },
+  { value: "WRONG_ADDRESS", label: "Sai địa chỉ / Không tìm thấy vị trí" },
+  { value: "MISSING_DEVICE", label: "Khách báo làm mất thiết bị" },
+  { value: "DAMAGED_DEVICE", label: "Thiết bị hỏng hóc" },
+  { value: "OTHER", label: "Lý do khác (Bắt buộc nhập ghi chú)" },
+];
+
+/** Nhãn hiển thị; giữ mã cũ để đọc bản ghi lưu trước khi đổi danh sách */
+export const RETURN_FAILURE_REASON_LABELS = {
+  CUSTOMER_UNAVAILABLE: "Khách vắng mặt / Không liên hệ được",
+  WRONG_ADDRESS: "Sai địa chỉ / Không tìm thấy vị trí",
+  MISSING_DEVICE: "Khách báo làm mất thiết bị",
+  DAMAGED_DEVICE: "Thiết bị hỏng hóc",
+  OTHER: "Lý do khác",
+  CUSTOMER_NO_SHOW: "Khách không có mặt",
+  CUSTOMER_REJECT_RETURN: "Khách từ chối trả",
+  CONTACT_FAILED: "Không liên hệ được khách",
+};
+
+export function formatReturnFailureReason(reason) {
+  if (!reason) return "—";
+  return RETURN_FAILURE_REASON_LABELS[reason] || reason;
+}
 
 export const STATUS_BADGE = {
   DRAFT: "bg-slate-100 text-slate-700 border-slate-200",
