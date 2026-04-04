@@ -26,10 +26,11 @@ const deliveryTaskSchema = new mongoose.Schema({
 
   status: {
     type: String,
-    enum: ['PENDING', 'IN_TRANSIT', 'COMPLETED', 'FAILED'],
+    enum: ['PENDING', 'ASSIGNED', 'IN_TRANSIT', 'COMPLETED', 'FAILED'],
     default: 'PENDING'
   },
 
+  claimedAt: Date,
   scheduledAt: Date,
   completedAt: Date
 

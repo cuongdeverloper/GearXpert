@@ -1,5 +1,5 @@
-/** Báo cáo sự cố supplier — chỉ dữ liệu API (không mock). */
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   FiAlertTriangle,
   FiSearch,
@@ -12,9 +12,11 @@ import {
   FiX,
   FiChevronLeft,
   FiChevronRight,
+  FiFileText,
 } from "react-icons/fi";
 import { getSupplierIssues } from "../../service/ApiService/ReportApi";
 import { toast } from "react-toastify";
+import ReturnFailureDetailDialog from "../OperationStaff/tabs/handover/components/ReturnFailureDetailDialog";
 
 /* ─── Constants ───────────────────────────────────────────────────────────── */
 
@@ -51,11 +53,57 @@ const STATUS_LABELS = {
 const STATUS_STYLES = {
   OPEN: "bg-red-50 text-red-700 border-red-200",
   PROCESSING: "bg-amber-50 text-amber-700 border-amber-200",
-  WAITING_EVIDENCE: "bg-violet-50 text-violet-800 border-violet-200",
+  WAITING_EVIDENCE: "bg-violet-50 text-violet-700 border-violet-200",
   RESOLVED: "bg-green-50 text-green-700 border-green-200",
   REJECTED: "bg-slate-50 text-slate-700 border-slate-200",
   VERIFIED: "bg-blue-50 text-blue-700 border-blue-200",
 };
+
+const HANDOVER_FAILURE_REASON_LABELS = {
+  NO_SHOW: "Khách không có mặt",
+  CUSTOMER_REJECT: "Khách từ chối nhận",
+  MISSING_ACCESSORY: "Thiếu phụ kiện",
+  DEVICE_MISMATCH: "Sai thiết bị / sai serial",
+  DAMAGED_ITEM_AT_DELIVERY: "Thiết bị hư hỏng khi giao",
+  DELIVERY_BLOCKED: "Bị chặn giao / không thể tiếp cận",
+  OTHER: "Khác",
+};
+
+const RETURN_FAIL_REGEX = /^Thu hồi thất bại:/i;
+const HANDOVER_FAIL_REGEX = /^(Handover thất bại:|Đơn hàng không thành công vì lý do:)/i;
+
+function isReturnReport(r) {
+  const desc = r.description || "";
+  if (HANDOVER_FAIL_REGEX.test(desc)) return false;
+  if (r.reportContext === "RETURN" || RETURN_FAIL_REGEX.test(desc)) return true;
+  return false;
+}
+
+const parseReturnFailDescription = (description = "") => {
+  const text = String(description || "");
+  const parts = text.split("|").map((x) => x.trim()).filter(Boolean);
+  const first = parts[0] || "";
+  const reason = first.replace(/^Thu hồi thất bại:\s*/i, "").trim();
+  const operatorNote = parts[parts.length - 1] || "";
+  return { reason, operatorNote };
+};
+
+const parseDeliveryFailDescription = (description = "") => {
+  const text = String(description || "");
+  const codeMatch = text.match(/Handover thất bại:\s*([A-Z_]+)/i);
+  const labelMatch = text.match(/Đơn hàng không thành công vì lý do:\s*([^|.]+)/i);
+  const segments = text.split("|").map((x) => x.trim()).filter(Boolean);
+  const operatorNote = segments[segments.length - 1] || "";
+  return {
+    reason:
+      labelMatch?.[1]?.trim() ||
+      (codeMatch?.[1] ? HANDOVER_FAILURE_REASON_LABELS[codeMatch[1].toUpperCase()] : "") ||
+      "",
+    operatorNote,
+  };
+};
+
+const VALID_TABS = ["ALL", "DELIVERY", "RETURN", "DAMAGE"];
 
 const SEVERITY_LABELS = {
   LOW: "Nhẹ",
@@ -92,14 +140,19 @@ const ITEMS_PER_PAGE = 10;
 /* ─── Component ───────────────────────────────────────────────────────────── */
 
 export default function SupplierIssuesPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [deliveryIssues, setDeliveryIssues] = useState([]);
   const [damageReports, setDamageReports] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("ALL");
+  const [activeTab, setActiveTab] = useState(() => {
+    const u = (searchParams.get("tab") || "").toUpperCase();
+    return VALID_TABS.includes(u) ? u : "ALL";
+  });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [currentPage, setCurrentPage] = useState(1);
   const [lightboxImg, setLightboxImg] = useState(null);
+  const [dialogDetail, setDialogDetail] = useState(null);
 
   useEffect(() => {
     const fetchIssues = async () => {
@@ -121,11 +174,58 @@ export default function SupplierIssuesPage() {
     fetchIssues();
   }, []);
 
+  useEffect(() => {
+    const u = (searchParams.get("tab") || "").toUpperCase();
+    if (VALID_TABS.includes(u)) setActiveTab(u);
+  }, [searchParams]);
+
+  const setTab = useCallback(
+    (key) => {
+      setActiveTab(key);
+      if (key === "ALL") {
+        setSearchParams({}, { replace: true });
+      } else {
+        setSearchParams({ tab: key }, { replace: true });
+      }
+    },
+    [setSearchParams]
+  );
+
+  const fetchIssues = async () => {
+    try {
+      setLoading(true);
+      const res = await getSupplierIssues();
+      const body = res?.data ?? res;
+      setDeliveryIssues(body?.deliveryIssues || []);
+      setDamageReports(body?.damageReports || []);
+    } catch {
+      toast.error("Không thể tải danh sách sự cố");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openOperationalDetail = (report) => {
+    const isReturn = isReturnReport(report);
+    const parsed = isReturn
+      ? parseReturnFailDescription(report?.description || "")
+      : parseDeliveryFailDescription(report?.description || "");
+    setDialogDetail({
+      title: isReturn ? "Chi tiết sự cố thu hồi (vận hành)" : "Chi tiết sự cố giao hàng (vận hành)",
+      customerName: report?.rentalId?.customerId?.fullName || "Khách hàng",
+      phone: report?.rentalId?.phoneNumber || "-",
+      reason: parsed.reason || report?.issueType || "Khác",
+      operatorNote: parsed.operatorNote || report?.description || "",
+      images: Array.isArray(report?.images) ? report.images : [],
+      reasonLabel: isReturn ? "Lý do thu hồi thất bại" : "Lý do giao hàng thất bại",
+    });
+  };
+
   // Normalize into unified list for display
   const allIssues = useMemo(() => {
     const delivery = deliveryIssues.map((r) => ({
       ...r,
-      _type: r.reportContext === "RETURN" ? "RETURN" : "DELIVERY",
+      _type: isReturnReport(r) ? "RETURN" : "DELIVERY",
       _customerName: r.rentalId?.customerId?.fullName || "—",
       _customerPhone: r.rentalId?.phoneNumber || r.rentalId?.customerId?.phone || "—",
       _staffName: r.staffId?.fullName,
@@ -213,7 +313,7 @@ export default function SupplierIssuesPage() {
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Báo cáo sự cố</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Xem các sự cố được ghi nhận từ nhân viên giao hàng và khách hàng
+          Sự cố giao hàng / thu hồi từ vận hành và khách; hư hỏng khi thuê từ khách — một nơi để theo dõi.
         </p>
       </div>
 
@@ -230,7 +330,7 @@ export default function SupplierIssuesPage() {
         {TABS.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => setTab(tab.key)}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium border transition-all whitespace-nowrap ${
               activeTab === tab.key
                 ? "bg-indigo-50 text-indigo-700 border-indigo-200"
@@ -290,6 +390,7 @@ export default function SupplierIssuesPage() {
               key={issue._id}
               issue={issue}
               onImageClick={setLightboxImg}
+              onOperationalDetail={openOperationalDetail}
             />
           ))}
         </div>
@@ -353,6 +454,12 @@ export default function SupplierIssuesPage() {
       )}
 
       {/* Lightbox */}
+      <ReturnFailureDetailDialog
+        open={Boolean(dialogDetail)}
+        onClose={() => setDialogDetail(null)}
+        detail={dialogDetail}
+      />
+
       {lightboxImg && (
         <div
           className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
@@ -394,8 +501,12 @@ function StatCard({ label, value, color }) {
   );
 }
 
-function IssueCard({ issue, onImageClick }) {
+function IssueCard({ issue, onImageClick, onOperationalDetail }) {
   const [expanded, setExpanded] = useState(false);
+
+  const showOperationalDetail =
+    issue._type !== "DAMAGE" &&
+    (issue.reportedBy === "STAFF" || issue.source === "RETURN_RECORD");
 
   const typeLabel =
     issue._type === "DELIVERY"
@@ -489,6 +600,19 @@ function IssueCard({ issue, onImageClick }) {
 
         {/* Right side: timestamp + image count */}
         <div className="flex sm:flex-col items-center sm:items-end gap-2 sm:gap-1 shrink-0 text-right">
+          {showOperationalDetail && onOperationalDetail && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOperationalDetail(issue);
+              }}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100"
+            >
+              <FiFileText size={12} />
+              Biên bản vận hành
+            </button>
+          )}
           <span className="text-xs text-slate-400">{formatDateTime(issue.createdAt)}</span>
           {issue.images?.length > 0 && (
             <span className="flex items-center gap-1 text-xs text-slate-400">

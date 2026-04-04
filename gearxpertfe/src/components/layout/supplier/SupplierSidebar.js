@@ -80,7 +80,12 @@ const sections = [
     id: "delivery",
     title: "Giao hàng",
     icon: FiTruck,
-    items: [],
+    items: [
+      {
+        to: "/supplier/issues?tab=DELIVERY",
+        label: "Báo cáo sự cố",
+      },
+    ],
   },
   {
     id: "finance",
@@ -115,7 +120,7 @@ export default function SupplierSidebar({ collapsed, onCollapse, me }) {
     bookings: true,
     feedback: true,
     issues: true,
-    delivery: false,
+    delivery: true,
     finance: true,
     verification: true,
   });

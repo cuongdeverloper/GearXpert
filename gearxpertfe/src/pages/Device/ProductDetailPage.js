@@ -168,7 +168,6 @@ export default function ProductDetailPage() {
 
     if (quantity > (device?.stockQuantity || 0)) {
       toast.error(`Chỉ còn ${device?.stockQuantity || 0} thiết bị khả dụng!`);
-      return false;
     }
 
     return true;

@@ -77,6 +77,7 @@ const sections = [
     title: "Giao hàng",
     icon: FiTruck,
     items: [
+      { to: "/supplier/issues?tab=DELIVERY", label: "Báo cáo sự cố (giao hàng)" },
       { label: "Lịch lấy hàng & giao hàng", muted: true },
       { label: "Danh sách bàn giao", muted: true },
       { label: "Ảnh hiện trạng (trước / sau)", muted: true },
