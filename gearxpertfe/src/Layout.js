@@ -23,6 +23,7 @@ import SupplierDeviceDetailPage from "./pages/Supplier/SupplierDeviceDetailPage"
 import SupplierEditDevicePage from "./pages/Supplier/SupplierEditDevicePage";
 import SupplierAddDevicePage from "./pages/Supplier/SupplierAddDevicePage";
 import SupplierRentalRequests from "./pages/Supplier/SupplierRentalRequests";
+import SupplierRentalDetailPage from "./pages/Supplier/SupplierRentalDetailPage";
 import SupplierMaintenance from "./pages/Supplier/SupplierMaintenance";
 import SupplierRevenue from "./pages/Supplier/SupplierRevenue";
 import SupplierInventoryPage from "./pages/Supplier/SupplierInventoryPage";
@@ -203,6 +204,10 @@ export default function Layout() {
             />
             <Route path="devices/:id" element={<SupplierDeviceDetailPage />} />
             <Route path="inventory" element={<SupplierInventoryPage />} />
+            <Route
+              path="rental-requests/:rentalId"
+              element={<SupplierRentalDetailPage />}
+            />
             <Route
               path="rental-requests"
               element={<SupplierRentalRequests />}

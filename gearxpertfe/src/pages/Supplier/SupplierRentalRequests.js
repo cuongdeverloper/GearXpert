@@ -3,11 +3,10 @@ import {
   FiClock,
   FiRotateCw,
   FiAlertTriangle,
-  FiEye,
   FiSearch,
-  FiFilter,
   FiTruck,
   FiCheckCircle,
+  FiChevronRight,
 } from "react-icons/fi";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
@@ -18,8 +17,8 @@ import {
   startDelivery,
 } from "../../service/ApiService/RentalActionApi";
 import { toast } from "react-toastify";
+import { motion } from "framer-motion";
 import { confirmDialog } from "../../utils/confirmDialog";
-import RentalDetail from "../../components/common/RentalDetail";
 import RejectRentalModal from "../../components/supplier/RejectRentalModal";
 
 const STATUS_LABELS = {
@@ -83,17 +82,6 @@ const formatDate = (dateString) => {
   });
 };
 
-const formatDateTime = (dateString) => {
-  if (!dateString) return "—";
-  return new Date(dateString).toLocaleString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
 /** Trùng logic BE `isRentalPeriodStillOpenForDelivery`: hết ngày trả → không giao được */
 const isRentalPeriodOpenForDelivery = (rental) => {
   const items = rental?.rentalItems;
@@ -125,37 +113,10 @@ const getPrimaryItem = (rental) => {
   return items[0] || null;
 };
 
-// Trạng thái giao hàng dựa trên dữ liệu thực của rental
-const getDeliveryTimeline = (rental) => {
-  const pickedUpAt = rental?.pickedUpAt;
-  const deliveredAt = rental?.deliveredAt;
-  return [
-    {
-      status: "Nhận đơn từ nhà cung cấp",
-      time: rental?.updatedAt ? new Date(rental.updatedAt).toISOString() : null,
-      location: "Kho thiết bị - Nhà cung cấp",
-      done: true,
-    },
-    {
-      status: "Đang lấy hàng (Pickup)",
-      time: pickedUpAt ? new Date(pickedUpAt).toISOString() : null,
-      location: "Kho thiết bị - Nhà cung cấp",
-      done: !!pickedUpAt,
-    },
-    {
-      status: "Đang di chuyển đến khách hàng",
-      time: pickedUpAt ? new Date(pickedUpAt).toISOString() : null,
-      location: "Đang trên đường đến địa chỉ khách",
-      done: !!pickedUpAt,
-    },
-    {
-      status: "Đã giao thành công",
-      time: deliveredAt ? new Date(deliveredAt).toISOString() : null,
-      location: "Địa chỉ khách hàng",
-      done: !!deliveredAt,
-    },
-  ];
-};
+const easeOut = [0.22, 1, 0.36, 1];
+
+const statCardClass =
+  "group/stat bg-white rounded-2xl border border-slate-200/90 p-4 shadow-sm shadow-slate-200/30 flex items-center gap-3 transition-all duration-300 ease-out hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5";
 
 export default function SupplierRentalRequests() {
   const user = useSelector((state) => state.user.account);
@@ -169,13 +130,8 @@ export default function SupplierRentalRequests() {
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize] = useState(8);
-  const [detailModal, setDetailModal] = useState({ open: false, rental: null });
   const [rejectModal, setRejectModal] = useState({ open: false, rental: null });
   const [rejectSubmitting, setRejectSubmitting] = useState(false);
-  const [deliveryModal, setDeliveryModal] = useState({
-    open: false,
-    rental: null,
-  });
 
   const fetchRequests = useCallback(async () => {
     if (!user?.id) {
@@ -213,7 +169,7 @@ export default function SupplierRentalRequests() {
       (r) => String(r._id) === String(rentalFromNotif),
     );
     if (found) {
-      setDetailModal({ open: true, rental: found });
+      navigate(`/supplier/rental-requests/${found._id}`, { replace: true });
     } else if (requests.length > 0) {
       toast.info("Không tìm thấy đơn trong danh sách.");
     }
@@ -278,10 +234,6 @@ export default function SupplierRentalRequests() {
     } finally {
       setRejectSubmitting(false);
     }
-  };
-
-  const handleViewDeliveryStatus = (rental) => {
-    setDeliveryModal({ open: true, rental });
   };
 
   const counts = useMemo(() => {
@@ -350,60 +302,59 @@ export default function SupplierRentalRequests() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
+    <motion.div
+      className="space-y-6"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.35, ease: easeOut }}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: easeOut }}
+      >
         <h2 className="text-2xl font-bold text-slate-900 font-display tracking-tight">
           Quản lý đơn thuê
         </h2>
         <p className="mt-1 text-sm text-slate-600">
-          Xử lý yêu cầu thuê thiết bị từ khách hàng
+          Duyệt đơn, xem chi tiết đầy đủ (serial thiết bị, địa chỉ, tiến độ giao) trên trang riêng.
         </p>
-      </div>
+      </motion.div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center gap-3">
-          <span className="h-10 w-10 rounded-xl bg-amber-50 text-amber-600 inline-flex items-center justify-center">
-            <FiClock size={18} />
-          </span>
-          <div>
-            <p className="text-xs text-slate-500">Chờ xử lý</p>
-            <p className="text-lg font-bold text-slate-900">{counts.PENDING}</p>
-          </div>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center gap-3">
-          <span className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 inline-flex items-center justify-center">
-            <FiRotateCw size={18} />
-          </span>
-          <div>
-            <p className="text-xs text-slate-500">Đang thuê</p>
-            <p className="text-lg font-bold text-slate-900">{counts.RENTING}</p>
-          </div>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center gap-3">
-          <span className="h-10 w-10 rounded-xl bg-green-50 text-green-600 inline-flex items-center justify-center">
-            <FiCheckCircle size={18} />
-          </span>
-          <div>
-            <p className="text-xs text-slate-500">Đã trả</p>
-            <p className="text-lg font-bold text-slate-900">
-              {counts.RETURNED}
-            </p>
-          </div>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center gap-3">
-          <span className="h-10 w-10 rounded-xl bg-red-50 text-red-600 inline-flex items-center justify-center">
-            <FiAlertTriangle size={18} />
-          </span>
-          <div>
-            <p className="text-xs text-slate-500">Hủy / Từ chối</p>
-            <p className="text-lg font-bold text-slate-900">
-              {counts.CANCELLED}
-            </p>
-          </div>
-        </div>
+        {[
+          { icon: FiClock, wrap: "bg-amber-50 text-amber-600", label: "Chờ xử lý", value: counts.PENDING },
+          { icon: FiRotateCw, wrap: "bg-indigo-50 text-indigo-600", label: "Đang thuê", value: counts.RENTING },
+          { icon: FiCheckCircle, wrap: "bg-green-50 text-green-600", label: "Đã trả", value: counts.RETURNED },
+          { icon: FiAlertTriangle, wrap: "bg-red-50 text-red-600", label: "Hủy / Từ chối", value: counts.CANCELLED },
+        ].map((stat, i) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.06 * i, duration: 0.4, ease: easeOut }}
+            whileHover={{ y: -4 }}
+            className={statCardClass}
+          >
+            <span
+              className={`h-10 w-10 rounded-xl ${stat.wrap} inline-flex items-center justify-center transition-transform duration-300 group-hover/stat:scale-110`}
+            >
+              <stat.icon size={18} />
+            </span>
+            <div>
+              <p className="text-xs text-slate-500 font-medium">{stat.label}</p>
+              <p className="text-lg font-bold text-slate-900 tabular-nums">{stat.value}</p>
+            </div>
+          </motion.div>
+        ))}
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+      <motion.div
+        className="bg-white rounded-2xl border border-slate-200/90 shadow-sm shadow-slate-200/40 overflow-hidden transition-shadow duration-300 hover:shadow-md"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15, duration: 0.45, ease: easeOut }}
+      >
         <div className="p-4 border-b border-slate-100 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h3 className="text-lg font-semibold text-slate-900">
@@ -421,13 +372,9 @@ export default function SupplierRentalRequests() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Tìm mã đơn, sản phẩm, khách hàng..."
-                className="pl-9 pr-4 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                className="pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all duration-200 hover:border-slate-300"
               />
             </div>
-            <button className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-              <FiFilter size={16} />
-              Lọc
-            </button>
           </div>
         </div>
 
@@ -436,11 +383,12 @@ export default function SupplierRentalRequests() {
             {TABS.map((tab) => (
               <button
                 key={tab.key}
+                type="button"
                 onClick={() => setActiveTab(tab.key)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-all duration-200 ${
                   activeTab === tab.key
-                    ? "bg-white text-slate-900 border-slate-200 shadow-sm"
-                    : "bg-transparent text-slate-600 border-transparent hover:text-slate-900"
+                    ? "bg-white text-slate-900 border-slate-200 shadow-sm ring-1 ring-slate-200/80"
+                    : "bg-transparent text-slate-600 border-transparent hover:text-slate-900 hover:bg-white/70"
                 }`}
               >
                 {tab.label}{" "}
@@ -454,7 +402,7 @@ export default function SupplierRentalRequests() {
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-slate-500 border-b border-slate-200">
+            <thead className="text-slate-500 border-b border-slate-200 bg-slate-50/80">
               <tr className="text-left">
                 <th className="px-4 py-3 font-semibold">Mã đơn</th>
                 <th className="px-4 py-3 font-semibold">Sản phẩm</th>
@@ -463,7 +411,7 @@ export default function SupplierRentalRequests() {
                 <th className="px-4 py-3 font-semibold">Tiền thuê</th>
                 <th className="px-4 py-3 font-semibold">Đặt cọc</th>
                 <th className="px-4 py-3 font-semibold">Trạng thái</th>
-                <th className="px-4 py-3 font-semibold text-left">Hành động</th>
+                <th className="px-4 py-3 font-semibold text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -492,10 +440,18 @@ export default function SupplierRentalRequests() {
                 return (
                   <tr
                     key={rental._id || rental.id}
-                    className="hover:bg-slate-50"
+                    className="group/row border-b border-slate-50 transition-colors duration-200 hover:bg-gradient-to-r hover:from-primary/[0.04] hover:to-transparent"
                   >
-                    <td className="px-4 py-4 font-semibold text-slate-900">
-                      {code}
+                    <td className="px-4 py-4">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          navigate(`/supplier/rental-requests/${rental._id}`)
+                        }
+                        className="font-semibold text-primary text-left inline-flex items-center gap-1 rounded-lg px-1 -mx-1 transition-all duration-200 hover:bg-primary/10 hover:underline underline-offset-2"
+                      >
+                        {code}
+                      </button>
                     </td>
                     <td className="px-4 py-4 text-slate-900">
                       <span className="font-medium">{deviceName}</span>
@@ -529,15 +485,20 @@ export default function SupplierRentalRequests() {
                         {statusLabel}
                       </span>
                     </td>
-                    <td className="px-4 py-4 align-middle text-left">
-                      <div className="inline-flex items-center justify-start gap-3">
-                        <button
-                          onClick={() => setDetailModal({ open: true, rental })}
-                          className="text-slate-500 hover:text-slate-900"
-                          title="Xem chi tiết"
+                    <td className="px-4 py-4 align-middle text-right">
+                      <div className="inline-flex items-center justify-end gap-2 flex-wrap">
+                        <motion.button
+                          type="button"
+                          onClick={() =>
+                            navigate(`/supplier/rental-requests/${rental._id}`)
+                          }
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-sm transition-all duration-200 hover:bg-primary hover:text-white hover:border-primary hover:shadow-md group-hover/row:border-primary/20"
                         >
-                          <FiEye size={16} />
-                        </button>
+                          Chi tiết
+                          <FiChevronRight size={14} className="transition-transform duration-200 group-hover/row:translate-x-0.5" />
+                        </motion.button>
 
                         {rental.status === "PENDING" && (
                           <>
@@ -547,8 +508,8 @@ export default function SupplierRentalRequests() {
                               disabled={!canStartDelivery}
                               className={
                                 canStartDelivery
-                                  ? "text-blue-600 hover:text-blue-700"
-                                  : "text-slate-300 cursor-not-allowed"
+                                  ? "text-blue-600 hover:text-blue-700 p-1.5 rounded-lg transition-all duration-200 hover:bg-blue-50 hover:scale-110"
+                                  : "text-slate-300 cursor-not-allowed p-1.5"
                               }
                               title={
                                 canStartDelivery
@@ -559,8 +520,9 @@ export default function SupplierRentalRequests() {
                               <FiTruck size={16} />
                             </button>
                             <button
+                              type="button"
                               onClick={() => handleReject(rental)}
-                              className="text-red-600 hover:text-red-700"
+                              className="text-red-600 hover:text-red-700 p-1.5 rounded-lg transition-all duration-200 hover:bg-red-50 hover:scale-110"
                               title="Từ chối"
                             >
                               <FiX size={16} />
@@ -570,9 +532,14 @@ export default function SupplierRentalRequests() {
 
                         {rental.status === "DELIVERING" && (
                           <button
-                            onClick={() => handleViewDeliveryStatus(rental)}
-                            className="text-indigo-600 hover:text-indigo-800"
-                            title="Xem trạng thái giao hàng"
+                            type="button"
+                            onClick={() =>
+                              navigate(
+                                `/supplier/rental-requests/${rental._id}#tien-do-giao`
+                              )
+                            }
+                            className="text-indigo-600 hover:text-indigo-800 p-1.5 rounded-lg transition-all duration-200 hover:bg-indigo-50 hover:scale-110"
+                            title="Xem tiến độ giao hàng"
                           >
                             <FiTruck size={16} />
                           </button>
@@ -618,7 +585,7 @@ export default function SupplierRentalRequests() {
                 type="button"
                 onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                 disabled={page === 1}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+                className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:bg-slate-50 hover:border-primary/30 hover:shadow-sm active:scale-95"
               >
                 Trước
               </button>
@@ -631,14 +598,14 @@ export default function SupplierRentalRequests() {
                   setPage((prev) => Math.min(totalPages, prev + 1))
                 }
                 disabled={page === totalPages}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+                className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:bg-slate-50 hover:border-primary/30 hover:shadow-sm active:scale-95"
               >
                 Sau
               </button>
             </div>
           </div>
         )}
-      </div>
+      </motion.div>
 
       <RejectRentalModal
         open={rejectModal.open}
@@ -647,78 +614,6 @@ export default function SupplierRentalRequests() {
         onSubmit={submitReject}
         isSubmitting={rejectSubmitting}
       />
-
-      <RentalDetail
-        open={detailModal.open}
-        onClose={() => setDetailModal({ open: false, rental: null })}
-        rental={detailModal.rental}
-      />
-
-      {/* Modal xem trạng thái giao hàng (fake) */}
-      {deliveryModal.open && deliveryModal.rental && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-5">
-              <h3 className="text-xl font-bold text-slate-900">
-                Trạng thái giao hàng - {getRentalCode(deliveryModal.rental)}
-              </h3>
-              <button
-                onClick={() => setDeliveryModal({ open: false, rental: null })}
-                className="text-slate-500 hover:text-slate-700"
-              >
-                <FiX size={24} />
-              </button>
-            </div>
-
-            <div className="space-y-6 py-2">
-              {getDeliveryTimeline(deliveryModal.rental).map((step, index) => (
-                <div key={index} className="flex items-start gap-4">
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      step.done
-                        ? "bg-green-100 text-green-600 border-2 border-green-300"
-                        : "bg-slate-100 text-slate-400"
-                    }`}
-                  >
-                    {step.done ? (
-                      <FiCheckCircle size={20} />
-                    ) : (
-                      <FiClock size={20} />
-                    )}
-                  </div>
-
-                  <div className="flex-1 pt-1">
-                    <p
-                      className={`font-medium ${step.done ? "text-green-700" : "text-slate-800"}`}
-                    >
-                      {step.status}
-                    </p>
-                    {step.time && (
-                      <p className="text-sm text-slate-500 mt-0.5">
-                        {formatDateTime(step.time)}
-                      </p>
-                    )}
-                    {step.location && (
-                      <p className="text-sm text-slate-600 mt-1 italic">
-                        {step.location}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-8 flex justify-end gap-3">
-              <button
-                onClick={() => setDeliveryModal({ open: false, rental: null })}
-                className="px-5 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition"
-              >
-                Đóng
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    </motion.div>
   );
 }
