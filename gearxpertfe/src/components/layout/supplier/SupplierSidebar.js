@@ -28,7 +28,7 @@ const sections = [
     title: "Quản lý thiết bị",
     icon: FiBox,
     items: [
-      { to: "/supplier/devices", label: "Danh sách thiết bị" },
+      { to: "/supplier/devices", label: "Danh sách thiết bị", end: true },
       { to: "/supplier/devices/new", label: "Thêm thiết bị mới" },
       { to: "/supplier/inventory", label: "Quản lý kho" },
     ],
@@ -125,6 +125,7 @@ export default function SupplierSidebar({ collapsed, onCollapse, me }) {
                 <NavLink
                   key={item.to}
                   to={item.to}
+                  end={!!item.end}
                   className={({ isActive }) =>
                     classNames(
                       "flex items-center justify-center rounded-xl px-2 py-2.5 transition-all group",
@@ -182,6 +183,7 @@ export default function SupplierSidebar({ collapsed, onCollapse, me }) {
                             <NavLink
                               key={item.to}
                               to={item.to}
+                              end={!!item.end}
                               className={({ isActive }) =>
                                 classNames(
                                   "block rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all",
