@@ -302,7 +302,16 @@ const getDraftByTask = async ({ deliveryTaskId, staffId, actorId }) => {
 
 const getById = async (handoverId) => {
   ensureObjectId(handoverId, "handoverId");
-  const record = await HandoverRecord.findById(handoverId).lean();
+  const record = await HandoverRecord.findById(handoverId)
+    .populate({
+      path: "rentalId",
+      populate: {
+        path: "customerId",
+        select: "fullName phoneNumber",
+      },
+    })
+    .populate("prefetchedSnapshot.customerId", "fullName phoneNumber")
+    .lean();
   if (!record) {
     throw new DomainError("Không tìm thấy biên bản bàn giao", 404, "HANDOVER_NOT_FOUND");
   }

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { X, History, RefreshCw, Truck, PackageCheck, CheckCircle, AlertTriangle, Info } from 'lucide-react';
 import { getMyOperationLogs } from '../../../service/ApiService/OperationLogApi';
 import { getReturnRecordById } from '../../../service/ApiService/ReturnApi';
+import { getHandoverById } from '../../../service/ApiService/HandoverApi';
 import ReturnFailureDetailDialog from './handover/components/ReturnFailureDetailDialog';
 
 const ACTION_CONFIG = {
@@ -126,7 +127,7 @@ export default function HistoryTab({ setActiveMenu, realtimeTick = 0 }) {
       title: 'Chi tiết thu hồi thất bại',
       customerName: details?.customerName || 'Khách hàng',
       phone: details?.customerPhone || '-',
-      reason: details?.reason || '',
+      reason: HANDOVER_FAILURE_REASON_LABELS[details?.reason] || details?.reason || '',
       operatorNote: details?.operatorNote || details?.detail || '',
       images: [],
     });
@@ -135,14 +136,66 @@ export default function HistoryTab({ setActiveMenu, realtimeTick = 0 }) {
       const res = await getReturnRecordById(returnRecordId);
       const record = res?.returnRecord || res?.data?.returnRecord;
       if (!record) return;
+      
+      const mappedReason = record?.failure?.reason 
+        ? (HANDOVER_FAILURE_REASON_LABELS[record.failure.reason] || record.failure.reason)
+        : '';
+        
       setDialogDetail((prev) => ({
         ...(prev || {}),
-        reason: record?.failure?.reason || prev?.reason || '',
+        customerName: record?.rentalId?.customerId?.fullName || record?.prefetchedSnapshot?.customerId?.fullName || record?.prefetchedSnapshot?.deliveryAddress?.receiverName || record?.customerConfirmation?.confirmerName || prev?.customerName || 'Khách hàng',
+        phone: record?.rentalId?.customerId?.phoneNumber || record?.prefetchedSnapshot?.customerId?.phoneNumber || record?.prefetchedSnapshot?.phoneNumber || record?.customerConfirmation?.confirmerPhone || prev?.phone || '-',
+        reason: mappedReason || prev?.reason || '',
         operatorNote: record?.failure?.operatorNote || prev?.operatorNote || '',
         images: Array.isArray(record?.failure?.evidenceUrls) ? record.failure.evidenceUrls : [],
       }));
     } catch (_) {
       // Keep fallback data from operation log if return record is unavailable.
+    }
+  };
+
+  const openHandoverFailDetail = async (log) => {
+    if (log?.action !== 'HANDOVER_CONFIRM_FAILED') return;
+    const details = log?.details || {};
+    const handoverId = details?.handoverId;
+    if (!handoverId) return;
+
+    setDialogDetail({
+      title: 'Chi tiết bàn giao thất bại',
+      customerName: details?.customerName || 'Khách hàng',
+      phone: details?.customerPhone || '-',
+      reason: HANDOVER_FAILURE_REASON_LABELS[details?.reason] || details?.reason || '',
+      operatorNote: details?.operatorNote || details?.detail || '',
+      images: [],
+    });
+
+    try {
+      const res = await getHandoverById(handoverId);
+      const record = res?.handover || res?.data?.handover;
+      if (!record) return;
+      
+      const mappedReason = record?.failure?.reason 
+        ? (HANDOVER_FAILURE_REASON_LABELS[record.failure.reason] || record.failure.reason)
+        : '';
+
+      setDialogDetail((prev) => ({
+        ...(prev || {}),
+        customerName: record?.rentalId?.customerId?.fullName || record?.prefetchedSnapshot?.customerId?.fullName || record?.prefetchedSnapshot?.deliveryAddress?.receiverName || record?.customerConfirmation?.confirmerName || prev?.customerName || 'Khách hàng',
+        phone: record?.rentalId?.customerId?.phoneNumber || record?.prefetchedSnapshot?.customerId?.phoneNumber || record?.prefetchedSnapshot?.phoneNumber || record?.customerConfirmation?.confirmerPhone || prev?.phone || '-',
+        reason: mappedReason || prev?.reason || '',
+        operatorNote: record?.failure?.operatorNote || prev?.operatorNote || '',
+        images: Array.isArray(record?.failure?.evidenceUrls) ? record.failure.evidenceUrls : [],
+      }));
+    } catch (_) {
+      // Fallback data
+    }
+  };
+
+  const handleLogClick = (log) => {
+    if (log?.action === 'RETURN_CONFIRM_FAILED') {
+      openReturnFailDetail(log);
+    } else if (log?.action === 'HANDOVER_CONFIRM_FAILED') {
+      openHandoverFailDetail(log);
     }
   };
 
@@ -203,8 +256,8 @@ export default function HistoryTab({ setActiveMenu, realtimeTick = 0 }) {
                 return (
                   <div
                     key={log._id}
-                    className={`relative pl-6 md:pl-8 ${log.action === 'RETURN_CONFIRM_FAILED' ? 'cursor-pointer' : ''}`}
-                    onClick={() => openReturnFailDetail(log)}
+                    className={`relative pl-6 md:pl-8 ${(log.action === 'RETURN_CONFIRM_FAILED' || log.action === 'HANDOVER_CONFIRM_FAILED') ? 'cursor-pointer' : ''}`}
+                    onClick={() => handleLogClick(log)}
                   >
                     <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-white ${STATUS_CLASS[config.status] || 'bg-blue-500'}`}></div>
 

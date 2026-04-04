@@ -282,7 +282,16 @@ const listByRental = async (rentalId) => {
 
 const getById = async (returnRecordId) => {
   ensureObjectId(returnRecordId, "returnRecordId");
-  const record = await ReturnRecord.findById(returnRecordId);
+  const record = await ReturnRecord.findById(returnRecordId)
+    .populate({
+      path: "rentalId",
+      populate: {
+        path: "customerId",
+        select: "fullName phoneNumber",
+      },
+    })
+    .populate("prefetchedSnapshot.customerId", "fullName phoneNumber")
+    .lean();
   if (!record) {
     throw new DomainError("Không tìm thấy biên bản thu hồi", 404, "RETURN_RECORD_NOT_FOUND");
   }

@@ -315,6 +315,8 @@ export default function useRecordActions({
 
         logOperationAction("HANDOVER_CONFIRM_FAILED", "RENTAL", selectedRentalId, {
           handoverId: attempt.id,
+          customerName: selectedRental?.customerName || "Khách hàng",
+          customerPhone: selectedRental?.phone || "-",
           reason: failureForm.reason,
           detail: failureForm.detail,
         }).catch(() => {});

@@ -3,6 +3,9 @@ import axios from "../AxiosCustomize";
 export const getHandoverAttemptsByRental = (rentalId) =>
   axios.get(`/api/handovers/rentals/${rentalId}`);
 
+export const getHandoverById = (handoverId) =>
+  axios.get(`/api/handovers/${handoverId}`);
+
 export const createHandoverDraft = (rentalId, payload = {}) =>
   axios.post(`/api/handovers/rentals/${rentalId}/draft`, payload);
 
