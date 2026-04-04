@@ -208,6 +208,10 @@ export default function Layout() {
             <Route path="revenue" element={<SupplierRevenue />} />
             <Route path="vouchers" element={<SupplierVouchersPage />} />
             <Route path="issues" element={<SupplierIssuesPage />} />
+            <Route
+              path="delivery/incidents"
+              element={<Navigate to="/supplier/issues?tab=DELIVERY" replace />}
+            />
             <Route path="calendar" element={<SupplierCalendarPage />} />
             <Route path="ai-pricing" element={<SupplierAiPricingPage />} />
             <Route path="advertisements" element={<SupplierAdsPage />} />

@@ -205,6 +205,7 @@ exports.createStaffDeliveryIssue = async (req, res) => {
       deviceIds,
       staffId,
       reportedBy: "STAFF",
+      reportContext: "DELIVERY",
       issueType,
       description: description?.trim() || "",
       images,
@@ -229,6 +230,29 @@ exports.createStaffDeliveryIssue = async (req, res) => {
       }
     } catch (notifyErr) {
       console.error("Lỗi gửi notification staff delivery:", notifyErr);
+    }
+
+    try {
+      let sid = rental.supplierId?.toString();
+      if (!sid) {
+        const firstItem = await RentalItem.findOne({ rentalId: rental._id }).populate(
+          "deviceId",
+          "supplierId"
+        );
+        sid = firstItem?.deviceId?.supplierId?.toString();
+      }
+      if (sid) {
+        await NotificationConfig.sendNotification({
+          senderId: staffId,
+          receiverId: sid,
+          title: "Biên bản sự cố giao hàng (vận hành)",
+          message: `Đơn #${rental._id.toString().slice(-6)} có ghi nhận sự cố từ nhân viên vận hành. Vui lòng xem xét xử lý.`,
+          link: "/supplier/issues?tab=DELIVERY",
+          type: "STAFF_DELIVERY_ISSUE_SUPPLIER",
+        });
+      }
+    } catch (notifySupplierErr) {
+      console.error("Lỗi gửi notification supplier (staff delivery issue):", notifySupplierErr);
     }
 
     res.status(201).json({
@@ -358,6 +382,29 @@ exports.createStaffReturnIssue = async (req, res) => {
       console.error("Lỗi gửi notification staff return:", notifyErr);
     }
 
+    try {
+      let sid = rental.supplierId?.toString();
+      if (!sid) {
+        const firstItem = await RentalItem.findOne({ rentalId: rental._id }).populate(
+          "deviceId",
+          "supplierId"
+        );
+        sid = firstItem?.deviceId?.supplierId?.toString();
+      }
+      if (sid) {
+        await NotificationConfig.sendNotification({
+          senderId: staffId,
+          receiverId: sid,
+          title: "Biên bản sự cố thu hồi (vận hành)",
+          message: `Đơn #${rental._id.toString().slice(-6)} có ghi nhận sự cố từ nhân viên vận hành. Vui lòng xem xét xử lý.`,
+          link: "/supplier/issues?tab=RETURN",
+          type: "STAFF_RETURN_ISSUE_SUPPLIER",
+        });
+      }
+    } catch (notifySupplierErr) {
+      console.error("Lỗi gửi notification supplier (staff return issue):", notifySupplierErr);
+    }
+
     res.status(201).json({
       message:
         "Biên bản sự cố thu hồi đã được lưu. Đơn hàng chuyển sang trạng thái Kiểm tra.",
@@ -473,12 +520,16 @@ exports.getSupplierIssues = async (req, res) => {
   try {
     const supplierId = req.user.id;
 
-    // Lấy tất cả rental IDs thuộc supplier
     const rentals = await Rental.find({ supplierId }).select("_id").lean();
     const rentalIds = rentals.map((r) => r._id);
 
-    // Lấy delivery/return issues
-    const deliveryIssues = await DeliveryIssueReport.find({
+    if (rentalIds.length === 0) {
+      return res.json({ deliveryIssues: [], damageReports: [] });
+    }
+
+    const RETURN_FAIL_REGEX = /^Thu hồi thất bại:/i;
+
+    let deliveryIssues = await DeliveryIssueReport.find({
       rentalId: { $in: rentalIds },
     })
       .populate({
@@ -491,7 +542,71 @@ exports.getSupplierIssues = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    // Lấy damage reports (customer báo hư hỏng khi đang thuê)
+    // Fallback: đơn thu hồi FAILED chưa có bản ghi DeliveryIssueReport (đồng bộ với tab staff)
+    const failedReturnRecords = await ReturnRecord.find({
+      rentalId: { $in: rentalIds },
+      status: "FAILED",
+    })
+      .populate({
+        path: "rentalId",
+        select: "customerId phoneNumber status inspectedContext",
+        populate: { path: "customerId", select: "fullName email phone image" },
+      })
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    const existingKeys = new Set(
+      deliveryIssues
+        .filter((r) => RETURN_FAIL_REGEX.test(r?.description || ""))
+        .map((r) => `${String(r?.rentalId?._id || r?.rentalId)}|${r.description}`)
+    );
+
+    const fallbackReports = failedReturnRecords
+      .map((record) => {
+        const reasonLabel = RETURN_FAILURE_LABELS[record?.failure?.reason] || "Khác";
+        const description = [
+          `Thu hồi thất bại: ${reasonLabel}`,
+          record?.failure?.detail || "",
+          record?.failure?.operatorNote || "",
+        ]
+          .filter(Boolean)
+          .join(" | ");
+
+        const dedupeKey = `${String(record?.rentalId?._id || record?.rentalId)}|${description}`;
+        if (existingKeys.has(dedupeKey)) {
+          return null;
+        }
+
+        const snapshotItems =
+          record?.inspection?.items?.length > 0
+            ? record.inspection.items
+            : record?.prefetchedSnapshot?.items || [];
+
+        const syntheticDeviceIds = snapshotItems.slice(0, 3).map((item, idx) => ({
+          _id: `${record._id}-device-${idx}`,
+          name: item?.deviceName || "Thiết bị",
+        }));
+
+        return {
+          _id: `return-failed-${record._id}`,
+          rentalId: record.rentalId,
+          deviceIds: syntheticDeviceIds,
+          issueType: "OTHER",
+          description,
+          images: Array.isArray(record?.failure?.evidenceUrls) ? record.failure.evidenceUrls : [],
+          status: "OPEN",
+          createdAt: record?.finishedAt || record?.updatedAt || record?.createdAt,
+          reportContext: "RETURN",
+          reportedBy: "STAFF",
+          source: "RETURN_RECORD",
+        };
+      })
+      .filter(Boolean);
+
+    deliveryIssues = [...deliveryIssues, ...fallbackReports].sort(
+      (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+    );
+
     const damageReports = await DamageReport.find({
       rentalId: { $in: rentalIds },
     })
