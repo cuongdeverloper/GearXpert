@@ -1,10 +1,22 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { motion } from "framer-motion";
-import { FiFileText, FiShield, FiCheck, FiEdit3, FiArrowRight, FiX } from "react-icons/fi";
-import { requestBecomeSupplier } from "../../service/ApiService/SupplierApi"; 
+import {
+    FiFileText,
+    FiShield,
+    FiCheck,
+    FiEdit3,
+    FiArrowRight,
+    FiX,
+    FiEye,
+} from "react-icons/fi";
+import SignatureCanvas from "react-signature-canvas";
+import {
+    previewSupplierContract,
+    requestBecomeSupplier,
+} from "../../service/ApiService/SupplierApi";
 
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
@@ -16,7 +28,29 @@ export default function BecomeSupplierPage() {
 
     const [agreed, setAgreed] = useState(false);
     const [signature, setSignature] = useState("");
+    const [signatureDataUrl, setSignatureDataUrl] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+    
+    // Form fields
+    const [formData, setFormData] = useState({
+        supplierType: "Cá nhân",
+        fullName: "",
+        taxCode: "",
+        idNumber: "",
+        issueDate: "",
+        issuePlace: "",
+        address: "",
+        representative: "",
+        position: "",
+        phone: "",
+        email: "",
+        bankAccount: ""
+    });
+
+    const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
+    const termsRef = useRef(null);
+    const sigCanvas = useRef(null);
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -37,27 +71,103 @@ export default function BecomeSupplierPage() {
         }
     }, [isAuthenticated, userAccount, navigate]);
 
+    useEffect(() => {
+        if (userAccount?.fullName && !signature) {
+            setSignature(userAccount.fullName);
+            setFormData(prev => ({ 
+                ...prev, 
+                fullName: prev.fullName || userAccount.fullName,
+                phone: prev.phone || userAccount.phone,
+                email: prev.email || userAccount.email
+            }));
+        }
+    }, [userAccount, signature]);
+
+    const handleFormChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleScroll = () => {
+        if (termsRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = termsRef.current;
+            if (scrollTop + clientHeight >= scrollHeight - 10) {
+                setHasScrolledToBottom(true);
+            }
+        }
+    };
+
+    const handlePreviewContract = async () => {
+        if (!hasScrolledToBottom) {
+            return toast.warning("Vui lòng cuộn xuống đọc hết điều khoản trước khi ký.");
+        }
+        if (!agreed) {
+            return toast.error("Bạn cần đồng ý với điều khoản dịch vụ để tiếp tục.");
+        }
+        if (!signatureDataUrl) {
+            return toast.error("Vui lòng ký tên điện tử (vẽ chữ ký) trước khi xem hợp đồng.");
+        }
+
+        setIsPreviewLoading(true);
+        try {
+            const payload = {
+                ...formData,
+                signerName: signature || userAccount?.fullName || "",
+                currentDate: new Date().toLocaleDateString("vi-VN"),
+                signatureDataUrl,
+            };
+            const blob = await previewSupplierContract(payload);
+            const url = window.URL.createObjectURL(blob);
+            // Download the docx file instead of previewing inline
+            const link = document.createElement("a");
+            link.href = url;
+            link.setAttribute("download", "HopDongThuCungCapThietBi.docx");
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+            setTimeout(() => window.URL.revokeObjectURL(url), 100);
+            toast.success("Đã tải xuống file hợp đồng định dạng Word!");
+        } catch (error) {
+            console.error("Preview supplier contract error:", error);
+            toast.error(error.response?.data?.message || "Không thể tải bản thảo hợp đồng.");
+        } finally {
+            setIsPreviewLoading(false);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        if (!hasScrolledToBottom) {
+            toast.error("Vui lòng cuộn xuống đọc hết điều khoản trước khi ký.");
+            return;
+        }
         if (!agreed) {
             toast.error("Bạn cần đồng ý với điều khoản dịch vụ để tiếp tục.");
             return;
         }
-
-        if (signature.trim().toLowerCase() !== userAccount?.fullName?.toLowerCase()) {
-            toast.error("Chữ ký phải khớp chính xác với Họ và tên của bạn trên hệ thống.");
+        if (!signature) {
+            toast.error("Vui lòng nhập họ tên xác nhận.");
+            return;
+        }
+        if (!signatureDataUrl) {
+            toast.error("Vui lòng ký tên điện tử (vẽ chữ ký) trước khi gửi yêu cầu.");
             return;
         }
 
         setLoading(true);
         try {
             const response = await requestBecomeSupplier({
+                ...formData,
                 agreedToTerms: agreed,
-                contractSignature: signature,
+                signerName: signature,
+                signatureDataUrl,
             });
-
-            if (response.errorCode === 0) {
+            console.log(response)
+            if (response.success === true) {
+                if (response.signedPdfUrl) {
+                    window.open(response.signedPdfUrl, "_blank");
+                }
                 toast.success("Gửi yêu cầu hợp đồng thành công! Vui lòng chờ Admin phê duyệt.");
                 navigate("/profile");
             } else {
@@ -77,7 +187,7 @@ export default function BecomeSupplierPage() {
         <div className="min-h-screen flex flex-col bg-slate-50/50 relative overflow-hidden">
             <Header />
 
-            {/* Ambient Background (Khớp với style AdminAdsPage) */}
+            {/* Ambient Background */}
             <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-indigo-50/50 to-transparent -z-10"></div>
             <div className="absolute top-[-100px] right-[-100px] w-[500px] h-[500px] bg-purple-100/40 rounded-full blur-3xl -z-10"></div>
             <div className="absolute top-[200px] left-[-100px] w-[300px] h-[300px] bg-cyan-100/40 rounded-full blur-3xl -z-10"></div>
@@ -104,15 +214,105 @@ export default function BecomeSupplierPage() {
                     className="bg-white/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/50 relative"
                 >
                     <form onSubmit={handleSubmit} className="p-8 md:p-12">
+                        {/* Supplier Info Form */}
+                        <div className="mb-10">
+                            <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2 font-display">
+                                <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                                    <FiEdit3 size={16} />
+                                </div>
+                                Thông tin đăng ký
+                            </h3>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="col-span-1 md:col-span-2 mb-2">
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Hình thức đăng ký <span className="text-rose-500">*</span></label>
+                                    <div className="flex gap-6">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input type="radio" name="supplierType" value="Cá nhân" checked={formData.supplierType === "Cá nhân"} onChange={handleFormChange} className="w-4 h-4 text-indigo-600" />
+                                            <span>Cá nhân</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input type="radio" name="supplierType" value="Tổ chức / Doanh nghiệp" checked={formData.supplierType === "Tổ chức / Doanh nghiệp"} onChange={handleFormChange} className="w-4 h-4 text-indigo-600" />
+                                            <span>Tổ chức / Doanh nghiệp</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Họ và tên / Tên đơn vị <span className="text-rose-500">*</span></label>
+                                    <input type="text" name="fullName" value={formData.fullName} onChange={handleFormChange} required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Số điện thoại <span className="text-rose-500">*</span></label>
+                                    <input type="text" name="phone" value={formData.phone} onChange={handleFormChange} required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Email</label>
+                                    <input type="email" name="email" value={formData.email} onChange={handleFormChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Số CCCD / Giấy phép KD <span className="text-rose-500">*</span></label>
+                                    <input type="text" name="idNumber" value={formData.idNumber} onChange={handleFormChange} required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Ngày sinh / Mã số thuế</label>
+                                    <input type="text" name="taxCode" value={formData.taxCode} onChange={handleFormChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Ngày cấp</label>
+                                    <input type="text" name="issueDate" value={formData.issueDate} onChange={handleFormChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Nơi cấp</label>
+                                    <input type="text" name="issuePlace" value={formData.issuePlace} onChange={handleFormChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+                                </div>
+
+                                <div className="col-span-1 md:col-span-2">
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Địa chỉ <span className="text-rose-500">*</span></label>
+                                    <input type="text" name="address" value={formData.address} onChange={handleFormChange} required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+                                </div>
+
+                                {formData.supplierType === "Tổ chức / Doanh nghiệp" && (
+                                    <>
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-700 mb-2">Người đại diện</label>
+                                            <input type="text" name="representative" value={formData.representative} onChange={handleFormChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-700 mb-2">Chức vụ</label>
+                                            <input type="text" name="position" value={formData.position} onChange={handleFormChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+                                        </div>
+                                    </>
+                                )}
+
+                                <div className="col-span-1 md:col-span-2">
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Tài khoản ngân hàng (Chi nhánh / Tên Ngân hàng / STK) <span className="text-rose-500">*</span></label>
+                                    <input type="text" name="bankAccount" value={formData.bankAccount} onChange={handleFormChange} required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Terms Box */}
-                        <div className="mb-8">
+                        <div className="mb-8 border-t border-slate-200 pt-8 mt-8">
                             <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2 font-display">
                                 <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center">
                                     <FiFileText size={16} />
                                 </div>
                                 Điều khoản & Nghĩa vụ
                             </h3>
-                            <div className="bg-slate-50/80 border border-slate-200 rounded-2xl p-6 h-72 overflow-y-auto text-sm text-slate-600 space-y-5 custom-scrollbar shadow-inner">
+
+                            {/* Khung chứa điều khoản có sự kiện cuộn */}
+                            <div
+                                ref={termsRef}
+                                onScroll={handleScroll}
+                                className="bg-slate-50/80 border border-slate-200 rounded-2xl p-6 h-72 overflow-y-auto text-sm text-slate-600 space-y-5 custom-scrollbar shadow-inner"
+                            >
                                 <p><strong>1. Quy định chung:</strong> Nhà cung cấp (Supplier) cam kết các thiết bị đăng tải trên nền tảng GearXpert thuộc quyền sở hữu hợp pháp hoặc có quyền cho thuê hợp lệ.</p>
                                 <p><strong>2. Chất lượng thiết bị:</strong> Supplier có trách nhiệm đảm bảo thiết bị hoạt động tốt, đúng như mô tả và hình ảnh cung cấp. Mọi hư hỏng có sẵn phải được thông báo rõ ràng trước khi giao máy.</p>
                                 <p><strong>3. Quy trình Identity Guardian:</strong> Cả Supplier và Customer phải tuân thủ nghiêm ngặt quy trình quay video/chụp ảnh đồng kiểm trước và sau khi thuê để làm bằng chứng giải quyết tranh chấp do GearXpert bảo lãnh.</p>
@@ -127,21 +327,38 @@ export default function BecomeSupplierPage() {
 
                         {/* Agreement Checkbox */}
                         <div className="mb-10 bg-indigo-50/50 p-5 rounded-2xl border border-indigo-100">
-                            <label className="flex items-start gap-4 cursor-pointer group">
+                            <label className={`flex items-start gap-4 ${hasScrolledToBottom ? 'cursor-pointer group' : 'cursor-not-allowed opacity-70'}`}>
                                 <div className="relative flex items-center justify-center mt-0.5 shrink-0">
                                     <input
                                         type="checkbox"
                                         className="peer sr-only"
                                         checked={agreed}
+                                        disabled={!hasScrolledToBottom}
                                         onChange={(e) => setAgreed(e.target.checked)}
                                     />
-                                    <div className="w-6 h-6 rounded-lg border-2 border-slate-300 peer-checked:bg-primary peer-checked:border-primary transition-all flex items-center justify-center group-hover:border-primary shadow-sm">
+                                    <div className={`w-6 h-6 rounded-lg border-2 transition-all flex items-center justify-center shadow-sm ${hasScrolledToBottom ? 'border-slate-300 peer-checked:bg-primary peer-checked:border-primary group-hover:border-primary' : 'border-slate-200 bg-slate-100'}`}>
                                         <FiCheck className="text-white opacity-0 peer-checked:opacity-100 transition-opacity" size={14} />
                                     </div>
                                 </div>
-                                <span className="text-slate-700 font-medium select-none leading-relaxed">
-                                    Tôi đã đọc, hiểu rõ và đồng ý tuân thủ toàn bộ các Điều khoản & Nghĩa vụ của nền tảng GearXpert.
-                                </span>
+                                <div className="flex flex-col">
+                                    <span className="text-slate-700 font-medium select-none leading-relaxed">
+                                        Tôi đã đọc, hiểu rõ và đồng ý tuân thủ toàn bộ các Điều khoản & Nghĩa vụ của nền tảng GearXpert.
+                                        <a
+                                            href="/contracts/GearXpert_Contact_Supplier.pdf"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-primary hover:text-indigo-800 hover:underline font-bold ml-1 transition-colors"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            (Xem toàn văn hợp đồng tại đây)
+                                        </a>
+                                    </span>
+                                    {!hasScrolledToBottom && (
+                                        <span className="text-sm text-rose-500 font-medium mt-1">
+                                            * Vui lòng cuộn xuống đọc hết tóm tắt điều khoản phía trên để xác nhận.
+                                        </span>
+                                    )}
+                                </div>
                             </label>
                         </div>
 
@@ -157,15 +374,104 @@ export default function BecomeSupplierPage() {
                                     {userAccount?.fullName}
                                 </strong>
                             </div>
-                            <div className="relative">
-                                <input
-                                    type="text"
-                                    value={signature}
-                                    onChange={(e) => setSignature(e.target.value)}
-                                    placeholder="Nhập chính xác họ và tên của bạn..."
-                                    required
-                                    className="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all font-medium text-slate-900 placeholder:text-slate-400 text-lg shadow-sm"
-                                />
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
+                                        Họ tên xác nhận
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={signature}
+                                        onChange={(e) => setSignature(e.target.value)}
+                                        placeholder="Nhập họ và tên của bạn..."
+                                        required
+                                        disabled={!hasScrolledToBottom}
+                                        className="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all font-medium text-slate-900 placeholder:text-slate-400 text-lg shadow-sm disabled:opacity-60 disabled:bg-slate-50 disabled:cursor-not-allowed"
+                                    />
+                                    <p className="mt-2 text-xs text-slate-500">
+                                        * Nên trùng với họ tên đã eKYC để tránh tranh chấp.
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
+                                        Chữ ký điện tử (vẽ)
+                                    </label>
+                                    <div className="border-2 border-slate-300 rounded-2xl overflow-hidden bg-white">
+                                        <SignatureCanvas
+                                            ref={sigCanvas}
+                                            penColor="black"
+                                            canvasProps={{
+                                                width: 520,
+                                                height: 180,
+                                                className:
+                                                    "w-full touch-none cursor-crosshair",
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="mt-3 flex gap-3 justify-end">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (sigCanvas.current) {
+                                                    sigCanvas.current.clear();
+                                                    setSignatureDataUrl(null);
+                                                }
+                                            }}
+                                            disabled={!hasScrolledToBottom}
+                                            className="px-5 py-2.5 bg-red-100 text-red-700 rounded-xl font-bold hover:bg-red-200 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                        >
+                                            Xóa
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (
+                                                    sigCanvas.current &&
+                                                    !sigCanvas.current.isEmpty()
+                                                ) {
+                                                    let canvasToUse;
+                                                    try {
+                                                        canvasToUse =
+                                                            sigCanvas.current.getTrimmedCanvas();
+                                                    } catch (err) {
+                                                        console.warn(
+                                                            "getTrimmedCanvas failed, fallback to full canvas:",
+                                                            err
+                                                        );
+                                                        canvasToUse =
+                                                            sigCanvas.current.getCanvas();
+                                                    }
+                                                    const dataUrl =
+                                                        canvasToUse.toDataURL("image/png");
+                                                    setSignatureDataUrl(dataUrl);
+                                                    toast.success("Đã lưu chữ ký thành công!");
+                                                } else {
+                                                    toast.warning(
+                                                        "Vui lòng vẽ chữ ký trước khi xác nhận!"
+                                                    );
+                                                }
+                                            }}
+                                            disabled={!hasScrolledToBottom}
+                                            className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                        >
+                                            Xác nhận chữ ký
+                                        </button>
+                                    </div>
+
+                                    {signatureDataUrl && (
+                                        <div className="mt-4 text-center">
+                                            <p className="text-xs font-bold text-emerald-700 mb-2">
+                                                Chữ ký đã lưu:
+                                            </p>
+                                            <img
+                                                src={signatureDataUrl}
+                                                alt="Chữ ký điện tử"
+                                                className="border border-slate-300 rounded-xl max-w-full h-auto mx-auto shadow-sm bg-white"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -180,8 +486,26 @@ export default function BecomeSupplierPage() {
                                 Hủy bỏ
                             </button>
                             <button
+                                type="button"
+                                onClick={handlePreviewContract}
+                                disabled={!agreed || !signatureDataUrl || isPreviewLoading}
+                                className="w-full sm:w-auto px-8 py-4 bg-indigo-50 text-indigo-700 rounded-2xl font-bold hover:bg-indigo-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                                {isPreviewLoading ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-indigo-300 border-t-indigo-700 rounded-full animate-spin"></div>
+                                        Đang tạo bản xem trước...
+                                    </>
+                                ) : (
+                                    <>
+                                        <FiEye size={18} />
+                                        Tải hợp đồng mẫu (DOCX)
+                                    </>
+                                )}
+                            </button>
+                            <button
                                 type="submit"
-                                disabled={!agreed || !signature || loading}
+                                disabled={!agreed || !signature || !signatureDataUrl || loading}
                                 className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-indigo-600 to-primary text-white rounded-2xl font-bold hover:shadow-[0_8px_30px_rgba(79,70,229,0.3)] hover:-translate-y-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none flex items-center justify-center gap-2 group/btn"
                             >
                                 {loading ? (

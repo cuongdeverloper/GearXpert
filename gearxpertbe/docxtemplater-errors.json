@@ -1,0 +1,470 @@
+[
+  {
+    "name": "TemplateError",
+    "message": "Duplicate open tag, expected one open tag",
+    "stack": "Error: Duplicate open tag, expected one open tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:112:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "{{full",
+      "id": "duplicate_open_tag",
+      "context": "{{full",
+      "offset": 1369,
+      "explanation": "The tag beginning with \"{{full\" has duplicate open tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate close tag, expected one close tag",
+    "stack": "Error: Duplicate close tag, expected one close tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateCloseTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:131:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:161:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "Name}}",
+      "id": "duplicate_close_tag",
+      "context": "Name}}",
+      "offset": 1379,
+      "explanation": "The tag ending with \"Name}}\" has duplicate close tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate open tag, expected one open tag",
+    "stack": "Error: Duplicate open tag, expected one open tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:112:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "{{dob}",
+      "id": "duplicate_open_tag",
+      "context": "{{dob}",
+      "offset": 1394,
+      "explanation": "The tag beginning with \"{{dob}\" has duplicate open tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate close tag, expected one close tag",
+    "stack": "Error: Duplicate close tag, expected one close tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateCloseTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:131:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:161:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "{dob}}",
+      "id": "duplicate_close_tag",
+      "context": "{dob}}",
+      "offset": 1399,
+      "explanation": "The tag ending with \"{dob}}\" has duplicate close tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate open tag, expected one open tag",
+    "stack": "Error: Duplicate open tag, expected one open tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:112:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "{{idNu",
+      "id": "duplicate_open_tag",
+      "context": "{{idNu",
+      "offset": 1421,
+      "explanation": "The tag beginning with \"{{idNu\" has duplicate open tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate close tag, expected one close tag",
+    "stack": "Error: Duplicate close tag, expected one close tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateCloseTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:131:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:161:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "mber}}",
+      "id": "duplicate_close_tag",
+      "context": "mber}}",
+      "offset": 1431,
+      "explanation": "The tag ending with \"mber}}\" has duplicate close tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate open tag, expected one open tag",
+    "stack": "Error: Duplicate open tag, expected one open tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:112:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "{{issu",
+      "id": "duplicate_open_tag",
+      "context": "{{issu",
+      "offset": 1445,
+      "explanation": "The tag beginning with \"{{issu\" has duplicate open tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate close tag, expected one close tag",
+    "stack": "Error: Duplicate close tag, expected one close tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateCloseTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:131:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:161:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "Date}}",
+      "id": "duplicate_close_tag",
+      "context": "Date}}",
+      "offset": 1456,
+      "explanation": "The tag ending with \"Date}}\" has duplicate close tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate open tag, expected one open tag",
+    "stack": "Error: Duplicate open tag, expected one open tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:112:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "{{issu",
+      "id": "duplicate_open_tag",
+      "context": "{{issu",
+      "offset": 1470,
+      "explanation": "The tag beginning with \"{{issu\" has duplicate open tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate close tag, expected one close tag",
+    "stack": "Error: Duplicate close tag, expected one close tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateCloseTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:131:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:161:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "lace}}",
+      "id": "duplicate_close_tag",
+      "context": "lace}}",
+      "offset": 1482,
+      "explanation": "The tag ending with \"lace}}\" has duplicate close tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate open tag, expected one open tag",
+    "stack": "Error: Duplicate open tag, expected one open tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:112:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "{{perm",
+      "id": "duplicate_open_tag",
+      "context": "{{perm",
+      "offset": 1506,
+      "explanation": "The tag beginning with \"{{perm\" has duplicate open tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate close tag, expected one close tag",
+    "stack": "Error: Duplicate close tag, expected one close tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateCloseTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:131:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:161:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "ress}}",
+      "id": "duplicate_close_tag",
+      "context": "ress}}",
+      "offset": 1524,
+      "explanation": "The tag ending with \"ress}}\" has duplicate close tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate open tag, expected one open tag",
+    "stack": "Error: Duplicate open tag, expected one open tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:112:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "{{cont",
+      "id": "duplicate_open_tag",
+      "context": "{{cont",
+      "offset": 1545,
+      "explanation": "The tag beginning with \"{{cont\" has duplicate open tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate close tag, expected one close tag",
+    "stack": "Error: Duplicate close tag, expected one close tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateCloseTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:131:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:161:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "ress}}",
+      "id": "duplicate_close_tag",
+      "context": "ress}}",
+      "offset": 1561,
+      "explanation": "The tag ending with \"ress}}\" has duplicate close tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate open tag, expected one open tag",
+    "stack": "Error: Duplicate open tag, expected one open tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:112:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "{{cont",
+      "id": "duplicate_open_tag",
+      "context": "{{cont",
+      "offset": 1580,
+      "explanation": "The tag beginning with \"{{cont\" has duplicate open tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate close tag, expected one close tag",
+    "stack": "Error: Duplicate close tag, expected one close tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateCloseTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:131:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:161:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "ress}}",
+      "id": "duplicate_close_tag",
+      "context": "ress}}",
+      "offset": 1596,
+      "explanation": "The tag ending with \"ress}}\" has duplicate close tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate open tag, expected one open tag",
+    "stack": "Error: Duplicate open tag, expected one open tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:112:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "{{emai",
+      "id": "duplicate_open_tag",
+      "context": "{{emai",
+      "offset": 1607,
+      "explanation": "The tag beginning with \"{{emai\" has duplicate open tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate close tag, expected one close tag",
+    "stack": "Error: Duplicate close tag, expected one close tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateCloseTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:131:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:161:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "mail}}",
+      "id": "duplicate_close_tag",
+      "context": "mail}}",
+      "offset": 1614,
+      "explanation": "The tag ending with \"mail}}\" has duplicate close tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate open tag, expected one open tag",
+    "stack": "Error: Duplicate open tag, expected one open tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:112:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "{{bank",
+      "id": "duplicate_open_tag",
+      "context": "{{bank",
+      "offset": 1642,
+      "explanation": "The tag beginning with \"{{bank\" has duplicate open tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate close tag, expected one close tag",
+    "stack": "Error: Duplicate close tag, expected one close tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateCloseTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:131:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:161:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "ount}}",
+      "id": "duplicate_close_tag",
+      "context": "ount}}",
+      "offset": 1655,
+      "explanation": "The tag ending with \"ount}}\" has duplicate close tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate open tag, expected one open tag",
+    "stack": "Error: Duplicate open tag, expected one open tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:112:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "{{full",
+      "id": "duplicate_open_tag",
+      "context": "{{full",
+      "offset": 1732,
+      "explanation": "The tag beginning with \"{{full\" has duplicate open tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate close tag, expected one close tag",
+    "stack": "Error: Duplicate close tag, expected one close tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateCloseTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:131:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:161:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "Name}}",
+      "id": "duplicate_close_tag",
+      "context": "Name}}",
+      "offset": 1742,
+      "explanation": "The tag ending with \"Name}}\" has duplicate close tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate open tag, expected one open tag",
+    "stack": "Error: Duplicate open tag, expected one open tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:112:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "{{taxC",
+      "id": "duplicate_open_tag",
+      "context": "{{taxC",
+      "offset": 1782,
+      "explanation": "The tag beginning with \"{{taxC\" has duplicate open tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate close tag, expected one close tag",
+    "stack": "Error: Duplicate close tag, expected one close tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateCloseTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:131:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:161:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "Code}}",
+      "id": "duplicate_close_tag",
+      "context": "Code}}",
+      "offset": 1791,
+      "explanation": "The tag ending with \"Code}}\" has duplicate close tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate open tag, expected one open tag",
+    "stack": "Error: Duplicate open tag, expected one open tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:112:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "{{cont",
+      "id": "duplicate_open_tag",
+      "context": "{{cont",
+      "offset": 1804,
+      "explanation": "The tag beginning with \"{{cont\" has duplicate open tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate close tag, expected one close tag",
+    "stack": "Error: Duplicate close tag, expected one close tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateCloseTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:131:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:161:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "ress}}",
+      "id": "duplicate_close_tag",
+      "context": "ress}}",
+      "offset": 1820,
+      "explanation": "The tag ending with \"ress}}\" has duplicate close tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate open tag, expected one open tag",
+    "stack": "Error: Duplicate open tag, expected one open tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:112:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "{{repr",
+      "id": "duplicate_open_tag",
+      "context": "{{repr",
+      "offset": 1834,
+      "explanation": "The tag beginning with \"{{repr\" has duplicate open tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate close tag, expected one close tag",
+    "stack": "Error: Duplicate close tag, expected one close tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateCloseTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:131:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:161:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "tive}}",
+      "id": "duplicate_close_tag",
+      "context": "tive}}",
+      "offset": 1850,
+      "explanation": "The tag ending with \"tive}}\" has duplicate close tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate open tag, expected one open tag",
+    "stack": "Error: Duplicate open tag, expected one open tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:112:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "{{posi",
+      "id": "duplicate_open_tag",
+      "context": "{{posi",
+      "offset": 1863,
+      "explanation": "The tag beginning with \"{{posi\" has duplicate open tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate close tag, expected one close tag",
+    "stack": "Error: Duplicate close tag, expected one close tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateCloseTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:131:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:161:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "tion}}",
+      "id": "duplicate_close_tag",
+      "context": "tion}}",
+      "offset": 1873,
+      "explanation": "The tag ending with \"tion}}\" has duplicate close tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate open tag, expected one open tag",
+    "stack": "Error: Duplicate open tag, expected one open tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:112:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "{{phon",
+      "id": "duplicate_open_tag",
+      "context": "{{phon",
+      "offset": 1892,
+      "explanation": "The tag beginning with \"{{phon\" has duplicate open tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate close tag, expected one close tag",
+    "stack": "Error: Duplicate close tag, expected one close tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateCloseTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:131:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:161:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "hone}}",
+      "id": "duplicate_close_tag",
+      "context": "hone}}",
+      "offset": 1899,
+      "explanation": "The tag ending with \"hone}}\" has duplicate close tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate open tag, expected one open tag",
+    "stack": "Error: Duplicate open tag, expected one open tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:112:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "{{emai",
+      "id": "duplicate_open_tag",
+      "context": "{{emai",
+      "offset": 1910,
+      "explanation": "The tag beginning with \"{{emai\" has duplicate open tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate close tag, expected one close tag",
+    "stack": "Error: Duplicate close tag, expected one close tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateCloseTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:131:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:161:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "mail}}",
+      "id": "duplicate_close_tag",
+      "context": "mail}}",
+      "offset": 1917,
+      "explanation": "The tag ending with \"mail}}\" has duplicate close tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate open tag, expected one open tag",
+    "stack": "Error: Duplicate open tag, expected one open tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:112:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "{{bank",
+      "id": "duplicate_open_tag",
+      "context": "{{bank",
+      "offset": 1945,
+      "explanation": "The tag beginning with \"{{bank\" has duplicate open tags",
+      "file": "word/document.xml"
+    }
+  },
+  {
+    "name": "TemplateError",
+    "message": "Duplicate close tag, expected one close tag",
+    "stack": "Error: Duplicate close tag, expected one close tag\n    at new XTTemplateError (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateCloseTagException (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\errors.js:131:13)\n    at D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:161:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at parseDelimiters (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:327:29)\n    at Object.parse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\lexer.js:418:28)\n    at XmlTemplater.preparse (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at Docxtemplater.precompileFile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:409:19)\n    at Docxtemplater.compile (D:\\GearXpert\\gearxpertbe\\node_modules\\docxtemplater\\js\\docxtemplater.js:511:16)",
+    "properties": {
+      "xtag": "ount}}",
+      "id": "duplicate_close_tag",
+      "context": "ount}}",
+      "offset": 1958,
+      "explanation": "The tag ending with \"ount}}\" has duplicate close tags",
+      "file": "word/document.xml"
+    }
+  }
+]
