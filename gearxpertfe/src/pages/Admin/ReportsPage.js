@@ -283,7 +283,7 @@ export default function ReportsPage() {
       {/* ══ OVERVIEW ═══════════════════════════════════════════════════════════ */}
       <section>
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 mb-6">
           {stats.length > 0
             ? stats.map((stat, idx) => (
                 <StatCard key={idx} {...stat} />
@@ -293,6 +293,7 @@ export default function ReportsPage() {
                   <StatCard label="Total Disputes" value={totalCases} icon={FiAlertTriangle} />
                   <StatCard label="Open" value={openCount} />
                   <StatCard label="Processing" value={processingCount} />
+                  <StatCard label="Waiting evidence" value={waitingCount} />
                   <StatCard label="Resolved" value={resolvedCount} />
                 </>
               )}

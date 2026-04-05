@@ -381,9 +381,17 @@ export default function SupplierPublicProfile() {
 
         {/* ===== SHOP HEADER ===== */}
         <div className="max-w-[1440px] mx-auto px-6 py-6">
-          <div className="relative bg-white rounded-[32px] border border-slate-200 shadow-xl overflow-hidden group/header">
-            {/* Main Background Accent - SHRUNK */}
-            <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-r from-indigo-700 via-violet-600 to-indigo-500 opacity-95 group-hover/header:opacity-100 transition-opacity duration-700" data-theme="dark" />
+          <div className="relative bg-white rounded-[32px] border border-slate-200 shadow-xl overflow-visible group/header">
+            {/* Main Background Accent — clip riêng để không cắt dropdown "Đã theo dõi" (absolute) */}
+            <div
+              className="absolute top-0 inset-x-0 h-32 rounded-t-[32px] overflow-hidden pointer-events-none"
+              aria-hidden
+            >
+              <div
+                className="absolute inset-0 bg-gradient-to-r from-indigo-700 via-violet-600 to-indigo-500 opacity-95 group-hover/header:opacity-100 transition-opacity duration-700"
+                data-theme="dark"
+              />
+            </div>
 
             <div className="relative px-8">
               {/* Banner Content: logoGearXpert X Shop Name */}

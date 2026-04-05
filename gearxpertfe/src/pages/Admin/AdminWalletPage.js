@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { FiCreditCard, FiTrendingUp, FiTrendingDown, FiArrowUpRight, FiArrowDownLeft, FiFilter, FiCalendar, FiPieChart, FiActivity } from "react-icons/fi";
+import React, { useCallback, useEffect, useState } from "react";
+import { FiCreditCard, FiTrendingUp, FiTrendingDown, FiArrowUpRight, FiArrowDownLeft, FiPieChart, FiActivity } from "react-icons/fi";
 import { getAdminWallet, getAdminWalletTransactions } from "../../service/ApiService/AdminApi";
 import { useSelector } from "react-redux";
 
@@ -14,22 +14,18 @@ export default function AdminWalletPage() {
   const userAccount = useSelector(state => state.user.account);
   console.log("AdminWalletPage - Redux userAccount:", userAccount);
 
-  useEffect(() => {
-    fetchData();
-  }, [filterType, dateRange]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       console.log("AdminWalletPage - Fetching data...");
       console.log("AdminWalletPage - User access_token:", userAccount?.access_token ? "exists" : "not found");
       console.log("AdminWalletPage - User role:", userAccount?.role);
-      
+
       const [walletRes, transactionsRes] = await Promise.all([
         getAdminWallet(),
-        getAdminWalletTransactions({ type: filterType, dateRange })
+        getAdminWalletTransactions({ type: filterType, dateRange }),
       ]);
-      
+
       setWallet(walletRes);
       setTransactions(transactionsRes.transactions || []);
     } catch (error) {
@@ -38,7 +34,11 @@ export default function AdminWalletPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterType, dateRange, userAccount]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const getTransactionIcon = (type) => {
     switch (type) {
