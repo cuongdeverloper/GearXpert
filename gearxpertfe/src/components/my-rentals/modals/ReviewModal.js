@@ -7,7 +7,7 @@ export default function ReviewModal({
   setReviewModal,
   reviewSelectedItems,
   setReviewSelectedItems,
-  hasReviewed,
+  hasReviewed = false,
   reviewLoading,
   handleSubmitReview,
   handleFileUpload,

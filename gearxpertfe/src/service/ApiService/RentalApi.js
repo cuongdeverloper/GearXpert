@@ -123,12 +123,27 @@ const confirmDelivery = (rentalId) => {
 const confirmReturn = (rentalId) => {
   return axios.post(`/api/rentals/${rentalId}/confirm-return`);
 };
-// Trong file ../../service/ApiService/RentalApi.js
-export const previewContract = async (data) => {
-  const res = await axios.post("/api/rentals/preview-contract", data, {
-    responseType: "blob",
-  });
+// Preview contract using new contract API - now returns JSON with previewUrl
+const previewContract = async (rentalId) => {
+  const res = await axios.get(`/api/contracts/preview/${rentalId}`);
+  return res;
+};
 
+// Preview contract with data (no rentalId required)
+const previewContractWithData = async (rentalData) => {
+  const res = await axios.post(`/api/contracts/preview-data`, rentalData);
+  return res;
+};
+
+// Generate contract
+const generateContract = async (rentalId) => {
+  const res = await axios.post(`/api/contracts/generate/${rentalId}`);
+  return res;
+};
+
+// Get contract by rental
+const getContractByRental = async (rentalId) => {
+  const res = await axios.get(`/api/contracts/${rentalId}`);
   return res;
 };
 const getRentalById = (rentalId) => {
@@ -158,5 +173,9 @@ export {
   getReturningRentals,
   confirmPickup,
   confirmDelivery,
-  confirmReturn
+  confirmReturn,
+  previewContract,
+  previewContractWithData,
+  generateContract,
+  getContractByRental
 };

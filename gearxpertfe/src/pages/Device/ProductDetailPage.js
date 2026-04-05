@@ -27,11 +27,7 @@ import { useSocket } from "../../SocketContext";
 import AuthRequirementModal from "../../components/common/AuthRequirementModal";
 
 /* ===== API ===== */
-import {
-  getDeviceDetail,
-  getDeviceAddons,
-  getRelatedDevices,
-} from "../../service/ApiService/DeviceApi";
+import { getDeviceDetail, getDeviceAddons, getRelatedDevices, getDeviceAvailableCount } from "../../service/ApiService/DeviceApi";
 import { addToCart, addInstantToCart } from "../../service/ApiService/CartApi";
 import { hasRentedDevice } from "../../service/ApiService/RentalApi";
 import {
@@ -60,6 +56,7 @@ export default function ProductDetailPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [realAvailableCount, setRealAvailableCount] = useState(0);
   const [addons, setAddons] = useState([]);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
@@ -81,10 +78,11 @@ export default function ProductDetailPage() {
         getDeviceDetail(slug),
         getDeviceAddons(slug),
         getRelatedDevices(slug),
+        getDeviceAvailableCount(slug),
       ];
 
       const results = await Promise.all(promises);
-      const [d, a, r] = results;
+      const [d, a, r, available] = results;
 
       let rented;
       if (isAuthenticated && d?._id) {
@@ -96,6 +94,7 @@ export default function ProductDetailPage() {
       setRelatedDevices(r || []);
       setHasRented(rented?.hasRented || false);
       setReviews(d.reviews || []);
+      setRealAvailableCount(available?.availableCount || 0);
     } catch (err) {
       console.error("Fetch device detail error:", err);
       toast.error("Không thể tải dữ liệu thiết bị");
@@ -166,8 +165,8 @@ export default function ProductDetailPage() {
       return false;
     }
 
-    if (quantity > (device?.stockQuantity || 0)) {
-      toast.error(`Chỉ còn ${device?.stockQuantity || 0} thiết bị khả dụng!`);
+    if (quantity > realAvailableCount) {
+      toast.error(`Chỉ còn ${realAvailableCount} thiết bị khả dụng!`);
       return false;
     }
 
@@ -236,7 +235,20 @@ export default function ProductDetailPage() {
       });
     } catch (err) {
       console.error("[handleBuyNow] Error:", err);
-      toast.error("Thuê ngay thất bại", { id: toastId });
+      
+      // Detailed error handling
+      const errorMessage = err.response?.data?.message || err.message || "Thuê ngay thất bại";
+      
+      // Specific error messages
+      if (errorMessage.includes("không tồn tại")) {
+        toast.error("Thiết bị không tồn tại hoặc đã bị xóa", { id: toastId });
+      } else if (errorMessage.includes("khả dụng")) {
+        toast.error(errorMessage, { id: toastId });
+      } else if (errorMessage.includes("Ngày kết thúc")) {
+        toast.error("Ngày kết thúc phải sau ngày bắt đầu", { id: toastId });
+      } else {
+        toast.error(errorMessage, { id: toastId });
+      }
     }
   };
 
@@ -787,7 +799,7 @@ export default function ProductDetailPage() {
                       Số lượng thuê
                     </label>
                     <span className="text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-widest border text-indigo-600 bg-indigo-50 border-indigo-100">
-                      Có sẵn: {device.stockQuantity}
+                      Có sẵn: {realAvailableCount}
                     </span>
                   </div>
                   <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-2xl border border-slate-100 w-fit">
@@ -807,7 +819,7 @@ export default function ProductDetailPage() {
                           setQuantity(
                             Math.min(
                               Math.max(1, val),
-                              device.stockQuantity || 1
+                              realAvailableCount || 1
                             )
                           );
                         }
@@ -817,11 +829,11 @@ export default function ProductDetailPage() {
                     <button
                       onClick={() =>
                         setQuantity(
-                          Math.min(device.stockQuantity || 1, quantity + 1)
+                          Math.min(realAvailableCount || 1, quantity + 1)
                         )
                       }
                       className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-900 flex items-center justify-center text-white hover:bg-indigo-600 hover:border-indigo-600 transition-all active:scale-95 disabled:opacity-50"
-                      disabled={quantity >= (device.stockQuantity || 1)}
+                      disabled={quantity >= (realAvailableCount || 1)}
                     >
                       <Plus size={16} strokeWidth={3} />
                     </button>
@@ -890,7 +902,7 @@ export default function ProductDetailPage() {
                 <div className="grid grid-cols-2 gap-4 mt-2">
                   <button
                     onClick={handleAddToCart}
-                    disabled={device.stockQuantity === 0}
+                    disabled={realAvailableCount === 0}
                     className="flex items-center justify-center gap-2 py-3.5 rounded-2xl border-2 border-slate-200 text-slate-700 font-bold hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                   >
                     <ShoppingCart className="w-5 h-5" />
@@ -898,7 +910,7 @@ export default function ProductDetailPage() {
                   </button>
                   <button
                     onClick={handleBuyNow}
-                    disabled={device.stockQuantity === 0}
+                    disabled={realAvailableCount === 0}
                     className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-slate-900 text-white font-bold hover:bg-black shadow-lg shadow-slate-200/50 transition-all active:scale-95 disabled:bg-slate-400 disabled:shadow-none disabled:cursor-not-allowed text-sm"
                   >
                     <Zap className="w-5 h-5 fill-current" />

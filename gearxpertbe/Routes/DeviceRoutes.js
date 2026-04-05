@@ -11,6 +11,7 @@ routerDevice.get('/supplier/:supplierId', deviceController.getSupplierDevices);
 routerDevice.get('/:slug', deviceController.getDeviceDetail);
 routerDevice.get('/:slug/addons', deviceController.getDeviceAddons);
 routerDevice.get('/:slug/related', deviceController.getRelatedDevices);
+routerDevice.get('/:slug/available-count', deviceController.getDeviceAvailableCount);
 
 // Update device
 routerDevice.put('/:id', checkAccessToken, uploadCloud.array('images', 10), deviceController.updateDevice);

@@ -19,6 +19,9 @@ export const getSupplierDevices = (supplierId, params = {}) =>
 export const getDeviceDetail = (slug) =>
   axios.get(`/api/devices/${slug}`);
 
+export const getDeviceAvailableCount = (slug) =>
+  axios.get(`/api/devices/${slug}/available-count`);
+
 export const getDeviceAddons = (slug) =>
   axios.get(`/api/devices/${slug}/addons`);
 

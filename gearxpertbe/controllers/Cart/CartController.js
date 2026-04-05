@@ -24,7 +24,7 @@ exports.getCart = async (req, res) => {
         select: "supplierId name slug rentPrice depositAmount images status",
         populate: {
           path: "supplierId",
-          select: "fullName avatar",
+          select: "fullName avatar cccd address phone email username",
         },
       },
     });
@@ -85,7 +85,7 @@ exports.getCart = async (req, res) => {
         populate: {
           path: "deviceId",
           select: "supplierId name slug rentPrice depositAmount images status",
-          populate: { path: "supplierId", select: "fullName avatar" },
+          populate: { path: "supplierId", select: "fullName avatar cccd address phone email username" },
         },
       });
 
@@ -218,14 +218,23 @@ exports.addInstantToCart = async (req, res) => {
       return res.status(404).json({ message: "Thiết bị không tồn tại" });
     }
 
+    // Check if device is active/available for rental
+    if (device.status === "INACTIVE" || device.status === "SUSPENDED") {
+      return res.status(400).json({ message: "Thiết bị hiện không khả dụng cho thuê" });
+    }
+
     const availableCount = await DeviceItem.countDocuments({
       deviceId,
       status: "AVAILABLE",
     });
 
+    console.log(`[addInstantToCart] Device: ${deviceId}, Requested: ${quantity}, Available: ${availableCount}`);
+
     if (availableCount < quantity) {
       return res.status(400).json({
         message: `Chỉ còn ${availableCount} thiết bị khả dụng`,
+        availableCount,
+        requestedQuantity: quantity
       });
     }
 

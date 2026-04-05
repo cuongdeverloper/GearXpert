@@ -1,6 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ImageWithFallback from "./ImageWithFallback";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "react-toastify";
+import { CreditCard, XCircle, CheckCircle2, Clock, Wrench, Star, RefreshCcw, FileText } from "lucide-react";
+import { getContractByRental, generateContract } from "../../service/ApiService/RentalApi";
 
 // Status badge color helper
 function getStatusColor(status) {
@@ -20,10 +23,44 @@ function getStatusColor(status) {
 
 export default function RentalDetail({ open, onClose, rental }) {
   const [showContract, setShowContract] = useState(false);
+  const [contractData, setContractData] = useState(null);
+  const [loadingContract, setLoadingContract] = useState(false);
 
   const handleClose = () => {
     setShowContract(false);
     onClose();
+  };
+
+  // Fetch contract data when rental changes
+  useEffect(() => {
+    if (rental?._id && rental.status === "APPROVED") {
+      fetchContractData();
+    }
+  }, [rental?._id, rental?.status]);
+
+  const fetchContractData = async () => {
+    try {
+      setLoadingContract(true);
+      const response = await getContractByRental(rental._id);
+      setContractData(response.data);
+    } catch (error) {
+      console.error("Failed to fetch contract:", error);
+      // If no contract exists, try to generate one
+      if (error.response?.status === 404) {
+        try {
+          const generateResponse = await generateContract(rental._id);
+          toast.success("Đã tạo hợp đồng thành công!");
+          // Fetch again after generation
+          const newResponse = await getContractByRental(rental._id);
+          setContractData(newResponse.data);
+        } catch (genError) {
+          console.error("Failed to generate contract:", genError);
+          toast.error("Không thể tạo hợp đồng");
+        }
+      }
+    } finally {
+      setLoadingContract(false);
+    }
   };
 
   const contractId = rental?._id ? rental._id.slice(-6).toUpperCase() : "N/A";
@@ -84,14 +121,37 @@ export default function RentalDetail({ open, onClose, rental }) {
                   <div><span className="font-semibold">Số điện thoại:</span> {rental.phoneNumber}</div>
                   <div className="md:col-span-2"><span className="font-semibold">Ghi chú:</span> {rental.notes || '-'}</div>
                 </div>
-                {String(rental.status || "").toUpperCase() === "APPROVED" && (
+                {rental.status === "APPROVED" && (
                   <div className="mt-4">
-                    <button
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all text-sm font-semibold"
-                      onClick={() => setShowContract(true)}
-                    >
-                      <span>Xem hợp đồng thuê</span>
-                    </button>
+                    {loadingContract ? (
+                      <div className="flex items-center gap-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary"></div>
+                        <span className="text-sm text-slate-600">Đang tạo hợp đồng...</span>
+                      </div>
+                    ) : contractData ? (
+                      <div className="space-y-3">
+                        <button
+                          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 transition-all text-sm font-semibold"
+                          onClick={() => setShowContract(true)}
+                        >
+                          <FileText size={16} />
+                          <span>Xem hợp đồng</span>
+                        </button>
+                        {contractData.files && contractData.files.length > 0 && (
+                          <div className="text-xs text-slate-500">
+                            Hợp đồng đã được tạo: {new Date(contractData.files[0].createdAt).toLocaleString("vi-VN")}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <button
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 transition-all text-sm font-semibold"
+                        onClick={fetchContractData}
+                      >
+                        <FileText size={16} />
+                        <span>Tạo hợp đồng</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -157,8 +217,40 @@ export default function RentalDetail({ open, onClose, rental }) {
             </button>
             <div className="text-center mb-6">
               <h3 className="text-2xl font-extrabold text-slate-900">Hợp đồng thuê</h3>
-              <p className="text-sm text-slate-500">Hợp đồng #{contractId} • {contractDate}</p>
+              <p className="text-sm text-slate-500">
+                Hợp đồng #{contractData?.contract?._id?.slice(-6).toUpperCase() || contractId} • 
+                {contractData?.contract?.createdAt ? new Date(contractData.contract.createdAt).toLocaleDateString() : contractDate}
+              </p>
             </div>
+            
+            {contractData?.files && contractData.files.length > 0 && (
+              <div className="mb-6">
+                <h4 className="font-semibold text-slate-800 mb-3">File hợp đồng</h4>
+                {contractData.files.map((file, index) => (
+                  <div key={file._id} className="border border-slate-200 rounded-lg p-4 mb-3">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="font-medium text-slate-700">
+                        {file.fileType === "DELIVERY" ? "Hợp đồng giao hàng" : 
+                         file.fileType === "RETURN" ? "Hợp đồng trả hàng" : "Hợp đồng"}
+                      </span>
+                      <span className="text-xs text-slate-500">
+                        {new Date(file.createdAt).toLocaleString("vi-VN")}
+                      </span>
+                    </div>
+                    <a
+                      href={file.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+                    >
+                      <FileText size={16} />
+                      Tải xuống hợp đồng
+                    </a>
+                  </div>
+                ))}
+              </div>
+            )}
+            
             <div className="space-y-4 text-sm text-slate-700 leading-relaxed">
               <p><span className="font-semibold">Nhà cung cấp:</span> GearXpert Supplier</p>
               <p><span className="font-semibold">Khách hàng:</span> {rental.customerId?.fullName || "-"}</p>

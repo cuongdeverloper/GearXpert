@@ -104,6 +104,8 @@ const rentalSchema = new mongoose.Schema(
     // Thêm vào trong rentalSchema
     isRemindedToday: { type: Boolean, default: false },
     isRemindedTomorrow: { type: Boolean, default: false },
+    isExtended: { type: Boolean, default: false },
+    extendedEndDate: Date,
   },
   {
     timestamps: true,

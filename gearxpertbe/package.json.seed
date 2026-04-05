@@ -1,0 +1,13 @@
+{
+  "name": "seed-admin-wallet",
+  "version": "1.0.0",
+  "description": "Seed admin wallet and transactions",
+  "main": "seedAdminWallet.js",
+  "scripts": {
+    "seed": "node scripts/seedAdminWallet.js"
+  },
+  "dependencies": {
+    "mongoose": "^7.0.0",
+    "dotenv": "^16.0.0"
+  }
+}

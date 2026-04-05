@@ -1,4 +1,5 @@
 const Device = require("../../models/Device");
+const DeviceItem = require("../../models/DeviceItem"); // Add DeviceItem import
 const RentalItem = require("../../models/RentalItem"); // Kiểm tra lại đường dẫn model của bạn
 const Review = require("../../models/Review");
 const SupplierProfile = require("../../models/SupplierProfile");
@@ -557,6 +558,35 @@ exports.getSupplierDevices = async (req, res) => {
       page: parseInt(page),
       limit: parseInt(limit),
       totalPages: Math.ceil(total / parseInt(limit)),
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * GET /devices/:slug/available-count
+ * Get real available count for device
+ */
+exports.getDeviceAvailableCount = async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    const device = await Device.findOne({ slug });
+    if (!device) {
+      return res.status(404).json({ message: "Thiết bị không tồn tại" });
+    }
+
+    const availableCount = await DeviceItem.countDocuments({
+      deviceId: device._id,
+      status: "AVAILABLE",
+    });
+
+    res.json({
+      deviceId: device._id,
+      slug: device.slug,
+      availableCount,
+      stockQuantity: device.stockQuantity,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

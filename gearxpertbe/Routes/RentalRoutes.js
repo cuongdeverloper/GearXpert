@@ -5,26 +5,26 @@ const {
   hasRentedDevice,
   verifyRentalPayment,
   getSupplierRentals,
+  getDeliveringRentals,
+  getReturningRentals,
+  getSupplierRevenue,
   approveRental,
   rejectRental,
-  getSupplierRevenue,
   getMyRentals,
   cancelRental,
   confirmReceived,
   extendRental,
   startDelivery,
-  repayRental,
-  cancelPayRental,
-  repaySingleRental,
-  getDeliveringRentals,
-  getReturningRentals,
   confirmPickup,
   confirmDelivery,
   confirmReturn,
-  previewContract,getRentalById
+  cancelPayRental,
+  repayRental,
+  repaySingleRental,
+  getRentalById
 } = require('../controllers/Rental/RentalController');
-const { hasReviewed, createReview, getDeviceReviews, uploadReviewImages } = require('../controllers/Review/ReviewController');  // Thêm getDeviceReviews và uploadReviewImages
 const { checkAccessToken,requireEkyc } = require('../middleware/JWTAction');
+const { hasReviewed, createReview, uploadReviewImages, getDeviceReviews } = require('../controllers/Review/ReviewController');
 
 
 rentalRouter.post('/checkout', checkAccessToken,requireEkyc, checkoutRental);
@@ -43,7 +43,6 @@ rentalRouter.get('/my-rentals', checkAccessToken, getMyRentals);
 rentalRouter.post('/:rentalId/cancel', checkAccessToken, cancelRental);
 rentalRouter.post('/:rentalId/confirm', checkAccessToken, confirmReceived);
 rentalRouter.post('/:rentalId/extend', checkAccessToken, extendRental);
-rentalRouter.post("/preview-contract", checkAccessToken, previewContract);
 // Fix route has-reviewed: Đổi từ /reviews/has-reviewed sang /rentals/:rentalId/has-reviewed để khớp API
 rentalRouter.get('/:rentalId/has-reviewed', checkAccessToken, hasReviewed);
 
