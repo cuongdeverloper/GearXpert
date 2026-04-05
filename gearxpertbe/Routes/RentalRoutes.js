@@ -1,5 +1,6 @@
 const express = require('express');
 const rentalRouter = express.Router();
+const uploadCloud = require('../configs/cloudinaryConfig');
 const {
   checkoutRental,
   hasRentedDevice,
@@ -7,6 +8,7 @@ const {
   getSupplierRentals,
   getDeliveringRentals,
   getReturningRentals,
+  claimDeliveryTask,
   getSupplierRevenue,
   approveRental,
   rejectRental,

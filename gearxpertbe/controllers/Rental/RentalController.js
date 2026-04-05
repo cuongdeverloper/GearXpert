@@ -1913,8 +1913,7 @@ exports.startDelivery = async (req, res) => {
     });
     console.log("Contract created:", contract._id);
 
-    // 3️⃣ create contract items
-    const rentalItems = await RentalItem.find({ rentalId: rental._id });
+    // 3️⃣ create contract items (reuse rentalItems already fetched above)
     console.log("Found rental items:", rentalItems.length);
 
     const contractItems = rentalItems.map((item) => ({
