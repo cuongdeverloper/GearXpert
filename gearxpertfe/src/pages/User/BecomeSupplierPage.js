@@ -31,6 +31,22 @@ export default function BecomeSupplierPage() {
     const [signatureDataUrl, setSignatureDataUrl] = useState(null);
     const [loading, setLoading] = useState(false);
     const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+    
+    // Form fields
+    const [formData, setFormData] = useState({
+        supplierType: "Cá nhân",
+        fullName: "",
+        taxCode: "",
+        idNumber: "",
+        issueDate: "",
+        issuePlace: "",
+        address: "",
+        representative: "",
+        position: "",
+        phone: "",
+        email: "",
+        bankAccount: ""
+    });
 
     const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
     const termsRef = useRef(null);
@@ -58,8 +74,19 @@ export default function BecomeSupplierPage() {
     useEffect(() => {
         if (userAccount?.fullName && !signature) {
             setSignature(userAccount.fullName);
+            setFormData(prev => ({ 
+                ...prev, 
+                fullName: prev.fullName || userAccount.fullName,
+                phone: prev.phone || userAccount.phone,
+                email: prev.email || userAccount.email
+            }));
         }
     }, [userAccount, signature]);
+
+    const handleFormChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
 
     const handleScroll = () => {
         if (termsRef.current) {
@@ -84,16 +111,25 @@ export default function BecomeSupplierPage() {
         setIsPreviewLoading(true);
         try {
             const payload = {
+                ...formData,
                 signerName: signature || userAccount?.fullName || "",
                 currentDate: new Date().toLocaleDateString("vi-VN"),
                 signatureDataUrl,
             };
             const blob = await previewSupplierContract(payload);
             const url = window.URL.createObjectURL(blob);
-            window.open(url, "_blank");
+            // Download the docx file instead of previewing inline
+            const link = document.createElement("a");
+            link.href = url;
+            link.setAttribute("download", "HopDongThuCungCapThietBi.docx");
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+            setTimeout(() => window.URL.revokeObjectURL(url), 100);
+            toast.success("Đã tải xuống file hợp đồng định dạng Word!");
         } catch (error) {
             console.error("Preview supplier contract error:", error);
-            toast.error(error.response?.data?.message || "Không thể tạo bản xem trước hợp đồng.");
+            toast.error(error.response?.data?.message || "Không thể tải bản thảo hợp đồng.");
         } finally {
             setIsPreviewLoading(false);
         }
@@ -122,6 +158,7 @@ export default function BecomeSupplierPage() {
         setLoading(true);
         try {
             const response = await requestBecomeSupplier({
+                ...formData,
                 agreedToTerms: agreed,
                 signerName: signature,
                 signatureDataUrl,
@@ -177,8 +214,92 @@ export default function BecomeSupplierPage() {
                     className="bg-white/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/50 relative"
                 >
                     <form onSubmit={handleSubmit} className="p-8 md:p-12">
+                        {/* Supplier Info Form */}
+                        <div className="mb-10">
+                            <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2 font-display">
+                                <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                                    <FiEdit3 size={16} />
+                                </div>
+                                Thông tin đăng ký
+                            </h3>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="col-span-1 md:col-span-2 mb-2">
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Hình thức đăng ký <span className="text-rose-500">*</span></label>
+                                    <div className="flex gap-6">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input type="radio" name="supplierType" value="Cá nhân" checked={formData.supplierType === "Cá nhân"} onChange={handleFormChange} className="w-4 h-4 text-indigo-600" />
+                                            <span>Cá nhân</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input type="radio" name="supplierType" value="Tổ chức / Doanh nghiệp" checked={formData.supplierType === "Tổ chức / Doanh nghiệp"} onChange={handleFormChange} className="w-4 h-4 text-indigo-600" />
+                                            <span>Tổ chức / Doanh nghiệp</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Họ và tên / Tên đơn vị <span className="text-rose-500">*</span></label>
+                                    <input type="text" name="fullName" value={formData.fullName} onChange={handleFormChange} required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Số điện thoại <span className="text-rose-500">*</span></label>
+                                    <input type="text" name="phone" value={formData.phone} onChange={handleFormChange} required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Email</label>
+                                    <input type="email" name="email" value={formData.email} onChange={handleFormChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Số CCCD / Giấy phép KD <span className="text-rose-500">*</span></label>
+                                    <input type="text" name="idNumber" value={formData.idNumber} onChange={handleFormChange} required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Ngày sinh / Mã số thuế</label>
+                                    <input type="text" name="taxCode" value={formData.taxCode} onChange={handleFormChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Ngày cấp</label>
+                                    <input type="text" name="issueDate" value={formData.issueDate} onChange={handleFormChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Nơi cấp</label>
+                                    <input type="text" name="issuePlace" value={formData.issuePlace} onChange={handleFormChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+                                </div>
+
+                                <div className="col-span-1 md:col-span-2">
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Địa chỉ <span className="text-rose-500">*</span></label>
+                                    <input type="text" name="address" value={formData.address} onChange={handleFormChange} required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+                                </div>
+
+                                {formData.supplierType === "Tổ chức / Doanh nghiệp" && (
+                                    <>
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-700 mb-2">Người đại diện</label>
+                                            <input type="text" name="representative" value={formData.representative} onChange={handleFormChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-700 mb-2">Chức vụ</label>
+                                            <input type="text" name="position" value={formData.position} onChange={handleFormChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+                                        </div>
+                                    </>
+                                )}
+
+                                <div className="col-span-1 md:col-span-2">
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Tài khoản ngân hàng (Chi nhánh / Tên Ngân hàng / STK) <span className="text-rose-500">*</span></label>
+                                    <input type="text" name="bankAccount" value={formData.bankAccount} onChange={handleFormChange} required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Terms Box */}
-                        <div className="mb-8">
+                        <div className="mb-8 border-t border-slate-200 pt-8 mt-8">
                             <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2 font-display">
                                 <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center">
                                     <FiFileText size={16} />
@@ -378,7 +499,7 @@ export default function BecomeSupplierPage() {
                                 ) : (
                                     <>
                                         <FiEye size={18} />
-                                        Xem trước hợp đồng
+                                        Tải hợp đồng mẫu (DOCX)
                                     </>
                                 )}
                             </button>
