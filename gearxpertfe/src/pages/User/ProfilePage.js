@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import { getCurrentUser, updateProfile, changePassword, sendOTPForPasswordChange } from '../../service/ApiService/AuthApi';
 import { doLogin, doLogout } from '../../redux/action/userAction';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiCheckCircle, FiLock } from 'react-icons/fi';
+import { FiCheckCircle, FiLock, FiCamera } from 'react-icons/fi';
 import Header from '../../components/navigation/Header';
 import Footer from '../../components/homepage/Footer';
 import EkycVerification from '../../components/EkycVerification';
@@ -419,7 +419,7 @@ export default function ProfilePage() {
                     <div className="grid lg:grid-cols-3 gap-8">
                         {/* Left Column - User Info Card */}
                         <div className="lg:col-span-1">
-                            <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-xl hover:shadow-glow-cyan border border-slate-200/50 p-6 sticky top-24 transition-all duration-300">
+                            <div className="bg-white/90 backdrop-blur-lg rounded-2xl shadow-xl hover:shadow-glow-cyan border border-slate-200/50 p-6 sticky top-24 transition-all duration-300">
                                 {/* Avatar Section */}
                                 <div className="flex flex-col items-center mb-6">
                                     <div className="relative group">
@@ -439,17 +439,17 @@ export default function ProfilePage() {
                                                 <img
                                                     src={avatarPreview}
                                                     alt="Avatar Preview"
-                                                    className="w-full h-full object-cover"
+                                                    className="w-full h-full object-cover group-hover:brightness-75 transition-all duration-300"
                                                     referrerPolicy="no-referrer"
                                                 />
                                             ) : (
-                                                <div className="w-full h-full rounded-full flex items-center justify-center text-white pointer-events-none">
+                                                <div className="w-full h-full rounded-full flex items-center justify-center text-white pointer-events-none group-hover:brightness-75 transition-all duration-300">
                                                     <span className="material-symbols-outlined text-5xl">person</span>
                                                 </div>
                                             )}
                                             {/* Overlay on hover */}
-                                            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full flex items-center justify-center pointer-events-none z-10">
-                                                <span className="material-symbols-outlined text-white text-3xl">camera_alt</span>
+                                            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full flex items-center justify-center pointer-events-none z-10">
+                                                <FiCamera className="text-white text-3xl" />
                                             </div>
                                         </label>
                                     </div>
@@ -524,7 +524,7 @@ export default function ProfilePage() {
                                                     navigate('/become-supplier');
                                                 }
                                             }}
-                                            className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-indigo-600 to-cyan-500 text-white rounded-xl font-bold hover:shadow-lg hover:shadow-indigo-500/30 hover:scale-[1.02] active:scale-95 transition-all duration-300"
+                                            className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-slate-900 text-white rounded-lg font-bold hover:shadow-lg hover:shadow-indigo-500/30 hover:scale-[1.02] active:scale-95 transition-all duration-300"
                                         >
                                             <span className="material-symbols-outlined text-[20px]">storefront</span>
                                             Nâng cấp Nhà cung cấp
@@ -541,7 +541,7 @@ export default function ProfilePage() {
                         {/* Right Column - Forms */}
                         <div className="lg:col-span-2 space-y-8">
                             {/* Profile Information Form */}
-                            <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-xl hover:shadow-glow-cyan border border-slate-200/50 p-6 md:p-8 transition-all duration-300">
+                            <div className="bg-white/90 backdrop-blur-lg rounded-2xl shadow-xl hover:shadow-glow-cyan border border-slate-200/50 p-6 md:p-8 transition-all duration-300">
                                     <div className="flex items-center justify-between mb-6">
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 flex-shrink-0 bg-primary/10 rounded-full flex items-center justify-center shadow-sm">
@@ -555,7 +555,7 @@ export default function ProfilePage() {
                                             type="button"
                                             onClick={handleGetLocation}
                                             disabled={isLocating}
-                                            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl font-bold text-sm hover:bg-indigo-100 transition-all border border-indigo-100 shadow-sm"
+                                            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg font-bold text-sm hover:bg-indigo-100 transition-all border border-indigo-100 shadow-sm"
                                         >
                                             <span className={`material-symbols-outlined text-[18px] ${isLocating ? 'animate-spin' : ''}`}>my_location</span>
                                             {isLocating ? 'Đang xác định...' : 'Lấy vị trí hiện tại'}
@@ -574,7 +574,7 @@ export default function ProfilePage() {
                                             value={formData.fullName}
                                             onChange={handleInputChange}
                                             required
-                                            className="w-full px-4 py-3 border border-slate-200/60 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
+                                            className="w-full px-4 py-3 border border-slate-200/60 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
                                             placeholder="Nhập họ và tên"
                                         />
                                     </div>
@@ -590,14 +590,14 @@ export default function ProfilePage() {
                                             id="phone-input"
                                             value={formData.phone}
                                             onChange={handleInputChange}
-                                            className="w-full px-4 py-3 border border-slate-200/60 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
+                                            className="w-full px-4 py-3 border border-slate-200/60 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
                                             placeholder="Nhập số điện thoại"
                                         />
                                     </div>
 
                                     {/* Address */}
-                                    <div className="grid md:grid-cols-3 gap-4">
-                                        <div>
+                                    <div className="space-y-4">
+                                        <div className="w-full">
                                             <label className="block text-sm font-medium text-slate-700 mb-2">
                                                 Đường/Phố
                                             </label>
@@ -605,40 +605,41 @@ export default function ProfilePage() {
                                                 type="text"
                                                 name="street"
                                                 value={formData.street}
-                                                onChange={handleInputChange}
-                                                className="w-full px-4 py-3 border border-slate-200/60 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
-                                                placeholder="Đường/Phố"
+                                                onChange={handleInputChange}    
+                                                className="w-full px-4 py-3 border border-slate-200/60 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
+                                                placeholder="Đường/Phố"     
                                             />
                                         </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-2">
-                                                Quận/Huyện
-                                            </label>
-                                            <input
-                                                type="text"
-                                                name="district"
-                                                value={formData.district}
-                                                onChange={handleInputChange}
-                                                className="w-full px-4 py-3 border border-slate-200/60 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
-                                                placeholder="Quận/Huyện"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-2">
-                                                Thành phố
-                                            </label>
-                                            <input
-                                                type="text"
-                                                name="city"
-                                                value={formData.city}
-                                                onChange={handleInputChange}
-                                                className="w-full px-4 py-3 border border-slate-200/60 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
-                                                placeholder="Thành phố"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Submit Button */}
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                                    Quận/Huyện
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    name="district"
+                                                    value={formData.district}       
+                                                    onChange={handleInputChange}    
+                                                    className="w-full px-4 py-3 border border-slate-200/60 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
+                                                    placeholder="Quận/Huyện"    
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                                    Thành phố
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    name="city"
+                                                    value={formData.city}
+                                                    onChange={handleInputChange}    
+                                                    className="w-full px-4 py-3 border border-slate-200/60 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
+                                                    placeholder="Thành phố"      
+                                                />
+                                            </div>
+                                            </div> 
+                                            </div>                                  
+                                            {/* Submit Button */}
                                     <div className="flex justify-end items-center gap-4 pt-4">
                                         {!userAccount.isVerifiedEkyc && (
                                             <button
@@ -653,14 +654,14 @@ export default function ProfilePage() {
                                         <button
                                             type="button"
                                             onClick={() => fetchUserData()}
-                                            className="px-6 py-4 border border-slate-300 rounded-2xl text-slate-700 font-bold hover:bg-slate-50 hover:shadow-md transition-all duration-300"
+                                            className="px-6 py-4 border border-slate-300 rounded-lg text-slate-700 font-bold hover:bg-slate-50 hover:shadow-md transition-all duration-300"
                                         >
                                             Hủy
                                         </button>
                                         <button
                                             type="submit"
                                             disabled={loading}
-                                            className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 hover:shadow-primary/20 hover:-translate-y-1 active:translate-y-0 flex items-center gap-3 group/btn disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="px-8 py-4 bg-slate-900 text-white rounded-lg font-bold hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 hover:shadow-primary/20 hover:-translate-y-1 active:translate-y-0 flex items-center gap-3 group/btn disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             {loading ? (
                                                 <>
@@ -681,7 +682,7 @@ export default function ProfilePage() {
 
                             {/* Change Password Form */}
                             {userAccount?.type !== 'GOOGLE' && (
-                                <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-xl hover:shadow-glow-cyan border border-slate-200/50 p-6 md:p-8 transition-all duration-300">
+                                <div className="bg-white/90 backdrop-blur-lg rounded-2xl shadow-xl hover:shadow-glow-cyan border border-slate-200/50 p-6 md:p-8 transition-all duration-300">
                                     <div className="flex items-center gap-3 mb-6">
                                         <div className="w-10 h-10 flex-shrink-0 bg-accent-cyan/10 rounded-full flex items-center justify-center shadow-sm">
                                             <span className="material-symbols-outlined text-accent-cyan text-xl">lock</span>
@@ -705,7 +706,7 @@ export default function ProfilePage() {
                                                     onChange={handlePasswordChange}
                                                     required
                                                     disabled={otpSent}
-                                                    className="w-full px-4 py-3 border border-slate-200/60 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400 disabled:bg-slate-100 disabled:text-slate-500"
+                                                    className="w-full px-4 py-3 border border-slate-200/60 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400 disabled:bg-slate-100 disabled:text-slate-500"
                                                     placeholder="Nhập mật khẩu hiện tại"
                                                 />
                                                 <button
@@ -745,7 +746,7 @@ export default function ProfilePage() {
                                                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                                                     required
                                                     maxLength={6}
-                                                    className="w-full px-4 py-3 border border-slate-200/60 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400 font-mono tracking-widest text-center text-xl"
+                                                    className="w-full px-4 py-3 border border-slate-200/60 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400 font-mono tracking-widest text-center text-xl"
                                                     placeholder="• • • • • •"
                                                 />
                                             </div>
@@ -763,7 +764,7 @@ export default function ProfilePage() {
                                                 onChange={handlePasswordChange}
                                                 required
                                                 minLength={6}
-                                                className="w-full px-4 py-3 border border-slate-200/60 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
+                                                className="w-full px-4 py-3 border border-slate-200/60 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
                                                 placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
                                             />
                                             <PasswordStrengthMeter password={passwordData.newPassword} />
@@ -781,7 +782,7 @@ export default function ProfilePage() {
                                                 onChange={handlePasswordChange}
                                                 required
                                                 minLength={6}
-                                                className="w-full px-4 py-3 border border-slate-200/60 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
+                                                className="w-full px-4 py-3 border border-slate-200/60 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
                                                 placeholder="Nhập lại mật khẩu mới"
                                             />
                                         </div>
@@ -796,14 +797,14 @@ export default function ProfilePage() {
                                                     setOtpCode('');
                                                     setTempToken('');
                                                 }}
-                                                className="px-6 py-3 border border-slate-300 rounded-xl text-slate-700 font-semibold hover:bg-slate-50 hover:shadow-md transition-all duration-300"
+                                                className="px-6 py-3 border border-slate-300 rounded-lg text-slate-700 font-semibold hover:bg-slate-50 hover:shadow-md transition-all duration-300"
                                             >
                                                 Hủy
                                             </button>
                                             <button
                                                 type="submit"
                                                 disabled={changingPassword}
-                                                className="px-6 py-3 bg-gradient-to-r from-primary to-accent-cyan text-white rounded-xl font-semibold shadow-md hover:shadow-glow-cyan hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                                className="px-6 py-3 bg-slate-900 text-white rounded-lg font-semibold shadow-md hover:shadow-glow-cyan hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                             >
                                                 {changingPassword ? (
                                                     <>
@@ -922,3 +923,8 @@ export default function ProfilePage() {
         </div>
     );
 }
+
+
+
+
+
