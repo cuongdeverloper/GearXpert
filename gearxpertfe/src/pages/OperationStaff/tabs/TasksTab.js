@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import {
   Truck, PackageCheck, Wrench,
-  CheckCircle, X, MapPin, Phone, FileText,
+  CheckCircle, X, MapPin, Phone, FileText, User, Laptop
 } from 'lucide-react';
 import { getDeliveringRentals, getReturningRentals, claimDeliveryTask, confirmPickup } from '../../../service/ApiService/RentalApi';
 import { logOperationAction } from '../../../service/ApiService/OperationLogApi';
@@ -289,7 +289,6 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
                     )}
                   </div>
                   <span className="text-xs font-semibold text-slate-500">
-                    #{String(task.id).slice(-6).toUpperCase()}
                   </span>
                 </div>
 
@@ -325,7 +324,7 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
 
             <div className="px-5 md:px-6 py-3 md:py-4 border-b border-slate-200 flex justify-between items-center bg-white md:bg-slate-50 shrink-0">
               <h3 className="text-lg font-bold flex items-center gap-2 text-slate-900 font-display">
-                <span className="hidden md:inline">Chi tiết nhiệm vụ</span> #{String(selectedTask.id).slice(-6).toUpperCase()}
+                <span className="hidden md:inline">Chi tiết nhiệm vụ</span>
               </h3>
               <button
                 onClick={() => setSelectedTask(null)}
@@ -335,68 +334,95 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-5 md:p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 mb-1">Tên khách hàng</p>
-                    <p className="font-semibold text-lg text-slate-900">{selectedTask.customer}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 mb-1">Liên hệ</p>
-                    <div className="flex items-center gap-3">
-                      <p className="font-medium text-slate-900 text-[15px]">{selectedTask.phone}</p>
-                      <button className="p-2 bg-emerald-100 text-emerald-700 rounded-full" title="Gọi ngay">
-                        <Phone size={14} className="fill-emerald-700" />
-                      </button>
+<div className="flex-1 overflow-y-auto bg-slate-50/50 p-4 md:p-6 space-y-4">
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {selectedTask.type === 'delivery' && (
+                    <div className="bg-indigo-100 text-indigo-700 p-2 rounded-xl">
+                      <Truck size={20} />
                     </div>
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 mb-1">Địa chỉ</p>
-                    <div className="flex items-start gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <MapPin size={16} className="text-primary shrink-0 mt-0.5" />
-                      <p className="font-medium leading-snug text-slate-900 text-sm">{selectedTask.address}</p>
+                  )}
+                  {selectedTask.type === 'return' && (
+                    <div className="bg-amber-100 text-amber-700 p-2 rounded-xl">
+                      <PackageCheck size={20} />
                     </div>
+                  )}
+                  {selectedTask.type === 'maintenance' && (
+                    <div className="bg-purple-100 text-purple-700 p-2 rounded-xl">
+                      <Wrench size={20} />
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Loại nhiệm vụ</p>
+                    <p className="font-bold text-slate-900 text-sm">
+                      {selectedTask.type === 'delivery' ? 'GIAO HÀNG' : selectedTask.type === 'return' ? 'THU HỒI' : 'BẢO TRÌ'}
+                    </p>
                   </div>
                 </div>
-
-                <div className="bg-slate-50 p-4 md:p-5 rounded-2xl border border-slate-200 space-y-4">
-                  <div>
-                    <h4 className="font-bold text-slate-800 text-sm border-b border-slate-200/60 pb-2 mb-3">Thiết bị cần xử lý</h4>
-                    <p className="font-bold text-[17px] text-primary leading-tight">{selectedTask.device}</p>
-                  </div>
-                  <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                    <p className="text-xs text-slate-400 mb-1.5 font-semibold">Ghi chú từ hệ thống:</p>
-                    <p className="text-[15px] font-medium text-slate-800">{selectedTask.note}</p>
-                  </div>
-                  <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-200 text-sm font-semibold text-indigo-700">
+                <div className="text-right">
+                  <span className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border ${selectedTask.assignedOperationStaffId ? isSelectedLockedByOther ? 'bg-slate-100 text-slate-600 border-slate-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
                     {selectedTask.assignedOperationStaffId
                       ? isSelectedLockedByOther
-                        ? 'Đơn đang được staff khác xử lý'
-                        : 'Đơn đã lock cho bạn'
-                      : 'Đơn chưa có staff nhận'}
-                  </div>
+                        ? 'Staff khác xử lý'
+                        : 'Đã nhận đơn'
+                      : 'Đang mở'}
+                  </span>
+                </div>
+              </div>
 
-                  
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <User size={18} className="text-primary"/> 
+                  <h4 className="font-bold text-slate-800 text-[15px]">Thông tin khách hàng</h4>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-lg text-slate-900">{selectedTask.customer}</p>
+                    <p className="font-medium text-slate-600 text-[15px] mt-0.5">{selectedTask.phone}</p>
+                  </div>
+                  <a href={`tel:${selectedTask.phone}`} className="w-10 h-10 bg-emerald-100/80 text-emerald-700 rounded-full flex justify-center items-center hover:bg-emerald-200 transition-colors" title="Gọi khách hàng">
+                    <Phone size={18} className="fill-emerald-700" />
+                  </a>
+                </div>
+                <div className="bg-slate-50 border border-slate-100 rounded-xl p-3.5 flex items-start gap-3">
+                  <MapPin size={20} className="text-primary shrink-0 mt-0.5" />
+                  <p className="font-medium leading-snug text-slate-800 text-[14px]">{selectedTask.address}</p>
+                </div>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <Laptop size={18} className="text-primary"/> 
+                  <h4 className="font-bold text-slate-800 text-[15px]">Chi tiết thiết bị</h4>
+                </div>
+                <div className="space-y-4">
+                  <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
+                    <p className="font-bold text-[16px] text-indigo-900 leading-tight">{selectedTask.device}</p>
+                    
+                    <div className="mt-3 bg-white p-3 rounded-lg border border-indigo-100 shadow-sm">
+                      <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-1">Ghi chú hệ thống</p>
+                      <p className="text-sm font-medium text-slate-800">{selectedTask.note && selectedTask.note !== '' ? selectedTask.note : 'Không có ghi chú'}</p>
+                    </div>
+                  </div>
 
                   <button
                     onClick={() => {
                       onOpenHandover?.(
                         selectedTask.rentalId,
-                        selectedTask.type === 'return' ? 'RETURN' : 'DELIVERY'
+                        selectedTask.type === 'return' ? 'RETURN' : 'DELIVERY'  
                       );
                       setSelectedTask(null);
                     }}
-                    className="w-full mt-2 py-2.5 bg-white border border-slate-200 rounded-xl text-[13px] text-slate-700 flex justify-center items-center gap-2 font-bold hover:bg-slate-50 transition-colors"
+                    className="w-full py-2.5 bg-white border border-indigo-200 text-indigo-700 rounded-xl text-[14px] flex justify-center items-center gap-2 font-bold hover:bg-indigo-50 transition-colors shadow-sm"
                   >
-                    <FileText size={16} className="text-primary" /> Xem chi tiết biên bản/hợp đồng
+                    <FileText size={18} /> Xem chi tiết biên bản/hợp đồng
                   </button>
                 </div>
               </div>
             </div>
 
             <div className="p-4 border-t border-slate-200 bg-white shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] shrink-0">
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2  gap-3">
               {isDeliveryTask && !hasOwner && (
                 <button
                   onClick={handleClaimTask}
@@ -412,7 +438,7 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
                   onClick={() => handleOpenRecord('DELIVERY')}
                   className={`${openRecordButtonBaseClass} ${
                     showHandoverAsPrimaryCta
-                      ? 'bg-indigo-600 text-white border border-indigo-600 hover:bg-indigo-700 sm:col-span-2 xl:col-span-3 shadow-md shadow-indigo-200'
+                      ? 'bg-indigo-600 text-white border border-indigo-600 hover:bg-indigo-700 sm:col-span-2  shadow-md shadow-indigo-200'
                       : 'bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
                   }`}
                 >
@@ -431,19 +457,19 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
               )}
 
               {isDeliveryTask && pickedUp && !delivered && !isSelectedLockedByOther && (
-                <span className="w-full px-2 py-1 text-slate-500 font-medium flex justify-center items-center text-sm sm:col-span-2 xl:col-span-3">
+                <span className="w-full px-2 py-1 text-slate-500 font-medium flex justify-center items-center text-sm sm:col-span-2 ">
                   Xác nhận thành công hoặc ghi nhận sự cố được xử lý trong Biên bản.
                 </span>
               )}
 
               {isDeliveryTask && delivered && (
-                <span className="w-full px-6 py-3.5 bg-emerald-50 text-emerald-700 rounded-xl font-bold flex justify-center items-center gap-2 border border-emerald-200 text-sm sm:col-span-2 xl:col-span-3">
+                <span className="w-full px-6 py-3.5 bg-emerald-50 text-emerald-700 rounded-xl font-bold flex justify-center items-center gap-2 border border-emerald-200 text-sm sm:col-span-2 ">
                   <CheckCircle size={18} /> Đã giao thành công (chờ khách xác nhận)
                 </span>
               )}
 
               {isDeliveryTask && isSelectedLockedByOther && (
-                <span className="w-full px-6 py-3.5 bg-slate-100 text-slate-600 rounded-xl font-semibold flex justify-center items-center border border-slate-200 text-sm sm:col-span-2 xl:col-span-3">
+                <span className="w-full px-6 py-3.5 bg-slate-100 text-slate-600 rounded-xl font-semibold flex justify-center items-center border border-slate-200 text-sm sm:col-span-2 ">
                   Đơn đang được staff khác xử lý, bạn không thể thao tác.
                 </span>
               )}
@@ -452,14 +478,14 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
                 <button
                   onClick={() => handleOpenRecord('RETURN')}
                   disabled={isSelectedLockedByOther}
-                  className={`${openRecordButtonBaseClass} bg-orange-600 text-white border border-orange-600 hover:bg-orange-700 disabled:opacity-60 shadow-md shadow-orange-200 sm:col-span-2 xl:col-span-3`}
+                  className={`${openRecordButtonBaseClass} bg-orange-600 text-white border border-orange-600 hover:bg-orange-700 disabled:opacity-60 shadow-md shadow-orange-200 sm:col-span-2 `}
                 >
                   <FileText size={18} /> Mở biên bản để xác nhận thu hồi
                 </button>
               )}
 
               {isReturnTask && isSelectedLockedByOther && (
-                <span className="w-full px-6 py-3.5 bg-slate-100 text-slate-600 rounded-xl font-semibold flex justify-center items-center border border-slate-200 text-sm sm:col-span-2 xl:col-span-3">
+                <span className="w-full px-6 py-3.5 bg-slate-100 text-slate-600 rounded-xl font-semibold flex justify-center items-center border border-slate-200 text-sm sm:col-span-2 ">
                   Đơn thu hồi đang được staff khác xử lý.
                 </span>
               )}
