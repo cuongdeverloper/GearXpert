@@ -15,7 +15,7 @@ import { closeChatWindow } from "../../../redux/reducer/chatWindowReducer";
 
 const MiniChatWindow = ({ conversation }) => {
     const dispatch = useDispatch();
-    const { socket } = useSocket();
+    const { socket, onlineUsers } = useSocket();
     const user = useSelector((state) => state.user.account);
 
     const [messages, setMessages] = useState([]);
@@ -395,6 +395,15 @@ const MiniChatWindow = ({ conversation }) => {
         );
     };
 
+    const partnerName = partnerInfo?.fullName || partnerInfo?.username || "Người dùng";
+    const partnerAvatar = partnerInfo?.avatar || partnerInfo?.image || "/default-avatar.png";
+
+    const partnerId = conversation.members.find(m => {
+        const mId = typeof m === 'string' ? m : m._id;
+        return mId !== currentUserId;
+    });
+    const isPartnerOnline = onlineUsers.some(u => u.userId === (typeof partnerId === 'string' ? partnerId : partnerId?._id));
+
     return (
         <>
             {createPortal(VideoCallOverlay, document.body)}
@@ -403,12 +412,14 @@ const MiniChatWindow = ({ conversation }) => {
                 <div className="h-14 px-3 flex items-center justify-between border-b border-gray-200 bg-white rounded-t-xl z-10">
                     <div className="flex items-center gap-2 cursor-pointer">
                         <div className="relative w-9 h-9">
-                            <img src={friendAvatar} alt="Avt" className="w-full h-full rounded-full object-cover border border-gray-200" onError={(e) => { e.target.src = "/default-avatar.png" }} />
-                            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></span>
+                            <img src={partnerAvatar} alt="Avt" className="w-full h-full rounded-full object-cover border border-gray-200" onError={(e) => { e.target.src = "/default-avatar.png" }} />
+                            <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 border-2 border-white rounded-full ${isPartnerOnline ? "bg-green-500" : "bg-gray-400"}`}></span>
                         </div>
                         <div className="flex flex-col">
-                            <span className="font-bold text-sm text-slate-800 truncate max-w-[140px] leading-tight">{friendName}</span>
-                            <span className="text-[11px] text-green-600 font-medium">Đang hoạt động</span>
+                            <span className="font-bold text-sm text-slate-800 truncate max-w-[140px] leading-tight">{partnerName}</span>
+                            <span className={`text-[11px] font-medium ${isPartnerOnline ? "text-green-600" : "text-gray-500"}`}>
+                                {isPartnerOnline ? "Đang hoạt động" : "Đang ngoại tuyến"}
+                            </span>
                         </div>
                     </div>
                     <div className="flex gap-1 items-center">

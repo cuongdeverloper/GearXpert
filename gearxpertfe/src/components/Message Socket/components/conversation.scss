@@ -24,6 +24,17 @@
 .conversationImgContainer {
   position: relative;
   margin-right: 15px;
+
+  .onlineDot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: #44b700;
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    border: 2px solid white;
+  }
 }
 
 .conversationImg {
