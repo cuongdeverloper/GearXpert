@@ -101,7 +101,7 @@ export default function MyRentals() {
   });
 
   const [reviewSelectedItems, setReviewSelectedItems] = useState([]);
-  const [hasReviewed, setHasReviewed] = useState(false);
+  const [reviewStatusMap, setReviewStatusMap] = useState({});
   const [reviewLoading, setReviewLoading] = useState(false);
 
   const navigate = useNavigate();
@@ -129,6 +129,26 @@ export default function MyRentals() {
       setLoading(false);
     }
   };
+
+  // Preload review status for all rentals
+  useEffect(() => {
+    const preloadReviewStatus = async () => {
+      const statusMap = {};
+      for (const rental of rentals) {
+        try {
+          const res = await hasReviewedRental(rental._id);
+          statusMap[rental._id] = res?.hasReviewed ?? false;
+        } catch {
+          statusMap[rental._id] = false;
+        }
+      }
+      setReviewStatusMap(statusMap);
+    };
+
+    if (rentals.length > 0) {
+      preloadReviewStatus();
+    }
+  }, [rentals.length]); // Only trigger when rentals count changes
 
   useEffect(() => {
     setCurrentPage(1);
@@ -351,9 +371,15 @@ export default function MyRentals() {
   const openReviewModal = async (order) => {
     try {
       const res = await hasReviewedRental(order._id);
-      setHasReviewed(res.hasReviewed);
+      setReviewStatusMap(prev => ({
+        ...prev,
+        [order._id]: res?.hasReviewed ?? false
+      }));
     } catch {
-      setHasReviewed(false);
+      setReviewStatusMap(prev => ({
+        ...prev,
+        [order._id]: false
+      }));
     }
     setReviewSelectedItems([]);
     setReviewModal({
@@ -367,25 +393,32 @@ export default function MyRentals() {
   };
 
   const handleSubmitReview = async () => {
-    if (reviewModal.rating === 0) return toast.warning("Vui lòng chọn số sao!");
-
-    setReviewLoading(true);
     try {
-      const itemsToReview =
-        reviewSelectedItems.length > 0
-          ? reviewSelectedItems
-          : reviewModal.order?.items?.map((i) => i._id) || [];
-
       const formData = new FormData();
       formData.append("rating", reviewModal.rating);
-      formData.append("comment", reviewModal.comment.trim());
+      formData.append("comment", reviewModal.comment);
       formData.append("rentalId", reviewModal.orderId);
-      itemsToReview.forEach((id) => formData.append("rentalItemIds[]", id));
-      reviewModal.files.forEach((file) => formData.append("images", file));
+
+      reviewModal.files.forEach((file) => {
+        formData.append("images", file);
+      });
+
+      // If no items selected, select all rental items
+      let itemsToReview = reviewSelectedItems;
+      if (itemsToReview.length === 0 && reviewModal.order?.items) {
+        itemsToReview = reviewModal.order.items.map(item => item._id);
+      }
+
+      itemsToReview.forEach((itemId) => {
+        formData.append("rentalItemIds", itemId);
+      });
 
       await rentalService.submitReview(reviewModal.orderId, formData);
       toast.success("Đánh giá đã được gửi!");
-      setHasReviewed(true);
+      setReviewStatusMap(prev => ({
+        ...prev,
+        [reviewModal.orderId]: true
+      }));
       setReviewModal({
         isOpen: false,
         orderId: null,
@@ -394,27 +427,11 @@ export default function MyRentals() {
         files: [],
         order: null,
       });
-      setReviewSelectedItems([]);
+      // Refresh rentals data to ensure UI updates
       fetchRentals();
     } catch (err) {
       toast.error(err.response?.data?.message || "Gửi đánh giá thất bại");
-    } finally {
-      setReviewLoading(false);
     }
-  };
-
-  const handleDateChange = (date) => {
-    if (!extendModal.currentEndDate) return;
-    const start = new Date(extendModal.currentEndDate);
-    const end = new Date(date);
-    start.setHours(0, 0, 0, 0);
-    end.setHours(0, 0, 0, 0);
-    const diffDays = (end - start) / (1000 * 60 * 60 * 24);
-    setExtendModal((prev) => ({
-      ...prev,
-      newEndDate: date,
-      extraAmount: diffDays > 0 ? diffDays * prev.dailyPrice : 0,
-    }));
   };
 
   const handleSubmitExtend = () => {
@@ -492,6 +509,24 @@ export default function MyRentals() {
     if (order.items?.[0]?.deviceId?.slug) navigate(`/device/${order.items[0].deviceId.slug}`);
     else navigate("/devices");
   };
+
+  const handleDateChange = (date) => {
+    if (!extendModal.currentEndDate) return;
+    const start = new Date(extendModal.currentEndDate);
+    const end = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+    const diffDays = (end - start) / (1000 * 60 * 60 * 24);
+    setExtendModal((prev) => ({
+      ...prev,
+      newEndDate: date,
+      extraAmount: diffDays > 0 ? diffDays * prev.dailyPrice : 0,
+    }));
+  };
+
+  const minExtendDate = extendModal.currentEndDate 
+    ? new Date(extendModal.currentEndDate).toISOString().split('T')[0]
+    : new Date().toISOString().split('T')[0];
 
   const filteredAndSortedRentals = useMemo(() => {
     let result = [...rentals];
@@ -623,12 +658,6 @@ export default function MyRentals() {
     extendPage * EXTEND_PER_PAGE
   );
   const totalExtendPages = Math.ceil(extendRequestsForSidebar.length / EXTEND_PER_PAGE);
-
-  const minExtendDate = extendModal.currentEndDate
-    ? new Date(new Date(extendModal.currentEndDate).getTime() + 24 * 60 * 60 * 1000)
-        .toISOString()
-        .split("T")[0]
-    : "";
 
   return (
     <div className="min-h-screen bg-[#F8F9FB] pb-20 font-sans">
@@ -786,7 +815,7 @@ export default function MyRentals() {
             {currentRentals.length > 0 ? (
               currentRentals.map((order) => (
                 <RentalCard
-                  key={order._id}
+                  key={`${order._id}-${reviewStatusMap[order._id] ?? false}`}
                   order={order}
                   onPayNow={() => handlePayNow(order)}
                   onCancel={() => handleOpenModal("CANCEL", order._id)}
@@ -824,6 +853,7 @@ export default function MyRentals() {
                   onReview={() => openReviewModal(order)}
                   onClickDetail={() => navigate(`/my-rentals/${order._id}`)}
                   onReRent={() => handleReRent(order)}
+                  hasReviewed={reviewStatusMap[order._id] ?? false}
                 />
               ))
             ) : (
@@ -981,7 +1011,7 @@ export default function MyRentals() {
         setReviewModal={setReviewModal}
         reviewSelectedItems={reviewSelectedItems}
         setReviewSelectedItems={setReviewSelectedItems}
-        hasReviewed={hasReviewed}
+        hasReviewed={reviewModal.orderId ? (reviewStatusMap[reviewModal.orderId] ?? false) : false}
         reviewLoading={reviewLoading}
         handleSubmitReview={handleSubmitReview}
         handleFileUpload={handleFileUpload}

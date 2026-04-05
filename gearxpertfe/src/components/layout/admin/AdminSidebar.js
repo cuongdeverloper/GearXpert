@@ -15,7 +15,9 @@ import {
   FiChevronUp,
   FiMessageSquare,
   FiBell,
-  FiAlertTriangle
+  FiAlertTriangle,
+  FiCreditCard,
+  FiDollarSign
 } from "react-icons/fi";
 import { HiOutlineSpeakerphone } from "react-icons/hi";
 
@@ -55,6 +57,8 @@ const navGroups = [
       },
       { to: "/admin/reports", label: "Báo cáo", icon: FiBarChart2 },
       { to: "/admin/notifications", label: "Thông báo hệ thống", icon: FiBell },
+      { to: "/admin/wallet", label: "Ví Admin", icon: FiCreditCard },
+      { to: "/admin/withdrawals", label: "Duyệt rút tiền", icon: FiDollarSign },
     ],
   },
   {

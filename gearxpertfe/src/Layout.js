@@ -49,6 +49,8 @@ import BlogManagement from "./pages/Admin/BlogManagement";
 import CommentManagement from "./pages/Admin/CommentManagement";
 import AdminBroadcastPage from "./pages/Admin/AdminBroadcastPage";
 import AdminShopReports from "./pages/Admin/AdminShopReports";
+import AdminWalletPage from "./pages/Admin/AdminWalletPage";
+import AdminWithdrawalsPage from "./pages/Admin/AdminWithdrawalsPage";
 
 // pages
 import RentalCheckout from "./pages/Rental/RentalCheckout";
@@ -246,6 +248,8 @@ export default function Layout() {
             <Route path="blogs" element={<BlogManagement />} />
             <Route path="comments" element={<CommentManagement />} />
             <Route path="notifications" element={<AdminBroadcastPage />} />
+            <Route path="wallet" element={<AdminWalletPage />} />
+            <Route path="withdrawals" element={<AdminWithdrawalsPage />} />
           </Route>
 
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
