@@ -10,7 +10,6 @@ import {
   FiShield,
   FiChevronDown,
   FiAlertTriangle,
-  FiBell,
 } from "react-icons/fi";
 import { NavLink } from "react-router-dom";
 import logo from "../../../assets/logoGearXpert.png";

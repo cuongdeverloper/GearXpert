@@ -1,4 +1,3 @@
-import axios from "axios";
 import axiosInstance from "../AxiosCustomize";
 
 const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:1357/api";

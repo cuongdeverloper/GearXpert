@@ -19,6 +19,7 @@ export default function SupplierAddDevicePage() {
     city: "",
     status: "AVAILABLE",
     specs: [{ key: "", value: "" }],
+    includedAccessories: [{ name: "", qty: 1, note: "", image: "", imageFile: null }],
   });
 
   const [errors, setErrors] = useState({});
@@ -104,6 +105,32 @@ export default function SupplierAddDevicePage() {
     return specs;
   };
 
+  /** Payload JSON + file upload indices (khớp thứ tự sau khi bỏ dòng trống tên) */
+  const buildIncludedAccessoriesSubmit = (rows) => {
+    const payload = [];
+    const indices = [];
+    const files = [];
+    rows.forEach((row) => {
+      const name = String(row.name ?? "").trim();
+      if (!name) return;
+      const qty = Math.min(999, Math.max(1, parseInt(row.qty, 10) || 1));
+      const note = String(row.note ?? "").trim().slice(0, 500);
+      const item = { name: name.slice(0, 200), qty };
+      if (note) item.note = note;
+      const img = String(row.image ?? "").trim();
+      if (!row.imageFile && /^https?:\/\//i.test(img)) {
+        item.image = img.slice(0, 2048);
+      }
+      const idx = payload.length;
+      payload.push(item);
+      if (row.imageFile instanceof File) {
+        indices.push(idx);
+        files.push(row.imageFile);
+      }
+    });
+    return { payload, indices, files };
+  };
+
   const handleSpecChange = (index, field, value) => {
     setFormData((prev) => ({
       ...prev,
@@ -128,6 +155,68 @@ export default function SupplierAddDevicePage() {
         specs: nextSpecs.length ? nextSpecs : [{ key: "", value: "" }],
       };
     });
+  };
+
+  const handleIncludedChange = (index, field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      includedAccessories: prev.includedAccessories.map((item, idx) =>
+        idx === index ? { ...item, [field]: value } : item
+      ),
+    }));
+  };
+
+  const addIncludedRow = () => {
+    setFormData((prev) => ({
+      ...prev,
+      includedAccessories: [
+        ...prev.includedAccessories,
+        { name: "", qty: 1, note: "", image: "", imageFile: null },
+      ],
+    }));
+  };
+
+  const removeIncludedRow = (index) => {
+    setFormData((prev) => {
+      const removed = prev.includedAccessories[index];
+      if (removed?.image?.startsWith?.("blob:")) {
+        URL.revokeObjectURL(removed.image);
+      }
+      const next = prev.includedAccessories.filter((_, idx) => idx !== index);
+      return {
+        ...prev,
+        includedAccessories: next.length
+          ? next
+          : [{ name: "", qty: 1, note: "", image: "", imageFile: null }],
+      };
+    });
+  };
+
+  const handleIncludedImagePick = async (index, e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !file.type.startsWith("image/")) return;
+    const compressed = await compressImage(file);
+    const preview = URL.createObjectURL(compressed);
+    setFormData((prev) => ({
+      ...prev,
+      includedAccessories: prev.includedAccessories.map((r, i) => {
+        if (i !== index) return r;
+        if (r.image?.startsWith?.("blob:")) URL.revokeObjectURL(r.image);
+        return { ...r, imageFile: compressed, image: preview };
+      }),
+    }));
+  };
+
+  const handleIncludedImageClear = (index) => {
+    setFormData((prev) => ({
+      ...prev,
+      includedAccessories: prev.includedAccessories.map((r, i) => {
+        if (i !== index) return r;
+        if (r.image?.startsWith?.("blob:")) URL.revokeObjectURL(r.image);
+        return { ...r, image: "", imageFile: null };
+      }),
+    }));
   };
 
   const submitDevice = async () => {
@@ -157,6 +246,12 @@ export default function SupplierAddDevicePage() {
       const specsPayload = parseSpecs(formData.specs);
       if (Object.keys(specsPayload).length > 0) {
         form.append("specs", JSON.stringify(specsPayload));
+      }
+      const accSubmit = buildIncludedAccessoriesSubmit(formData.includedAccessories);
+      form.append("includedAccessories", JSON.stringify(accSubmit.payload));
+      if (accSubmit.files.length) {
+        form.append("accessoryImageIndices", JSON.stringify(accSubmit.indices));
+        accSubmit.files.forEach((f) => form.append("accessoryImages", f));
       }
       images.forEach((img) => form.append("images", img));
 
@@ -277,46 +372,102 @@ export default function SupplierAddDevicePage() {
           </section>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-slate-900">Thông số kỹ thuật</h3>
+            <h3 className="text-lg font-semibold text-slate-900">Phụ kiện đi kèm</h3>
             <p className="text-sm text-slate-500 mb-4">
-              Thêm từng cặp thông số, click để thêm dòng mới
+              Mô tả phụ kiện giao kèm máy (ví dụ: sạc, cáp). Có thể thêm ảnh minh họa. Không tạo SKU
+              trong kho.
             </p>
             <div className="space-y-3">
-              {formData.specs.map((spec, idx) => (
-                <div key={`spec-${idx}`} className="grid gap-3 sm:grid-cols-2">
-                  <input
-                    type="text"
-                    value={spec.key}
-                    onChange={(e) => handleSpecChange(idx, "key", e.target.value)}
-                    placeholder="Tên thông số (VD: CPU)"
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
-                  />
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={spec.value}
-                      onChange={(e) => handleSpecChange(idx, "value", e.target.value)}
-                      placeholder="Giá trị (VD: M3 Pro)"
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeSpecRow(idx)}
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"
-                      aria-label="Remove spec"
-                    >
-                      <FiX size={16} />
-                    </button>
+              {formData.includedAccessories.map((row, idx) => (
+                <div
+                  key={`inc-${idx}`}
+                  className="rounded-xl border border-slate-100 bg-slate-50/80 p-3 space-y-2"
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                    <div className="flex gap-3 shrink-0">
+                      <div className="relative h-20 w-20 rounded-xl border border-slate-200 bg-white overflow-hidden flex items-center justify-center text-[10px] text-slate-400 text-center px-1">
+                        {row.image ? (
+                          <img
+                            src={row.image}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          "Ảnh"
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-1 justify-center">
+                        <label className="cursor-pointer">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => handleIncludedImagePick(idx, e)}
+                          />
+                          <span className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                            Chọn ảnh
+                          </span>
+                        </label>
+                        {(row.image || row.imageFile) && (
+                          <button
+                            type="button"
+                            onClick={() => handleIncludedImageClear(idx)}
+                            className="text-xs text-red-600 font-medium hover:underline text-left"
+                          >
+                            Bỏ ảnh
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex-1 space-y-2 min-w-0">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <input
+                          type="text"
+                          value={row.name}
+                          onChange={(e) => handleIncludedChange(idx, "name", e.target.value)}
+                          placeholder="Tên phụ kiện (VD: Sạc 96W)"
+                          className="w-full flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white"
+                        />
+                        <div className="flex items-center gap-2 shrink-0">
+                          <input
+                            type="number"
+                            min={1}
+                            max={999}
+                            value={row.qty}
+                            onChange={(e) =>
+                              handleIncludedChange(idx, "qty", parseInt(e.target.value, 10) || 1)
+                            }
+                            className="w-24 px-3 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white"
+                            title="Số lượng"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeIncludedRow(idx)}
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-white bg-white"
+                            aria-label="Xóa dòng"
+                          >
+                            <FiX size={16} />
+                          </button>
+                        </div>
+                      </div>
+                      <input
+                        type="text"
+                        value={row.note}
+                        onChange={(e) => handleIncludedChange(idx, "note", e.target.value)}
+                        placeholder="Ghi chú (tùy chọn)"
+                        className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm bg-white"
+                      />
+                    </div>
                   </div>
                 </div>
               ))}
               <button
                 type="button"
-                onClick={addSpecRow}
+                onClick={addIncludedRow}
                 className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary-dark"
               >
                 <FiPlus size={16} />
-                Thêm thông số
+                Thêm phụ kiện
               </button>
             </div>
           </section>
@@ -370,7 +521,52 @@ export default function SupplierAddDevicePage() {
           </section>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-6 lg:col-span-1">
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-slate-900">Thông số kỹ thuật</h3>
+            <p className="text-sm text-slate-500 mb-4">
+              Thêm từng cặp thông số, click để thêm dòng mới
+            </p>
+            <div className="space-y-3">
+              {formData.specs.map((spec, idx) => (
+                <div key={`spec-${idx}`} className="space-y-2">
+                  <input
+                    type="text"
+                    value={spec.key}
+                    onChange={(e) => handleSpecChange(idx, "key", e.target.value)}
+                    placeholder="Tên thông số (VD: CPU)"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm"
+                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={spec.value}
+                      onChange={(e) => handleSpecChange(idx, "value", e.target.value)}
+                      placeholder="Giá trị (VD: M3 Pro)"
+                      className="w-full min-w-0 px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeSpecRow(idx)}
+                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"
+                      aria-label="Remove spec"
+                    >
+                      <FiX size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addSpecRow}
+                className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary-dark"
+              >
+                <FiPlus size={16} />
+                Thêm thông số
+              </button>
+            </div>
+          </section>
+
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-slate-900">Giá thuê</h3>
             <div className="space-y-4 mt-4">

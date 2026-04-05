@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   FiX, FiMapPin, FiUser, FiPackage, FiImage,
   FiMessageSquare, FiClock, FiCheckCircle, FiAlertCircle,
-  FiChevronRight, FiFileText,
+  FiFileText,
 } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { getDisputeDetail, updateDispute, getAdminList } from "../../service/ApiService/AdminDisputeApi";

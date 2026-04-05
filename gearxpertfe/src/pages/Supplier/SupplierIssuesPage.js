@@ -13,6 +13,11 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiFileText,
+  FiMessageSquare,
+  FiCheckCircle,
+  FiUpload,
+  FiPhone,
+  FiShield,
 } from "react-icons/fi";
 import { getSupplierIssues } from "../../service/ApiService/ReportApi";
 import { toast } from "react-toastify";
@@ -137,6 +142,33 @@ const formatMoney = (v) => new Intl.NumberFormat("vi-VN").format(v || 0);
 
 const ITEMS_PER_PAGE = 10;
 
+const supplierIssueActions = [
+  {
+    key: "reply",
+    label: "Phản hồi",
+    hint: "Gửi phản hồi cho khách / vận hành",
+    icon: FiMessageSquare,
+  },
+  {
+    key: "processing",
+    label: "Đánh dấu đang xử lý",
+    hint: "Cập nhật trạng thái phía nhà cung cấp",
+    icon: FiCheckCircle,
+  },
+  {
+    key: "evidence",
+    label: "Gửi bằng chứng",
+    hint: "Đính kèm ảnh / tài liệu bổ sung",
+    icon: FiUpload,
+  },
+  {
+    key: "escalate",
+    label: "Nhờ GearXpert can thiệp",
+    hint: "Yêu cầu hỗ trợ từ nền tảng",
+    icon: FiShield,
+  },
+];
+
 /* ─── Component ───────────────────────────────────────────────────────────── */
 
 export default function SupplierIssuesPage() {
@@ -154,25 +186,26 @@ export default function SupplierIssuesPage() {
   const [lightboxImg, setLightboxImg] = useState(null);
   const [dialogDetail, setDialogDetail] = useState(null);
 
-  useEffect(() => {
-    const fetchIssues = async () => {
-      try {
-        setLoading(true);
-        const res = await getSupplierIssues();
-        const deliveryIssues =
-          res?.deliveryIssues ?? res?.data?.deliveryIssues ?? [];
-        const damageReports =
-          res?.damageReports ?? res?.data?.damageReports ?? [];
-        setDeliveryIssues(deliveryIssues);
-        setDamageReports(damageReports);
-      } catch {
-        toast.error("Không thể tải danh sách sự cố");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchIssues();
+  const loadIssues = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await getSupplierIssues();
+      const deliveryIssues =
+        res?.deliveryIssues ?? res?.data?.deliveryIssues ?? [];
+      const damageReports =
+        res?.damageReports ?? res?.data?.damageReports ?? [];
+      setDeliveryIssues(deliveryIssues);
+      setDamageReports(damageReports);
+    } catch {
+      toast.error("Không thể tải danh sách sự cố");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadIssues();
+  }, [loadIssues]);
 
   useEffect(() => {
     const u = (searchParams.get("tab") || "").toUpperCase();
@@ -190,20 +223,6 @@ export default function SupplierIssuesPage() {
     },
     [setSearchParams]
   );
-
-  const fetchIssues = async () => {
-    try {
-      setLoading(true);
-      const res = await getSupplierIssues();
-      const body = res?.data ?? res;
-      setDeliveryIssues(body?.deliveryIssues || []);
-      setDamageReports(body?.damageReports || []);
-    } catch {
-      toast.error("Không thể tải danh sách sự cố");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const openOperationalDetail = (report) => {
     const isReturn = isReturnReport(report);
@@ -638,6 +657,51 @@ function IssueCard({ issue, onImageClick, onOperationalDetail }) {
             <p className="text-sm text-slate-700 whitespace-pre-wrap">
               {issue.description || "Không có mô tả"}
             </p>
+          </div>
+
+          {/* Supplier actions */}
+          <div
+            className="rounded-xl border border-dashed border-indigo-200/80 bg-indigo-50/40 p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-indigo-800/90 mb-3">
+              Thao tác xử lý (nhà cung cấp)
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {supplierIssueActions.map(({ key, label, hint, icon: Icon }) => (
+                <button
+                  key={key}
+                  type="button"
+                  title={hint}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toast.info(label);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-indigo-200 bg-white text-indigo-800 hover:bg-indigo-50 hover:border-indigo-300 transition-colors shadow-sm"
+                >
+                  <Icon size={14} className="shrink-0 opacity-80" />
+                  {label}
+                </button>
+              ))}
+              <button
+                type="button"
+                title="Gọi SĐT khách trên đơn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const raw = issue._customerPhone;
+                  const digits = String(raw || "").replace(/\D/g, "");
+                  if (digits.length >= 9) {
+                    window.location.href = `tel:${digits}`;
+                  } else {
+                    toast.info("Không có số điện thoại khách trên báo cáo này.");
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-sm"
+              >
+                <FiPhone size={14} className="shrink-0 opacity-80" />
+                Liên hệ khách
+              </button>
+            </div>
           </div>
 
           {/* Resolved note */}
