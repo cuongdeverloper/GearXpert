@@ -12,11 +12,12 @@ const storage = new CloudinaryStorage({
   cloudinary,
   params: {
     folder: 'gearxpert',
-    allowed_formats: ['pdf', 'docx', 'doc', 'jpg', 'png', 'jpeg', 'webp'],
-    public_id: (req, file) => `img-${Date.now()}-${file.originalname}`,
+    allowed_formats: ['pdf', 'docx', 'doc', 'jpg', 'png', 'jpeg', 'webp', 'mp4', 'mov', 'avi'],
+    public_id: (req, file) => `file-${Date.now()}-${file.originalname}`,
+    resource_type: 'auto',
   },
 });
 
-const uploadCloud = multer({ storage });
+const uploadCloud = multer({ storage: storage });
 
 module.exports = uploadCloud;

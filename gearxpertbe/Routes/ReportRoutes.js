@@ -1,9 +1,11 @@
 const express = require("express");
 const ReportRouter = express.Router();
 const uploadCloud = require("../configs/cloudinaryConfig");
+const { checkAccessToken, checkAdmin } = require("../middleware/JWTAction");
+
 const deliveryCtrl = require("../controllers/Report/deliveryIssueController");
 const damageCtrl = require("../controllers/Report/damageReportController");
-const { checkAccessToken } = require("../middleware/JWTAction");
+const shopReportCtrl = require("../controllers/Report/shopReportController");
 
 // LÚC GIAO HÀNG — Customer
 ReportRouter.post(
@@ -56,5 +58,29 @@ ReportRouter.post(
 );
 
 ReportRouter.get("/damage/:rentalId", checkAccessToken, damageCtrl.getDamageReportsByRental);
+
+// SHOP REPORT
+ReportRouter.post(
+  "/shop-report",
+  checkAccessToken,
+  uploadCloud.array("evidence", 5),
+  shopReportCtrl.createShopReport
+);
+
+// ADMIN: GET ALL SHOP REPORTS
+ReportRouter.get(
+  "/admin/shop-reports",
+  checkAccessToken,
+  checkAdmin,
+  shopReportCtrl.getAllReports
+);
+
+// ADMIN: UPDATE SHOP REPORT STATUS
+ReportRouter.patch(
+  "/admin/shop-reports/:reportId",
+  checkAccessToken,
+  checkAdmin,
+  shopReportCtrl.updateReportStatus
+);
 
 module.exports = ReportRouter;

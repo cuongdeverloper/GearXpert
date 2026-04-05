@@ -213,11 +213,98 @@ const commentDeletedTemplate = (userName, postTitle, commentContent, reason = "V
     `);
 };
 
+/**
+ * Shop Report Status Template
+ */
+const shopReportStatusTemplate = (reporterName, shopName, status, adminNotes = "") => {
+    let title = "Cập nhật tiến độ xử lý báo cáo";
+    let color = "#6366f1"; // indigo-500
+    let message = "";
+    let statusLabel = "";
+
+    if (status === "RECEIVED") {
+        statusLabel = "ĐÃ TIẾP NHẬN";
+        color = "#6366f1";
+        message = `Cảm ơn bạn đã phản hồi. Quản trị viên GearXpert đã tiếp nhận báo cáo của bạn về cửa hàng <strong>${shopName}</strong> và đang tiến hành xác minh xử lý.`;
+    } else if (status === "RESOLVED") {
+        statusLabel = "ĐÃ XỬ LÝ XONG";
+        color = "#10b981"; // emerald-500
+        message = `Cảm ơn bạn rất nhiều! Báo cáo của bạn về cửa hàng <strong>${shopName}</strong> đã được chúng tôi xử lý hoàn tất. Những đóng góp của bạn là vô cùng quý giá để giúp xây dựng cộng đồng GearXpert uy tín và minh bạch.`;
+    } else if (status === "REJECTED") {
+        statusLabel = "BÁC BỎ BÁO CÁO";
+        color = "#f43f5e"; // rose-500
+        message = `Sau khi xem xét các bằng chứng mà bạn cung cấp về cửa hàng <strong>${shopName}</strong>, quản trị viên quyết định bác bỏ báo cáo này do chưa đủ căn cứ hoặc không vi phạm chính sách.`;
+    }
+
+    return baseTemplate(`
+        <div style="text-align: center; margin-bottom: 30px;">
+            <div style="display: inline-block; padding: 10px 20px; border-radius: 50px; background: ${color}15; color: ${color}; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; border: 1px solid ${color}30;">
+                ${statusLabel}
+            </div>
+            <h2 style="color: #1a1a1a; margin: 15px 0 0; font-size: 22px;">${title}</h2>
+        </div>
+        
+        <p>Xin chào <strong>${reporterName}</strong>,</p>
+        <p style="color: #4b5563;">${message}</p>
+        
+        ${adminNotes ? `
+            <div style="background-color: #f8fafc; padding: 25px; border-radius: 16px; border-left: 5px solid ${color}; margin: 25px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                <p style="margin: 0; font-weight: 800; color: ${color}; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Phản hồi từ Admin:</p>
+                <div style="margin: 12px 0 0 0; color: #334155; line-height: 1.6; font-size: 15px;">${adminNotes}</div>
+            </div>
+        ` : ""}
+        
+        <div style="margin-top: 35px; padding-top: 25px; border-top: 1px solid #f3f4f6;">
+            <p style="font-size: 14px; color: #64748b; margin-bottom: 10px;">Nếu có bất kỳ thắc mắc nào, vui lòng liên hệ:</p>
+            <div style="display: flex; gap: 15px; font-size: 13px;">
+                <span style="color: #1a1a1a;"><strong>Hotline:</strong> 1900 8888</span>
+                <span style="color: #1a1a1a;"><strong>Email:</strong> support@gearxpert.com</span>
+            </div>
+        </div>
+    `);
+};
+
+/**
+ * Shop Report Notification for Supplier (Shop Owner) Template
+ */
+const shopReportNotificationForSupplierTemplate = (supplierName, shopName, reportReason, reportDescription) => {
+    return baseTemplate(`
+        <div style="text-align: center; margin-bottom: 30px;">
+            <div style="display: inline-block; padding: 10px 20px; border-radius: 50px; background: #f59e0b15; color: #f59e0b; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; border: 1px solid #f59e0b30;">
+                ⚠ THÔNG BÁO BÁO CÁO
+            </div>
+            <h2 style="color: #1a1a1a; margin: 15px 0 0; font-size: 22px;">Cửa hàng của bạn vừa bị báo cáo</h2>
+        </div>
+        
+        <p>Xin chào <strong>${supplierName}</strong>,</p>
+        <p style="color: #4b5563;">Hệ thống GearXpert xin thông báo: Cửa hàng <strong>${shopName}</strong> của bạn vừa nhận được một báo cáo từ người dùng với nội dung như sau:</p>
+        
+        <div style="background-color: #f8fafc; padding: 25px; border-radius: 16px; border: 1px solid #e2e8f0; margin: 25px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+            <p style="margin: 0; font-weight: 800; color: #1a1a1a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Lý do báo cáo:</p>
+            <p style="margin: 8px 0 15px 0; color: #dc2626; font-weight: bold; font-size: 15px;">${reportReason}</p>
+            
+            <p style="margin: 15px 0 0 0; font-weight: 800; color: #1a1a1a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Chi tiết phản ánh:</p>
+            <div style="margin: 8px 0 0 0; color: #334155; line-height: 1.6; font-size: 15px; font-style: italic;">"${reportDescription}"</div>
+        </div>
+        
+        <div style="background-color: #fffbeb; padding: 20px; border-radius: 12px; border-left: 5px solid #fbbf24; margin-top: 25px;">
+            <p style="margin: 0; font-weight: bold; color: #92400e; font-size: 14px;">Bạn cần làm gì?</p>
+            <p style="margin: 8px 0 0; color: #b45309; font-size: 13px; line-height: 1.5;">Vui lòng <strong>phản hồi (reply) trực tiếp email này</strong> kèm theo các hình ảnh, tài liệu và thông tin cần thiết để chứng minh cho uy tín của shop hoặc đối chứng với các nội dung bị báo cáo. Việc phản hồi sớm sẽ giúp ban quản trị GearXpert có căn cứ xử lý chính xác và bảo vệ quyền lợi hợp pháp của bạn.</p>
+        </div>
+        
+        <p style="margin-top: 35px; padding-top: 25px; border-top: 1px solid #f3f4f6; font-size: 13px; color: #9ca3af;">
+            Đây là thông báo tự động từ hệ thống quản trị rủi ro GearXpert. Vui lòng không trả lời email này trực tiếp.
+        </p>
+    `);
+};
+
 module.exports = {
     registrationTemplate,
     passwordResetTemplate,
     otpPasswordChangeTemplate,
     accountStatusChangeTemplate,
     blogStatusTemplate,
-    commentDeletedTemplate
+    commentDeletedTemplate,
+    shopReportStatusTemplate,
+    shopReportNotificationForSupplierTemplate
 };

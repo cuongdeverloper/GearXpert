@@ -14,7 +14,8 @@ import {
   FiChevronDown,
   FiChevronUp,
   FiMessageSquare,
-  FiBell
+  FiBell,
+  FiAlertTriangle
 } from "react-icons/fi";
 import { HiOutlineSpeakerphone } from "react-icons/hi";
 
@@ -31,7 +32,15 @@ const navGroups = [
           { to: "/admin/advertisements", label: "Quảng cáo", icon: HiOutlineSpeakerphone }
         ]
       },
-      { to: "/admin/suppliers", label: "Nhà cung cấp", icon: FiUserCheck },
+       {
+        to: "/admin/suppliers",
+        label: "Nhà cung cấp",
+        icon: FiUserCheck,
+        subItems: [
+          { to: "/admin/suppliers", label: "Danh sách", icon: FiUserCheck },
+          { to: "/admin/shop-reports", label: "Báo cáo Shop", icon: FiAlertTriangle },
+        ]
+      },
       { to: "/admin/rentals", label: "Đơn thuê", icon: FiFileText },
       { to: "/admin/devices", label: "Thiết bị", icon: FiBox },
       { to: "/admin/vouchers", label: "Mã giảm giá", icon: FiTag },
@@ -65,7 +74,8 @@ export default function AdminSidebar({ collapsed, onToggleCollapsed }) {
   const location = useLocation();
   const [openSubMenus, setOpenSubMenus] = useState({ 
     "/admin/users": true,
-    "/admin/blogs": true 
+    "/admin/blogs": true,
+    "/admin/suppliers": true
   }); // Open by default
 
   const toggleSubMenu = (to) => {

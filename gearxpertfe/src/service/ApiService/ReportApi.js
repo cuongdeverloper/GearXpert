@@ -19,3 +19,17 @@ export const createStaffReturnIssue = (formData) =>
 // Lấy tất cả sự cố thu hồi do staff đang đăng nhập báo cáo
 export const getStaffReturnIssues = () =>
   axios.get("/api/reports/staff-return-issues");
+
+// Shop Report
+export const createShopReport = (formData) =>
+  axios.post("/api/reports/shop-report", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+
+// Admin: Get all shop reports
+export const adminGetAllShopReports = () =>
+  axios.get("/api/reports/admin/shop-reports");
+
+// Admin: Update shop report status
+export const adminUpdateShopReportStatus = (reportId, data) =>
+  axios.patch(`/api/reports/admin/shop-reports/${reportId}`, data);
