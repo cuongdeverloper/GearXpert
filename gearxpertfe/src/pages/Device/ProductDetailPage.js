@@ -293,21 +293,21 @@ export default function ProductDetailPage() {
   const days =
     startDate && endDate
       ? Math.max(
-          1,
-          Math.ceil((new Date(endDate) - new Date(startDate)) / 86400000)
-        )
+        1,
+        Math.ceil((new Date(endDate) - new Date(startDate)) / 86400000)
+      )
       : 0;
 
   const discountPrice = device?.discountPrice || 0;
   const expiry = device?.discountExpiry ? new Date(device.discountExpiry) : null;
   const isExpired = (expiry && expiry < new Date());
   const effectivePrice = (discountPrice > 0 && !isExpired) ? discountPrice : (device?.rentPrice?.perDay || 0);
-  
+
   const totalPrice = device
     ? days *
-      (effectivePrice +
-        addons.reduce((s, a) => s + a.rentPrice.perDay, 0)) *
-      quantity
+    (effectivePrice +
+      addons.reduce((s, a) => s + a.rentPrice.perDay, 0)) *
+    quantity
     : 0;
 
   if (loading) {
@@ -361,11 +361,10 @@ export default function ProductDetailPage() {
                   />
                   <div className="absolute top-5 left-5">
                     <span
-                      className={`text-white text-xs font-black px-3 py-1 rounded-lg uppercase tracking-widest shadow-md ${
-                        device.stockQuantity > 0
-                          ? "bg-indigo-600"
-                          : "bg-rose-500"
-                      }`}
+                      className={`text-white text-xs font-black px-3 py-1 rounded-lg uppercase tracking-widest shadow-md ${device.stockQuantity > 0
+                        ? "bg-indigo-600"
+                        : "bg-rose-500"
+                        }`}
                     >
                       {device.stockQuantity > 0
                         ? device.status
@@ -379,11 +378,10 @@ export default function ProductDetailPage() {
                     <button
                       key={i}
                       onClick={() => setSelectedImage(i)}
-                      className={`relative min-w-[90px] sm:min-w-[100px] h-20 sm:h-24 rounded-2xl overflow-hidden border-2 transition-all ${
-                        selectedImage === i
-                          ? "border-indigo-600 scale-95 shadow-md"
-                          : "border-transparent opacity-70 hover:opacity-100"
-                      }`}
+                      className={`relative min-w-[90px] sm:min-w-[100px] h-20 sm:h-24 rounded-2xl overflow-hidden border-2 transition-all ${selectedImage === i
+                        ? "border-indigo-600 scale-95 shadow-md"
+                        : "border-transparent opacity-70 hover:opacity-100"
+                        }`}
                     >
                       <img
                         src={img}
@@ -424,11 +422,10 @@ export default function ProductDetailPage() {
                                 {Array.from({ length: 5 }).map((_, i) => (
                                   <Star
                                     key={i}
-                                    className={`w-5 h-5 ${
-                                      i < myReview.rating
-                                        ? "fill-amber-400 text-amber-400"
-                                        : "text-slate-200"
-                                    }`}
+                                    className={`w-5 h-5 ${i < myReview.rating
+                                      ? "fill-amber-400 text-amber-400"
+                                      : "text-slate-200"
+                                      }`}
                                   />
                                 ))}
                               </div>
@@ -471,7 +468,7 @@ export default function ProductDetailPage() {
                             })()}
                           </div>
 
-                          <p className="text-slate-700 leading-relaxed text-[15px] font-medium">
+                          <p className="text-slate-700 leading-relaxed text-[15px] font-medium whitespace-pre-wrap break-all">
                             {myReview.comment}
                           </p>
 
@@ -503,11 +500,10 @@ export default function ProductDetailPage() {
                                   className="focus:outline-none transition-transform hover:scale-110"
                                 >
                                   <Star
-                                    className={`w-8 h-8 transition-all ${
-                                      star <= editRating
-                                        ? "fill-amber-400 text-amber-400 drop-shadow-sm"
-                                        : "text-slate-300 hover:text-amber-300"
-                                    }`}
+                                    className={`w-8 h-8 transition-all ${star <= editRating
+                                      ? "fill-amber-400 text-amber-400 drop-shadow-sm"
+                                      : "text-slate-300 hover:text-amber-300"
+                                      }`}
                                   />
                                 </button>
                               ))}
@@ -539,11 +535,10 @@ export default function ProductDetailPage() {
                               disabled={
                                 isSubmittingReview || !editComment.trim()
                               }
-                              className={`min-w-[120px] px-5 py-2.5 rounded-xl text-white font-medium flex items-center justify-center gap-2 transition-all ${
-                                isSubmittingReview
-                                  ? "bg-indigo-400 cursor-not-allowed"
-                                  : "bg-indigo-600 hover:bg-indigo-700"
-                              }`}
+                              className={`min-w-[120px] px-5 py-2.5 rounded-xl text-white font-medium flex items-center justify-center gap-2 transition-all ${isSubmittingReview
+                                ? "bg-indigo-400 cursor-not-allowed"
+                                : "bg-indigo-600 hover:bg-indigo-700"
+                                }`}
                             >
                               {isSubmittingReview ? (
                                 <>
@@ -592,7 +587,7 @@ export default function ProductDetailPage() {
                           className="w-12 h-12 rounded-2xl object-cover ring-4 ring-slate-50 flex-shrink-0"
                           alt="avatar"
                         />
-                        <div className="flex-1 space-y-2">
+                        <div className="flex-1 min-w-0 space-y-2">
                           <div className="flex justify-between items-start">
                             <div>
                               <h4 className="font-bold text-slate-900">
@@ -602,11 +597,10 @@ export default function ProductDetailPage() {
                                 {Array.from({ length: 5 }).map((_, i) => (
                                   <Star
                                     key={i}
-                                    className={`w-3.5 h-3.5 ${
-                                      i < r.rating
-                                        ? "fill-amber-400 text-amber-400"
-                                        : "text-slate-200"
-                                    }`}
+                                    className={`w-3.5 h-3.5 ${i < r.rating
+                                      ? "fill-amber-400 text-amber-400"
+                                      : "text-slate-200"
+                                      }`}
                                   />
                                 ))}
                               </div>
@@ -615,7 +609,7 @@ export default function ProductDetailPage() {
                               {new Date(r.createdAt).toLocaleDateString()}
                             </span>
                           </div>
-                          <p className="text-slate-600 font-medium leading-relaxed italic text-[15px]">
+                          <p className="text-slate-600 font-medium leading-relaxed italic text-[15px] whitespace-pre-wrap break-all">
                             "{r.comment}"
                           </p>
                         </div>
@@ -842,19 +836,17 @@ export default function ProductDetailPage() {
                         <button
                           key={a._id}
                           onClick={() => toggleAddon(a)}
-                          className={`w-full flex justify-between items-center p-4 rounded-2xl border-2 transition-all text-left ${
-                            isSelected
-                              ? "border-indigo-600 bg-indigo-50 shadow-sm"
-                              : "border-slate-100 hover:border-slate-200 bg-white"
-                          }`}
+                          className={`w-full flex justify-between items-center p-4 rounded-2xl border-2 transition-all text-left ${isSelected
+                            ? "border-indigo-600 bg-indigo-50 shadow-sm"
+                            : "border-slate-100 hover:border-slate-200 bg-white"
+                            }`}
                         >
                           <div>
                             <p
-                              className={`font-bold text-sm ${
-                                isSelected
-                                  ? "text-indigo-700"
-                                  : "text-slate-700"
-                              }`}
+                              className={`font-bold text-sm ${isSelected
+                                ? "text-indigo-700"
+                                : "text-slate-700"
+                                }`}
                             >
                               {a.name}
                             </p>

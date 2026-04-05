@@ -8,6 +8,8 @@ import Footer from "../../components/homepage/Footer";
 import { getBlogs, getFeaturedBlog, deleteBlog, toggleSaveBlog } from "../../service/ApiService/BlogApi";
 import { CATEGORY_MAP, formatDate } from "./BlogConstants";
 import SubmitBlogModal from "./SubmitBlogModal";
+import ImageWithFallback from "../../components/common/ImageWithFallback";
+import blogFallback from "../../assets/bai-viet.png";
 
 
 
@@ -301,12 +303,30 @@ export default function BlogPage() {
                                         onClick={() => navigate(`/blog/${featuredBlogs[currentFeaturedIndex]._id}`)}
                                         className="flex flex-col w-full rounded-3xl overflow-hidden glass-panel border-white/10 shadow-2xl cursor-pointer group hover:scale-[1.02] transition-all duration-500"
                                     >
-                                        <div className="aspect-[21/9] overflow-hidden">
-                                            <img 
-                                                src={featuredBlogs[currentFeaturedIndex].coverImage} 
-                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
-                                                alt="Featured" 
-                                            />
+                                        <div className="aspect-[21/9] overflow-hidden relative">
+                                            {/\.(mp4|mov|avi|webm)$/i.test(featuredBlogs[currentFeaturedIndex].coverImage) ? (
+                                                <video 
+                                                    src={featuredBlogs[currentFeaturedIndex].coverImage} 
+                                                    className="w-full h-full object-cover" 
+                                                    muted 
+                                                    autoPlay 
+                                                    loop 
+                                                />
+                                            ) : (
+                                                <ImageWithFallback 
+                                                    src={featuredBlogs[currentFeaturedIndex].coverImage} 
+                                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                                                    fallback={blogFallback}
+                                                    alt="Featured" 
+                                                />
+                                            )}
+                                            {/\.(mp4|mov|avi|webm)$/i.test(featuredBlogs[currentFeaturedIndex].coverImage) && (
+                                                <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                                                    <div className="h-14 w-14 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 text-white shadow-2xl">
+                                                        <span className="material-symbols-outlined text-4xl fill-current">play_arrow</span>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="p-8">
                                             <div className="flex items-center justify-between mb-4">
@@ -510,11 +530,28 @@ export default function BlogPage() {
                                                     className="group flex flex-col rounded-xl bg-white overflow-hidden shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 cursor-pointer"
                                                     style={{ border: "1px solid rgba(99,102,241,0.05)" }}
                                                 >
-                                                    <div className="aspect-[16/10] overflow-hidden relative">
-                                                        <div
-                                                            className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                                                            style={{ backgroundImage: `url('${blog.coverImage}')` }}
-                                                        />
+                                                    <div className="aspect-[16/10] overflow-hidden relative bg-slate-100 flex items-center justify-center">
+                                                        {/\.(mp4|mov|avi|webm)$/i.test(blog.coverImage) ? (
+                                                            <video 
+                                                                src={blog.coverImage} 
+                                                                className="w-full h-full object-cover" 
+                                                                muted 
+                                                            />
+                                                        ) : (
+                                                            <ImageWithFallback
+                                                                src={blog.coverImage}
+                                                                className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110 h-full w-full object-cover"
+                                                                fallback={blogFallback}
+                                                                alt={blog.title}
+                                                            />
+                                                        )}
+                                                        {/\.(mp4|mov|avi|webm)$/i.test(blog.coverImage) && (
+                                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:bg-black/10 transition-colors">
+                                                                <div className="h-10 w-10 rounded-full bg-white/80 flex items-center justify-center text-primary shadow-lg border border-white/50">
+                                                                    <span className="material-symbols-outlined text-2xl fill-current">play_arrow</span>
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                         <div className="absolute top-4 left-4 flex gap-2">
                                                             <span className={`rounded-lg ${catInfo.color} px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white`}>
                                                                 {catInfo.label}
@@ -628,11 +665,26 @@ export default function BlogPage() {
                                                     style={{ border: "1px solid rgba(99,102,241,0.05)" }}
                                                 >
                                                     {/* Thumbnail */}
-                                                    <div className="relative w-[200px] md:w-[260px] shrink-0 overflow-hidden">
-                                                        <div
-                                                            className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                                                            style={{ backgroundImage: `url('${blog.coverImage}')` }}
-                                                        />
+                                                    <div className="relative w-[200px] md:w-[260px] shrink-0 overflow-hidden bg-slate-100 flex items-center justify-center">
+                                                        {/\.(mp4|mov|avi|webm)$/i.test(blog.coverImage) ? (
+                                                            <video 
+                                                                src={blog.coverImage} 
+                                                                className="w-full h-full object-cover" 
+                                                                muted 
+                                                            />
+                                                        ) : (
+                                                            <div
+                                                                className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+                                                                style={{ backgroundImage: `url('${blog.coverImage}')` }}
+                                                            />
+                                                        )}
+                                                        {/\.(mp4|mov|avi|webm)$/i.test(blog.coverImage) && (
+                                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:bg-black/10 transition-colors">
+                                                                <div className="h-10 w-10 rounded-full bg-white/80 flex items-center justify-center text-primary shadow-lg border border-white/50">
+                                                                    <span className="material-symbols-outlined text-2xl fill-current">play_arrow</span>
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                         <div className="absolute top-3 left-3">
                                                             <span className={`rounded-lg ${catInfo.color} px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white`}>
                                                                 {catInfo.label}

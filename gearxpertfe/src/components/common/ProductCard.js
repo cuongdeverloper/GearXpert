@@ -204,19 +204,24 @@ export default function ProductCard({
           <h4 className="font-bold text-slate-900 font-display text-base mb-2 line-clamp-1 h-6 leading-tight" title={name}>
             {name}
           </h4>
-          <div className="mt-auto pt-2 flex items-center justify-between border-t border-slate-50">
-            <div className="flex flex-col">
+          <div className="mt-auto pt-2 flex items-center justify-between border-t border-slate-50 gap-2 overflow-hidden">
+            <div className="flex flex-col min-w-0 flex-1 group/price">
               {hasDiscount && (
-                <span className="text-[10px] text-slate-400 line-through leading-none mb-0.5">
+                <span className="text-[10px] text-slate-400 line-through leading-none mb-0.5 truncate">
                   {originalPrice.toLocaleString('vi-VN')}đ
                 </span>
               )}
-              <p className={`${hasDiscount ? 'text-red-500' : 'text-primary'} font-bold text-sm`}>
-                {price.toLocaleString('vi-VN')}đ
-                <span className="text-[10px] text-slate-400 font-normal ml-0.5">/day</span>
-              </p>
+              <div className="overflow-hidden">
+                <p 
+                  className={`${hasDiscount ? 'text-red-500' : 'text-primary'} font-bold text-sm block whitespace-nowrap transition-transform duration-[3000ms] ease-linear group-hover/price:-translate-x-[30%]`}
+                  title={`${price.toLocaleString('vi-VN')}đ/day`}
+                >
+                  {price.toLocaleString('vi-VN')}đ
+                  <span className="text-[10px] text-slate-400 font-normal ml-0.5">/day</span>
+                </p>
+              </div>
             </div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{category}</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">{category}</span>
           </div>
         </div>
       </div>
@@ -300,26 +305,31 @@ export default function ProductCard({
             {name}
           </h3>
           {description && (
-            <p className="text-sm text-slate-500 mt-2 line-clamp-2 flex-1">{description}</p>
+            <p className="text-sm text-slate-500 mt-2 line-clamp-2 min-h-[2.5rem]">{description}</p>
           )}
-          <div className="mt-auto pt-6 flex items-center justify-between">
-            <div className="flex flex-col">
+          <div className="mt-auto pt-6 flex items-center justify-between gap-4 overflow-hidden">
+            <div className="flex flex-col min-w-0 flex-1">
               {hasDiscount && (
-                <span className="text-sm text-slate-400 line-through leading-none mb-1">
+                <span className="text-xs text-slate-400 line-through leading-none mb-1 truncate">
                   {originalPrice.toLocaleString('vi-VN')}đ
                 </span>
               )}
-              <span className={`text-2xl font-bold ${hasDiscount ? 'text-red-500' : 'text-slate-900'}`}>
-                {price.toLocaleString('vi-VN')}đ
-                <span className="text-sm text-slate-400 font-normal ml-1">/day</span>
-              </span>
+              <div className="relative overflow-hidden group/price">
+                <span 
+                  className={`text-2xl font-bold block whitespace-nowrap transition-transform duration-[3000ms] ease-linear group-hover/price:-translate-x-[20%] ${hasDiscount ? 'text-red-500' : 'text-slate-900'}`}
+                  title={`${price.toLocaleString('vi-VN')}đ/day`}
+                >
+                  {price.toLocaleString('vi-VN')}đ
+                  <span className="text-sm text-slate-400 font-normal ml-1">/day</span>
+                </span>
+              </div>
             </div>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 handleClick();
               }}
-              className="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors shadow-md"
+              className="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors shadow-md shrink-0"
             >
               {buttonText}
             </button>

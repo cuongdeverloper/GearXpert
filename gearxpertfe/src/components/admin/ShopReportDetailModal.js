@@ -167,23 +167,44 @@ const ShopReportDetailModal = ({ report, onClose, onSuccess }) => {
                 <div className="space-y-6">
                   <div className="flex items-center gap-2 mb-2 px-2">
                     <FiImage className="text-primary" />
-                    <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest m-0">Minh chứng bằng hình ảnh ({report.evidence.length})</h4>
+                    <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest m-0">Minh chứng bằng hình ảnh/video ({report.evidence.length})</h4>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 bg-slate-50 p-6 rounded-[32px] border border-slate-100">
-                    {report.evidence.map((url, i) => (
-                      <div key={url} className="group relative aspect-square rounded-2xl overflow-hidden shadow-sm border-2 border-white hover:border-primary transition-all cursor-zoom-in bg-white">
-                        <img
-                          src={url}
-                          alt={`Evidence ${i + 1}`}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <a href={url} target="_blank" rel="noopener noreferrer" className="p-2 bg-white rounded-xl text-primary transform scale-0 group-hover:scale-100 transition-transform">
-                                <FiEye size={20} />
-                            </a>
+                    {report.evidence.map((url, i) => {
+                      const isVideo = /\.(mp4|mov|avi|webm)$/i.test(url);
+                      return (
+                        <div key={url} className="group relative aspect-square rounded-2xl overflow-hidden shadow-sm border-2 border-white hover:border-primary transition-all cursor-zoom-in bg-white">
+                          {isVideo ? (
+                            <video
+                              src={url}
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                              muted
+                            />
+                          ) : (
+                            <img
+                              src={url}
+                              alt={`Evidence ${i + 1}`}
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                            />
+                          )}
+                          
+                          {/* Play Icon for Video Overlay */}
+                          {isVideo && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/10 pointer-events-none">
+                              <div className="p-3 bg-white/90 rounded-full shadow-lg group-hover:scale-110 transition-transform">
+                                <div className="w-0 h-0 border-t-[8px] border-t-transparent border-l-[12px] border-l-primary border-b-[8px] border-b-transparent ml-1" />
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <a href={url} target="_blank" rel="noopener noreferrer" className="p-2 bg-white rounded-xl text-primary transform scale-0 group-hover:scale-100 transition-transform">
+                                  <FiEye size={20} />
+                              </a>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -240,7 +261,7 @@ const ShopReportDetailModal = ({ report, onClose, onSuccess }) => {
                                             <opt.icon size={18} />
                                         </div>
                                         <div className="flex-1">
-                                            <p className="text-xs font-black uppercase tracking-widest m-0Leading-none">{opt.label}</p>
+                                            <p className="text-xs font-black uppercase tracking-widest m-0 leading-none">{opt.label}</p>
                                         </div>
                                         {status === opt.value && <FiCheckCircle size={20} />}
                                     </button>

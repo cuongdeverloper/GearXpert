@@ -192,16 +192,31 @@ const ShopReportModal = ({ isOpen, onClose, shopId, shopName }) => {
                 </label>
                 <div className="flex flex-wrap gap-3">
                   {evidence.map((file, index) => (
-                    <div key={index} className="relative w-24 h-24 rounded-xl overflow-hidden border border-slate-200 group">
+                    <div key={index} className="relative w-24 h-24 rounded-xl overflow-hidden border border-slate-200 group bg-slate-50">
                       {file.type.startsWith("image") ? (
                         <img
                           src={URL.createObjectURL(file)}
                           alt="preview"
                           className="w-full h-full object-cover"
                         />
+                      ) : file.type.startsWith("video") ? (
+                        <video
+                          src={URL.createObjectURL(file)}
+                          className="w-full h-full object-cover"
+                          muted
+                        />
                       ) : (
                         <div className="w-full h-full bg-slate-100 flex items-center justify-center">
                           <Upload size={24} className="text-slate-400" />
+                        </div>
+                      )}
+                      
+                      {/* Video Overlay Icon */}
+                      {file.type.startsWith("video") && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/10 pointer-events-none">
+                            <div className="p-1.5 bg-white/80 rounded-full shadow-sm">
+                                <div className="w-0 h-0 border-t-[5px] border-t-transparent border-l-[8px] border-l-indigo-600 border-b-[5px] border-b-transparent ml-0.5" />
+                            </div>
                         </div>
                       )}
                       <button
