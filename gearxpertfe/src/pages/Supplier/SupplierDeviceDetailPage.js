@@ -87,6 +87,12 @@ export default function SupplierDeviceDetailPage() {
 
   const specsList = useMemo(() => normalizeSpecs(device?.specs), [device?.specs]);
 
+  const includedAccessoriesList = useMemo(() => {
+    const raw = device?.includedAccessories;
+    if (!Array.isArray(raw)) return [];
+    return raw.filter((x) => x && String(x.name || "").trim());
+  }, [device?.includedAccessories]);
+
   const renderRatingStar = () => (
     <FiStar size={16} className="text-amber-500 fill-current" />
   );
@@ -367,33 +373,45 @@ export default function SupplierDeviceDetailPage() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-0 shadow-md ring-1 ring-slate-100 transition-all duration-300 hover:shadow-lg overflow-hidden">
-            <div className="border-b border-slate-200 bg-gradient-to-r from-sky-100 to-white px-6 py-4">
-              <h3 className="text-lg font-semibold text-slate-900">Thông số kỹ thuật</h3>
-              <p className="text-sm text-slate-500">
-                Các thông số chi tiết của sản phẩm.
-              </p>
-            </div>
-            <div className="p-6">
-            {specsList.length === 0 ? (
-              <p className="text-sm text-slate-500">Không có thông số.</p>
-            ) : (
-              <div className="space-y-2">
-                {specsList.map((spec, index) => (
-                  <div
-                    key={`${spec.key}-${index}`}
-                    className="flex items-center justify-between text-sm"
-                  >
-                    <span className="text-slate-500">{spec.key}</span>
-                    <span className="font-medium text-slate-800">
-                      {String(spec.value)}
-                    </span>
-                  </div>
-                ))}
+          {includedAccessoriesList.length > 0 ? (
+            <section className="rounded-2xl border border-slate-200 bg-white p-0 shadow-md ring-1 ring-slate-100 transition-all duration-300 hover:shadow-lg overflow-hidden">
+              <div className="border-b border-slate-200 bg-gradient-to-r from-violet-100 to-white px-6 py-4">
+                <h3 className="text-lg font-semibold text-slate-900">Phụ kiện đi kèm</h3>
+                <p className="text-sm text-slate-500">
+                  Giao kèm theo từng lần thuê (mô tả trên catalog).
+                </p>
               </div>
-            )}
-            </div>
-          </section>
+              <div className="p-6">
+                <ul className="space-y-2 text-sm">
+                  {includedAccessoriesList.map((item, i) => (
+                    <li
+                      key={`${item.name}-${i}`}
+                      className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2"
+                    >
+                      {item.image ? (
+                        <img
+                          src={item.image}
+                          alt=""
+                          className="h-14 w-14 shrink-0 rounded-lg object-cover border border-slate-200 bg-white"
+                        />
+                      ) : null}
+                      <div className="flex flex-1 flex-wrap items-baseline justify-between gap-2 min-w-0">
+                        <span className="font-medium text-slate-800">
+                          {item.name}
+                          {item.qty > 1 ? (
+                            <span className="text-slate-500 font-normal"> × {item.qty}</span>
+                          ) : null}
+                        </span>
+                        {item.note ? (
+                          <span className="text-slate-500 text-xs sm:text-sm">{item.note}</span>
+                        ) : null}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </section>
+          ) : null}
 
           <section className="rounded-2xl border border-slate-200 bg-white p-0 shadow-md ring-1 ring-slate-100 transition-all duration-300 hover:shadow-lg overflow-hidden">
             <div className="border-b border-slate-200 bg-gradient-to-r from-amber-100 to-white px-6 py-4">
@@ -437,7 +455,7 @@ export default function SupplierDeviceDetailPage() {
           </section>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-6 lg:col-span-1">
           <section className="rounded-2xl border border-slate-200 bg-white p-0 shadow-md ring-1 ring-slate-100 transition-all duration-300 hover:shadow-lg overflow-hidden">
             <div className="border-b border-slate-200 bg-gradient-to-r from-indigo-100 to-white px-6 py-4">
               <h3 className="text-lg font-semibold text-slate-900">Thư viện ảnh</h3>
@@ -460,6 +478,34 @@ export default function SupplierDeviceDetailPage() {
             ) : (
               <div className="text-sm text-slate-500">Không có ảnh</div>
             )}
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-0 shadow-md ring-1 ring-slate-100 transition-all duration-300 hover:shadow-lg overflow-hidden">
+            <div className="border-b border-slate-200 bg-gradient-to-r from-sky-100 to-white px-6 py-4">
+              <h3 className="text-lg font-semibold text-slate-900">Thông số kỹ thuật</h3>
+              <p className="text-sm text-slate-500">
+                Các thông số chi tiết của sản phẩm.
+              </p>
+            </div>
+            <div className="p-6">
+              {specsList.length === 0 ? (
+                <p className="text-sm text-slate-500">Không có thông số.</p>
+              ) : (
+                <div className="space-y-2">
+                  {specsList.map((spec, index) => (
+                    <div
+                      key={`${spec.key}-${index}`}
+                      className="flex flex-col gap-0.5 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-2"
+                    >
+                      <span className="text-slate-500 shrink-0">{spec.key}</span>
+                      <span className="font-medium text-slate-800 text-right break-words">
+                        {String(spec.value)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
 
@@ -495,7 +541,7 @@ export default function SupplierDeviceDetailPage() {
           </section>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-0 shadow-md ring-1 ring-slate-100 transition-all duration-300 hover:shadow-lg overflow-hidden">
-            <div className="border-b border-slate-200 bg-gradient-to-r from-sky-100 to-white px-6 py-4">
+            <div className="border-b border-slate-200 bg-gradient-to-r from-slate-100 to-white px-6 py-4">
               <h3 className="text-lg font-semibold text-slate-900">Mốc thời gian</h3>
               <p className="text-sm text-slate-500">
                 Thời gian tạo và cập nhật.

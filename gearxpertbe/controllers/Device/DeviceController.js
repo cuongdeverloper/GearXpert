@@ -1,5 +1,58 @@
 const mongoose = require("mongoose");
 const Device = require("../../models/Device");
+
+/** Phụ kiện đi kèm (catalog) — luôn trả mảng, bỏ dòng không có tên */
+function normalizeIncludedAccessories(raw) {
+  if (raw === undefined || raw === null || raw === "") return [];
+  let arr = raw;
+  if (typeof raw === "string") {
+    try {
+      arr = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map((x) => {
+      if (!x || typeof x !== "object") return null;
+      const name = String(x.name ?? "").trim();
+      if (!name) return null;
+      const qty = Math.min(999, Math.max(1, parseInt(x.qty, 10) || 1));
+      const noteRaw = x.note != null ? String(x.note).trim().slice(0, 500) : "";
+      const imgRaw = x.image != null ? String(x.image).trim() : "";
+      const out = { name: name.slice(0, 200), qty };
+      if (noteRaw) out.note = noteRaw;
+      if (imgRaw && /^https?:\/\//i.test(imgRaw)) {
+        out.image = imgRaw.slice(0, 2048);
+      }
+      return out;
+    })
+    .filter(Boolean);
+}
+
+/** Gắn ảnh upload (Cloudinary path) vào đúng dòng phụ kiện theo accessoryImageIndices */
+function mergeAccessoryImageUploads(accessories, body, files) {
+  if (!accessories.length) return accessories;
+  let indices = [];
+  try {
+    indices = JSON.parse(body.accessoryImageIndices || "[]");
+  } catch {
+    indices = [];
+  }
+  if (!Array.isArray(indices) || !indices.length) return accessories;
+  const fileArr = Array.isArray(files?.accessoryImages)
+    ? files.accessoryImages
+    : [];
+  const out = accessories.map((a) => ({ ...a }));
+  indices.forEach((idx, j) => {
+    const i = parseInt(idx, 10);
+    if (!Number.isInteger(i) || i < 0 || i >= out.length) return;
+    const path = fileArr[j]?.path;
+    if (path) out[i] = { ...out[i], image: path };
+  });
+  return out;
+}
 const DeviceItem = require("../../models/DeviceItem");
 const RentalItem = require("../../models/RentalItem"); // Kiểm tra lại đường dẫn model của bạn
 const Review = require("../../models/Review");
@@ -24,6 +77,7 @@ exports.createDevice = async (req, res) => {
       location,
       specs,
       status,
+      includedAccessories,
     } = req.body;
 
     // Parse rentPrice if string
@@ -49,6 +103,13 @@ exports.createDevice = async (req, res) => {
         specs = JSON.parse(specs);
       } catch (e) {
         specs = {};
+      }
+    }
+    if (typeof includedAccessories === "string") {
+      try {
+        includedAccessories = JSON.parse(includedAccessories);
+      } catch {
+        includedAccessories = [];
       }
     }
 
@@ -77,11 +138,16 @@ exports.createDevice = async (req, res) => {
       return res.status(400).json({ message: "depositAmount must be > 0" });
     }
 
-    // Xử lý images upload từ req.files (Cloudinary)
+    // Xử lý images upload từ req.files (Cloudinary) — .fields hoặc .array
     let images = [];
-    if (req.files && req.files.length > 0) {
+    if (req.files?.images?.length) {
+      images = req.files.images.map((file) => file.path);
+    } else if (Array.isArray(req.files) && req.files.length > 0) {
       images = req.files.map((file) => file.path);
     }
+
+    let accList = normalizeIncludedAccessories(includedAccessories);
+    accList = mergeAccessoryImageUploads(accList, req.body, req.files);
 
     // Create new device (catalog cha — tồn kho = 0 cho tới khi có DeviceItem)
     const newDevice = new Device({
@@ -100,6 +166,7 @@ exports.createDevice = async (req, res) => {
       images,
       status: normalizedStatus,
       specs,
+      includedAccessories: accList,
       isAddon: false,
       ratingAvg: 0,
       reviewCount: 0,
@@ -559,6 +626,7 @@ exports.updateDevice = async (req, res) => {
       oldImages,
       status,
       specs,
+      includedAccessories,
     } = req.body;
 
     // Parse rentPrice if string
@@ -583,6 +651,14 @@ exports.updateDevice = async (req, res) => {
         specs = JSON.parse(specs);
       } catch (e) {
         specs = undefined;
+      }
+    }
+    let parsedIncludedAccessories = includedAccessories;
+    if (typeof includedAccessories === "string") {
+      try {
+        parsedIncludedAccessories = JSON.parse(includedAccessories);
+      } catch {
+        parsedIncludedAccessories = [];
       }
     }
 
@@ -688,6 +764,11 @@ exports.updateDevice = async (req, res) => {
       device.status = nextCatalogStatus;
     }
     if (specs && typeof specs === "object") device.specs = specs;
+    if (includedAccessories !== undefined && includedAccessories !== null) {
+      let accList = normalizeIncludedAccessories(parsedIncludedAccessories);
+      accList = mergeAccessoryImageUploads(accList, req.body, req.files);
+      device.includedAccessories = accList;
+    }
 
     await device.save();
 
@@ -769,7 +850,7 @@ exports.getSupplierDevices = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const devices = await Device.find(query)
       .select(
-        "name slug description rentPrice ratingAvg reviewCount location images category status stockQuantity rentedQuantity availableQuantity maintenanceCount damagedCount depositAmount discountPrice discountReason discountExpiry"
+        "name slug description rentPrice ratingAvg reviewCount location images category status stockQuantity rentedQuantity availableQuantity maintenanceCount damagedCount depositAmount discountPrice discountReason discountExpiry includedAccessories"
       )
       .limit(parseInt(limit))
       .skip(skip)
