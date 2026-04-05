@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { FiDollarSign, FiCheck, FiX, FiClock, FiFilter, FiSearch, FiEye, FiUser } from "react-icons/fi";
 import { getWithdrawalRequests, approveWithdrawal, rejectWithdrawal } from "../../service/ApiService/AdminApi";
 
@@ -11,67 +11,65 @@ export default function AdminWithdrawalsPage() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [actionLoading, setActionLoading] = useState({});
 
-  useEffect(() => {
-    fetchWithdrawals();
-  }, [filterStatus, searchTerm]);
-
-  const fetchWithdrawals = async () => {
+  const fetchWithdrawals = useCallback(async () => {
     try {
       setLoading(true);
       console.log("Fetching withdrawals with params:", {
         status: filterStatus,
-        search: searchTerm
+        search: searchTerm,
       });
-      
+
       const response = await getWithdrawalRequests({
         status: filterStatus,
-        search: searchTerm
+        search: searchTerm,
       });
-      
+
       console.log("Withdrawals API response:", response);
-      
-      const withdrawals = response.withdrawals || [];
-      console.log("Setting withdrawals:", withdrawals);
-      setWithdrawals(withdrawals);
-      
-      // If no withdrawals, show a message
-      if (withdrawals.length === 0) {
+
+      const list = response.withdrawals || [];
+      console.log("Setting withdrawals:", list);
+      setWithdrawals(list);
+
+      if (list.length === 0) {
         console.log("No withdrawals found in response");
       }
     } catch (error) {
       console.error("Error fetching withdrawal requests:", error);
       console.error("Error response:", error.response);
-      
-      // If API error, show sample data for testing
+
       if (error.response?.status === 404 || error.response?.status === 500) {
         console.log("API error, showing sample data");
         setWithdrawals([
           {
-            _id: 'sample1',
+            _id: "sample1",
             amount: 1000000,
-            status: 'PENDING',
+            status: "PENDING",
             createdAt: new Date(),
             processedAt: null,
-            notes: 'Sample withdrawal request',
+            notes: "Sample withdrawal request",
             rejectionReason: null,
             supplierId: {
-              fullName: 'Sample Supplier',
-              email: 'supplier@example.com',
-              phone: '0123456789'
+              fullName: "Sample Supplier",
+              email: "supplier@example.com",
+              phone: "0123456789",
             },
             bankInfo: {
-              bankName: 'Vietcombank',
-              accountNumber: '1234567890',
-              accountName: 'Sample Supplier'
+              bankName: "Vietcombank",
+              accountNumber: "1234567890",
+              accountName: "Sample Supplier",
             },
-            referenceId: 'WD000001'
-          }
+            referenceId: "WD000001",
+          },
         ]);
       }
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterStatus, searchTerm]);
+
+  useEffect(() => {
+    fetchWithdrawals();
+  }, [fetchWithdrawals]);
 
   const handleApprove = async (withdrawalId) => {
     try {
