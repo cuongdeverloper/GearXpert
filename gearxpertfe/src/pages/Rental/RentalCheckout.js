@@ -32,8 +32,9 @@ import {
   validateVoucher,
   getAllVouchers,
 } from "../../service/ApiService/VoucherApi.js";
-import { checkout, previewContract } from "../../service/ApiService/RentalApi";
+import { checkout, previewContract, generateContract } from "../../service/ApiService/RentalApi";
 import { getMyWallet } from "../../service/ApiService/WalletApi";
+import axios from "../../service/AxiosCustomize";
 
 // --- MAP IMPORTS ---
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
@@ -428,46 +429,78 @@ export default function CheckoutPage() {
         "Vui lòng điền đầy đủ thông tin nhận hàng trước khi xem hợp đồng"
       );
     }
-    if (!agreeTerms) {
-      return toast.warning("Bạn cần đồng ý điều khoản trước khi xem hợp đồng");
-    }
 
     setIsPreviewLoading(true);
 
     try {
-      const payload = {
-        cartType: CART_TYPE,
-        deliveryAddress: address,
+      // Tạo rental data tạm cho preview (không cần lưu DB)
+      const rentalData = {
+        customerId: account.id,
+        supplierId: cart[0]?.deviceId?.supplierId,
+        items: cart.map((item) => ({
+          deviceId: item.deviceId._id,
+          quantity: item.quantity,
+          rentPrice: item.rentPrice,
+          totalDays: item.totalDays,
+          rentalStartDate: item.rentalStartDate,
+          rentalEndDate: item.rentalEndDate,
+          deviceName: item.deviceId.name,
+          deviceDescription: item.deviceId.description,
+          serialNumber: item.deviceId.serial || item.deviceId.imei || "",
+          conditionBefore: item.condition || "Tốt, không hư hỏng",
+        })),
+        deliveryAddress: {
+          receiverName: address.receiverName,
+          street: address.street,
+          district: address.district,
+          city: address.city,
+          fullAddress: address.fullAddress,
+        },
         phoneNumber,
         notes,
-        voucherCode: appliedVoucher?.code,
+        voucherCode,
         shippingFee: deliveryFee,
-        cartItems: cart.map((item) => ({
-          deviceName: item.deviceId?.name || "Thiết bị",
-          quantity: item.quantity,
-          totalDays: item.totalDays,
-          rentPricePerDay: item.deviceId?.rentPrice?.perDay || 0,
-          subtotal:
-            (item.deviceId?.rentPrice?.perDay || 0) *
-            item.totalDays *
-            item.quantity,
-        })),
         subtotal,
         totalDeposit,
         total,
-        currentDate: new Date().toLocaleDateString("vi-VN"),
-        signatureDataUrl: signatureDataUrl, // ← THÊM DÒNG NÀY
+        rentalStartDate: new Date(),
+        rentalEndDate: new Date(),
+        status: "PENDING",
+        paymentStatus: "UNPAID",
+        paymentMethod: "BANK",
+        customerInfo: {
+          fullName: account.username,
+          email: account.email,
+          avatar: account.avatar,
+        },
+        supplierInfo: {
+          ...cart[0]?.deviceId?.supplierId,
+          address: cart[0]?.deviceId?.supplierId?.warehouseAddress?.fullAddress || 
+                   cart[0]?.deviceId?.supplierId?.address || "",
+        } || {
+          fullName: "Nhà cung cấp GearXpert",
+          username: "supplier",
+        },
+        customerSignature: signatureDataUrl, // Gửi chữ ký để merge vào PDF
       };
 
-      const blob = await previewContract(payload);
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, "_blank");
+      // Gọi API preview contract trực tiếp với rental data
+      const response = await axios.post("/api/contracts/preview-data", rentalData);
+      
+      console.log("Preview contract response:", response);
 
-      toast.success("Đã mở bản xem trước hợp đồng (có chữ ký)!");
+      // Axios interceptor returns response.data directly
+      if (!response.success || !response.previewUrl) {
+        throw new Error("Failed to get preview URL");
+      }
+
+      // Mở contract từ Cloudinary URL
+      window.open(response.previewUrl, "_blank");
+
+      toast.success("Đã mở bản xem trước hợp đồng!");
     } catch (err) {
-      toast.error(
-        err.response?.data?.message || "Lỗi khi tạo bản xem trước hợp đồng"
-      );
+      console.error("Preview contract error:", err);
+      toast.error(err.response?.data?.message || "Lỗi khi tạo bản xem trước hợp đồng");
     } finally {
       setIsPreviewLoading(false);
     }

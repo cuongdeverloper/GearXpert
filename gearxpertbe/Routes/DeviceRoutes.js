@@ -24,6 +24,7 @@ routerDevice.post(
 routerDevice.get('/:slug', deviceController.getDeviceDetail);
 routerDevice.get('/:slug/addons', deviceController.getDeviceAddons);
 routerDevice.get('/:slug/related', deviceController.getRelatedDevices);
+routerDevice.get('/:slug/available-count', deviceController.getDeviceAvailableCount);
 
 // Update device (Supplier only)
 routerDevice.put('/:id', checkAccessToken, checkSupplier, deviceImageUpload, deviceController.updateDevice);

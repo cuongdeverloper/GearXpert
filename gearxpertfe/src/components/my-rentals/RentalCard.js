@@ -56,6 +56,7 @@ export default function RentalCard({
   onReportDamage,
   onReview,
   onReRent,
+  hasReviewed = false,
 }) {
   const meta = statusMeta(order);
   const orderCode = toCode(order.orderCode);
@@ -136,12 +137,21 @@ export default function RentalCard({
     if (order.status === "COMPLETED") {
       return (
         <div className="flex flex-wrap gap-2">
-          <button
-            onClick={handleClick(onReview)}
-            className="px-4 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-100 text-sm font-black inline-flex items-center gap-2"
-          >
-            <Star size={16} /> Đánh giá
-          </button>
+          {hasReviewed ? (
+            <button
+              disabled
+              className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-500 border border-gray-200 text-sm font-black inline-flex items-center gap-2 cursor-not-allowed"
+            >
+              <Star size={16} fill="currentColor" /> Đã đánh giá
+            </button>
+          ) : (
+            <button
+              onClick={handleClick(onReview)}
+              className="px-4 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-100 text-sm font-black inline-flex items-center gap-2"
+            >
+              <Star size={16} /> Đánh giá
+            </button>
+          )}
           <button
             onClick={handleClick(onReRent)}
             className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-sm font-black inline-flex items-center gap-2"

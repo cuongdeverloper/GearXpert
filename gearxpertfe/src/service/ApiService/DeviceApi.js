@@ -46,6 +46,9 @@ export const createDeviceItemForSupplier = (deviceId, data, files = null) => {
   return axios.post(`/api/devices/${deviceId}/items`, data);
 };
 
+export const getDeviceAvailableCount = (slug) =>
+  axios.get(`/api/devices/${slug}/available-count`);
+
 export const getDeviceAddons = (slug) =>
   axios.get(`/api/devices/${slug}/addons`);
 
