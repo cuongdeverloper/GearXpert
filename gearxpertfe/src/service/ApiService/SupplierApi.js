@@ -81,6 +81,13 @@ const getPublicSuppliers = async (params = {}) => {
 const requestBecomeSupplier = (data) =>
     axios.post(`/api/suppliers-contract/become-supplier`, data); 
 
+// Supplier contract (electronic signing)
+const previewSupplierContract = (data) => {
+  return axios.post(`/api/suppliers-contract/preview-contract`, data, {
+    responseType: "blob",
+  });
+};
+
 export {
   getSupplierProfile,
   updateSupplierProfile,
@@ -94,5 +101,6 @@ export {
   updateFollowPrefs,
   getMyFollowerAnalytics,
   getPublicSuppliers,
-  requestBecomeSupplier
+  requestBecomeSupplier,
+  previewSupplierContract
 };
