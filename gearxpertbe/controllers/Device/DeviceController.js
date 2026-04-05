@@ -788,3 +788,32 @@ exports.getSupplierDevices = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+/**
+ * GET /devices/:slug/available-count
+ * Get real available count for device
+ */
+exports.getDeviceAvailableCount = async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    const device = await Device.findOne({ slug });
+    if (!device) {
+      return res.status(404).json({ message: "Thiết bị không tồn tại" });
+    }
+
+    const availableCount = await DeviceItem.countDocuments({
+      deviceId: device._id,
+      status: "AVAILABLE",
+    });
+
+    res.json({
+      deviceId: device._id,
+      slug: device.slug,
+      availableCount,
+      stockQuantity: device.stockQuantity,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

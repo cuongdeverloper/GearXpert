@@ -12,10 +12,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getSupplierRentalRequests } from "../../service/ApiService/RentalApi";
-import {
-  rejectRental,
-  startDelivery,
-} from "../../service/ApiService/RentalActionApi";
+import { rejectRental, startDelivery, confirmReturn } from "../../service/ApiService/RentalActionApi";
+import { getExtensionRequests, approveExtension, rejectExtension } from "../../service/ApiService/ExtensionRequestApi";
 import { toast } from "react-toastify";
 import { motion } from "framer-motion";
 import { confirmDialog } from "../../utils/confirmDialog";
@@ -132,6 +130,8 @@ export default function SupplierRentalRequests() {
   const [pageSize] = useState(8);
   const [rejectModal, setRejectModal] = useState({ open: false, rental: null });
   const [rejectSubmitting, setRejectSubmitting] = useState(false);
+  const [deliveryModal, setDeliveryModal] = useState({ open: false, rental: null });
+  const [extensionRequests, setExtensionRequests] = useState([]);
 
   const fetchRequests = useCallback(async () => {
     if (!user?.id) {
@@ -140,16 +140,20 @@ export default function SupplierRentalRequests() {
     }
     setLoading(true);
     try {
-      const res = await getSupplierRentalRequests(user.id, {
-        status:
-          "PENDING,REJECTED,DELIVERING,RENTING,RETURNING,INSPECTING,PENDING_RESOLUTION,COMPLETED,CANCELLED",
-      });
-      setRequests(res?.rentals || []);
+      const [rentalsRes, extensionsRes] = await Promise.all([
+        getSupplierRentalRequests(user.id, {
+          status: "PENDING,REJECTED,DELIVERING,RENTING,RETURNING,INSPECTING,COMPLETED,CANCELLED",
+        }),
+        getExtensionRequests(user.id)
+      ]);
+      setRequests(rentalsRes?.rentals || []);
+      setExtensionRequests(extensionsRes?.extensionRequests || []);
     } catch (error) {
       toast.error(
         error?.response?.data?.message || "Không tải được danh sách đơn hàng",
       );
       setRequests([]);
+      setExtensionRequests([]);
     } finally {
       setLoading(false);
       setListFetched(true);
@@ -233,6 +237,67 @@ export default function SupplierRentalRequests() {
       toast.error(err?.response?.data?.message || "Từ chối thất bại");
     } finally {
       setRejectSubmitting(false);
+    }
+  };
+
+  const handleViewDeliveryStatus = (rental) => {
+    setDeliveryModal({ open: true, rental });
+  };
+
+  const handleConfirmReturn = async (rental) => {
+    const result = await confirmDialog({
+      title: "Xác nhận đã thu hồi thiết bị?",
+      text: "Thiết bị đã được trả về và kiểm tra. Tiền thuê sẽ được chuyển đến ví của bạn sau khi trừ phí nền tảng.",
+      confirmText: "Xác nhận trả hàng",
+      cancelText: "Hủy",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await confirmReturn(rental._id);
+      toast.success("Đã xác nhận trả hàng thành công!");
+      fetchRequests();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Lỗi khi xác nhận trả hàng");
+    }
+  };
+
+  const handleApproveExtension = async (request) => {
+    const result = await confirmDialog({
+      title: "Xác nhận gia hạn?",
+      text: `Chấp nhận gia hạn thêm ${request.requestedDays} ngày tới ${formatDate(request.requestedEndDate)}.`,
+      confirmText: "Chấp nhận",
+      cancelText: "Hủy",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await approveExtension(request._id);
+      toast.success("Đã chấp nhận gia hạn!");
+      fetchRequests();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Lỗi khi chấp nhận gia hạn");
+    }
+  };
+
+  const handleRejectExtension = async (request) => {
+    const result = await confirmDialog({
+      title: "Từ chối gia hạn?",
+      text: "Yêu cầu gia hạn sẽ bị từ chối.",
+      confirmText: "Từ chối",
+      cancelText: "Hủy",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await rejectExtension(request._id);
+      toast.success("Đã từ chối gia hạn!");
+      fetchRequests();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Lỗi khi từ chối gia hạn");
     }
   };
 
@@ -322,31 +387,111 @@ export default function SupplierRentalRequests() {
       </motion.div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {[
-          { icon: FiClock, wrap: "bg-amber-50 text-amber-600", label: "Chờ xử lý", value: counts.PENDING },
-          { icon: FiRotateCw, wrap: "bg-indigo-50 text-indigo-600", label: "Đang thuê", value: counts.RENTING },
-          { icon: FiCheckCircle, wrap: "bg-green-50 text-green-600", label: "Đã trả", value: counts.RETURNED },
-          { icon: FiAlertTriangle, wrap: "bg-red-50 text-red-600", label: "Hủy / Từ chối", value: counts.CANCELLED },
-        ].map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.06 * i, duration: 0.4, ease: easeOut }}
-            whileHover={{ y: -4 }}
-            className={statCardClass}
-          >
-            <span
-              className={`h-10 w-10 rounded-xl ${stat.wrap} inline-flex items-center justify-center transition-transform duration-300 group-hover/stat:scale-110`}
-            >
-              <stat.icon size={18} />
-            </span>
-            <div>
-              <p className="text-xs text-slate-500 font-medium">{stat.label}</p>
-              <p className="text-lg font-bold text-slate-900 tabular-nums">{stat.value}</p>
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center gap-3">
+          <span className="h-10 w-10 rounded-xl bg-amber-50 text-amber-600 inline-flex items-center justify-center">
+            <FiClock size={18} />
+          </span>
+          <div>
+            <p className="text-xs text-slate-500">Chờ xử lý</p>
+            <p className="text-lg font-bold text-slate-900">{counts.PENDING}</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center gap-3">
+          <span className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 inline-flex items-center justify-center">
+            <FiRotateCw size={18} />
+          </span>
+          <div>
+            <p className="text-xs text-slate-500">Đang thuê</p>
+            <p className="text-lg font-bold text-slate-900">{counts.RENTING}</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center gap-3">
+          <span className="h-10 w-10 rounded-xl bg-green-50 text-green-600 inline-flex items-center justify-center">
+            <FiCheckCircle size={18} />
+          </span>
+          <div>
+            <p className="text-xs text-slate-500">Đã trả</p>
+            <p className="text-lg font-bold text-slate-900">{counts.RETURNED}</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center gap-3">
+          <span className="h-10 w-10 rounded-xl bg-red-50 text-red-600 inline-flex items-center justify-center">
+            <FiAlertTriangle size={18} />
+          </span>
+          <div>
+            <p className="text-xs text-slate-500">Hủy / Từ chối</p>
+            <p className="text-lg font-bold text-slate-900">{counts.CANCELLED}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Extension Requests Section */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+        <div className="p-4 border-b border-slate-100">
+          <h3 className="text-lg font-semibold text-slate-900">Yêu cầu gia hạn</h3>
+          <p className="text-sm text-slate-500">Xử lý yêu cầu gia hạn từ khách hàng</p>
+        </div>
+        
+        <div className="p-4">
+          {extensionRequests.length === 0 ? (
+            <div className="text-center py-8 text-slate-500">
+              <FiClock size={48} className="mx-auto mb-4 text-slate-300" />
+              <p>Không có yêu cầu gia hạn nào</p>
             </div>
-          </motion.div>
-        ))}
+          ) : (
+            <div className="space-y-4">
+              {extensionRequests.map((request) => (
+                <div key={request._id} className="border border-slate-200 rounded-xl p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="font-semibold text-slate-900">
+                          {request.rentalId?.items?.[0]?.deviceId?.name || "Thiết bị"}
+                        </span>
+                        <span className="px-2 py-1 bg-amber-50 text-amber-700 text-xs font-semibold rounded-lg">
+                          PENDING
+                        </span>
+                      </div>
+                      
+                      <div className="text-sm text-slate-600 space-y-1">
+                        <p>Khách hàng: {request.customerId?.fullName || "—"}</p>
+                        <p>Ngày kết thúc hiện tại: {formatDate(request.rentalId?.items?.[0]?.rentalEndDate)}</p>
+                        <p className="font-semibold text-indigo-600">
+                          Yêu cầu gia hạn tới: {formatDate(request.requestedEndDate)} (+{request.requestedDays} ngày)
+                        </p>
+                        {request.proposedExtraAmount > 0 && (
+                          <p className="text-emerald-600">
+                            Phí đề xuất: {formatMoney(request.proposedExtraAmount)} ₫
+                          </p>
+                        )}
+                        {request.note && (
+                          <p className="text-slate-500 italic">Ghi chú: {request.note}</p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col gap-2">
+                      <button
+                        onClick={() => handleApproveExtension(request)}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition"
+                      >
+                        <FiCheckCircle size={16} className="inline mr-2" />
+                        Chấp nhận
+                      </button>
+                      <button
+                        onClick={() => handleRejectExtension(request)}
+                        className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-lg transition"
+                      >
+                        <FiX size={16} className="inline mr-2" />
+                        Từ chối
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <motion.div
@@ -542,6 +687,16 @@ export default function SupplierRentalRequests() {
                             title="Xem tiến độ giao hàng"
                           >
                             <FiTruck size={16} />
+                          </button>
+                        )}
+
+                        {rental.status === "RETURNING" && (
+                          <button
+                            onClick={() => handleConfirmReturn(rental)}
+                            className="text-emerald-600 hover:text-emerald-700"
+                            title="Xác nhận đã trả hàng"
+                          >
+                            <FiCheckCircle size={16} />
                           </button>
                         )}
                       </div>

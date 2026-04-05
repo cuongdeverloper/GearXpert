@@ -251,11 +251,10 @@ exports.hasReviewed = async (req, res) => {
     const userId = req.user.id;
     const { rentalId } = req.params;
 
-    const reviewed = await Review.exists({
+    const reviewed = await Review.findOne({
       rentalId,
       userId
     });
-    console.log('Review exists?', !!reviewed);
     res.json({ hasReviewed: !!reviewed });
   } catch (err) {
     console.error(err);
