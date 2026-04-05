@@ -73,6 +73,7 @@ import WalletCancel from "./pages/User/Wallet/WalletCancel";
 import EkycVerification from "./components/EkycVerification";
 
 import MyRentals from "./pages/User/MyRentals";
+import MyReviews from "./pages/User/MyReviews";
 import Messenger from "./components/Message Socket/Page/Messenger";
 import Chatbot from "./components/chatbot/Chatbot";
 import PrivacyPolicyPage from "./pages/Policy/PrivacyPolicyPage";
@@ -184,6 +185,7 @@ export default function Layout() {
             element={<Navigate to="/user/myrental" replace />}
           />
           <Route path="/user/myrental" element={<MyRentals />} />
+          <Route path="/user/my-reviews" element={<MyReviews />} />
           <Route path="/user/cart" element={<CartPage />} />
           <Route path="/user/followed-stores" element={<FollowedStoresPage />} />
           <Route path="/payment/success" element={<PaymentSuccess />} />

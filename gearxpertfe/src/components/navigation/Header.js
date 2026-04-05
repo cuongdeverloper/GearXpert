@@ -219,6 +219,7 @@ export default function Header({ onMenuOpen }) {
       : []),
 
     { label: 'Đơn thuê của tôi', icon: 'description', path: '/user/myrental' },
+    { label: 'Đánh giá của tôi', icon: 'star', path: '/user/my-reviews' },
     { label: 'Vouchers', icon: 'local_activity', path: '/vouchers' },
     { label: 'Yêu thích', icon: 'favorite', path: '/favorites' },
   ];

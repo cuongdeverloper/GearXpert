@@ -261,6 +261,101 @@ exports.hasReviewed = async (req, res) => {
     res.status(500).json({ message: 'Check failed' });
   }
 };
+
+// GET /api/reviews/my-reviews
+exports.getMyAllReviews = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 10));
+    const ratingFilter = req.query.rating ? parseInt(req.query.rating, 10) : null;
+
+    // Build match query
+    const matchQuery = { userId };
+    if (ratingFilter >= 1 && ratingFilter <= 5) {
+      matchQuery.rating = ratingFilter;
+    }
+
+    const total = await Review.countDocuments(matchQuery);
+
+    const reviews = await Review.find(matchQuery)
+      .populate({
+        path: 'deviceId',
+        select: 'name slug images supplierId pricePerDay category',
+        populate: {
+          path: 'supplierId',
+          select: 'fullName avatar username'
+        }
+      })
+      .populate('rentalId', '_id status rentalStartDate rentalEndDate totalAmount')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+    // Calculate statistics
+    const allUserReviews = await Review.find({ userId }).lean();
+    const avgRating = allUserReviews.length > 0 
+      ? (allUserReviews.reduce((sum, r) => sum + r.rating, 0) / allUserReviews.length).toFixed(1)
+      : 0;
+    const ratingDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    allUserReviews.forEach(r => {
+      ratingDistribution[r.rating] = (ratingDistribution[r.rating] || 0) + 1;
+    });
+
+    // Format response
+    const formatted = reviews.map((r) => ({
+      _id: r._id,
+      rating: r.rating,
+      comment: r.comment,
+      images: r.images || [],
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+      canEdit: (Date.now() - new Date(r.createdAt).getTime()) / (1000 * 60 * 60) <= 48,
+      hoursLeft: Math.max(0, 48 - Math.floor((Date.now() - new Date(r.createdAt).getTime()) / (1000 * 60 * 60))),
+      device: r.deviceId ? {
+        _id: r.deviceId._id,
+        name: r.deviceId.name,
+        slug: r.deviceId.slug,
+        images: r.deviceId.images || [],
+        pricePerDay: r.deviceId.pricePerDay,
+        category: r.deviceId.category
+      } : null,
+      supplier: r.deviceId?.supplierId ? {
+        _id: r.deviceId.supplierId._id,
+        fullName: r.deviceId.supplierId.fullName,
+        avatar: r.deviceId.supplierId.avatar,
+        username: r.deviceId.supplierId.username
+      } : null,
+      rental: r.rentalId ? {
+        _id: r.rentalId._id,
+        status: r.rentalId.status,
+        rentalStartDate: r.rentalId.rentalStartDate,
+        rentalEndDate: r.rentalId.rentalEndDate,
+        totalAmount: r.rentalId.totalAmount
+      } : null
+    }));
+
+    res.json({
+      success: true,
+      reviews: formatted,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      stats: {
+        totalReviews: allUserReviews.length,
+        averageRating: parseFloat(avgRating),
+        ratingDistribution,
+        canEditCount: allUserReviews.filter(r => (Date.now() - new Date(r.createdAt).getTime()) / (1000 * 60 * 60) <= 48).length
+      }
+    });
+  } catch (err) {
+    console.error('getMyAllReviews error:', err);
+    res.status(500).json({ message: 'Không thể tải danh sách đánh giá' });
+  }
+};
+
 // GET /api/devices/:deviceId/my-review
 exports.getMyReview = async (req, res) => {
   try {

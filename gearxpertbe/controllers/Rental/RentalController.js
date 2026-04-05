@@ -2152,6 +2152,51 @@ exports.confirmReturn = async (req, res) => {
       }
     }
 
+    // TRỪ tiền từ ví admin (escrow) để trả cho supplier và hoàn cọc khách
+    const adminWallet = await Wallet.findOne({ isSystem: true }).session(session);
+    if (!adminWallet) throw new Error("Không tìm thấy ví hệ thống (admin)");
+
+    const totalDeductFromAdmin = supplierReceive + rental.depositAmount;
+    const adminBefore = adminWallet.balance;
+    
+    if (adminWallet.balance < totalDeductFromAdmin) {
+      throw new Error("Số dư ví admin không đủ để thực hiện thanh toán");
+    }
+
+    adminWallet.balance -= totalDeductFromAdmin;
+    await adminWallet.save({ session });
+
+    // Tạo transaction cho payout từ admin
+    await WalletTransaction.create(
+      [
+        {
+          wallet: adminWallet._id,
+          type: "PAYOUT",
+          amount: -supplierReceive,
+          balanceBefore: adminBefore,
+          balanceAfter: adminWallet.balance + rental.depositAmount, // Trước khi trừ deposit
+          referenceType: "RENTAL",
+          referenceId: rental._id,
+          description: `Payout cho supplier đơn #${rental._id.toString().slice(-6)}`,
+          status: "SUCCESS",
+        },
+        {
+          wallet: adminWallet._id,
+          type: "DEPOSIT_REFUND",
+          amount: -rental.depositAmount,
+          balanceBefore: adminWallet.balance + rental.depositAmount,
+          balanceAfter: adminWallet.balance,
+          referenceType: "RENTAL",
+          referenceId: rental._id,
+          description: `Hoàn cọc khách đơn #${rental._id.toString().slice(-6)}`,
+          status: "SUCCESS",
+        },
+      ],
+      { session }
+    );
+
+    // Platform fee đã ở lại trong ví admin (không cần chuyển đi đâu)
+
     // Cập nhật trạng thái cuối
     rental.status = "COMPLETED";
     rental.depositStatus = "REFUNDED";
