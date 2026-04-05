@@ -176,7 +176,6 @@ export {
   getReturningRentals,
   claimDeliveryTask,
   confirmPickup,
-  confirmDelivery,
   confirmReturn,
   previewContract,
   previewContractWithData,
