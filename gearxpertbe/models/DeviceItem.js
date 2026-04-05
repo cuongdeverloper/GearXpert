@@ -23,6 +23,7 @@ const deviceItemSchema = new mongoose.Schema(
         "AVAILABLE",
         "RENTED",
         "RESERVED",
+        "PENDING_RESOLUTION",
         "MAINTENANCE",
         "REPAIR",
         "DAMAGED",
@@ -72,14 +73,19 @@ const deviceItemSchema = new mongoose.Schema(
 // === DEBUG LOG ===
 // Mỗi khi hook chạy, sẽ log ra console để bạn kiểm tra xem có trigger không
 
-// 1. Hook khi save từng document
+// Gọi static sync sau khi model đã compile (hooks chạy lúc runtime)
+async function syncParentDeviceCounts(deviceId) {
+  if (!deviceId) return;
+  const DeviceItemModel = mongoose.model("DeviceItem");
+  await DeviceItemModel.updateDeviceCounts(deviceId);
+}
+
+// 1. Hook khi save từng document — luôn gộp lại Device (post-save không nên dựa isModified)
 deviceItemSchema.post("save", async function (doc) {
   console.log(
     `[HOOK SAVE] DeviceItem ${doc._id} saved - status: ${doc.status}, deviceId: ${doc.deviceId}`
   );
-  if (this.isNew || this.isModified("status") || this.isModified("condition")) {
-    await updateDeviceCounts(doc.deviceId);
-  }
+  await syncParentDeviceCounts(doc.deviceId);
 });
 
 // 2. Hook cho findOneAndUpdate / updateOne
@@ -103,7 +109,7 @@ deviceItemSchema.post("findOneAndUpdate", async function (doc) {
     console.log(
       `[HOOK] Status/Condition changed for ${doc._id} → updating counts`
     );
-    await updateDeviceCounts(doc.deviceId);
+    await syncParentDeviceCounts(doc.deviceId);
   } else {
     console.log("[HOOK] No relevant change detected → skip");
   }
@@ -121,7 +127,7 @@ deviceItemSchema.post("updateMany", async function () {
     console.log(
       `[HOOK updateMany] Status changed on deviceId ${filter.deviceId} → updating counts`
     );
-    await updateDeviceCounts(filter.deviceId);
+    await syncParentDeviceCounts(filter.deviceId);
   }
 });
 
@@ -132,7 +138,7 @@ deviceItemSchema.post("insertMany", async function (docs) {
     console.log(
       `[HOOK insertMany] ${docs.length} items inserted → updating counts for ${deviceId}`
     );
-    await updateDeviceCounts(deviceId);
+    await syncParentDeviceCounts(deviceId);
   }
 });
 
@@ -156,7 +162,7 @@ deviceItemSchema.statics.updateDeviceCounts = async function (
         _id: null,
         total: { $sum: 1 },
         rented: {
-          $sum: { $cond: [{ $in: ["$status", ["RENTED", "RESERVED"]] }, 1, 0] },
+          $sum: { $cond: [{ $in: ["$status", ["RENTED", "RESERVED", "PENDING_RESOLUTION"]] }, 1, 0] },
         },
         maintenance: {
           $sum: { $cond: [{ $eq: ["$status", "MAINTENANCE"] }, 1, 0] },

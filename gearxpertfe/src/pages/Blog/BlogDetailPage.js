@@ -311,7 +311,7 @@ export default function BlogDetailPage() {
     const catInfo = CATEGORY_MAP[blog.category] || { label: blog.category, color: "bg-primary" };
 
     return (
-        <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#f6f6f8", fontFamily: "'Inter', sans-serif" }}>
+        <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#f6f6f8", fontFamily: "'Inter', sans-serif" }} data-theme="light">
             <Header />
 
             <main className="mx-auto w-full max-w-4xl px-6 pt-32 pb-10 md:px-20 lg:pt-40">

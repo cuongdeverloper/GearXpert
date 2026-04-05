@@ -336,13 +336,13 @@ export default function ProductDetailPage() {
   const supplier = device.supplierId || {};
 
   return (
-    <div className="min-h-screen bg-background-light flex flex-col font-sans text-[15px]">
+    <div className="min-h-screen bg-background-light flex flex-col font-sans text-[15px]" data-theme="light">
       <Header />
       <Toaster richColors closeButton expand={true} />
 
       <main className="flex-1">
         {/* HEADER NAV STICKY */}
-        <div className="sticky top-[112px] z-40 mx-4 sm:mx-6 bg-white/80 backdrop-blur-md border border-slate-200 rounded-2xl shadow-lg mt-28">
+        <div className="sticky top-[112px] z-40 mx-4 sm:mx-6 bg-white/80 backdrop-blur-md border border-slate-200 rounded-2xl shadow-lg mt-28" data-theme="light">
           <div className="max-w-7xl mx-auto px-5 sm:px-6 py-3 flex items-center justify-between">
             <button
               onClick={() => navigate(-1)}
@@ -720,7 +720,7 @@ export default function ProductDetailPage() {
               )}
 
               {/* PRICING CARD */}
-              <div className="bg-indigo-600 rounded-3xl p-6 text-white shadow-xl shadow-indigo-200/50">
+              <div className="bg-indigo-600 rounded-3xl p-6 text-white shadow-xl shadow-indigo-200/50" data-theme="dark">
                 <div className="flex justify-between items-end">
                   <div>
                     <p className="text-indigo-100 text-xs font-bold uppercase tracking-widest mb-1">

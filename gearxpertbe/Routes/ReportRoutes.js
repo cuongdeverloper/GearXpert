@@ -3,7 +3,7 @@ const ReportRouter = express.Router();
 const uploadCloud = require("../configs/cloudinaryConfig");
 const deliveryCtrl = require("../controllers/Report/deliveryIssueController");
 const damageCtrl = require("../controllers/Report/damageReportController");
-const { checkAccessToken } = require("../middleware/JWTAction");
+const { checkAccessToken, checkSupplier } = require("../middleware/JWTAction");
 
 // LÚC GIAO HÀNG — Customer
 ReportRouter.post(
@@ -56,5 +56,13 @@ ReportRouter.post(
 );
 
 ReportRouter.get("/damage/:rentalId", checkAccessToken, damageCtrl.getDamageReportsByRental);
+
+// SUPPLIER — Xem tất cả sự cố liên quan đến đơn hàng của supplier
+ReportRouter.get(
+  "/supplier-issues",
+  checkAccessToken,
+  checkSupplier,
+  deliveryCtrl.getSupplierIssues
+);
 
 module.exports = ReportRouter;

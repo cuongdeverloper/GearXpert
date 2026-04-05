@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { getDevices, getDeviceDetail } from "../../service/ApiService/DeviceApi";
+import { getDeviceReviews } from "../../service/ApiService/RentalApi";
 import Header from "../../components/navigation/Header";
 import CategoryPills from "../../components/common/CategoryPills";
 import ScrollAnimation from "../../components/common/ScrollAnimation";
@@ -21,6 +22,7 @@ export default function Homepage() {
   const [loading, setLoading] = useState(true);
   const [trendingDevice, setTrendingDevice] = useState(null);
   const [newArrivals, setNewArrivals] = useState([]);
+  const [homeTestimonials, setHomeTestimonials] = useState([]);
 
   const fetchDevices = useCallback(async () => {
     try {
@@ -89,6 +91,39 @@ export default function Homepage() {
       if (newestDevices.length > 0) {
         setNewArrivals(newestDevices);
       }
+
+      const collected = [];
+      const seenIds = new Set();
+      if (popularDevices.length > 0) {
+        try {
+          const reviewBatches = await Promise.all(
+            popularDevices.slice(0, 8).map((d) =>
+              getDeviceReviews(d._id).catch(() => ({ data: [] }))
+            )
+          );
+          for (const batch of reviewBatches) {
+            const list = batch.data || [];
+            for (const rev of list) {
+              if (!rev.comment?.trim()) continue;
+              const rid = rev._id?.toString();
+              if (!rid || seenIds.has(rid)) continue;
+              seenIds.add(rid);
+              collected.push({
+                id: rid,
+                name: rev.userName || "Khách hàng",
+                avatar: rev.avatar || "",
+                role: "Khách hàng",
+                content: rev.comment,
+              });
+              if (collected.length >= 4) break;
+            }
+            if (collected.length >= 4) break;
+          }
+        } catch (err) {
+          console.error("Home testimonials:", err);
+        }
+      }
+      setHomeTestimonials(collected);
     } catch (error) {
       console.error("Error fetching devices:", error);
     } finally {
@@ -127,8 +162,8 @@ export default function Homepage() {
     <div className="min-h-screen flex flex-col bg-background-light">
       <Header />
 
-      <main className="flex-grow w-full max-w-[1440px] mx-auto pt-32 pb-12">
-        <ScrollAnimation effect="fade" delay={0.05}>
+      <main className="flex-grow w-full max-w-[1440px] mx-auto pt-32 pb-12" data-theme="light">
+        <ScrollAnimation effect="fade" delay={0.05} className="w-full" data-theme="dark">
           <SmartGearPromoSection />
         </ScrollAnimation>
 
@@ -156,9 +191,9 @@ export default function Homepage() {
 
         <WhyChooseUsSection />
 
-        <section className="px-6 lg:px-10 mt-16">
+        <section className="px-6 lg:px-10 mt-16" data-theme="dark">
           <ScrollAnimation effect="fade" viewportAmount={0.3}>
-            <TestimonialsSection />
+            <TestimonialsSection testimonials={homeTestimonials} />
           </ScrollAnimation>
         </section>
 

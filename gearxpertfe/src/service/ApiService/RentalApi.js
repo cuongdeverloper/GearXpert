@@ -114,14 +114,17 @@ const confirmPickup = (rentalId) => {
   return axios.post(`/api/rentals/${rentalId}/confirm-pickup`);
 };
 
-// Staff xác nhận đã giao hàng đến tay customer
-const confirmDelivery = (rentalId) => {
-  return axios.post(`/api/rentals/${rentalId}/confirm-delivery`);
+const claimDeliveryTask = (taskId) => {
+  return axios.post(`/api/rentals/delivery-tasks/${taskId}/claim`);
 };
 
 // Staff xác nhận đã thu hồi thiết bị từ customer
-const confirmReturn = (rentalId) => {
-  return axios.post(`/api/rentals/${rentalId}/confirm-return`);
+const confirmReturn = (rentalId, payload) => {
+  return payload instanceof FormData
+    ? axios.post(`/api/rentals/${rentalId}/confirm-return`, payload, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+    : axios.post(`/api/rentals/${rentalId}/confirm-return`, payload || {});
 };
 // Preview contract using new contract API - now returns JSON with previewUrl
 const previewContract = async (rentalId) => {
@@ -171,6 +174,7 @@ export {
   repaySingleRental,
   getDeliveringRentals,
   getReturningRentals,
+  claimDeliveryTask,
   confirmPickup,
   confirmDelivery,
   confirmReturn,

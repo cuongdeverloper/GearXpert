@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { FiArrowLeft, FiPlus, FiX } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { toast } from "react-toastify";
@@ -12,7 +12,6 @@ export default function SupplierAddDevicePage() {
     name: "",
     description: "",
     category: "CAMERA",
-    stockQuantity: 1,
     perDay: "",
     perWeek: "",
     perMonth: "",
@@ -28,11 +27,37 @@ export default function SupplierAddDevicePage() {
   const [imagePreviews, setImagePreviews] = useState([]);
   const fileInputRef = useRef();
 
-  const handleImageChange = (e) => {
+  const compressImage = (file, maxWidth = 1200, quality = 0.8) =>
+    new Promise((resolve) => {
+      if (!file.type.startsWith("image/")) return resolve(file);
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const scale = Math.min(1, maxWidth / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(
+          (blob) => resolve(new File([blob], file.name, { type: "image/jpeg" })),
+          "image/jpeg",
+          quality
+        );
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(file);
+      };
+      img.src = url;
+    });
+
+  const handleImageChange = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
+    const compressed = await Promise.all(files.map((f) => compressImage(f)));
     setImages((prev) => {
-      const nextImages = [...prev, ...files].slice(0, 5);
+      const nextImages = [...prev, ...compressed].slice(0, 5);
       setImagePreviews(nextImages.map((file) => URL.createObjectURL(file)));
       return nextImages;
     });
@@ -64,7 +89,6 @@ export default function SupplierAddDevicePage() {
     if (!formData.perDay || formData.perDay <= 0) newErrors.perDay = "Giá thuê ngày là bắt buộc";
     if (!formData.depositAmount || formData.depositAmount <= 0) newErrors.depositAmount = "Tiền cọc là bắt buộc";
     if (!formData.city.trim()) newErrors.city = "Tỉnh/Thành phố là bắt buộc";
-    if (formData.stockQuantity < 1) newErrors.stockQuantity = "Số lượng phải ≥ 1";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -129,7 +153,6 @@ export default function SupplierAddDevicePage() {
           city: formData.city,
         })
       );
-      form.append("stockQuantity", parseInt(formData.stockQuantity));
       form.append("status", formData.status);
       const specsPayload = parseSpecs(formData.specs);
       if (Object.keys(specsPayload).length > 0) {
@@ -138,7 +161,9 @@ export default function SupplierAddDevicePage() {
       images.forEach((img) => form.append("images", img));
 
       await createDevice(form);
-      toast.success("Thêm thiết bị thành công!");
+      toast.success(
+        "Đã tạo danh mục thiết bị. Thêm từng đơn vị (serial) tại Kho hoặc trang chi tiết thiết bị."
+      );
       navigate("/supplier/devices");
     } catch (error) {
       console.error("Error creating device:", error);
@@ -173,8 +198,9 @@ export default function SupplierAddDevicePage() {
             <h2 className="text-2xl font-bold text-slate-900 font-display tracking-tight">
               Thêm sản phẩm mới
             </h2>
-            <p className="text-sm text-slate-600">
-              Điền đầy đủ thông tin để đăng sản phẩm cho thuê
+            <p className="text-sm text-slate-500 mt-1 max-w-xl">
+              Tạo <strong className="font-medium text-slate-700">thông tin chung</strong> (catalog).{" "}
+              <strong className="font-medium text-slate-700">Số lượng</strong> = số đơn vị có serial trong kho.
             </p>
           </div>
         </div>
@@ -206,47 +232,25 @@ export default function SupplierAddDevicePage() {
                 {errors.name && <p className="text-xs text-red-600 mt-1">{errors.name}</p>}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Danh mục *
-                  </label>
-                  <select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all bg-white"
-                  >
-                    <option value="CAMERA">📷 Máy ảnh</option>
-                    <option value="AUDIO">🎧 Âm thanh</option>
-                    <option value="OFFICE">💼 Văn phòng</option>
-                    <option value="GAMING">🎮 Gaming</option>
-                    <option value="ACCESSORY">🔌 Phụ kiện</option>
-                    <option value="LIGHTING">💡 Ánh sáng</option>
-                    <option value="DRONE">🚁 Flycam</option>
-                    <option value="OTHER">📁 Khác</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Số lượng thiết bị *
-                  </label>
-                  <input
-                    type="number"
-                    name="stockQuantity"
-                    value={formData.stockQuantity}
-                    onChange={handleChange}
-                    min="1"
-                    className={`w-full px-4 py-2.5 rounded-xl border transition-all ${
-                      errors.stockQuantity
-                        ? "border-red-500 bg-red-50 focus:ring-red-200"
-                        : "border-slate-200 focus:ring-primary/20"
-                    } focus:ring-2 focus:border-primary outline-none`}
-                  />
-                  {errors.stockQuantity && (
-                    <p className="text-xs text-red-600 mt-1">{errors.stockQuantity}</p>
-                  )}
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Danh mục *
+                </label>
+                <select
+                  name="category"
+                  value={formData.category}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all bg-white"
+                >
+                  <option value="CAMERA">📷 Máy ảnh</option>
+                  <option value="AUDIO">🎧 Âm thanh</option>
+                  <option value="OFFICE">💼 Văn phòng</option>
+                  <option value="GAMING">🎮 Gaming</option>
+                  <option value="ACCESSORY">🔌 Phụ kiện</option>
+                  <option value="LIGHTING">💡 Ánh sáng</option>
+                  <option value="DRONE">🚁 Flycam</option>
+                  <option value="OTHER">📁 Khác</option>
+                </select>
               </div>
 
               <div>
@@ -443,24 +447,15 @@ export default function SupplierAddDevicePage() {
 
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-slate-900">Kho hàng</h3>
+            <p className="text-sm text-slate-500 mt-1 mb-4">
+              Sau khi lưu, vào{" "}
+              <Link to="/supplier/inventory" className="font-semibold text-primary hover:underline">
+                Quản lý kho
+              </Link>{" "}
+              hoặc trang chi tiết thiết bị để thêm từng đơn vị (serial). Số lượng hiển thị trên cửa hàng = số đơn vị
+              đó.
+            </p>
             <div className="space-y-4 mt-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Số lượng thiết bị *
-                </label>
-                <input
-                  type="number"
-                  name="stockQuantity"
-                  value={formData.stockQuantity}
-                  onChange={handleChange}
-                  min="1"
-                  className={`w-full px-4 py-2.5 rounded-xl border transition-all ${
-                    errors.stockQuantity
-                      ? "border-red-500 bg-red-50 focus:ring-red-200"
-                      : "border-slate-200 focus:ring-primary/20"
-                  } focus:ring-2 focus:border-primary outline-none`}
-                />
-              </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Trạng thái
@@ -472,9 +467,9 @@ export default function SupplierAddDevicePage() {
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all bg-white"
                 >
                   <option value="AVAILABLE">Sẵn có</option>
+                  <option value="SUSPICIOUS">Cần kiểm tra</option>
                   <option value="STOPPED">Tạm dừng</option>
-                  <option value="MAINTENANCE">Đang bảo trì</option>
-                  <option value="BROKEN">Hư hỏng</option>
+                  <option value="DISCONTINUED">Ngừng kinh doanh</option>
                 </select>
               </div>
             </div>

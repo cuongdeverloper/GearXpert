@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 import { motion, useMotionValue, useSpring, AnimatePresence } from 'framer-motion';
 import { performLogout } from '../../utils/logout';
 import MessengerPopup from '../Message Socket/MessengerPopup/MessengerPopup';
+import useHeaderTheme from '../../hooks/useHeaderTheme';
 
 import logo from '../../assets/logoGearXpert.png';
 
@@ -282,17 +283,55 @@ export default function Header({ onMenuOpen }) {
     }
   };
 
+  const headerTheme = useHeaderTheme();
+  const isDark = headerTheme === 'dark';
+
+  // Dynamic theme classes
+  const islandClass = `glass-panel px-6 h-20 rounded-2xl shadow-xl border ring-1 transition-all duration-300 ${
+    isDark 
+      ? 'bg-slate-900/60 backdrop-blur-xl border-white/10 ring-white/5 shadow-black/40' 
+      : 'bg-white/90 backdrop-blur-md border-white/80 ring-white/20 shadow-black/5'
+  }`;
+
+  const navItemClass = (isCurrent) => `relative text-base font-bold transition-all duration-300 cursor-pointer bg-transparent border-none px-2 ${
+    isCurrent 
+      ? 'text-primary' 
+      : isDark ? 'text-white/90 hover:text-white' : 'text-slate-700 hover:text-primary'
+  }`;
+
+  const iconBtnClass = (isOpen) => `w-12 h-12 flex items-center justify-center rounded-xl border transition-all duration-300 ${
+    isOpen
+      ? (isDark ? 'bg-white/20 text-white border-white/30' : 'bg-indigo-100 text-primary border-indigo-200')
+      : (isDark ? 'bg-white/10 text-white/90 border-white/10 hover:bg-white/20 hover:text-white' : 'bg-slate-50/50 text-slate-600 border-slate-200 hover:bg-slate-100')
+  }`;
+
+  const dropdownClass = `absolute right-0 mt-2 rounded-2xl shadow-2xl border overflow-hidden z-50 transition-all duration-300 ${
+    isDark 
+      ? 'bg-slate-900/95 backdrop-blur-xl border-white/10 text-white' 
+      : 'bg-white/95 backdrop-blur-xl border-slate-200 text-slate-900'
+  }`;
+
+  const dropdownItemClass = (isActive, isDangerous = false) => `w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
+    isActive 
+      ? 'bg-gradient-to-r from-primary/10 to-accent-cyan/10 text-primary' 
+      : isDangerous 
+        ? (isDark ? 'text-red-400 hover:bg-red-500/10' : 'text-red-600 hover:bg-red-50')
+        : (isDark ? 'text-white/80 hover:bg-white/5 hover:text-white' : 'text-slate-700 hover:bg-slate-50')
+  }`;
+
   return (
     <header className="fixed top-6 z-50 w-full px-4 lg:px-8 pointer-events-none">
       <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-4 pointer-events-auto">
         
         {/* Island 1: Logo */}
-        <MagneticIsland className="glass-panel bg-white px-6 h-20 rounded-2xl shadow-xl shadow-black/5 border border-white/80 ring-1 ring-white/20">
+        <MagneticIsland className={islandClass}>
           <div className="flex items-center w-full">
             {onMenuOpen && (
               <button
                 onClick={onMenuOpen}
-                className="lg:hidden p-2 -ml-1 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors mr-2"
+                className={`lg:hidden p-2 -ml-1 rounded-xl transition-colors mr-2 ${
+                  isDark ? 'text-white/70 hover:bg-white/10' : 'text-slate-600 hover:bg-slate-100'
+                }`}
               >
                 <span className="material-symbols-outlined text-[24px]">menu</span>
               </button>
@@ -305,7 +344,11 @@ export default function Header({ onMenuOpen }) {
                 <img 
                   src={logo} 
                   alt="GearXpert Logo" 
-                  className="h-24 lg:h-28 w-auto object-contain transition-transform group-hover:scale-105" 
+                  className="h-24 lg:h-28 w-auto object-contain transition-all duration-500 group-hover:scale-105"
+                  style={{ 
+                    filter: isDark ? 'brightness(0) invert(1)' : 'brightness(1) invert(0)',
+                    transition: 'filter 0.5s ease-in-out'
+                  }}
                 />
                 <div className="hidden sm:block w-32 lg:w-40 h-1"></div>
               </div>
@@ -314,7 +357,7 @@ export default function Header({ onMenuOpen }) {
         </MagneticIsland>
 
         {/* Island 2: Navigation - Desktop */}
-        <MagneticIsland className="hidden lg:flex glass-panel bg-white px-10 h-20 items-center gap-10 rounded-2xl shadow-xl shadow-black/5 border border-white/80 ring-1 ring-white/20">
+        <MagneticIsland className={`hidden lg:flex gap-10 items-center px-10 ${islandClass}`}>
           {[
             { label: 'Trang chủ', path: '/' },
             { label: 'Thiết bị', path: '/products' },
@@ -328,9 +371,7 @@ export default function Header({ onMenuOpen }) {
             return (
               <MagneticItem key={item.path} distance={0.25}>
                 <button
-                  className={`relative text-base font-bold transition-all duration-300 cursor-pointer bg-transparent border-none px-2 ${
-                    isCurrent ? 'text-primary' : 'text-slate-700 hover:text-primary'
-                  }`}
+                  className={navItemClass(isCurrent)}
                   onClick={() => handleRestrictedNavigation(item.path)}
                 >
                   {item.label}
@@ -339,14 +380,16 @@ export default function Header({ onMenuOpen }) {
             );
           })}
           
-          <div className="h-6 w-px bg-slate-200 mx-2"></div>
+          <div className={`h-6 w-px mx-2 transition-colors duration-300 ${isDark ? 'bg-white/10' : 'bg-slate-200'}`}></div>
 
           <MagneticItem distance={0.2}>
             <button
-              className={`flex items-center gap-1.5 text-base font-bold px-5 py-2.5 rounded-xl border cursor-pointer transition-all ${
+              className={`flex items-center gap-1.5 text-base font-bold px-5 py-2.5 rounded-xl border cursor-pointer transition-all duration-300 ${
                 location.pathname.startsWith('/smartgear')
                   ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-105'
-                  : 'text-primary bg-indigo-50/50 border-indigo-100/50 hover:bg-indigo-100'
+                  : (isDark 
+                      ? 'text-primary bg-primary/10 border-primary/20 hover:bg-primary/20 hover:text-white' 
+                      : 'text-primary bg-indigo-50/50 border-indigo-100/50 hover:bg-indigo-100')
               }`}
               onClick={() => handleRestrictedNavigation('/smartgear')}
             >
@@ -359,7 +402,7 @@ export default function Header({ onMenuOpen }) {
         </MagneticIsland>
 
         {/* Island 3: Actions */}
-        <MagneticIsland className="glass-panel bg-white px-5 h-20 flex items-center gap-4 rounded-2xl shadow-xl shadow-black/5 border border-white/80 ring-1 ring-white/20">
+        <MagneticIsland className={`px-5 flex items-center gap-4 ${islandClass}`}>
           <div className="flex items-center gap-3 h-full">
             {isAuthenticated && (
               <>
@@ -368,10 +411,7 @@ export default function Header({ onMenuOpen }) {
                   <MagneticItem distance={0.3}>
                     <button
                       onClick={() => setIsMessengerOpen(!isMessengerOpen)}
-                      className={`w-12 h-12 flex items-center justify-center rounded-xl border transition-all ${isMessengerOpen
-                          ? 'bg-indigo-100 text-primary border-indigo-200'
-                          : 'bg-slate-50/50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                        }`}
+                      className={iconBtnClass(isMessengerOpen)}
                     >
                       <span className={`material-symbols-outlined text-[24px] ${isMessengerOpen ? 'fill-current' : ''}`}>
                         forum
@@ -401,10 +441,7 @@ export default function Header({ onMenuOpen }) {
                         setIsNotificationOpen(!isNotificationOpen);
                         if (!isNotificationOpen) fetchNotifications();
                       }}
-                      className={`w-12 h-12 flex items-center justify-center rounded-xl border transition-all relative ${isNotificationOpen
-                          ? 'bg-indigo-100 text-primary border-indigo-200'
-                          : 'bg-slate-50/50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                        }`}
+                      className={`relative ${iconBtnClass(isNotificationOpen)}`}
                     >
                       <span className="material-symbols-outlined text-[24px]">notifications</span>
 
@@ -422,18 +459,17 @@ export default function Header({ onMenuOpen }) {
                         initial={{ opacity: 0, scale: 0.95, y: 10 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                        className="absolute right-0 mt-2"
+                        className={`${dropdownClass} w-80 sm:w-96 max-h-[70vh] flex flex-col`}
                       >
-                        <div className="w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-50 max-h-[70vh] flex flex-col">
-                          {/* Header */}
-                          <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-                            <h3 className="font-semibold text-slate-900">Thông báo</h3>
-                            {unreadCount > 0 && (
-                              <button onClick={markAllAsRead} className="text-sm text-primary hover:underline">
-                                Đánh dấu tất cả đã đọc
-                              </button>
-                            )}
-                          </div>
+                        {/* Header */}
+                        <div className={`p-4 border-b flex items-center justify-between transition-colors ${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-100'}`}>
+                          <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>Thông báo</h3>
+                          {unreadCount > 0 && (
+                            <button onClick={markAllAsRead} className="text-sm text-primary hover:underline font-bold">
+                              Đánh dấu tất cả đã đọc
+                            </button>
+                          )}
+                        </div>
 
                           {/* Content */}
                           <div className="overflow-y-auto flex-1 custom-scrollbar">
@@ -450,16 +486,16 @@ export default function Header({ onMenuOpen }) {
                                     if (notif.link) navigate(notif.link);
                                     setIsNotificationOpen(false);
                                   }}
-                                  className={`p-4 border-b border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors ${!notif.isRead ? 'bg-indigo-50/50' : ''
+                                  className={`p-4 border-b cursor-pointer transition-colors ${isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'} ${!notif.isRead ? (isDark ? 'bg-primary/10' : 'bg-indigo-50/50') : ''
                                     }`}
                                 >
                                   <div className="flex items-start gap-3">
                                     <div
                                       className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
-                                        notif.type === 'ORDER' ? 'bg-indigo-100 text-indigo-600' : 
-                                        notif.type === 'LIKE' ? 'bg-pink-100 text-pink-600' :
-                                        notif.type === 'COMMENT' ? 'bg-blue-100 text-blue-600' :
-                                        'bg-slate-100 text-slate-600'
+                                        notif.type === 'ORDER' ? (isDark ? 'bg-indigo-500/20 text-indigo-400' : 'bg-indigo-100 text-indigo-600') : 
+                                        notif.type === 'LIKE' ? (isDark ? 'bg-pink-500/20 text-pink-400' : 'bg-pink-100 text-pink-600') :
+                                        notif.type === 'COMMENT' ? (isDark ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600') :
+                                        (isDark ? 'bg-white/10 text-white/70' : 'bg-slate-100 text-slate-600')
                                       }`}
                                     >
                                       <span className="material-symbols-outlined text-[20px]">
@@ -472,9 +508,9 @@ export default function Header({ onMenuOpen }) {
                                       </span>
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-semibold text-slate-900">{notif.title}</p>
-                                      <p className="text-sm text-slate-600 mt-0.5 line-clamp-2">{notif.message}</p>
-                                      <p className="text-xs text-slate-500 mt-1.5 italic">
+                                      <p className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{notif.title}</p>
+                                      <p className={`text-sm mt-0.5 line-clamp-2 ${isDark ? 'text-white/70' : 'text-slate-600'}`}>{notif.message}</p>
+                                      <p className={`text-xs mt-1.5 italic ${isDark ? 'text-white/50' : 'text-slate-500'}`}>
                                         {new Date(notif.createdAt).toLocaleString('vi-VN', {
                                           hour: '2-digit',
                                           minute: '2-digit',
@@ -488,8 +524,7 @@ export default function Header({ onMenuOpen }) {
                               ))
                             )}
                           </div>
-                        </div>
-                      </motion.div>
+                        </motion.div>
                     )}
                   </AnimatePresence>
                 </div>
@@ -498,7 +533,7 @@ export default function Header({ onMenuOpen }) {
                 <MagneticItem distance={0.3}>
                   <button
                     onClick={() => handleRestrictedNavigation('/user/cart')}
-                    className="w-12 h-12 flex items-center justify-center rounded-xl bg-slate-50/50 border border-slate-200 text-slate-600 hover:bg-slate-100 transition-all"
+                    className={iconBtnClass(location.pathname === '/user/cart')}
                   >
                     <span className="material-symbols-outlined text-[24px]">shopping_bag</span>
                   </button>
@@ -511,7 +546,9 @@ export default function Header({ onMenuOpen }) {
               <div className="relative" ref={dropdownRef}>
                 <MagneticItem distance={0.4}>
                   <div
-                    className="w-12 h-12 rounded-xl ring-2 ring-white shadow-md cursor-pointer hover:ring-primary transition-all overflow-hidden flex items-center justify-center bg-gradient-to-r from-indigo-500 to-cyan-400 group/avatar"
+                    className={`w-12 h-12 rounded-xl ring-2 shadow-md cursor-pointer transition-all duration-300 overflow-hidden flex items-center justify-center bg-gradient-to-r from-indigo-500 to-cyan-400 group/avatar ${
+                      isDark ? 'ring-white/20 hover:ring-primary' : 'ring-white hover:ring-primary'
+                    }`}
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                   >
                     {userAccount.image ? (
@@ -529,46 +566,50 @@ export default function Header({ onMenuOpen }) {
 
                 <AnimatePresence>
                   {isDropdownOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.9, y: 10, originX: 'right', originY: 'top' }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.9, y: 10 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                      className="absolute right-0 mt-2 w-64 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-50"
-                    >
-                      {/* User Info Card */}
-                      <div
-                        className="p-4 border-b border-slate-100 bg-gradient-to-r from-primary/5 to-accent-cyan/5 cursor-pointer hover:from-primary/10 hover:to-accent-cyan/10 transition-all"
-                        onClick={() => {
-                          handleRestrictedNavigation('/profile');
-                          setIsDropdownOpen(false);
-                        }}
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.9, y: 10, originX: 'right', originY: 'top' }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                        className={`${dropdownClass} w-64`}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-xl ring-2 ring-primary/20 overflow-hidden flex items-center justify-center bg-gradient-to-r from-indigo-500 to-cyan-400">
-                            {userAccount.image ? (
-                              <img
-                                src={userAccount.image}
-                                alt="Avatar"
-                                className="w-full h-full object-cover"
-                                referrerPolicy="no-referrer"
-                              />
-                            ) : (
-                              <span className="material-symbols-outlined text-[24px] text-white">person</span>
-                            )}
+                        {/* User Info Card */}
+                        <div
+                          className={`p-4 border-b transition-all cursor-pointer ${
+                            isDark 
+                              ? 'border-white/10 bg-white/5 hover:bg-white/10' 
+                              : 'border-slate-100 bg-gradient-to-r from-primary/5 to-accent-cyan/5 hover:from-primary/10 hover:to-accent-cyan/10'
+                          }`}
+                          onClick={() => {
+                            handleRestrictedNavigation('/profile');
+                            setIsDropdownOpen(false);
+                          }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-xl ring-2 ring-primary/20 overflow-hidden flex items-center justify-center bg-gradient-to-r from-indigo-500 to-cyan-400">
+                              {userAccount.image ? (
+                                <img
+                                  src={userAccount.image}
+                                  alt="Avatar"
+                                  className="w-full h-full object-cover"
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : (
+                                <span className="material-symbols-outlined text-[24px] text-white">person</span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={`font-semibold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                {userAccount.username || userAccount.email || 'User'}
+                              </p>
+                              <p className={`text-xs truncate ${isDark ? 'text-white/60' : 'text-slate-500'}`}>{userAccount.email || ''}</p>
+                            </div>
+                            <span className={`material-symbols-outlined text-[20px] ${isDark ? 'text-white/30' : 'text-slate-400'}`}>chevron_right</span>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-slate-900 truncate">
-                              {userAccount.username || userAccount.email || 'User'}
-                            </p>
-                            <p className="text-xs text-slate-500 truncate">{userAccount.email || ''}</p>
-                          </div>
-                          <span className="material-symbols-outlined text-slate-400 text-[20px]">chevron_right</span>
                         </div>
-                      </div>
 
-                      {/* Rank & Wallet */}
-                      <div className="p-4 space-y-3 border-b border-slate-100">
+                        {/* Rank & Wallet */}
+                        <div className={`p-4 space-y-3 border-b ${isDark ? 'border-white/10' : 'border-slate-100'}`}>
                         {/* Rank */}
                         <div className={`${getRankCardClass(userAccount.rank)} cursor-pointer hover:opacity-90 transition-opacity`}>
                           <div className={`${getRankInnerClass(userAccount.rank)} relative rounded-[calc(0.75rem-3px)] w-full h-full flex items-center gap-3 p-3 z-[1]`}>
@@ -590,17 +631,17 @@ export default function Header({ onMenuOpen }) {
                         {/* Wallet */}
                         <div
                           className="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:opacity-90 transition-opacity"
-                          style={{ backgroundColor: '#D1FAE5' }}
+                          style={{ backgroundColor: isDark ? '#064e3b' : '#D1FAE5' }}
                           onClick={() => {
                             handleRestrictedNavigation('/user/wallet');
                             setIsDropdownOpen(false);
                           }}
                         >
                           <div className="flex-shrink-0">
-                            <span className="material-symbols-outlined text-[24px] text-slate-900">account_balance_wallet</span>
+                            <span className={`material-symbols-outlined text-[24px] ${isDark ? 'text-emerald-400' : 'text-slate-900'}`}>account_balance_wallet</span>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <span className="font-bold text-slate-900 text-sm">
+                            <span className={`font-bold text-sm ${isDark ? 'text-emerald-100' : 'text-slate-900'}`}>
                               {(userAccount.walletBalance || 0).toLocaleString('vi-VN')}đ
                             </span>
                           </div>
@@ -615,8 +656,7 @@ export default function Header({ onMenuOpen }) {
                             <button
                                key={item.path}
                                onClick={() => handleMenuItemClick(item.path)}
-                               className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${isActive ? 'bg-gradient-to-r from-primary/10 to-accent-cyan/10 text-primary' : 'text-slate-700 hover:bg-slate-50'
-                                 }`}
+                               className={dropdownItemClass(isActive)}
                              >
                                <span className={`material-symbols-outlined text-[20px] ${isActive ? 'fill-current' : ''}`}>
                                  {item.icon}
@@ -627,7 +667,7 @@ export default function Header({ onMenuOpen }) {
                          })}
                        </div>
     
-                       <div className="border-t border-slate-100"></div>
+                       <div className={`border-t ${isDark ? 'border-white/10' : 'border-slate-100'}`}></div>
     
                        {/* Settings & Logout */}
                        <div className="py-2">
@@ -635,14 +675,14 @@ export default function Header({ onMenuOpen }) {
                            onClick={() => {
                              setIsDropdownOpen(false);
                            }}
-                           className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                           className={dropdownItemClass(false)}
                          >
                            <span className="material-symbols-outlined text-[20px]">settings</span>
                            <span>Cài đặt</span>
                          </button>
                          <button
                            onClick={handleLogout}
-                           className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                           className={dropdownItemClass(false, true)}
                          >
                            <span className="material-symbols-outlined text-[20px]">logout</span>
                            <span>Đăng xuất</span>
@@ -657,7 +697,9 @@ export default function Header({ onMenuOpen }) {
                 <MagneticItem distance={0.2}>
                   <button
                     onClick={() => navigate('/signin', { state: { isSignUp: true } })}
-                    className="text-sm font-bold text-slate-600 hover:text-primary px-3 py-2 transition-colors cursor-pointer"
+                    className={`text-sm font-bold px-3 py-2 transition-colors cursor-pointer ${
+                      isDark ? 'text-white/80 hover:text-white' : 'text-slate-600 hover:text-primary'
+                    }`}
                   >
                     Đăng ký
                   </button>

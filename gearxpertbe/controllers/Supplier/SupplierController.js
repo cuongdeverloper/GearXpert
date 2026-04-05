@@ -323,7 +323,7 @@ exports.getSupplierStorefrontDevices = async (req, res) => {
 
     const query = {
       supplierId: objectId,
-      status: { $nin: ["STOPPED", "BROKEN"] },
+      status: { $nin: ["STOPPED", "DISCONTINUED"] },
     };
 
     if (category) query.category = category;
@@ -349,7 +349,7 @@ exports.getSupplierStorefrontDevices = async (req, res) => {
 
     const categories = await Device.distinct("category", {
       supplierId: objectId,
-      status: { $nin: ["STOPPED", "BROKEN"] },
+      status: { $nin: ["STOPPED", "DISCONTINUED"] },
     });
 
     res.status(200).json({
@@ -538,6 +538,81 @@ exports.getFollowStatus = async (req, res) => {
     });
   } catch (err) {
     console.error("getFollowStatus error:", err);
+    res.status(500).json({ success: false, errorCode: 500, message: "Lỗi server" });
+  }
+};
+
+// Thống kê follower cho supplier (dashboard)
+exports.getMyFollowerAnalytics = async (req, res) => {
+  try {
+    const supplierId = req.user.id;
+    if (!mongoose.Types.ObjectId.isValid(supplierId)) {
+      return res.status(400).json({ success: false, message: "userId không hợp lệ" });
+    }
+    const supplierObjectId = new mongoose.Types.ObjectId(supplierId);
+
+    const now = new Date();
+    const monthBuckets = Array.from({ length: 6 }, (_, idx) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (5 - idx), 1);
+      const start = new Date(d.getFullYear(), d.getMonth(), 1);
+      const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+      const label = `${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+      return { label, start, end };
+    });
+
+    const windowStart = monthBuckets[0].start;
+    const windowEnd = monthBuckets[monthBuckets.length - 1].end;
+
+    const [totalFollowers, newLast30Days, agg] = await Promise.all([
+      StoreFollow.countDocuments({ supplierId: supplierObjectId }),
+      StoreFollow.countDocuments({
+        supplierId: supplierObjectId,
+        createdAt: {
+          $gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+          $lte: now,
+        },
+      }),
+      StoreFollow.aggregate([
+        {
+          $match: {
+            supplierId: supplierObjectId,
+            createdAt: { $gte: windowStart, $lte: windowEnd },
+          },
+        },
+        {
+          $group: {
+            _id: {
+              y: { $year: "$createdAt" },
+              m: { $month: "$createdAt" },
+            },
+            newFollows: { $sum: 1 },
+          },
+        },
+      ]),
+    ]);
+
+    const ymKey = (y, m) => `${y}-${m}`;
+    const countByYm = new Map(
+      agg.map((row) => [ymKey(row._id.y, row._id.m), row.newFollows])
+    );
+
+    const monthlyNewFollows = monthBuckets.map(({ label, start }) => {
+      const y = start.getFullYear();
+      const m = start.getMonth() + 1;
+      return { label, newFollows: countByYm.get(ymKey(y, m)) || 0 };
+    });
+
+    res.status(200).json({
+      success: true,
+      errorCode: 0,
+      data: {
+        totalFollowers,
+        newLast30Days,
+        monthlyNewFollows,
+      },
+    });
+  } catch (err) {
+    console.error("getMyFollowerAnalytics error:", err);
     res.status(500).json({ success: false, errorCode: 500, message: "Lỗi server" });
   }
 };

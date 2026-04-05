@@ -85,6 +85,13 @@ const rentalSchema = new mongoose.Schema(
     pickedUpAt: Date,
     deliveredAt: Date,
 
+    assignedOperationStaffId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      index: true,
+    },
+    assignmentLockedAt: Date,
+
     deliveryAddress: {
       receiverName: { type: String, required: true },
       street: String,
@@ -131,5 +138,6 @@ rentalSchema.virtual("extensionRequests", {
 // Index phổ biến
 rentalSchema.index({ customerId: 1, status: 1 });
 rentalSchema.index({ supplierId: 1, status: 1 });
+rentalSchema.index({ assignedOperationStaffId: 1, status: 1 });
 
 module.exports = mongoose.model("Rental", rentalSchema);

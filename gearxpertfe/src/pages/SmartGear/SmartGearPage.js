@@ -271,10 +271,10 @@ export default function SmartGearPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_5%_0%,rgba(34,211,238,0.14),rgba(255,255,255,0)_45%),radial-gradient(circle_at_95%_10%,rgba(59,130,246,0.13),rgba(255,255,255,0)_40%),#f8fafc]">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_5%_0%,rgba(34,211,238,0.14),rgba(255,255,255,0)_45%),radial-gradient(circle_at_95%_10%,rgba(59,130,246,0.13),rgba(255,255,255,0)_40%),#f8fafc]" data-theme="light">
       <Header />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-8 md:pt-40 md:pb-12">
-        <section className="relative overflow-hidden rounded-[34px] border border-slate-800 bg-slate-950 px-6 py-8 md:px-10 md:py-10 text-white shadow-2xl mb-8 md:mb-10">
+        <section className="relative overflow-hidden rounded-[34px] border border-slate-800 bg-slate-950 px-6 py-8 md:px-10 md:py-10 text-white shadow-2xl mb-8 md:mb-10" data-theme="dark">
           <div className="absolute -top-20 -left-24 w-80 h-80 bg-cyan-400/20 blur-3xl rounded-full" />
           <div className="absolute -bottom-28 -right-16 w-96 h-96 bg-indigo-500/25 blur-3xl rounded-full" />
 

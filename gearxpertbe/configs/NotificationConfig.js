@@ -21,7 +21,22 @@ const NotificationConfig = {
       const receiverSocket = getUser(receiverId?.toString());
 
       if (receiverSocket && ioInstance) {
-        ioInstance.to(receiverSocket.socketId).emit("getNotification", newNotif);
+        const plain =
+          typeof newNotif.toObject === "function"
+            ? newNotif.toObject()
+            : { ...newNotif };
+        ioInstance.to(receiverSocket.socketId).emit("getNotification", plain);
+        ioInstance.to(receiverSocket.socketId).emit("newNotification", {
+          _id: plain._id,
+          senderId: plain.senderId,
+          type: plain.type,
+          title: plain.title,
+          message: plain.message,
+          image: plain.image || "",
+          link: plain.link || "",
+          isRead: Boolean(plain.isRead),
+          createdAt: plain.createdAt,
+        });
       }
 
       return newNotif;

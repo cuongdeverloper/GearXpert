@@ -45,12 +45,12 @@ export default function FavoritesPage() {
     };
 
     return (
-        <div className="min-h-screen flex flex-col bg-slate-50">
+        <div className="min-h-screen flex flex-col bg-slate-50" data-theme="light">
             <Header />
 
             <main className="flex-grow w-full pb-12">
                 {/* Premium Header Section */}
-                <section className="relative w-full bg-slate-900 overflow-hidden mb-10 pt-40 pb-20 lg:pt-48 lg:pb-24">
+                <section className="relative w-full bg-slate-900 overflow-hidden mb-10 pt-40 pb-20 lg:pt-48 lg:pb-24" data-theme="dark">
                     {/* Background Image & Gradient */}
                     <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070')] bg-cover bg-center opacity-20"></div>
                     <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/90 via-slate-900/95 to-cyan-900/90"></div>

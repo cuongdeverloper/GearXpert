@@ -23,11 +23,17 @@ import SupplierDeviceDetailPage from "./pages/Supplier/SupplierDeviceDetailPage"
 import SupplierEditDevicePage from "./pages/Supplier/SupplierEditDevicePage";
 import SupplierAddDevicePage from "./pages/Supplier/SupplierAddDevicePage";
 import SupplierRentalRequests from "./pages/Supplier/SupplierRentalRequests";
+import SupplierRentalDetailPage from "./pages/Supplier/SupplierRentalDetailPage";
 import SupplierMaintenance from "./pages/Supplier/SupplierMaintenance";
 import SupplierRevenue from "./pages/Supplier/SupplierRevenue";
 import SupplierInventoryPage from "./pages/Supplier/SupplierInventoryPage";
 import SupplierVouchersPage from "./pages/Supplier/SupplierVouchersPage";
+import SupplierIssuesPage from "./pages/Supplier/SupplierIssuesPage";
+import SupplierCalendarPage from "./pages/Supplier/SupplierCalendarPage";
 import SupplierAiPricingPage from "./pages/Supplier/SupplierAiPricingPage";
+import SupplierAdsPage from "./pages/Supplier/SupplierAdsPage";
+import SupplierNotificationsPage from "./pages/Supplier/SupplierNotificationsPage";
+import SupplierReviewsPage from "./pages/Supplier/SupplierReviewsPage";
 
 import AdminLayout from "./components/layout/AdminLayout";
 import DashboardPage from "./pages/Admin/DashboardPage";
@@ -173,6 +179,10 @@ export default function Layout() {
             element={<RentalReviewPage />}
           />
           <Route path="/my-rentals/:rentalId" element={<RentalDetail />} />
+          <Route
+            path="/my-rentals"
+            element={<Navigate to="/user/myrental" replace />}
+          />
           <Route path="/user/myrental" element={<MyRentals />} />
           <Route path="/user/cart" element={<CartPage />} />
           <Route path="/user/followed-stores" element={<FollowedStoresPage />} />
@@ -187,6 +197,7 @@ export default function Layout() {
               element={<Navigate to="/supplier/dashboard" replace />}
             />
             <Route path="dashboard" element={<SupplierDashboard />} />
+            <Route path="notifications" element={<SupplierNotificationsPage />} />
             <Route path="devices" element={<SupplierDevicesList />} />
             <Route path="devices/new" element={<SupplierAddDevicePage />} />
             <Route
@@ -196,13 +207,29 @@ export default function Layout() {
             <Route path="devices/:id" element={<SupplierDeviceDetailPage />} />
             <Route path="inventory" element={<SupplierInventoryPage />} />
             <Route
+              path="rental-requests/:rentalId"
+              element={<SupplierRentalDetailPage />}
+            />
+            <Route
               path="rental-requests"
               element={<SupplierRentalRequests />}
             />
             <Route path="maintenance" element={<SupplierMaintenance />} />
             <Route path="revenue" element={<SupplierRevenue />} />
+            <Route
+              path="wallet"
+              element={<WalletPage embeddedInSupplier />}
+            />
             <Route path="vouchers" element={<SupplierVouchersPage />} />
+            <Route path="reviews" element={<SupplierReviewsPage />} />
+            <Route path="issues" element={<SupplierIssuesPage />} />
+            <Route
+              path="delivery/incidents"
+              element={<Navigate to="/supplier/issues?tab=DELIVERY" replace />}
+            />
+            <Route path="calendar" element={<SupplierCalendarPage />} />
             <Route path="ai-pricing" element={<SupplierAiPricingPage />} />
+            <Route path="advertisements" element={<SupplierAdsPage />} />
             <Route path="profile/edit" element={<SupplierProfileEdit />} />
           </Route>
 
