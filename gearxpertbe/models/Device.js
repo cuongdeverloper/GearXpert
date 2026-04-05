@@ -86,6 +86,19 @@ const deviceSchema = new mongoose.Schema(
       city: String,
     },
 
+    /* Phụ kiện đi kèm khi thuê (mô tả — không gắn DeviceItem riêng) */
+    includedAccessories: {
+      type: [
+        {
+          name: { type: String, required: true, trim: true, maxlength: 200 },
+          qty: { type: Number, default: 1, min: 1, max: 999 },
+          note: { type: String, trim: true, maxlength: 500 },
+          image: { type: String, trim: true, maxlength: 2048 },
+        },
+      ],
+      default: [],
+    },
+
     /* ===== SPECS LINH HOẠT ===== */
     specs: { type: Map, of: mongoose.Schema.Types.Mixed },
 
