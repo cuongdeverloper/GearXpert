@@ -6,7 +6,7 @@ const navGroups = [
     title: "DANH MỤC",
     items: [
       { to: "/admin", label: "Bảng điều khiển", description: "Theo dõi các chỉ số và KPI của hệ thống" },
-      { to: "/admin/users", label: "Người dung", description: "Quản lý tài khoản người dùng và quyền hạn" },
+      { to: "/admin/users", label: "Người dùng", description: "Quản lý tài khoản người dùng và quyền hạn" },
       { to: "/admin/suppliers", label: "Nhà cung cấp", description: "Quản lý tài khoản nhà cung cấp" },
       { to: "/admin/devices", label: "Thiết bị", description: "Kiểm duyệt danh sách thiết bị" },
       { to: "/admin/rentals", label: "Đơn thuê", description: "Theo dõi các giao dịch đơn thuê" },

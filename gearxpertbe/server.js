@@ -27,16 +27,20 @@ const favoriteRouter = require("./Routes/FavoriteRoutes");
 const walletRouter = require("./Routes/WalletRoutes");
 const payosRouter = require("./Routes/PayOsRoutes");
 const adminUserRouter = require("./Routes/AdminUserRoutes");
+const adminDisputeRouter = require("./Routes/AdminDisputeRoutes");
 const advertisementRouter = require("./Routes/AdvertisementRoutes");
 const ReportRouter = require("./Routes/ReportRoutes");
 const ContractRouter = require("./Routes/ContractRoutes");
 const NotificationRouter = require("./Routes/NotificationRoutes");
 const NotificationConfig = require("./configs/NotificationConfig");
+const operationStaffSocket = require("./utils/operationStaffSocket");
 const blogRouter = require("./Routes/BlogRoutes");
 const smartgearRoutes = require("./Routes/SmartGearRoutes");
 const supplierRouter = require("./Routes/SupplierRoutes");
 const supplierContractRouter = require("./Routes/SupplierContractRoutes");
 const operationLogRouter = require("./Routes/OperationLogRoutes");
+const handoverRouter = require("./Routes/HandoverRoutes");
+const returnRouter = require("./Routes/ReturnRoutes");
 const { startAutoConfirmJob } = require("./jobs/autoConfirmDelivery");
 const { startAutoReturnJob } = require("./jobs/autoReturnRentals");
 const routerReview = require("./Routes/ReviewRoutes");
@@ -94,6 +98,8 @@ app.use("/api/suppliers", supplierRouter);
 app.use("/api/suppliers-contract", supplierContractRouter);
 
 app.use("/api/operation-logs", operationLogRouter);
+app.use("/api/handovers", handoverRouter);
+app.use("/api/returns", returnRouter);
 app.use("/api/reviews", routerReview);
 app.use("/", googleAuthRouter);
 
@@ -109,6 +115,7 @@ app.use((err, req, res, next) => {
 });
 require("./jobs/autoCancelUnpaidRentals");
 NotificationConfig.init(io);
+operationStaffSocket.init(io);
 startRentalDueReminders();
 socketHandler(io);
 startAutoConfirmJob();

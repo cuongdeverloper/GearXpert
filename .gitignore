@@ -25,3 +25,7 @@ Thumbs.db
 
 # Docs/diagrams
 docs/
+
+# Local flow notes (do not commit)
+AI_Dynamic_Pricing_Flow.md
+Rental_Splitting_Flow.md

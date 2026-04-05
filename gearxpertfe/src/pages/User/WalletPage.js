@@ -34,7 +34,8 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
 const PAGE_SIZE = 5;
 
-export default function WalletPage() {
+export default function WalletPage({ embeddedInSupplier = false } = {}) {
+  const profilePath = embeddedInSupplier ? "/supplier/profile/edit" : "/profile";
   const [isEkycVerified, setIsEkycVerified] = useState(false);
   const [wallet, setWallet] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -126,7 +127,7 @@ export default function WalletPage() {
       if (errData?.code === "EKYC_REQUIRED") {
         toast.error(errData.message || "Vui lòng hoàn tất eKYC trước khi nạp tiền");
         setTimeout(() => {
-          window.location.href = "/profile";
+          window.location.href = profilePath;
         }, 2500);
       } else {
         toast.error(errData?.message || "Lỗi tạo link thanh toán");
@@ -172,7 +173,7 @@ export default function WalletPage() {
       if (errData?.code === "EKYC_REQUIRED") {
         toast.error(errData.message || "Vui lòng hoàn tất eKYC trước khi rút tiền");
         setTimeout(() => {
-          window.location.href = "/profile";
+          window.location.href = profilePath;
         }, 2500);
       } else {
         toast.error(errData?.message || "Lỗi hệ thống");
@@ -416,7 +417,14 @@ export default function WalletPage() {
   }, [filteredTransactions, page]);
 
   if (loading)
-    return (
+    return embeddedInSupplier ? (
+      <div className="flex flex-col items-center justify-center py-20">
+        <Loader2 className="animate-spin text-indigo-600 mb-4" size={40} />
+        <p className="font-bold text-xs uppercase tracking-widest text-gray-400">
+          Đang tải dữ liệu...
+        </p>
+      </div>
+    ) : (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
         <Loader2 className="animate-spin text-indigo-600 mb-4" size={40} />
         <p className="font-bold text-xs uppercase tracking-widest text-gray-400">
@@ -426,9 +434,21 @@ export default function WalletPage() {
     );
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-800 font-sans pb-20">
-      <Header />
-      <div className="max-w-6xl mx-auto px-6 pt-32">
+    <div
+      className={
+        embeddedInSupplier
+          ? "w-full text-gray-800 font-sans pb-6"
+          : "min-h-screen bg-gray-50 text-gray-800 font-sans pb-20"
+      }
+    >
+      {!embeddedInSupplier && <Header />}
+      <div
+        className={
+          embeddedInSupplier
+            ? "max-w-full mx-auto w-full"
+            : "max-w-6xl mx-auto px-6 pt-32"
+        }
+      >
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-6">
           <div>
             <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase italic">
@@ -455,7 +475,7 @@ export default function WalletPage() {
                       <p>Bạn cần hoàn tất eKYC để rút tiền</p>
                       <button
                         className="mt-2 bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm"
-                        onClick={() => (window.location.href = "/profile")}
+                        onClick={() => (window.location.href = profilePath)}
                       >
                         Đi đến trang Profile
                       </button>
@@ -484,7 +504,7 @@ export default function WalletPage() {
                       <p>Bạn cần hoàn tất eKYC để nạp tiền</p>
                       <button
                         className="mt-2 bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm"
-                        onClick={() => (window.location.href = "/profile")}
+                        onClick={() => (window.location.href = profilePath)}
                       >
                         Đi đến trang Profile
                       </button>

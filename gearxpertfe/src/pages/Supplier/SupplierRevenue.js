@@ -33,11 +33,18 @@ const EMPTY_DATA = {
   transactions: []
 };
 
-const formatMoney = (value) =>
-  (value || 0).toLocaleString("vi-VN");
+const formatVnd = (value) =>
+  `${Number(value ?? 0).toLocaleString("vi-VN")} đ`;
 
-const formatMillions = (value) =>
-  `${((value || 0) / 1000000).toFixed(1)}M`;
+const formatVndAbs = (value) =>
+  `${Number(value ?? 0).toLocaleString("vi-VN")}`;
+
+/** Signed full VND for transaction rows (+ / -, no abbreviation). */
+const formatSignedVnd = (amount) => {
+  const n = Number(amount ?? 0);
+  const sign = n >= 0 ? "+" : "-";
+  return `${sign}${formatVndAbs(Math.abs(n))} đ`;
+};
 
 export default function SupplierRevenue() {
   const user = useSelector((state) => state.user.account);
@@ -110,7 +117,7 @@ export default function SupplierRevenue() {
       tooltip: {
         callbacks: {
           label: (ctx) =>
-            `${ctx.dataset.label}: ${formatMoney(ctx.raw)} ₫`
+            `${ctx.dataset.label}: ${formatVnd(ctx.raw)}`
         }
       }
     },
@@ -118,7 +125,7 @@ export default function SupplierRevenue() {
       x: { grid: { display: false } },
       y: {
         ticks: {
-          callback: (v) => `${formatMoney(v)} ₫`
+          callback: (v) => formatVnd(v)
         }
       }
     }
@@ -141,7 +148,7 @@ export default function SupplierRevenue() {
               <FiDollarSign size={20} className="text-primary" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-primary">{formatMillions(revenueData.totalRevenue)}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-primary break-words">{formatVnd(revenueData.totalRevenue)}</p>
           <p className="text-xs text-primary/70 mt-2">Tổng thu nhập từ trước đến nay</p>
         </div>
 
@@ -152,7 +159,7 @@ export default function SupplierRevenue() {
               <FiTrendingUp size={20} className="text-green-600" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-green-600">{formatMillions(revenueData.monthlyRevenue)}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-green-600 break-words">{formatVnd(revenueData.monthlyRevenue)}</p>
           <p className="text-xs text-green-600/70 mt-2">+15% so với tháng trước</p>
         </div>
 
@@ -225,7 +232,7 @@ export default function SupplierRevenue() {
                 <div key={idx}>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-semibold text-slate-700">{item.label}</span>
-                    <span className="text-sm font-bold text-primary">{formatMillions(item.revenue)}</span>
+                    <span className="text-sm font-bold text-primary tabular-nums">{formatVnd(item.revenue)}</span>
                   </div>
                   <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                     <div
@@ -258,7 +265,7 @@ export default function SupplierRevenue() {
                   <p className="text-xs text-slate-500 mt-0.5">{device.rentals} lượt thuê</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-primary">{formatMillions(device.revenue)}</p>
+                  <p className="font-bold text-primary tabular-nums">{formatVnd(device.revenue)}</p>
                 </div>
               </div>
             ))}
@@ -292,7 +299,7 @@ export default function SupplierRevenue() {
                 </div>
               </div>
               <p className={`font-bold ${item.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
-                {item.amount >= 0 ? "+" : "-"}{formatMillions(Math.abs(item.amount))}
+                {formatSignedVnd(item.amount)}
               </p>
             </div>
           ))}

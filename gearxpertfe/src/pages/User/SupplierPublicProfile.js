@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { toast } from "react-toastify";
 import {
   Star,
@@ -38,9 +38,11 @@ import {
 } from "../../service/ApiService/SupplierApi";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
-import Map, { Marker } from 'react-map-gl/mapbox';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
+import { ApiCreateConversation, ApiGetUserByUserId } from "../../components/Message Socket/ApiMessage";
+import { openChatWindow } from "../../redux/reducer/chatWindowReducer";
+import Map, { Marker } from "react-map-gl/mapbox";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 import gearXpertLogo from "../../assets/logoGearXpert.png";
 
 const SORT_OPTIONS = [
@@ -62,9 +64,18 @@ const CATEGORY_MAP = {
   OTHER: { name: "Khác", icon: "category" },
 };
 
+/** Khớp SupplierProfile.warehouseAddress: ưu tiên fullAddress, sau đó ghép street/district/city */
+function formatWarehouseLine(addr) {
+  if (!addr) return "";
+  const full = typeof addr.fullAddress === "string" ? addr.fullAddress.trim() : "";
+  if (full) return full;
+  return [addr.street, addr.district, addr.city].filter(Boolean).join(", ");
+}
+
 export default function SupplierPublicProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const isAuthenticated = useSelector((state) => state.user?.isAuthenticated || false);
   const userAccount = useSelector((state) => state.user?.account);
   const [supplier, setSupplier] = useState(null);
@@ -550,18 +561,44 @@ export default function SupplierPublicProfile() {
                 <div className="p-1.5 bg-white rounded-lg shadow-sm">
                   <MapPin size={14} className="text-indigo-500" />
                 </div>
-                <span className="truncate">{supplier.warehouseAddress?.street}, {supplier.warehouseAddress?.district}, {supplier.warehouseAddress?.city}</span>
+                <span className="truncate">
+                  {formatWarehouseLine(supplier.warehouseAddress) || "Chưa cập nhật địa chỉ kho"}
+                </span>
               </div>
               <div className="flex items-center gap-6">
                 <div className="flex -space-x-3 overflow-hidden">
                   {[1, 2, 3].map(i => (
                     <div key={i} className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-slate-200" />
                   ))}
-                  <div className="flex items-center justify-center h-8 w-8 rounded-full ring-2 ring-white bg-indigo-600 text-[10px] font-black text-white">
+                                    <div className="flex items-center justify-center h-8 w-8 rounded-full ring-2 ring-white bg-indigo-600 text-[10px] font-black text-white">
                     +{followerCount}
                   </div>
                 </div>
-                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">đang theo dõi</span>
+                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                  đang theo dõi
+                </span>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!isAuthenticated) {
+                      toast.info("Vui lòng đăng nhập để nhắn tin");
+                      navigate("/signin");
+                      return;
+                    }
+                    try {
+                      const suppUserId = supplier.userId?._id || supplier.userId;
+                      const conversation = await ApiCreateConversation(suppUserId);
+                      const friendInfo = await ApiGetUserByUserId(suppUserId);
+                      dispatch(openChatWindow({ ...conversation, friendInfo }));
+                    } catch (err) {
+                      toast.error("Không thể mở cuộc trò chuyện");
+                    }
+                  }}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 transition-all shadow-sm"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  Nhắn tin
+                </button>
               </div>
             </div>
           </div>
@@ -579,7 +616,7 @@ export default function SupplierPublicProfile() {
                   <div>
                     <h3 className="text-lg font-bold text-slate-900">Vị trí cửa hàng</h3>
                     <p className="text-sm text-slate-500 truncate max-w-md">
-                      {supplier.warehouseAddress.street}, {supplier.warehouseAddress.district}, {supplier.warehouseAddress.city}
+                      {formatWarehouseLine(supplier.warehouseAddress) || "Chưa có địa chỉ chi tiết"}
                     </p>
                   </div>
                 </div>

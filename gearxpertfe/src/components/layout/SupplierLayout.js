@@ -16,15 +16,19 @@ export default function SupplierLayout() {
   // Lấy user info từ redux store
   const me = useSelector((state) => state.user.account);
   return (
-    <div className="min-h-screen bg-background-light flex flex-col text-[15px]">
-      {/* HEADER */}
+    <div className="h-screen min-h-0 flex flex-col overflow-hidden bg-background-light text-[15px]">
+      {/* HEADER — fixed; không chiếm chỗ trong luồng, body có pt để lọt phía dưới */}
       <Header onMenuOpen={() => setOpen(true)} />
 
-      {/* BODY */}
-      <div className={classNames(
-        "flex-1 flex lg:grid w-full transition-all duration-500 pt-32 lg:pt-32",
-        collapsed ? "lg:grid-cols-[88px_1fr]" : "lg:grid-cols-[260px_1fr]"
-      )}>
+      {/* BODY — min-h-0 để cột con overflow-y-auto hoạt động; chỉ main (và nav sidebar) cuộn riêng */}
+      <div
+        className={classNames(
+          "flex-1 min-h-0 w-full flex flex-col lg:grid lg:grid-rows-1 pt-32 transition-all duration-500",
+          collapsed
+            ? "lg:grid-cols-[88px_minmax(0,1fr)]"
+            : "lg:grid-cols-[280px_minmax(0,1fr)]"
+        )}
+      >
         {/* SIDEBAR Desktop */}
         <SupplierSidebar
           collapsed={collapsed}
@@ -35,12 +39,9 @@ export default function SupplierLayout() {
         {/* SIDEBAR Mobile drawer */}
         <SupplierMobileDrawer open={open} onClose={() => setOpen(false)} />
 
-        {/* MAIN CONTENT */}
-        <main className="flex-1 px-5 lg:px-8 py-6 overflow-y-auto">
-          {/* <SupplierPageHeader /> */}
-
-          {/* Content container */}
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5 lg:p-6">
+        {/* MAIN CONTENT — chỉ vùng này cuộn theo chiều dọc */}
+        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain px-5 lg:px-8 py-6">
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5 lg:p-6 min-h-0">
             <Outlet />
           </div>
         </main>

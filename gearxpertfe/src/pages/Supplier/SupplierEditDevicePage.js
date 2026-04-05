@@ -1,20 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import { FiArrowLeft, FiPlus, FiX } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { toast } from "react-toastify";
 import { getDeviceDetail, updateDevice } from "../../service/ApiService/DeviceApi";
 import { VIETNAM_CITIES } from "../../utils/vietnamCities";
 import { normalizeSpecs } from "../../utils/formatters";
+import { normalizeCatalogDeviceStatus } from "../../utils/deviceStatus";
 
 export default function SupplierEditDevicePage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [unitCountFromItems, setUnitCountFromItems] = useState(0);
+
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     category: "CAMERA",
-    stockQuantity: 1,
     perDay: "",
     perWeek: "",
     perMonth: "",
@@ -53,17 +55,17 @@ export default function SupplierEditDevicePage() {
       try {
         const data = await getDeviceDetail(id);
         const specsRows = normalizeSpecs(data?.specs);
+        setUnitCountFromItems(data?.stockQuantity ?? 0);
         setFormData({
           name: data?.name || "",
           description: data?.description || "",
           category: data?.category || "CAMERA",
-          stockQuantity: data?.stockQuantity || 1,
           perDay: data?.rentPrice?.perDay || "",
           perWeek: data?.rentPrice?.perWeek || "",
           perMonth: data?.rentPrice?.perMonth || "",
           depositAmount: data?.depositAmount || "",
           city: data?.location?.city || "",
-          status: data?.status || "AVAILABLE",
+          status: normalizeCatalogDeviceStatus(data?.status),
           specs: specsRows.length ? specsRows : [{ key: "", value: "" }],
         });
         setOldImages(data?.images || []);
@@ -78,12 +80,38 @@ export default function SupplierEditDevicePage() {
     fetchDevice();
   }, [id]);
 
-  const handleImageChange = (e) => {
+  const compressImage = (file, maxWidth = 1200, quality = 0.8) =>
+    new Promise((resolve) => {
+      if (!file.type.startsWith("image/")) return resolve(file);
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const scale = Math.min(1, maxWidth / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(
+          (blob) => resolve(new File([blob], file.name, { type: "image/jpeg" })),
+          "image/jpeg",
+          quality
+        );
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(file);
+      };
+      img.src = url;
+    });
+
+  const handleImageChange = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
+    const compressed = await Promise.all(files.map((f) => compressImage(f)));
     setNewImages((prev) => {
       const remainingSlots = Math.max(0, 5 - oldImages.length - prev.length);
-      const nextImages = [...prev, ...files].slice(0, prev.length + remainingSlots);
+      const nextImages = [...prev, ...compressed].slice(0, prev.length + remainingSlots);
       setNewImagePreviews(nextImages.map((file) => URL.createObjectURL(file)));
       return nextImages;
     });
@@ -121,7 +149,6 @@ export default function SupplierEditDevicePage() {
       newErrors.depositAmount = "Tiền cọc là bắt buộc";
     }
     if (!formData.city.trim()) newErrors.city = "Tỉnh/Thành phố là bắt buộc";
-    if (formData.stockQuantity < 1) newErrors.stockQuantity = "Số lượng phải ≥ 1";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -130,9 +157,9 @@ export default function SupplierEditDevicePage() {
   const parseSpecs = (rows) => {
     const specs = {};
     rows.forEach((row) => {
-      const key = row.key?.trim();
+      const key = typeof row.key === "string" ? row.key.trim() : String(row.key ?? "");
       if (!key) return;
-      specs[key] = row.value?.trim() || true;
+      specs[key] = typeof row.value === "string" ? row.value.trim() || true : row.value ?? true;
     });
     return specs;
   };
@@ -186,14 +213,16 @@ export default function SupplierEditDevicePage() {
           city: formData.city,
         })
       );
-      form.append("stockQuantity", parseInt(formData.stockQuantity));
       form.append("status", formData.status);
       form.append("oldImages", JSON.stringify(oldImages));
       const specsPayload = parseSpecs(formData.specs);
       form.append("specs", JSON.stringify(specsPayload));
       newImages.forEach((img) => form.append("images", img));
 
-      await updateDevice(id, form);
+      const res = await updateDevice(id, form);
+      if (res?.device?.stockQuantity != null) {
+        setUnitCountFromItems(res.device.stockQuantity);
+      }
       toast.success("Cập nhật sản phẩm thành công!");
       navigate(`/supplier/devices/${id}`);
     } catch (error) {
@@ -266,47 +295,25 @@ export default function SupplierEditDevicePage() {
                 {errors.name && <p className="text-xs text-red-600 mt-1">{errors.name}</p>}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Danh mục *
-                  </label>
-                  <select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all bg-white"
-                  >
-                    <option value="CAMERA">📷 Máy ảnh</option>
-                    <option value="AUDIO">🎧 Âm thanh</option>
-                    <option value="OFFICE">💼 Văn phòng</option>
-                    <option value="GAMING">🎮 Gaming</option>
-                    <option value="ACCESSORY">🔌 Phụ kiện</option>
-                    <option value="LIGHTING">💡 Ánh sáng</option>
-                    <option value="DRONE">🚁 Flycam</option>
-                    <option value="OTHER">📁 Khác</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Số lượng thiết bị *
-                  </label>
-                  <input
-                    type="number"
-                    name="stockQuantity"
-                    value={formData.stockQuantity}
-                    onChange={handleChange}
-                    min="1"
-                    className={`w-full px-4 py-2.5 rounded-xl border transition-all ${
-                      errors.stockQuantity
-                        ? "border-red-500 bg-red-50 focus:ring-red-200"
-                        : "border-slate-200 focus:ring-primary/20"
-                    } focus:ring-2 focus:border-primary outline-none`}
-                  />
-                  {errors.stockQuantity && (
-                    <p className="text-xs text-red-600 mt-1">{errors.stockQuantity}</p>
-                  )}
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Danh mục *
+                </label>
+                <select
+                  name="category"
+                  value={formData.category}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all bg-white"
+                >
+                  <option value="CAMERA">📷 Máy ảnh</option>
+                  <option value="AUDIO">🎧 Âm thanh</option>
+                  <option value="OFFICE">💼 Văn phòng</option>
+                  <option value="GAMING">🎮 Gaming</option>
+                  <option value="ACCESSORY">🔌 Phụ kiện</option>
+                  <option value="LIGHTING">💡 Ánh sáng</option>
+                  <option value="DRONE">🚁 Flycam</option>
+                  <option value="OTHER">📁 Khác</option>
+                </select>
               </div>
 
               <div>
@@ -507,27 +514,20 @@ export default function SupplierEditDevicePage() {
 
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-slate-900">Kho hàng</h3>
-            <div className="space-y-4 mt-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Số lượng thiết bị *
-                </label>
-                <input
-                  type="number"
-                  name="stockQuantity"
-                  value={formData.stockQuantity}
-                  onChange={handleChange}
-                  min="1"
-                  className={`w-full px-4 py-2.5 rounded-xl border transition-all ${
-                    errors.stockQuantity
-                      ? "border-red-500 bg-red-50 focus:ring-red-200"
-                      : "border-slate-200 focus:ring-primary/20"
-                  } focus:ring-2 focus:border-primary outline-none`}
-                />
-                {errors.stockQuantity && (
-                  <p className="text-xs text-red-600 mt-1">{errors.stockQuantity}</p>
-                )}
+            <div className="mt-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-sm text-slate-600">
+              <span className="font-medium text-slate-800">Đơn vị vật lý (DeviceItem):</span>{" "}
+              <span className="tabular-nums font-semibold text-slate-900">{unitCountFromItems}</span>
+              <span className="text-slate-500"> — đếm theo serial trong hệ thống, không chỉnh tay ở đây.</span>
+              <div className="mt-2 flex flex-wrap gap-3 text-xs font-semibold">
+                <Link to="/supplier/inventory" className="text-primary hover:underline">
+                  Quản lý kho
+                </Link>
+                <Link to={`/supplier/devices/${id}`} className="text-primary hover:underline">
+                  Chi tiết &amp; thêm serial
+                </Link>
               </div>
+            </div>
+            <div className="space-y-4 mt-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Trạng thái
@@ -539,9 +539,9 @@ export default function SupplierEditDevicePage() {
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all bg-white"
                 >
                   <option value="AVAILABLE">Sẵn có</option>
+                  <option value="SUSPICIOUS">Cần kiểm tra</option>
                   <option value="STOPPED">Tạm dừng</option>
-                  <option value="MAINTENANCE">Đang bảo trì</option>
-                  <option value="BROKEN">Hư hỏng</option>
+                  <option value="DISCONTINUED">Ngừng kinh doanh</option>
                 </select>
               </div>
             </div>

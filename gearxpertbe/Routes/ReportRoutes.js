@@ -1,7 +1,7 @@
 const express = require("express");
 const ReportRouter = express.Router();
 const uploadCloud = require("../configs/cloudinaryConfig");
-const { checkAccessToken, checkAdmin } = require("../middleware/JWTAction");
+const { checkAccessToken, checkAdmin, checkSupplier } = require("../middleware/JWTAction");
 
 const deliveryCtrl = require("../controllers/Report/deliveryIssueController");
 const damageCtrl = require("../controllers/Report/damageReportController");
@@ -81,6 +81,14 @@ ReportRouter.patch(
   checkAccessToken,
   checkAdmin,
   shopReportCtrl.updateReportStatus
+);
+
+// SUPPLIER — Xem tất cả sự cố liên quan đến đơn hàng của supplier
+ReportRouter.get(
+  "/supplier-issues",
+  checkAccessToken,
+  checkSupplier,
+  deliveryCtrl.getSupplierIssues
 );
 
 module.exports = ReportRouter;

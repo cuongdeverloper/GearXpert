@@ -36,10 +36,11 @@ export default function AdminShopReports() {
   }, [fetchReports]);
 
   const filteredReports = reports.filter((report) => {
+    const searchTermLower = searchTerm.toLowerCase();
     const matchesSearch =
-      report.shop?.businessName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.reporter?.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.reason.toLowerCase().includes(searchTerm.toLowerCase());
+      (report.shop?.businessName || "").toLowerCase().includes(searchTermLower) ||
+      (report.reporter?.fullName || "").toLowerCase().includes(searchTermLower) ||
+      (report.reason || "").toLowerCase().includes(searchTermLower);
     const matchesStatus = statusFilter === "ALL" || report.status === statusFilter;
     return matchesSearch && matchesStatus;
   });

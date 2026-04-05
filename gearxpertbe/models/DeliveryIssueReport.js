@@ -64,11 +64,36 @@ const deliveryIssueReportSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["OPEN", "PROCESSING", "RESOLVED", "REJECTED"],
+      enum: ["OPEN", "PROCESSING", "WAITING_EVIDENCE", "RESOLVED", "REJECTED"],
       default: "OPEN",
     },
 
-    resolvedNote: String,
+    resolutionNote: String,
+
+    // Admin assignment
+    assignedAdminId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    // Ghi chú nội bộ
+    internalNotes: [
+      {
+        adminId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        content: String,
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+
+    // Lịch sử thay đổi trạng thái
+    statusHistory: [
+      {
+        status: String,
+        changedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        note: String,
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
 
     reportContext: {
       type: String,

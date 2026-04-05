@@ -33,3 +33,7 @@ export const adminGetAllShopReports = () =>
 // Admin: Update shop report status
 export const adminUpdateShopReportStatus = (reportId, data) =>
   axios.patch(`/api/reports/admin/shop-reports/${reportId}`, data);
+  
+// Supplier: lấy tất cả sự cố liên quan đến đơn hàng của supplier
+export const getSupplierIssues = () =>
+  axios.get("/api/reports/supplier-issues");

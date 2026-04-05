@@ -1,4 +1,6 @@
+const mongoose = require("mongoose");
 const Device = require("../../models/Device");
+const DeviceItem = require("../../models/DeviceItem");
 const RentalItem = require("../../models/RentalItem"); // Kiểm tra lại đường dẫn model của bạn
 const Review = require("../../models/Review");
 const SupplierProfile = require("../../models/SupplierProfile");
@@ -20,7 +22,6 @@ exports.createDevice = async (req, res) => {
       rentPrice,
       depositAmount,
       location,
-      stockQuantity,
       specs,
       status,
     } = req.body;
@@ -41,10 +42,7 @@ exports.createDevice = async (req, res) => {
         location = { warehouse: "", city: "" };
       }
     }
-    // Parse stockQuantity
-    if (typeof stockQuantity === "string") {
-      stockQuantity = parseInt(stockQuantity) || 1;
-    }
+    // Số lượng không nhập tay — chỉ đếm từ DeviceItem (đơn vị vật lý có serial)
     // Parse specs if provided
     if (typeof specs === "string") {
       try {
@@ -56,10 +54,9 @@ exports.createDevice = async (req, res) => {
 
     const allowedStatuses = [
       "AVAILABLE",
-      "RENTED",
-      "MAINTENANCE",
-      "BROKEN",
+      "SUSPICIOUS",
       "STOPPED",
+      "DISCONTINUED",
     ];
     const normalizedStatus = allowedStatuses.includes(status)
       ? status
@@ -86,7 +83,7 @@ exports.createDevice = async (req, res) => {
       images = req.files.map((file) => file.path);
     }
 
-    // Create new device
+    // Create new device (catalog cha — tồn kho = 0 cho tới khi có DeviceItem)
     const newDevice = new Device({
       name,
       description,
@@ -94,7 +91,11 @@ exports.createDevice = async (req, res) => {
       rentPrice,
       depositAmount,
       location,
-      stockQuantity,
+      stockQuantity: 0,
+      rentedQuantity: 0,
+      availableQuantity: 0,
+      maintenanceCount: 0,
+      damagedCount: 0,
       supplierId,
       images,
       status: normalizedStatus,
@@ -168,7 +169,7 @@ exports.getDevices = async (req, res) => {
       delete query.$expr;
     }
 
-    // Nếu vẫn muốn lọc status (ví dụ chỉ AVAILABLE hoặc MAINTENANCE)
+    // Nếu vẫn muốn lọc status (enum catalog: AVAILABLE | SUSPICIOUS | …)
     if (status) {
       query.status = status;
     }
@@ -212,6 +213,198 @@ exports.getDevices = async (req, res) => {
     });
   } catch (error) {
     console.error("GET DEVICES ERROR:", error);
+    res.status(500).json({ message: error.message || "Lỗi server" });
+  }
+};
+
+/**
+ * GET /devices/:deviceId/items
+ * Supplier: danh sách DeviceItem (đơn vị vật lý) của một Device
+ */
+exports.getDeviceItemsForSupplier = async (req, res) => {
+  try {
+    const { deviceId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(deviceId)) {
+      return res.status(400).json({ message: "deviceId không hợp lệ" });
+    }
+
+    const device = await Device.findById(deviceId).select("supplierId name").lean();
+    if (!device) {
+      return res.status(404).json({ message: "Device not found" });
+    }
+    if (device.supplierId.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Không có quyền xem đơn vị của thiết bị này" });
+    }
+
+    const { status } = req.query;
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 200));
+    const skip = (page - 1) * limit;
+
+    const filter = { deviceId: device._id };
+    if (status && typeof status === "string") {
+      filter.status = status.trim().toUpperCase();
+    }
+
+    const [items, total] = await Promise.all([
+      DeviceItem.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select("serialNumber internalCode status condition location images createdAt updatedAt")
+        .lean(),
+      DeviceItem.countDocuments(filter),
+    ]);
+
+    res.json({
+      deviceId: device._id,
+      deviceName: device.name,
+      items: items.map((it) => ({
+        _id: it._id,
+        serialNumber: it.serialNumber || null,
+        internalCode: it.internalCode || null,
+        status: it.status,
+        condition: it.condition,
+        location: it.location,
+        createdAt: it.createdAt,
+        updatedAt: it.updatedAt,
+      })),
+      total,
+      page,
+      limit,
+    });
+  } catch (error) {
+    console.error("getDeviceItemsForSupplier:", error);
+    res.status(500).json({ message: error.message || "Lỗi server" });
+  }
+};
+
+const DEVICE_ITEM_CONDITIONS = ["NEW", "GOOD", "FAIR", "NEEDS_REPAIR", "DAMAGED"];
+
+/**
+ * POST /devices/:deviceId/items
+ * Supplier: thêm một DeviceItem (đơn vị vật lý) cho thiết bị
+ */
+exports.createDeviceItemForSupplier = async (req, res) => {
+  try {
+    const { deviceId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(deviceId)) {
+      return res.status(400).json({ message: "deviceId không hợp lệ" });
+    }
+
+    const device = await Device.findById(deviceId).select("supplierId name").lean();
+    if (!device) {
+      return res.status(404).json({ message: "Device not found" });
+    }
+    if (device.supplierId.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Không có quyền thêm đơn vị cho thiết bị này" });
+    }
+
+    let { serialNumber, internalCode, condition, location } = req.body || {};
+
+    if (typeof location === "string" && location.trim()) {
+      try {
+        location = JSON.parse(location);
+      } catch {
+        location = undefined;
+      }
+    }
+
+    if (typeof serialNumber === "string") {
+      serialNumber = serialNumber.trim();
+      if (!serialNumber) serialNumber = undefined;
+      else if (serialNumber.length > 200) {
+        return res.status(400).json({ message: "Serial quá dài" });
+      }
+    } else {
+      serialNumber = undefined;
+    }
+
+    if (typeof internalCode === "string") {
+      internalCode = internalCode.trim();
+      if (!internalCode) internalCode = undefined;
+      else if (internalCode.length > 200) {
+        return res.status(400).json({ message: "Mã nội bộ quá dài" });
+      }
+    } else {
+      internalCode = undefined;
+    }
+
+    if (serialNumber) {
+      const dup = await DeviceItem.findOne({ serialNumber }).select("_id").lean();
+      if (dup) {
+        return res.status(409).json({ message: "Serial đã tồn tại trong hệ thống" });
+      }
+    }
+
+    const cond =
+      typeof condition === "string" && DEVICE_ITEM_CONDITIONS.includes(condition.toUpperCase())
+        ? condition.toUpperCase()
+        : "GOOD";
+
+    let loc = undefined;
+    if (location && typeof location === "object" && !Array.isArray(location)) {
+      const w = typeof location.warehouse === "string" ? location.warehouse.trim() : "";
+      const c = typeof location.city === "string" ? location.city.trim() : "";
+      const n = typeof location.note === "string" ? location.note.trim() : "";
+      if (w || c || n) {
+        loc = {
+          ...(w ? { warehouse: w.slice(0, 200) } : {}),
+          ...(c ? { city: c.slice(0, 200) } : {}),
+          ...(n ? { note: n.slice(0, 500) } : {}),
+        };
+      }
+    }
+
+    let images = [];
+    if (req.files && req.files.length > 0) {
+      images = req.files.map((f) => f.path).filter(Boolean);
+    } else if (req.body && req.body.images != null) {
+      let raw = req.body.images;
+      if (typeof raw === "string") {
+        try {
+          raw = JSON.parse(raw);
+        } catch {
+          raw = [];
+        }
+      }
+      if (Array.isArray(raw)) {
+        images = raw
+          .filter((u) => typeof u === "string" && u.trim())
+          .map((u) => u.trim().slice(0, 2000))
+          .slice(0, 5);
+      }
+    }
+    if (images.length > 5) images = images.slice(0, 5);
+
+    const doc = await DeviceItem.create({
+      deviceId: device._id,
+      serialNumber,
+      internalCode,
+      condition: cond,
+      status: "AVAILABLE",
+      ...(loc ? { location: loc } : {}),
+      ...(images.length ? { images } : {}),
+    });
+
+    return res.status(201).json({
+      item: {
+        _id: doc._id,
+        serialNumber: doc.serialNumber || null,
+        internalCode: doc.internalCode || null,
+        status: doc.status,
+        condition: doc.condition,
+        location: doc.location,
+        images: Array.isArray(doc.images) ? doc.images : [],
+        createdAt: doc.createdAt,
+        updatedAt: doc.updatedAt,
+      },
+    });
+  } catch (error) {
+    if (error && error.code === 11000) {
+      return res.status(409).json({ message: "Serial hoặc mã trùng (unique)" });
+    }
+    console.error("createDeviceItemForSupplier:", error);
     res.status(500).json({ message: error.message || "Lỗi server" });
   }
 };
@@ -389,7 +582,6 @@ exports.updateDevice = async (req, res) => {
       rentPrice,
       depositAmount,
       location,
-      stockQuantity,
       oldImages,
       status,
       specs,
@@ -411,11 +603,6 @@ exports.updateDevice = async (req, res) => {
         location = { warehouse: "", city: "" };
       }
     }
-    // Parse stockQuantity
-    if (typeof stockQuantity === "string") {
-      stockQuantity = parseInt(stockQuantity) || 1;
-    }
-
     // Parse specs if string
     if (typeof specs === "string") {
       try {
@@ -476,29 +663,68 @@ exports.updateDevice = async (req, res) => {
       return res.status(404).json({ message: "Device not found" });
     }
 
+    // Verify device ownership
+    if (device.supplierId.toString() !== req.user.id) {
+      return res.status(403).json({ message: "You are not authorized to edit this device" });
+    }
+
+    const blockingStatuses = ["STOPPED", "SUSPICIOUS", "DISCONTINUED"];
+    if (
+      status &&
+      status !== device.status &&
+      blockingStatuses.includes(status)
+    ) {
+      const busyStatuses = ["PENDING", "PAID", "APPROVED", "DELIVERING", "RENTING", "RETURNING", "INSPECTING"];
+      const activeRental = await RentalItem.findOne({ deviceId: id }).populate({
+        path: "rentalId",
+        select: "status",
+      });
+      if (activeRental && activeRental.rentalId && busyStatuses.includes(activeRental.rentalId.status)) {
+        return res.status(400).json({
+          message: "Cannot change status - device has active rentals",
+        });
+      }
+    }
+
+    const catalogAllowed = [
+      "AVAILABLE",
+      "SUSPICIOUS",
+      "STOPPED",
+      "DISCONTINUED",
+    ];
+    const legacyCatalogStatus = {
+      MAINTENANCE: "SUSPICIOUS",
+      BROKEN: "DISCONTINUED",
+      RENTED: "AVAILABLE",
+    };
+    let nextCatalogStatus = status;
+    if (nextCatalogStatus && legacyCatalogStatus[nextCatalogStatus]) {
+      nextCatalogStatus = legacyCatalogStatus[nextCatalogStatus];
+    }
+
+    // Không cập nhật stockQuantity/rentedQuantity từ form — luôn đồng bộ từ DeviceItem
     Object.assign(device, {
       name, description, category, rentPrice, depositAmount,
-      location, stockQuantity, images,
+      location, images,
     });
-    if (status) device.status = status;
+    if (
+      nextCatalogStatus &&
+      catalogAllowed.includes(nextCatalogStatus)
+    ) {
+      device.status = nextCatalogStatus;
+    }
     if (specs && typeof specs === "object") device.specs = specs;
 
     await device.save();
 
+    await DeviceItem.updateDeviceCounts(device._id);
+    const deviceFresh = await Device.findById(id);
+
     res.json({
       message: "Device updated successfully",
-      device,
+      device: deviceFresh,
     });
   } catch (error) {
-    console.error("[BE] Error updating device:", error);
-    if (error && error.stack) {
-      console.error("[BE] Error stack:", error.stack);
-    }
-    try {
-      console.error("[BE] Error (JSON):", JSON.stringify(error));
-    } catch (e) {
-      // ignore
-    }
     res.status(500).json({ message: error.message, error });
   }
 };
@@ -569,7 +795,7 @@ exports.getSupplierDevices = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const devices = await Device.find(query)
       .select(
-        "name slug description rentPrice ratingAvg reviewCount location images category status stockQuantity depositAmount discountPrice discountReason discountExpiry"
+        "name slug description rentPrice ratingAvg reviewCount location images category status stockQuantity rentedQuantity availableQuantity maintenanceCount damagedCount depositAmount discountPrice discountReason discountExpiry"
       )
       .limit(parseInt(limit))
       .skip(skip)

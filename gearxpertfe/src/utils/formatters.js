@@ -14,10 +14,10 @@ export const normalizeSpecs = (specs) => {
   if (!specs) return [];
   if (Array.isArray(specs)) return specs;
   if (specs instanceof Map) {
-    return Array.from(specs.entries()).map(([key, value]) => ({ key, value }));
+    return Array.from(specs.entries()).map(([key, value]) => ({ key: String(key), value: String(value ?? "") }));
   }
   if (typeof specs === "object") {
-    return Object.entries(specs).map(([key, value]) => ({ key, value }));
+    return Object.entries(specs).map(([key, value]) => ({ key: String(key), value: String(value ?? "") }));
   }
   return [];
 };

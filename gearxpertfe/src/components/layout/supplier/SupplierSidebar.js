@@ -12,6 +12,9 @@ import {
   FiShield,
   FiChevronDown,
   FiTarget,
+  FiAlertTriangle,
+  FiBell,
+  FiStar,
 } from "react-icons/fi";
 
 const sections = [
@@ -19,16 +22,20 @@ const sections = [
     id: "dashboard",
     title: "Bảng điều khiển",
     icon: FiHome,
-    items: [
-      { to: "/supplier/dashboard", label: "Tổng quan" },
-    ],
+    items: [{ to: "/supplier/dashboard", label: "Tổng quan" }],
+  },
+  {
+    id: "alerts",
+    title: "Thông báo",
+    icon: FiBell,
+    items: [{ to: "/supplier/notifications", label: "Hộp thông báo" }],
   },
   {
     id: "products",
     title: "Quản lý thiết bị",
     icon: FiBox,
     items: [
-      { to: "/supplier/devices", label: "Danh sách thiết bị" },
+      { to: "/supplier/devices", label: "Danh sách thiết bị", end: true },
       { to: "/supplier/devices/new", label: "Thêm thiết bị mới" },
       { to: "/supplier/inventory", label: "Quản lý kho" },
     ],
@@ -47,7 +54,7 @@ const sections = [
     id: "calendar",
     title: "Lịch sẵn dụng",
     icon: FiCalendar,
-    items: [],
+    items: [{ to: "/supplier/calendar", label: "Lịch thuê" }],
   },
   {
     id: "bookings",
@@ -58,10 +65,27 @@ const sections = [
     ],
   },
   {
+    id: "feedback",
+    title: "Đánh giá",
+    icon: FiStar,
+    items: [{ to: "/supplier/reviews", label: "Quản lý đánh giá" }],
+  },
+  {
+    id: "issues",
+    title: "Báo cáo & sự cố",
+    icon: FiAlertTriangle,
+    items: [{ to: "/supplier/issues", label: "Tất cả sự cố & báo cáo" }],
+  },
+  {
     id: "delivery",
     title: "Giao hàng",
     icon: FiTruck,
-    items: [],
+    items: [
+      {
+        to: "/supplier/issues?tab=DELIVERY",
+        label: "Báo cáo sự cố",
+      },
+    ],
   },
   {
     id: "finance",
@@ -69,6 +93,7 @@ const sections = [
     icon: FiDollarSign,
     items: [
       { to: "/supplier/revenue", label: "Doanh thu" },
+      { to: "/supplier/wallet", label: "Ví tiền" },
     ],
   },
   {
@@ -88,10 +113,14 @@ function classNames(...xs) {
 export default function SupplierSidebar({ collapsed, onCollapse, me }) {
   const [openSections, setOpenSections] = useState({
     dashboard: true,
+    alerts: true,
     products: true,
-    calendar: false,
+    marketing: true,
+    calendar: true,
     bookings: true,
-    delivery: false,
+    feedback: true,
+    issues: true,
+    delivery: true,
     finance: true,
     verification: true,
   });
@@ -106,11 +135,13 @@ export default function SupplierSidebar({ collapsed, onCollapse, me }) {
   }, []);
 
   return (
-    <aside className={classNames(
-      "hidden lg:flex flex-col border-r border-slate-200 bg-white transition-all duration-500",
-      collapsed ? "w-[88px]" : "w-[280px]"
-    )}>
-      <div className="flex-1 flex flex-col p-4 overflow-y-auto">
+    <aside
+      className={classNames(
+        "hidden lg:flex h-full min-h-0 max-h-full shrink-0 flex-col border-r border-slate-200 bg-white transition-all duration-500",
+        collapsed ? "w-[88px]" : "w-[280px]"
+      )}
+    >
+      <div className="min-h-0 flex-1 flex flex-col p-4 overflow-y-auto overscroll-y-contain">
         {/* Menu */}
         <nav className="space-y-2">
           {collapsed ? (
@@ -120,6 +151,7 @@ export default function SupplierSidebar({ collapsed, onCollapse, me }) {
                 <NavLink
                   key={item.to}
                   to={item.to}
+                  end={!!item.end}
                   className={({ isActive }) =>
                     classNames(
                       "flex items-center justify-center rounded-xl px-2 py-2.5 transition-all group",
@@ -177,6 +209,7 @@ export default function SupplierSidebar({ collapsed, onCollapse, me }) {
                             <NavLink
                               key={item.to}
                               to={item.to}
+                              end={!!item.end}
                               className={({ isActive }) =>
                                 classNames(
                                   "block rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all",

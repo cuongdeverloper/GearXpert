@@ -1,36 +1,8 @@
 import ProductCard from '../common/ProductCard';
 
 export default function AISuggestedSection({ devices = [] }) {
-  // Mock data if no devices provided
-  const suggestedDevices = devices.length > 0 ? devices.slice(0, 3) : [
-    {
-      _id: '1',
-      name: 'Sony FX6 Cinema Line',
-      category: 'Cinema Camera',
-      description: 'The ultimate full-frame camera for cinematic run-and-gun shooting.',
-      price: 150,
-      match: 98,
-      image: 'https://images.unsplash.com/photo-1606983340126-99ab4feaa64a?w=800&q=80'
-    },
-    {
-      _id: '2',
-      name: 'Aputure LS 600d Pro',
-      category: 'Lighting',
-      description: 'Powerful point-source COB LED light for high-output daylight scenes.',
-      price: 85,
-      match: 94,
-      image: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80'
-    },
-    {
-      _id: '3',
-      name: 'Sigma 24-70mm f/2.8 Art',
-      category: 'Lenses',
-      description: 'Versatile standard zoom with constant f/2.8 aperture and superb resolution.',
-      price: 40,
-      match: 92,
-      image: 'https://images.unsplash.com/photo-1606983340126-99ab4feaa64a?w=800&q=80'
-    }
-  ];
+  const suggestedDevices = devices.slice(0, 3);
+  if (suggestedDevices.length === 0) return null;
 
   return (
     <section className="px-6 lg:px-10 mb-16">

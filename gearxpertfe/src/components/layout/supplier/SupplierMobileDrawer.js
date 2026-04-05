@@ -9,6 +9,8 @@ import {
   FiTruck,
   FiShield,
   FiChevronDown,
+  FiAlertTriangle,
+  FiBell,
 } from "react-icons/fi";
 import { NavLink } from "react-router-dom";
 import logo from "../../../assets/logoGearXpert.png";
@@ -16,80 +18,92 @@ import logo from "../../../assets/logoGearXpert.png";
 const sections = [
   {
     id: "dashboard",
-    title: "Dashboard",
+    title: "Bảng điều khiển",
     icon: FiHome,
     items: [
-      { to: "/supplier/dashboard", label: "Dashboard" },
-      { label: "Monthly Revenue", muted: true },
-      { label: "Rental Volume", muted: true },
-      { label: "Active Listings", muted: true },
-      { label: "New Rental Requests", muted: true },
+      { to: "/supplier/dashboard", label: "Tổng quan" },
+      { label: "Doanh thu theo tháng", muted: true },
+      { label: "Số đơn thuê", muted: true },
+      { label: "Thiết bị đang cho thuê", muted: true },
+      { label: "Yêu cầu thuê mới", muted: true },
     ],
   },
   {
     id: "products",
-    title: "Rental Products",
+    title: "Sản phẩm cho thuê",
     icon: FiBox,
     items: [
-      { to: "/supplier/devices", label: "Product List" },
-      { to: "/supplier/devices/new", label: "Add New Product" },
-      { to: "/supplier/vouchers", label: "Vouchers" },
+      { to: "/supplier/devices", label: "Danh sách thiết bị", end: true },
+      { to: "/supplier/devices/new", label: "Thêm thiết bị mới" },
+      { to: "/supplier/inventory", label: "Quản lý kho" },
+      { to: "/supplier/vouchers", label: "Mã giảm giá" },
       { to: "/supplier/ai-pricing", label: "Chiến lược giá AI" },
-      { label: "Status: Draft / Pending / Live / Hidden", muted: true },
+      { label: "Nháp / Chờ duyệt / Đang bán / Đã ẩn", muted: true },
     ],
   },
   {
     id: "calendar",
-    title: "Availability Calendar",
+    title: "Lịch sẵn có",
     icon: FiCalendar,
     items: [
-      { label: "Day / Week / Month View", muted: true },
-      { label: "Block Busy Dates", muted: true },
-      { label: "See Booked Devices", muted: true },
+      { to: "/supplier/calendar", label: "Lịch thuê" },
+      { label: "Xem theo ngày / tuần / tháng", muted: true },
+      { label: "Chặn ngày bận", muted: true },
+      { label: "Thiết bị đã được đặt", muted: true },
     ],
   },
   {
     id: "bookings",
-    title: "Bookings",
+    title: "Đơn đặt hàng",
     icon: FiClipboard,
     items: [
-      { to: "/supplier/rental-requests", label: "Booking Requests" },
-      { label: "Pending Confirmation", muted: true },
-      { label: "Confirmed", muted: true },
-      { label: "Renting", muted: true },
-      { label: "Returned", muted: true },
-      { label: "Canceled / Disputes", muted: true },
+      { to: "/supplier/rental-requests", label: "Yêu cầu đặt thuê" },
+      { to: "/supplier/reviews", label: "Quản lý đánh giá" },
+      { label: "Chờ xác nhận", muted: true },
+      { label: "Đã xác nhận", muted: true },
+      { label: "Đang thuê", muted: true },
+      { label: "Đã trả", muted: true },
+      { label: "Đã hủy / Khiếu nại", muted: true },
     ],
   },
   {
+    id: "issues",
+    title: "Báo cáo sự cố",
+    icon: FiAlertTriangle,
+    items: [{ to: "/supplier/issues", label: "Tất cả sự cố" }],
+  },
+  {
     id: "delivery",
-    title: "Delivery",
+    title: "Giao hàng",
     icon: FiTruck,
     items: [
-      { label: "Pickup & Delivery Schedule", muted: true },
-      { label: "Handover Checklist", muted: true },
-      { label: "Condition Photos (Before / After)", muted: true },
+      { to: "/supplier/issues?tab=DELIVERY", label: "Báo cáo sự cố (giao hàng)" },
+      { label: "Lịch lấy hàng & giao hàng", muted: true },
+      { label: "Danh sách bàn giao", muted: true },
+      { label: "Ảnh hiện trạng (trước / sau)", muted: true },
     ],
   },
   {
     id: "finance",
-    title: "Finance",
+    title: "Tài chính",
     icon: FiDollarSign,
     items: [
-      { to: "/supplier/revenue", label: "Revenue" },
-      { label: "Deposits Held", muted: true },
-      { label: "Platform Fees", muted: true },
-      { label: "Withdrawals", muted: true },
+      { to: "/supplier/revenue", label: "Doanh thu" },
+      { to: "/supplier/wallet", label: "Ví tiền" },
+      { label: "Tiền cọc đang giữ", muted: true },
+      { label: "Phí nền tảng", muted: true },
+      { label: "Rút tiền", muted: true },
     ],
   },
   {
     id: "verification",
-    title: "Profile & Verification",
+    title: "Hồ sơ & xác minh",
     icon: FiShield,
     items: [
-      { label: "KYC Verification", muted: true },
-      { label: "Address", muted: true },
-      { label: "Bank Account", muted: true },
+      { to: "/supplier/profile/edit", label: "Hồ sơ cửa hàng" },
+      { label: "Xác minh KYC", muted: true },
+      { label: "Địa chỉ", muted: true },
+      { label: "Tài khoản ngân hàng", muted: true },
     ],
   },
 ];
@@ -101,9 +115,11 @@ function classNames(...xs) {
 export default function SupplierMobileDrawer({ open, onClose }) {
   const [openSections, setOpenSections] = useState({
     dashboard: true,
+    alerts: true,
     products: true,
-    calendar: false,
+    calendar: true,
     bookings: true,
+    issues: true,
     delivery: false,
     finance: true,
     verification: true,
@@ -118,16 +134,16 @@ export default function SupplierMobileDrawer({ open, onClose }) {
       <div className="absolute left-0 top-0 h-full w-64 bg-white shadow-2xl animate-in slide-in-from-left">
         <div className="flex items-center justify-between border-b border-slate-200 p-4">
           <div className="flex items-center gap-3">
-            <img src={logo} alt="GearXpert Logo" className="h-8 w-auto object-contain" />
+            <img src={logo} alt="GearXpert" className="h-8 w-auto object-contain" />
             <div>
-              <div className="text-sm font-bold text-slate-900">Portal</div>
+              <div className="text-sm font-bold text-slate-900">Cổng nhà cung cấp</div>
               <div className="text-xs text-slate-500">GearXpert</div>
             </div>
           </div>
           <button
             className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
             onClick={onClose}
-            aria-label="Close sidebar"
+            aria-label="Đóng menu"
           >
             <FiX size={18} />
           </button>
@@ -175,6 +191,7 @@ export default function SupplierMobileDrawer({ open, onClose }) {
                             <NavLink
                               key={item.to}
                               to={item.to}
+                              end={!!item.end}
                               onClick={onClose}
                               className={({ isActive }) =>
                                 classNames(
