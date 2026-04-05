@@ -113,13 +113,26 @@ export default function SupplierDashboard() {
     loadDashboard();
   }, [user?.id]);
 
-  const summary = revenue?.summary || EMPTY_REVENUE.summary;
-  const topDevices = revenue?.topDevices || [];
-  const transactions = revenue?.transactions || [];
-  const cashFlow = revenue?.cashFlow || { DAY: [], MONTH: [], YEAR: [] };
-  const monthlyBreakdown = revenue?.monthlyBreakdown || [];
-  const rentalStatusCounts = revenue?.rentalStatusCounts || {};
-  const categoryBreakdown = revenue?.categoryBreakdown || [];
+  const {
+    summary,
+    topDevices,
+    transactions,
+    cashFlow,
+    monthlyBreakdown,
+    rentalStatusCounts,
+    categoryBreakdown,
+  } = useMemo(
+    () => ({
+      summary: revenue?.summary || EMPTY_REVENUE.summary,
+      topDevices: revenue?.topDevices || [],
+      transactions: revenue?.transactions || [],
+      cashFlow: revenue?.cashFlow || { DAY: [], MONTH: [], YEAR: [] },
+      monthlyBreakdown: revenue?.monthlyBreakdown || [],
+      rentalStatusCounts: revenue?.rentalStatusCounts || {},
+      categoryBreakdown: revenue?.categoryBreakdown || [],
+    }),
+    [revenue]
+  );
 
   const [cashFlowRange, setCashFlowRange] = useState("MONTH");
 

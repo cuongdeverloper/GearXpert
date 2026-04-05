@@ -924,38 +924,8 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          {/* SPECS & RELATED */}
+          {/* Thiết bị tương tự (trái) + thông số / phụ kiện (phải) */}
           <div className="mt-16 grid lg:grid-cols-12 gap-8 lg:gap-10">
-            {/* SPECS */}
-            <div className="lg:col-span-5">
-              <div className="sticky top-24 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-5">
-                <h3 className="text-xl font-bold text-slate-900 font-display">
-                  Thông số kỹ thuật
-                </h3>
-                <div className="space-y-3">
-                  {device.specs &&
-                    Object.entries(device.specs).map(([k, v]) => (
-                      <div
-                        key={k}
-                        className="flex items-center justify-between p-3.5 bg-slate-50 rounded-2xl text-sm"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-white rounded-xl shadow-sm">
-                            <Cpu className="w-4 h-4 text-indigo-600" />
-                          </div>
-                          <span className="text-sm font-bold text-slate-500 uppercase tracking-tighter">
-                            {k}
-                          </span>
-                        </div>
-                        <span className="text-sm font-black text-slate-900">
-                          {v}
-                        </span>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            </div>
-
             {/* RELATED DEVICES */}
             <div className="lg:col-span-7 space-y-8">
               <div className="flex items-end justify-between">
@@ -1017,6 +987,78 @@ export default function ProductDetailPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Thông số & phụ kiện */}
+            <div className="lg:col-span-5">
+              <div className="lg:sticky lg:top-24 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-5">
+                <h3 className="text-xl font-bold text-slate-900 font-display">
+                  Thông số kỹ thuật
+                </h3>
+                <div className="space-y-3">
+                  {device.specs &&
+                    Object.entries(device.specs).map(([k, v]) => (
+                      <div
+                        key={k}
+                        className="flex items-center justify-between p-3.5 bg-slate-50 rounded-2xl text-sm gap-2"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="p-2 bg-white rounded-xl shadow-sm shrink-0">
+                            <Cpu className="w-4 h-4 text-indigo-600" />
+                          </div>
+                          <span className="text-sm font-bold text-slate-500 uppercase tracking-tighter truncate">
+                            {k}
+                          </span>
+                        </div>
+                        <span className="text-sm font-black text-slate-900 shrink-0 text-right">
+                          {v}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+                {Array.isArray(device.includedAccessories) &&
+                  device.includedAccessories.length > 0 && (
+                    <div className="pt-4 border-t border-slate-100 space-y-3">
+                      <h4 className="text-sm font-bold text-slate-900 uppercase tracking-tight">
+                        Phụ kiện đi kèm
+                      </h4>
+                      <ul className="space-y-2">
+                        {device.includedAccessories
+                          .filter((x) => x && String(x.name || "").trim())
+                          .map((item, i) => (
+                            <li
+                              key={`${item.name}-${i}`}
+                              className="flex gap-3 p-3 bg-indigo-50/60 rounded-2xl text-sm border border-indigo-100/80"
+                            >
+                              {item.image ? (
+                                <img
+                                  src={item.image}
+                                  alt=""
+                                  className="h-16 w-16 shrink-0 rounded-xl object-cover border border-indigo-100 bg-white"
+                                />
+                              ) : null}
+                              <div className="flex flex-col gap-0.5 min-w-0">
+                                <span className="font-bold text-slate-900">
+                                  {item.name}
+                                  {item.qty > 1 ? (
+                                    <span className="text-slate-500 font-semibold">
+                                      {" "}
+                                      × {item.qty}
+                                    </span>
+                                  ) : null}
+                                </span>
+                                {item.note ? (
+                                  <span className="text-slate-600 text-xs font-medium">
+                                    {item.note}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </li>
+                          ))}
+                      </ul>
+                    </div>
+                  )}
               </div>
             </div>
           </div>

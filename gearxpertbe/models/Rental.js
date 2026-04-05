@@ -108,9 +108,10 @@ const rentalSchema = new mongoose.Schema(
       type: String,
       enum: ["DELIVERY", "RETURN"],
     },
-    // Thêm vào trong rentalSchema
     isRemindedToday: { type: Boolean, default: false },
     isRemindedTomorrow: { type: Boolean, default: false },
+    isExtended: { type: Boolean, default: false },
+    extendedEndDate: Date,
   },
   {
     timestamps: true,
