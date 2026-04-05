@@ -162,17 +162,6 @@ export default function SuccessConfirmCard({
         )}
       </div>
 
-      <label className="text-sm text-emerald-900 flex items-center gap-2">
-        <input
-          type="checkbox"
-          checked={confirmForm.otpVerified}
-          onChange={(e) =>
-            setConfirmForm((prev) => ({ ...prev, otpVerified: e.target.checked }))
-          }
-        />
-        OTP đã xác minh
-      </label>
-
       <button
         onClick={handleConfirmSuccess}
         disabled={working || !activeAttempt || !canProcessHandover || !confirmForm.operatorNote?.trim()}
