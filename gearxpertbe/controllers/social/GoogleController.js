@@ -8,7 +8,8 @@ const doLoginWGoogle = () => {
     passport.use(new GoogleStrategy({
         clientID: process.env.GOOGLE_APP_CLIENT_ID,
         clientSecret: process.env.GOOGLE_APP_CLIENT_SECRET,
-        callbackURL: process.env.GOOGLE_APP_CLIENT_REDIRECT_LOGIN
+        callbackURL: process.env.GOOGLE_APP_CLIENT_REDIRECT_LOGIN,
+        proxy: true
     },
         async (accessToken, refreshToken, profile, cb) => {
             const typeAcc = 'GOOGLE';

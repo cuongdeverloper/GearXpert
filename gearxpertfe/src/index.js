@@ -1,4 +1,5 @@
 import './polyfill';
+import './i18n';
 import ReactDOM from 'react-dom/client';
 import './tailwind.css';
 import './index.css';

@@ -1,27 +1,29 @@
 import React from 'react';
 import ScrollAnimation from '../common/ScrollAnimation';
+import { useTranslation } from 'react-i18next';
 
 const WhyChooseUsSection = () => {
+    const { t } = useTranslation();
     const reasons = [
         {
             id: 1,
             icon: 'verified_user',
-            title: 'Thiết bị chuẩn - Bảo trì định kỳ',
-            content: 'Tất cả thiết bị tại GearXpert đều được kiểm tra kỹ lưỡng trước khi giao. Chúng tôi cam kết máy ảnh, linh kiện luôn ở trạng thái tốt nhất.',
+            title: t('homepage.reason_1_title'),
+            content: t('homepage.reason_1_desc'),
             iconColor: 'text-emerald-500'
         },
         {
             id: 2,
             icon: 'payments',
-            title: 'Giá thuê công khai - Minh bạch',
-            content: 'Chúng tôi niêm yết giá thuê rõ ràng, không có phí ẩn. Hợp đồng điện tử minh bạch giúp khách hàng hoàn toàn an tâm khi sử dụng.',
+            title: t('homepage.reason_2_title'),
+            content: t('homepage.reason_2_desc'),
             iconColor: 'text-indigo-500'
         },
         {
             id: 3,
             icon: 'auto_awesome',
-            title: 'Gợi ý AI - Tối ưu bối cảnh',
-            content: 'SmartGear AI độc quyền giúp bạn tìm được combo thiết bị hoàn hảo nhất dựa trên bối cảnh thực tế, giúp tiết kiệm chi phí tối đa.',
+            title: t('homepage.reason_3_title'),
+            content: t('homepage.reason_3_desc'),
             iconColor: 'text-cyan-500'
         }
     ];
@@ -30,10 +32,10 @@ const WhyChooseUsSection = () => {
         <section className="px-6 lg:px-10 py-16 mb-12 max-w-7xl mx-auto">
             <ScrollAnimation direction="up" className="text-center mb-16">
                 <h2 className="text-3xl md:text-5xl font-black text-slate-900 uppercase tracking-tight">
-                    LÝ DO NÊN CHỌN GEARXPERT
+                    {t('homepage.why_choose_us_title')}
                 </h2>
                 <p className="text-slate-500 mt-4 font-bold text-lg uppercase tracking-[0.2em]">
-                    GearXpert - Thuê thiết bị, <span className="text-primary">chọn sự an tâm!</span>
+                    {t('homepage.why_choose_us_subtitle')}
                 </p>
                 <div className="w-24 h-1.5 bg-gradient-to-r from-primary to-accent-cyan mx-auto mt-8 rounded-full"></div>
             </ScrollAnimation>

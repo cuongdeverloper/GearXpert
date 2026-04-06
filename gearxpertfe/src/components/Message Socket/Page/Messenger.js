@@ -15,11 +15,10 @@ import Header from "../../navigation/Header";
 
 const Messenger = () => {
   const { conversationId } = useParams();
-  const { socket } = useSocket();
+  const { socket, onlineUsers } = useSocket();
 
   const user = useSelector(state => state.user);
   const isAuthenticated = useSelector(state => state.user.isAuthenticated);
-  const [onlineUsers, setOnlineUsers] = useState([]);
   const [conversations, setConversations] = useState([]);
   const [currentChat, setCurrentChat] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -77,15 +76,6 @@ const Messenger = () => {
     fetchReceiver();
   }, [currentChat, user.account.id]);
 
-  useEffect(() => {
-    if (!socket) return;
-
-    socket.on("getUsers", (users) => {
-      setOnlineUsers(users);
-    });
-
-  }, [socket]);
-
   const checkOnlineStatus = (chatMemberId) => {
     return onlineUsers.some((u) => u.userId === chatMemberId);
   };
@@ -102,6 +92,7 @@ const Messenger = () => {
             return {
               ...conv,
               friendName: friendInfo?.fullName || friendInfo?.username || "",
+              friendId: friendId
             };
           }
           return conv;
@@ -432,6 +423,7 @@ const Messenger = () => {
                     conversation={c}
                     currentUser={user.account}
                     isActive={currentChat?._id === c._id}
+                    isOnline={checkOnlineStatus(c.friendId)}
                   />
                 </div>
               ))}

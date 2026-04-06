@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import ImageWithFallback from './ImageWithFallback';
 import { toggleFavorite, checkIsFavorite } from '../../service/ApiService/FavoriteApi';
 import { toast } from 'react-toastify';
@@ -22,7 +23,7 @@ export default function ProductCard({
   device,
   variant = 'detailed',
   match = null,
-  buttonText = 'Rent Gear',
+  buttonText,
   onClick,
   onFavoriteChange,
   className = '',
@@ -30,6 +31,7 @@ export default function ProductCard({
   onToggleCompare,                     // ← Thêm prop này
 }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const isAuthenticated = useSelector(state => state.user?.isAuthenticated || false);
 
   // Local state for favorite
@@ -41,17 +43,7 @@ export default function ProductCard({
   const deviceId = device?._id || device?.id;
   const name = device?.name || '';
   const getCategoryDisplay = (cat) => {
-    const map = {
-      'CAMERA': 'Camera',
-      'LIGHTING': 'Lighting',
-      'AUDIO': 'Audio',
-      'OFFICE': 'Office',
-      'GAMING': 'Gaming',
-      'ACCESSORY': 'Accessories',
-      'DRONE': 'Drone',
-      'OTHER': 'Other'
-    };
-    return map[cat] || 'Other';
+    return t(`categories.${cat}`, { defaultValue: cat });
   };
   const category = getCategoryDisplay(device?.category);
   const description = device?.description || '';
@@ -213,7 +205,7 @@ export default function ProductCard({
               )}
               <p className={`${hasDiscount ? 'text-red-500' : 'text-primary'} font-bold text-sm`}>
                 {price.toLocaleString('vi-VN')}đ
-                <span className="text-[10px] text-slate-400 font-normal ml-0.5">/day</span>
+                <span className="text-[10px] text-slate-400 font-normal ml-0.5">{t('common.per_day')}</span>
               </p>
             </div>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{category}</span>
@@ -311,7 +303,7 @@ export default function ProductCard({
               )}
               <span className={`text-2xl font-bold ${hasDiscount ? 'text-red-500' : 'text-slate-900'}`}>
                 {price.toLocaleString('vi-VN')}đ
-                <span className="text-sm text-slate-400 font-normal ml-1">/day</span>
+                <span className="text-sm text-slate-400 font-normal ml-1">{t('common.per_day')}</span>
               </span>
             </div>
             <button
@@ -321,7 +313,7 @@ export default function ProductCard({
               }}
               className="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors shadow-md"
             >
-              {buttonText}
+              {buttonText || t('productDetail.rent_now')}
             </button>
           </div>
         </div>

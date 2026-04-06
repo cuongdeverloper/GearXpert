@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 export default function SmartGearPromoSection() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [prompt, setPrompt] = useState("");
 
   const quickIdeas = [
-    "Quay vlog du lịch ban đêm",
-    "Chụp ảnh sự kiện trong nhà",
-    "Set up podcast 2 người",
-    "Quay TVC sản phẩm mỹ phẩm",
+    t('smartgear.idea_1', { defaultValue: "Quay vlog du lịch ban đêm" }),
+    t('smartgear.idea_2', { defaultValue: "Chụp ảnh sự kiện trong nhà" }),
+    t('smartgear.idea_3', { defaultValue: "Set up podcast 2 người" }),
+    t('smartgear.idea_4', { defaultValue: "Quay TVC sản phẩm mỹ phẩm" }),
   ];
 
   const handleNavigateSmartGear = () => {
@@ -44,11 +46,11 @@ export default function SmartGearPromoSection() {
             </div>
 
             <h2 className="text-4xl md:text-5xl lg:text-6xl font-black leading-tight max-w-2xl">
-              Tư vấn combo thiết bị bằng <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">AI</span> thông minh.
+              {t('smartgear.title_part1', { defaultValue: "Tư vấn combo thiết bị bằng" })} <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">AI</span> {t('smartgear.title_part2', { defaultValue: "thông minh." })}
             </h2>
 
             <p className="mt-3 text-slate-200 max-w-2xl text-sm md:text-base">
-              Mô tả nhu cầu một lần, SmartGear sẽ đề xuất 3 combo theo mức ngân sách và cho phép thêm thẳng vào giỏ thuê.
+              {t('smartgear.subtitle')}
             </p>
 
             <div className="mt-6 rounded-2xl border border-white/15 bg-white/10 p-2 flex flex-col md:flex-row gap-2">
@@ -57,14 +59,14 @@ export default function SmartGearPromoSection() {
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleNavigateSmartGear()}
-                placeholder="Ví dụ: quay travel vlog 3 ngày, cần setup gọn nhẹ và pin trâu..."
+                placeholder={t('smartgear.placeholder')}
                 className="flex-1 bg-transparent rounded-xl border border-white/10 text-white placeholder:text-white/60 px-4 py-3 outline-none focus:border-cyan-300"
               />
               <button
                 onClick={handleNavigateSmartGear}
                 className="rounded-xl bg-cyan-400 text-slate-950 font-bold px-5 py-3 hover:bg-cyan-300 transition-colors"
               >
-                Dùng SmartGear ngay
+                {t('smartgear.button')}
               </button>
             </div>
 
@@ -83,19 +85,19 @@ export default function SmartGearPromoSection() {
 
           <div className="xl:col-span-5">
             <div className="rounded-2xl border border-white/20 bg-white/10 p-5 text-white h-full">
-              <p className="text-xs uppercase tracking-[0.16em] font-black text-cyan-300">Lợi ích nổi bật</p>
+              <p className="text-xs uppercase tracking-[0.16em] font-black text-cyan-300">{t('smartgear.benefits_title')}</p>
               <div className="mt-4 space-y-3">
                 <div className="rounded-xl border border-white/15 bg-black/20 p-3">
-                  <p className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">03 gói đề xuất thông minh</p>
-                  <p className="text-sm text-slate-200 mt-1">Cơ bản, tiêu chuẩn, cao cấp theo đúng nhu cầu mô tả.</p>
+                  <p className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">{t('smartgear.benefit_1_title')}</p>
+                  <p className="text-sm text-slate-200 mt-1">{t('smartgear.benefit_1_desc')}</p>
                 </div>
                 <div className="rounded-xl border border-white/15 bg-black/20 p-3">
-                  <p className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">Có lý do AI cho từng thiết bị</p>
-                  <p className="text-sm text-slate-200 mt-1">Hiển thị rõ vì sao AI chọn camera, mic, ánh sáng.</p>
+                  <p className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">{t('smartgear.benefit_2_title')}</p>
+                  <p className="text-sm text-slate-200 mt-1">{t('smartgear.benefit_2_desc')}</p>
                 </div>
                 <div className="rounded-xl border border-white/15 bg-black/20 p-3">
-                  <p className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">Thêm combo vào giỏ chỉ 1 chạm</p>
-                  <p className="text-sm text-slate-200 mt-1">Không cần chọn từng món, tiết kiệm rất nhiều thời gian.</p>
+                  <p className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">{t('smartgear.benefit_3_title')}</p>
+                  <p className="text-sm text-slate-200 mt-1">{t('smartgear.benefit_3_desc')}</p>
                 </div>
               </div>
             </div>

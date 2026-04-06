@@ -3,7 +3,7 @@ import "./conversation.scss";
 import ImageUser from "../../public/avatar.jpg"; 
 import { ApiGetUserByUserId } from "../ApiMessage";
 
-const Conversation = ({ conversation, currentUser, isActive }) => {
+const Conversation = ({ conversation, currentUser, isActive, isOnline }) => {
   const [user, setUser] = useState(null);
 
   const getUser = async (friendId) => {
@@ -30,6 +30,7 @@ const Conversation = ({ conversation, currentUser, isActive }) => {
           src={user?.avatar || ImageUser}
           alt=""
         />
+        {isOnline && <div className="onlineDot"></div>}
       </div>
       
       <div className="conversationDetails">

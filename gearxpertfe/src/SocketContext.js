@@ -11,6 +11,7 @@ export const useSocket = () => useContext(SocketContext);
 export const SocketProvider = ({ children }) => {
   const tutorId = useSelector(state => state.user.account?.id);
   const [socket, setSocket] = useState(null);
+  const [onlineUsers, setOnlineUsers] = useState([]);
   const dispatch = useDispatch();
 
   useEffect(() => {
@@ -33,6 +34,10 @@ export const SocketProvider = ({ children }) => {
       dispatch(setSocketConnection(newSocket));
     });
 
+    newSocket.on("getUsers", (users) => {
+      setOnlineUsers(users);
+    });
+
     newSocket.on("connect_error", (error) => {
       console.error("[SOCKET] Connection error:", error.message);
     });
@@ -44,6 +49,7 @@ export const SocketProvider = ({ children }) => {
     newSocket.on("disconnect", (reason) => {
       console.log("[SOCKET] Disconnected:", reason);
       dispatch(setSocketConnection(null));
+      setOnlineUsers([]);
     });
 
     newSocket.on("getMessage", (data) => {
@@ -61,8 +67,8 @@ export const SocketProvider = ({ children }) => {
   }, [tutorId, dispatch]);
 
   return (
-    <SocketContext.Provider value={{ socket, connected: !!socket }}>
+    <SocketContext.Provider value={{ socket, onlineUsers, connected: !!socket }}>
       {children}
     </SocketContext.Provider>
   );
-};
+};

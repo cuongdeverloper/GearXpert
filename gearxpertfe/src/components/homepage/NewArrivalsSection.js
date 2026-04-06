@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import ProductCard from '../common/ProductCard';
+import { useTranslation } from 'react-i18next';
 
 export default function NewArrivalsSection({ devices = [] }) {
+  const { t } = useTranslation();
   const [currentIndex, setCurrentIndex] = useState(0);
   const itemsPerPage = 3;
 
@@ -22,7 +24,7 @@ export default function NewArrivalsSection({ devices = [] }) {
     <div className="w-full h-full flex flex-col">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h3 className="text-2xl font-black text-slate-900 font-display uppercase tracking-tight">Sản phẩm mới</h3>
+          <h3 className="text-2xl font-black text-slate-900 font-display uppercase tracking-tight">{t('homepage.new_arrivals')}</h3>
         </div>
         <div className="flex gap-3">
           <button
