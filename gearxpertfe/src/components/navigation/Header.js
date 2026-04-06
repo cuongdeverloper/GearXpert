@@ -7,6 +7,7 @@ import { motion, useMotionValue, useSpring, AnimatePresence } from 'framer-motio
 import { performLogout } from '../../utils/logout';
 import MessengerPopup from '../Message Socket/MessengerPopup/MessengerPopup';
 import useHeaderTheme from '../../hooks/useHeaderTheme';
+import { useTranslation } from 'react-i18next';
 
 import logo from '../../assets/logoGearXpert.png';
 
@@ -123,6 +124,7 @@ export default function Header({ onMenuOpen }) {
   const location = useLocation();
   const dispatch = useDispatch();
 
+  const { t, i18n } = useTranslation();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMessengerOpen, setIsMessengerOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -149,7 +151,7 @@ export default function Header({ onMenuOpen }) {
       setNotifications(data);
     } catch (err) {
       console.error('Fetch notifications error:', err);
-      toast.error('Không thể tải danh sách thông báo');
+      toast.error(t('header.fetch_notifications_error') || 'Không thể tải danh sách thông báo');
     } finally {
       setLoadingNotifications(false);
     }
@@ -211,16 +213,16 @@ export default function Header({ onMenuOpen }) {
 
   const menuItems = [
     ...(userAccount?.role === 'SUPPLIER'
-      ? [{ label: 'Bảng điều khiển', icon: 'dashboard', path: '/supplier/dashboard' }]
+      ? [{ label: t('header.dashboard'), icon: 'dashboard', path: '/supplier/dashboard' }]
       : []),
       
     ...(userAccount?.role === 'CUSTOMER'
-      ? [{ label: 'Trở thành Nhà cung cấp', icon: 'storefront', path: '/become-supplier' }]
+      ? [{ label: t('header.become_supplier'), icon: 'storefront', path: '/become-supplier' }]
       : []),
 
-    { label: 'Đơn thuê của tôi', icon: 'description', path: '/user/myrental' },
-    { label: 'Vouchers', icon: 'local_activity', path: '/vouchers' },
-    { label: 'Yêu thích', icon: 'favorite', path: '/favorites' },
+    { label: t('header.my_rentals'), icon: 'description', path: '/user/myrental' },
+    { label: t('header.vouchers'), icon: 'local_activity', path: '/vouchers' },
+    { label: t('header.favorites'), icon: 'favorite', path: '/favorites' },
   ];
 
   const handleRestrictedNavigation = (path) => {
@@ -235,7 +237,8 @@ export default function Header({ onMenuOpen }) {
   // Rank formatting & styling helpers
   const formatRank = (rank) => {
     if (!rank) return 'Gold';
-    return rank.charAt(0) + rank.slice(1).toLowerCase();
+    const translatedRank = t(`header.rank_${rank.toLowerCase()}`, { defaultValue: rank });
+    return translatedRank.charAt(0).toUpperCase() + translatedRank.slice(1).toLowerCase();
   };
 
   const getRankCardClass = (rank) => {
@@ -359,10 +362,10 @@ export default function Header({ onMenuOpen }) {
         {/* Island 2: Navigation - Desktop */}
         <MagneticIsland className={`hidden lg:flex gap-10 items-center px-10 ${islandClass}`}>
           {[
-            { label: 'Trang chủ', path: '/' },
-            { label: 'Thiết bị', path: '/products' },
-            { label: 'Cửa hàng', path: '/suppliers' },
-            { label: 'Blog', path: '/blog' },
+            { label: t('header.home'), path: '/' },
+            { label: t('header.devices'), path: '/products' },
+            { label: t('header.shops'), path: '/suppliers' },
+            { label: t('header.blog'), path: '/blog' },
           ].map((item) => {
             const isCurrent = item.path === '/' 
               ? location.pathname === '/' 
@@ -396,7 +399,7 @@ export default function Header({ onMenuOpen }) {
               <span className={`material-symbols-outlined text-[20px] ${location.pathname.startsWith('/smartgear') ? '' : 'fill-current'}`}>
                 auto_awesome
               </span>
-              Khám phá AI
+              {t('header.ai_discover')}
             </button>
           </MagneticItem>
         </MagneticIsland>
@@ -404,6 +407,23 @@ export default function Header({ onMenuOpen }) {
         {/* Island 3: Actions */}
         <MagneticIsland className={`px-5 flex items-center gap-4 ${islandClass}`}>
           <div className="flex items-center gap-3 h-full">
+            {/* Language Switcher */}
+            <div className="flex items-center gap-1 mr-2 px-2 py-1 rounded-lg border border-transparent hover:border-primary/20 transition-all">
+                <button 
+                  onClick={() => i18n.changeLanguage('vi')}
+                  className={`text-xs font-bold px-1.5 py-0.5 rounded cursor-pointer transition-all ${i18n.language === 'vi' ? 'bg-primary text-white shadow-sm' : (isDark ? 'text-white/60 hover:text-white' : 'text-slate-500 hover:text-primary')}`}
+                >
+                  VI
+                </button>
+                <div className={`w-[1px] h-3 ${isDark ? 'bg-white/20' : 'bg-slate-300'}`}></div>
+                <button 
+                  onClick={() => i18n.changeLanguage('en')}
+                  className={`text-xs font-bold px-1.5 py-0.5 rounded cursor-pointer transition-all ${i18n.language === 'en' ? 'bg-primary text-white shadow-sm' : (isDark ? 'text-white/60 hover:text-white' : 'text-slate-500 hover:text-primary')}`}
+                >
+                  EN
+                </button>
+            </div>
+
             {isAuthenticated && (
               <>
                 {/* Messenger */}
@@ -463,10 +483,10 @@ export default function Header({ onMenuOpen }) {
                       >
                         {/* Header */}
                         <div className={`p-4 border-b flex items-center justify-between transition-colors ${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-100'}`}>
-                          <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>Thông báo</h3>
+                          <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t('header.notifications')}</h3>
                           {unreadCount > 0 && (
                             <button onClick={markAllAsRead} className="text-sm text-primary hover:underline font-bold">
-                              Đánh dấu tất cả đã đọc
+                              {t('header.mark_all_read')}
                             </button>
                           )}
                         </div>
@@ -474,9 +494,9 @@ export default function Header({ onMenuOpen }) {
                           {/* Content */}
                           <div className="overflow-y-auto flex-1 custom-scrollbar">
                             {loadingNotifications ? (
-                              <div className="py-10 text-center text-slate-500 text-sm">Đang tải thông báo...</div>
+                              <div className="py-10 text-center text-slate-500 text-sm">{t('header.loading')}</div>
                             ) : notifications.length === 0 ? (
-                              <div className="py-10 text-center text-slate-500 text-sm">Chưa có thông báo nào</div>
+                              <div className="py-10 text-center text-slate-500 text-sm">{t('header.no_notifications')}</div>
                             ) : (
                               notifications.map((notif) => (
                                 <div
@@ -620,9 +640,9 @@ export default function Header({ onMenuOpen }) {
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className={`flex items-center gap-2 flex-wrap ${getRankTextClass(userAccount.rank)}`}>
-                                <span className="font-bold text-sm">Hạng {formatRank(userAccount.rank)}</span>
+                                <span className="font-bold text-sm">{t('header.rank')} {formatRank(userAccount.rank)}</span>
                                 <span className={`${getRankTextClass(userAccount.rank)}/80 text-sm`}>•</span>
-                                <span className="text-sm">{(userAccount.rewardPoints || 0).toLocaleString('vi-VN')} điểm</span>
+                                <span className="text-sm">{(userAccount.rewardPoints || 0).toLocaleString('vi-VN')} {t('header.points')}</span>
                               </div>
                             </div>
                           </div>
@@ -678,14 +698,14 @@ export default function Header({ onMenuOpen }) {
                            className={dropdownItemClass(false)}
                          >
                            <span className="material-symbols-outlined text-[20px]">settings</span>
-                           <span>Cài đặt</span>
+                           <span>{t('header.settings')}</span>
                          </button>
                          <button
                            onClick={handleLogout}
                            className={dropdownItemClass(false, true)}
                          >
                            <span className="material-symbols-outlined text-[20px]">logout</span>
-                           <span>Đăng xuất</span>
+                           <span>{t('header.logout')}</span>
                          </button>
                        </div>
                     </motion.div>
@@ -696,12 +716,20 @@ export default function Header({ onMenuOpen }) {
               <div className="flex items-center gap-2 md:gap-3">
                 <MagneticItem distance={0.2}>
                   <button
+                    onClick={() => i18n.changeLanguage(i18n.language === 'vi' ? 'en' : 'vi')}
+                    className={`text-sm font-bold px-2 py-1 rounded-lg transition-colors ${isDark ? 'text-white hover:bg-white/10' : 'text-slate-600 hover:bg-slate-100'}`}
+                  >
+                    {i18n.language.toUpperCase()}
+                  </button>
+                </MagneticItem>
+                <MagneticItem distance={0.2}>
+                  <button
                     onClick={() => navigate('/signin', { state: { isSignUp: true } })}
                     className={`text-sm font-bold px-3 py-2 transition-colors cursor-pointer ${
                       isDark ? 'text-white/80 hover:text-white' : 'text-slate-600 hover:text-primary'
                     }`}
                   >
-                    Đăng ký
+                    {t('header.signup')}
                   </button>
                 </MagneticItem>
                 <MagneticItem distance={0.2}>
@@ -709,7 +737,7 @@ export default function Header({ onMenuOpen }) {
                     onClick={() => navigate('/signin', { state: { isSignUp: false } })}
                     className="bg-gradient-to-r from-primary to-accent-cyan text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
                   >
-                    Đăng nhập
+                    {t('header.signin')}
                   </button>
                 </MagneticItem>
               </div>

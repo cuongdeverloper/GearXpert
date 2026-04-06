@@ -12,8 +12,10 @@ import {
 } from "../ApiMessage";
 import { useSocket } from "../../../SocketContext";
 import { closeChatWindow } from "../../../redux/reducer/chatWindowReducer";
+import { useTranslation } from "react-i18next";
 
 const MiniChatWindow = ({ conversation }) => {
+    const { t } = useTranslation();
     const dispatch = useDispatch();
     const { socket, onlineUsers } = useSocket();
     const user = useSelector((state) => state.user.account);
@@ -418,7 +420,7 @@ const MiniChatWindow = ({ conversation }) => {
                         <div className="flex flex-col">
                             <span className="font-bold text-sm text-slate-800 truncate max-w-[140px] leading-tight">{partnerName}</span>
                             <span className={`text-[11px] font-medium ${isPartnerOnline ? "text-green-600" : "text-gray-500"}`}>
-                                {isPartnerOnline ? "Đang hoạt động" : "Đang ngoại tuyến"}
+                                {isPartnerOnline ? t('common.active_now') : t('common.offline')}
                             </span>
                         </div>
                     </div>

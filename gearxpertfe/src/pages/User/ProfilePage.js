@@ -9,10 +9,12 @@ import { FiCheckCircle, FiLock, FiCamera } from 'react-icons/fi';
 import Header from '../../components/navigation/Header';
 import Footer from '../../components/homepage/Footer';
 import EkycVerification from '../../components/EkycVerification';
+import { useTranslation } from 'react-i18next';
 import PasswordStrengthMeter from "../../components/Auth/Sign in/PasswordStrengthMeter";
 
 
 export default function ProfilePage() {
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const dispatch = useDispatch();
     const userAccount = useSelector((state) => state.user.account);
@@ -122,7 +124,7 @@ export default function ProfilePage() {
         const file = e.target.files[0];
         if (file) {
             if (file.size > 5 * 1024 * 1024) {
-                toast.error('Kích thước ảnh không được vượt quá 5MB');
+                toast.error(t('profile.error_avatar_size', { defaultValue: 'Kích thước ảnh không được vượt quá 5MB' }));
                 return;
             }
 
@@ -145,7 +147,7 @@ export default function ProfilePage() {
 
     const handleGetLocation = () => {
         if (!navigator.geolocation) {
-            toast.error('Trình duyệt của bạn không hỗ trợ định vị');
+            toast.error(t('profile.error_no_location_support', { defaultValue: 'Trình duyệt của bạn không hỗ trợ định vị' }));
             return;
         }
 
@@ -166,11 +168,11 @@ export default function ProfilePage() {
                             district: addr.suburb || addr.district || addr.county || addr.quarter || prev.district,
                             city: addr.city || addr.province || addr.state || 'Đà Nẵng'
                         }));
-                        toast.success('Đã cập nhật địa chỉ từ vị trí của bạn');
+                        toast.success(t('profile.success_location_update', { defaultValue: 'Đã cập nhật địa chỉ từ vị trí của bạn' }));
                     }
                 } catch (error) {
                     console.error('Error reverse geocoding:', error);
-                    toast.error('Không thể lấy địa chỉ từ tọa độ');
+                    toast.error(t('profile.error_reverse_geocoding', { defaultValue: 'Không thể lấy địa chỉ từ tọa độ' }));
                 } finally {
                     setIsLocating(false);
                 }
@@ -178,7 +180,7 @@ export default function ProfilePage() {
             (error) => {
                 console.error('Error getting location:', error);
                 setIsLocating(false);
-                toast.error('Không thể lấy vị trí. Vui lòng kiểm tra quyền truy cập.');
+                toast.error(t('profile.error_location_permission', { defaultValue: 'Không thể lấy vị trí. Vui lòng kiểm tra quyền truy cập.' }));
             },
             { enableHighAccuracy: true }
         );
@@ -197,7 +199,7 @@ export default function ProfilePage() {
 
         // Validate phone number if provided
         if (formData.phone && !/^\d{10}$/.test(formData.phone)) {
-            toast.error('Số điện thoại phải có đúng 10 chữ số');
+            toast.error(t('profile.error_phone_format', { defaultValue: 'Số điện thoại phải có đúng 10 chữ số' }));
             return;
         }
 
@@ -218,7 +220,7 @@ export default function ProfilePage() {
             const response = await updateProfile(submitFormData);
 
             if (response.errorCode === 0) {
-                toast.success('Cập nhật thông tin thành công');
+                toast.success(t('profile.success_update'));
 
                 // Update Redux store
                 const data = response.data;
@@ -246,11 +248,11 @@ export default function ProfilePage() {
                     setAvatarPreview(data.avatar);
                 }
             } else {
-                toast.error(response.message || 'Cập nhật thất bại');
+                toast.error(response.message || t('profile.error_update_failed', { defaultValue: 'Cập nhật thất bại' }));
             }
         } catch (error) {
             console.error('Error updating profile:', error);
-            toast.error('Có lỗi xảy ra khi cập nhật thông tin');
+            toast.error(t('profile.error_update'));
         } finally {
             setLoading(false);
         }
@@ -258,7 +260,7 @@ export default function ProfilePage() {
 
     const handleRequestOTP = async () => {
         if (!passwordData.oldPassword) {
-            toast.error('Vui lòng nhập mật khẩu hiện tại để nhận OTP');
+            toast.error(t('profile.error_no_password_otp', { defaultValue: 'Vui lòng nhập mật khẩu hiện tại để nhận OTP' }));
             return;
         }
 
@@ -266,17 +268,17 @@ export default function ProfilePage() {
         try {
             const response = await sendOTPForPasswordChange(passwordData.oldPassword);
             if (response.errorCode === 0) {
-                toast.success('Mã OTP đã được gửi đến email của bạn');
+                toast.success(t('profile.success_otp'));
                 setOtpSent(true);
                 if (response.data && response.data.tempToken) {
                     setTempToken(response.data.tempToken);
                 }
             } else {
-                toast.error(response.message || 'Gửi OTP thất bại');
+                toast.error(response.message || t('profile.error_send_otp_failed', { defaultValue: 'Gửi OTP thất bại' }));
             }
         } catch (error) {
             console.error('Error sending OTP:', error);
-            toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi gửi OTP');
+            toast.error(error.response?.data?.message || t('profile.error_otp'));
         } finally {
             setSendingOtp(false);
         }
@@ -286,17 +288,17 @@ export default function ProfilePage() {
         e.preventDefault();
 
         if (!otpSent) {
-            toast.error('Vui lòng lấy mã OTP trước khi đổi mật khẩu');
+            toast.error(t('profile.error_request_otp_first', { defaultValue: 'Vui lòng lấy mã OTP trước khi đổi mật khẩu' }));
             return;
         }
 
         if (!otpCode || otpCode.length !== 6) {
-            toast.error('Vui lòng nhập mã OTP 6 chữ số');
+            toast.error(t('profile.error_invalid_otp', { defaultValue: 'Vui lòng nhập mã OTP 6 chữ số' }));
             return;
         }
 
         if (passwordData.newPassword !== passwordData.confirmPassword) {
-            toast.error('Mật khẩu mới không khớp');
+            toast.error(t('profile.error_password_mismatch', { defaultValue: 'Mật khẩu mới không khớp' }));
             return;
         }
 
@@ -307,7 +309,7 @@ export default function ProfilePage() {
 
         const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{6,}$/;
         if (!passwordRegex.test(passwordData.newPassword)) {
-            toast.error("Mật khẩu phải có ít nhất 6 ký tự, bao gồm chữ hoa, số và ký tự đặc biệt");
+            toast.error(t('profile.error_password_strength', { defaultValue: "Mật khẩu phải có nhất 6 ký tự, bao gồm chữ hoa, số và ký tự đặc biệt" }));
             return;
         }
 
@@ -334,11 +336,11 @@ export default function ProfilePage() {
                 // Show Logout Modal
                 setShowLogoutModal(true);
             } else {
-                toast.error(response.message || 'Đổi mật khẩu thất bại');
+                toast.error(response.message || t('profile.error_change_password_failed', { defaultValue: 'Đổi mật khẩu thất bại' }));
             }
         } catch (error) {
             console.error('Error changing password:', error);
-            toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi đổi mật khẩu');
+            toast.error(error.response?.data?.message || t('profile.error_change_password_general', { defaultValue: 'Có lỗi xảy ra khi đổi mật khẩu' }));
         } finally {
             setChangingPassword(false);
         }
@@ -402,14 +404,14 @@ export default function ProfilePage() {
                     <div className="relative z-10 max-w-[1440px] mx-auto px-6 lg:px-10 text-center">
                         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-panel text-white mb-6 border border-white/10 bg-white/5 backdrop-blur-md animate-fade-in-up">
                             <span className="material-symbols-outlined text-accent-cyan text-[18px] fill-current">assignment_ind</span>
-                            <span className="text-xs font-bold tracking-[0.1em] uppercase text-indigo-100">Member Profile</span>
+                            <span className="text-xs font-bold tracking-[0.1em] uppercase text-indigo-100">{t('profile.member_profile')}</span>
                         </div>
 
                         <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-white mb-6 font-display tracking-tight animate-fade-in-up delay-100">
-                            Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-cyan to-indigo-400">Command Center</span>
+                            {t('profile.your')} <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-cyan to-indigo-400">{t('profile.command_center')}</span>
                         </h1>
                         <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto font-light mb-8 animate-fade-in-up delay-200">
-                            Manage your personal information, security settings, and account aesthetics in one place.
+                            {t('profile.manage_info')}
                         </p>
                     </div>
                 </section>
@@ -468,13 +470,13 @@ export default function ProfilePage() {
                                     <div className={`${getRankInnerClass(userAccount.rank || 'BRONZE')} relative rounded-[calc(0.75rem-3px)] w-full h-full flex items-center gap-3 p-4 z-[1]`}>
                                         <span className={`material-symbols-outlined text-2xl fill-current ${getRankTextClass(userAccount.rank || 'BRONZE')}`}>military_tech</span>
                                         <div className="flex-1">
-                                            <p className={`text-xs mb-1 ${getRankTextClass(userAccount.rank || 'BRONZE')}/80`}>Hạng thành viên</p>
+                                            <p className={`text-xs mb-1 ${getRankTextClass(userAccount.rank || 'BRONZE')}/80`}>{t('profile.member_rank')}</p>
                                             <p className={`font-bold text-lg ${getRankTextClass(userAccount.rank || 'BRONZE')}`}>
                                                 {formatRank(userAccount.rank || 'BRONZE')}
                                             </p>
                                         </div>
                                         <p className={`text-sm ${getRankTextClass(userAccount.rank || 'BRONZE')}/80`}>
-                                            {(userAccount.rewardPoints || 0).toLocaleString('vi-VN')} điểm
+                                            {t('profile.points', { count: (userAccount.rewardPoints || 0).toLocaleString('vi-VN') })}
                                         </p>
                                     </div>
                                 </div>
@@ -487,7 +489,7 @@ export default function ProfilePage() {
                                 >
                                     <span className="material-symbols-outlined text-2xl text-slate-900">account_balance_wallet</span>
                                     <div className="flex-1">
-                                        <p className="text-xs text-slate-600 mb-1">Số dư ví</p>
+                                        <p className="text-xs text-slate-600 mb-1">{t('profile.wallet_balance')}</p>
                                         <p className="font-bold text-lg text-slate-900">
                                             {(userAccount.walletBalance || 0).toLocaleString('vi-VN')}đ
                                         </p>
@@ -500,16 +502,16 @@ export default function ProfilePage() {
                                 {/* Quick Stats */}
                                 <div className="space-y-3">
                                     <div className="flex justify-between items-center">
-                                        <span className="text-slate-600 text-sm">Tài khoản</span>
+                                        <span className="text-slate-600 text-sm">{t('profile.account_type')}</span>
                                         <span className="text-slate-900 font-semibold text-sm">
                                             {userAccount.role || 'CUSTOMER'}
                                         </span>
                                     </div>
                                     <div className="flex justify-between items-center">
-                                        <span className="text-slate-600 text-sm">Trạng thái</span>
+                                        <span className="text-slate-600 text-sm">{t('profile.status')}</span>
                                         <span className={`${userAccount.isVerifiedEkyc ? 'text-green-600' : 'text-amber-600'} font-semibold text-sm flex items-center gap-1`}>
                                             <span className={`w-2 h-2 ${userAccount.isVerifiedEkyc ? 'bg-green-500' : 'bg-amber-500'} rounded-full`}></span>
-                                            {userAccount.isVerifiedEkyc ? 'Đã xác thực' : 'Chưa xác thực'}
+                                            {userAccount.isVerifiedEkyc ? t('profile.verified') : t('profile.not_verified')}
                                         </span>
                                     </div>
 
@@ -518,7 +520,7 @@ export default function ProfilePage() {
                                         <button
                                             onClick={() => {
                                                 if (!userAccount.isVerifiedEkyc) {
-                                                    toast.warning('Vui lòng xác thực danh tính (eKYC) trước khi đăng ký Nhà cung cấp!');
+                                                    toast.warning(t('profile.ekyc_warning_supplier'));
                                                     setShowEkycModal(true);
                                                 } else {
                                                     navigate('/become-supplier');
@@ -527,10 +529,10 @@ export default function ProfilePage() {
                                             className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-slate-900 text-white rounded-lg font-bold hover:shadow-lg hover:shadow-indigo-500/30 hover:scale-[1.02] active:scale-95 transition-all duration-300"
                                         >
                                             <span className="material-symbols-outlined text-[20px]">storefront</span>
-                                            Nâng cấp Nhà cung cấp
+                                            {t('profile.upgrade_supplier')}
                                         </button>
                                         <p className="text-xs text-slate-500 text-center mt-2">
-                                            Cho thuê thiết bị nhàn rỗi để tạo thu nhập
+                                            {t('profile.upgrade_supplier_desc')}
                                         </p>
                                     </div>
                                 )}
@@ -548,7 +550,7 @@ export default function ProfilePage() {
                                                 <span className="material-symbols-outlined text-primary text-xl">person</span>
                                             </div>
                                             <h2 className="text-2xl font-bold text-slate-900 font-display">
-                                                Thông tin cá nhân
+                                                {t('profile.personal_info')}
                                             </h2>
                                         </div>
                                         <button
@@ -558,7 +560,7 @@ export default function ProfilePage() {
                                             className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg font-bold text-sm hover:bg-indigo-100 transition-all border border-indigo-100 shadow-sm"
                                         >
                                             <span className={`material-symbols-outlined text-[18px] ${isLocating ? 'animate-spin' : ''}`}>my_location</span>
-                                            {isLocating ? 'Đang xác định...' : 'Lấy vị trí hiện tại'}
+                                            {isLocating ? t('profile.locating') : t('profile.get_current_location')}
                                         </button>
                                     </div>
 
@@ -566,7 +568,7 @@ export default function ProfilePage() {
                                     {/* Full Name */}
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-2">
-                                            Họ và tên <span className="text-red-500">*</span>
+                                            {t('profile.full_name')} <span className="text-red-500">*</span>
                                         </label>
                                         <input
                                             type="text"
@@ -575,14 +577,14 @@ export default function ProfilePage() {
                                             onChange={handleInputChange}
                                             required
                                             className="w-full px-4 py-3 border border-slate-200/60 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
-                                            placeholder="Nhập họ và tên"
+                                            placeholder={t('profile.full_name_placeholder', { defaultValue: "Nhập họ và tên" })}
                                         />
                                     </div>
 
                                     {/* Phone */}
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-2">
-                                            Số điện thoại
+                                            {t('profile.phone_number')}
                                         </label>
                                         <input
                                             type="tel"
@@ -591,7 +593,7 @@ export default function ProfilePage() {
                                             value={formData.phone}
                                             onChange={handleInputChange}
                                             className="w-full px-4 py-3 border border-slate-200/60 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
-                                            placeholder="Nhập số điện thoại"
+                                            placeholder={t('profile.phone_placeholder', { defaultValue: "Nhập số điện thoại" })}
                                         />
                                     </div>
 
@@ -599,7 +601,7 @@ export default function ProfilePage() {
                                     <div className="space-y-4">
                                         <div className="w-full">
                                             <label className="block text-sm font-medium text-slate-700 mb-2">
-                                                Đường/Phố
+                                                {t('profile.street')}
                                             </label>
                                             <input
                                                 type="text"
@@ -607,13 +609,13 @@ export default function ProfilePage() {
                                                 value={formData.street}
                                                 onChange={handleInputChange}    
                                                 className="w-full px-4 py-3 border border-slate-200/60 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
-                                                placeholder="Đường/Phố"     
+                                                placeholder={t('profile.street')}     
                                             />
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                                                    Quận/Huyện
+                                                    {t('profile.district')}
                                                 </label>
                                                 <input
                                                     type="text"
@@ -621,12 +623,12 @@ export default function ProfilePage() {
                                                     value={formData.district}       
                                                     onChange={handleInputChange}    
                                                     className="w-full px-4 py-3 border border-slate-200/60 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
-                                                    placeholder="Quận/Huyện"    
+                                                    placeholder={t('profile.district')}    
                                                 />
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                                                    Thành phố
+                                                    {t('profile.city')}
                                                 </label>
                                                 <input
                                                     type="text"
@@ -634,7 +636,7 @@ export default function ProfilePage() {
                                                     value={formData.city}
                                                     onChange={handleInputChange}    
                                                     className="w-full px-4 py-3 border border-slate-200/60 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
-                                                    placeholder="Thành phố"      
+                                                    placeholder={t('profile.city')}      
                                                 />
                                             </div>
                                             </div> 
@@ -648,7 +650,7 @@ export default function ProfilePage() {
                                                 className="mr-auto px-6 py-4 bg-gradient-to-r from-indigo-600 via-indigo-500 to-cyan-400 text-white rounded-2xl font-bold shadow-[0_0_20px_rgba(79,70,229,0.4)] hover:shadow-[0_0_30px_rgba(79,70,229,0.6)] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2 border border-white/20"
                                             >
                                                 <span className="material-symbols-outlined text-[20px] animate-pulse">verified_user</span>
-                                                Xác thực người dùng
+                                                {t('profile.verify_user')}
                                             </button>
                                         )}
                                         <button
@@ -656,7 +658,7 @@ export default function ProfilePage() {
                                             onClick={() => fetchUserData()}
                                             className="px-6 py-4 border border-slate-300 rounded-lg text-slate-700 font-bold hover:bg-slate-50 hover:shadow-md transition-all duration-300"
                                         >
-                                            Hủy
+                                            {t('common.cancel')}
                                         </button>
                                         <button
                                             type="submit"
@@ -666,12 +668,12 @@ export default function ProfilePage() {
                                             {loading ? (
                                                 <>
                                                     <span className="material-symbols-outlined animate-spin text-accent-cyan">sync</span>
-                                                    Đang lưu...
+                                                    {t('common.loading')}
                                                 </>
                                             ) : (
                                                 <>
                                                     <span className="material-symbols-outlined text-accent-cyan animate-pulse">save</span>
-                                                    Lưu thay đổi
+                                                    {t('common.save')}
                                                     <span className="material-symbols-outlined group-hover/btn:translate-x-1 transition-transform">arrow_forward</span>
                                                 </>
                                             )}
@@ -688,7 +690,7 @@ export default function ProfilePage() {
                                             <span className="material-symbols-outlined text-accent-cyan text-xl">lock</span>
                                         </div>
                                         <h2 className="text-2xl font-bold text-slate-900 font-display">
-                                            Đổi mật khẩu
+                                            {t('profile.change_password')}
                                         </h2>
                                     </div>
 
@@ -696,7 +698,7 @@ export default function ProfilePage() {
                                         {/* Old Password */}
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-2">
-                                                Mật khẩu hiện tại <span className="text-red-500">*</span>
+                                                {t('profile.current_password')} <span className="text-red-500">*</span>
                                             </label>
                                             <div className="flex gap-3">
                                                 <input
@@ -707,7 +709,7 @@ export default function ProfilePage() {
                                                     required
                                                     disabled={otpSent}
                                                     className="w-full px-4 py-3 border border-slate-200/60 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400 disabled:bg-slate-100 disabled:text-slate-500"
-                                                    placeholder="Nhập mật khẩu hiện tại"
+                                                    placeholder={t('profile.current_password')}
                                                 />
                                                 <button
                                                     type="button"
@@ -722,13 +724,13 @@ export default function ProfilePage() {
                                                     ) : (
                                                         <span className="material-symbols-outlined text-sm">send</span>
                                                     )}
-                                                    {otpSent ? 'Đã gửi' : 'Gửi mã OTP'}
+                                                    {otpSent ? t('profile.otp_sent') : t('profile.send_otp')}
                                                 </button>
                                             </div>
                                             {otpSent && (
                                                 <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
                                                     <span className="material-symbols-outlined text-sm">check_circle</span>
-                                                    Mã OTP đã được gửi đến email của bạn. Vui lòng kiểm tra và nhập mã bên dưới.
+                                                    {t('profile.otp_sent_hint')}
                                                 </p>
                                             )}
                                         </div>
@@ -737,7 +739,7 @@ export default function ProfilePage() {
                                         {otpSent && (
                                             <div className="animate-fade-in-down">
                                                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                                                    Mã xác thực OTP <span className="text-red-500">*</span>
+                                                    {t('profile.otp_verification_code')} <span className="text-red-500">*</span>
                                                 </label>
                                                 <input
                                                     type="text"
@@ -755,7 +757,7 @@ export default function ProfilePage() {
                                         {/* New Password */}
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-2">
-                                                Mật khẩu mới <span className="text-red-500">*</span>
+                                                {t('profile.new_password')} <span className="text-red-500">*</span>
                                             </label>
                                             <input
                                                 type="password"
@@ -765,7 +767,7 @@ export default function ProfilePage() {
                                                 required
                                                 minLength={6}
                                                 className="w-full px-4 py-3 border border-slate-200/60 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
-                                                placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
+                                                placeholder={t('profile.password_min_length')}
                                             />
                                             <PasswordStrengthMeter password={passwordData.newPassword} />
                                         </div>
@@ -773,7 +775,7 @@ export default function ProfilePage() {
                                         {/* Confirm Password */}
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-2">
-                                                Xác nhận mật khẩu mới <span className="text-red-500">*</span>
+                                                {t('profile.confirm_password')} <span className="text-red-500">*</span>
                                             </label>
                                             <input
                                                 type="password"
@@ -783,7 +785,7 @@ export default function ProfilePage() {
                                                 required
                                                 minLength={6}
                                                 className="w-full px-4 py-3 border border-slate-200/60 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400"
-                                                placeholder="Nhập lại mật khẩu mới"
+                                                placeholder={t('profile.confirm_password_placeholder')}
                                             />
                                         </div>
 
@@ -799,22 +801,22 @@ export default function ProfilePage() {
                                                 }}
                                                 className="px-6 py-3 border border-slate-300 rounded-lg text-slate-700 font-semibold hover:bg-slate-50 hover:shadow-md transition-all duration-300"
                                             >
-                                                Hủy
+                                                {t('common.cancel')}
                                             </button>
                                             <button
                                                 type="submit"
                                                 disabled={changingPassword}
-                                                className="px-6 py-3 bg-slate-900 text-white rounded-lg font-semibold shadow-md hover:shadow-glow-cyan hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                                className="px-8 py-3 bg-slate-900 text-white rounded-lg font-bold hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 hover:shadow-primary/20 hover:-translate-y-1 active:translate-y-0 flex items-center gap-2 disabled:opacity-50"
                                             >
                                                 {changingPassword ? (
                                                     <>
-                                                        <span className="material-symbols-outlined animate-spin">sync</span>
-                                                        Đang đổi...
+                                                        <span className="material-symbols-outlined animate-spin text-accent-cyan">sync</span>
+                                                        {t('common.loading')}
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <span className="material-symbols-outlined">lock_reset</span>
-                                                        Đổi mật khẩu
+                                                        <span className="material-symbols-outlined text-accent-cyan">save</span>
+                                                        {t('profile.change_password')}
                                                     </>
                                                 )}
                                             </button>
@@ -859,23 +861,23 @@ export default function ProfilePage() {
                                 </div>
 
                                 <h3 className="text-2xl font-bold text-slate-900 mb-3 font-display">
-                                    Cập nhật thành công!
+                                    {t('profile.logout_modal_title')}
                                 </h3>
 
                                 <div className="flex items-center justify-center gap-2 text-emerald-600 bg-emerald-50 py-2 px-4 rounded-full w-fit mx-auto mb-6">
                                     <FiLock size={16} />
-                                    <span className="text-sm font-bold">Mật khẩu đã được thay đổi</span>
+                                    <span className="text-sm font-bold">{t('profile.password_changed')}</span>
                                 </div>
 
                                 <p className="text-slate-600 leading-relaxed mb-8">
-                                    Để đảm bảo an toàn tuyệt đối cho tài khoản, vui lòng đăng nhập lại với mật khẩu mới của bạn.
+                                    {t('profile.logout_modal_desc')}
                                 </p>
 
                                 <button
                                     onClick={handleReLogin}
                                     className="inline-flex items-center justify-center gap-2 w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 group"
                                 >
-                                    Đăng nhập lại <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                                    {t('profile.login_again')} <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
                                 </button>
                             </div>
 
