@@ -3,6 +3,282 @@ const WalletTransaction = require("../../models/WalletTransaction");
 const User = require("../../models/User");
 const WithdrawRequest = require("../../models/WithdrawRequest");
 const mongoose = require("mongoose");
+const { Parser } = require("json2csv");
+
+/**
+ * POST /api/admin/wallet/adjust-balance
+ * Manually adjust admin wallet balance (for corrections)
+ */
+exports.adjustWalletBalance = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { amount, reason, type } = req.body;
+    const adminId = req.user.id;
+
+    // Validate input
+    if (!amount || isNaN(amount) || amount === 0) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: "Số tiền không hợp lệ" });
+    }
+
+    if (!reason || reason.trim().length < 5) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: "Lý do điều chỉnh phải có ít nhất 5 ký tự" });
+    }
+
+    // Find system wallet
+    let adminWallet = await Wallet.findOne({ isSystem: true }).session(session);
+    if (!adminWallet) {
+      await session.abortTransaction();
+      return res.status(404).json({ message: "Không tìm thấy ví hệ thống" });
+    }
+
+    const balanceBefore = adminWallet.balance;
+    const balanceAfter = balanceBefore + parseFloat(amount);
+
+    // Update wallet balance
+    adminWallet.balance = balanceAfter;
+    await adminWallet.save({ session });
+
+    // Create adjustment transaction
+    const transactionType = parseFloat(amount) > 0 ? "ADJUSTMENT_IN" : "ADJUSTMENT_OUT";
+    const transaction = await WalletTransaction.create([{
+      wallet: adminWallet._id,
+      type: transactionType,
+      amount: parseFloat(amount),
+      balanceBefore,
+      balanceAfter,
+      referenceType: "SYSTEM",
+      description: `Điều chỉnh số dư: ${reason}`,
+      status: "SUCCESS",
+      metadata: {
+        adminId,
+        adjustmentReason: reason,
+        adjustmentType: type || "MANUAL"
+      }
+    }], { session });
+
+    await session.commitTransaction();
+
+    res.json({
+      success: true,
+      message: "Điều chỉnh số dư thành công",
+      transaction: transaction[0],
+      newBalance: balanceAfter
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    console.error("Adjust wallet balance error:", error);
+    res.status(500).json({ message: "Lỗi khi điều chỉnh số dư" });
+  } finally {
+    session.endSession();
+  }
+};
+
+/**
+ * POST /api/admin/wallet/manual-transaction
+ * Create a manual transaction entry
+ */
+exports.createManualTransaction = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { 
+      type, 
+      amount, 
+      description, 
+      referenceType, 
+      referenceId,
+      targetWalletId 
+    } = req.body;
+    const adminId = req.user.id;
+
+    // Validate
+    if (!type || !amount || !description) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: "Thiếu thông tin bắt buộc" });
+    }
+
+    const validTypes = ["PLATFORM_FEE", "SERVICE_FEE", "PENALTY_FEE", "TOP_UP", 
+                       "REFUND", "ADJUSTMENT", "ESCROW_HOLD", "DEPOSIT_HOLD"];
+    if (!validTypes.includes(type)) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: "Loại giao dịch không hợp lệ" });
+    }
+
+    let walletId;
+    let wallet;
+
+    // If target wallet specified, use it; otherwise use system wallet
+    if (targetWalletId) {
+      wallet = await Wallet.findById(targetWalletId).session(session);
+      if (!wallet) {
+        await session.abortTransaction();
+        return res.status(404).json({ message: "Không tìm thấy ví đích" });
+      }
+      walletId = targetWalletId;
+    } else {
+      wallet = await Wallet.findOne({ isSystem: true }).session(session);
+      if (!wallet) {
+        await session.abortTransaction();
+        return res.status(404).json({ message: "Không tìm thấy ví hệ thống" });
+      }
+      walletId = wallet._id;
+    }
+
+    const balanceBefore = wallet.balance;
+    const balanceAfter = balanceBefore + parseFloat(amount);
+
+    // Update wallet balance if it's a system wallet or if amount affects balance
+    if (wallet.isSystem || type === "TOP_UP" || type === "REFUND") {
+      wallet.balance = balanceAfter;
+      await wallet.save({ session });
+    }
+
+    // Create transaction
+    const transaction = await WalletTransaction.create([{
+      wallet: walletId,
+      type,
+      amount: parseFloat(amount),
+      balanceBefore,
+      balanceAfter,
+      referenceType: referenceType || "SYSTEM",
+      referenceId: referenceId || null,
+      description,
+      status: "SUCCESS",
+      metadata: {
+        createdBy: adminId,
+        isManual: true,
+        createdAt: new Date()
+      }
+    }], { session });
+
+    await session.commitTransaction();
+
+    res.json({
+      success: true,
+      message: "Tạo giao dịch thành công",
+      transaction: transaction[0]
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    console.error("Create manual transaction error:", error);
+    res.status(500).json({ message: "Lỗi khi tạo giao dịch" });
+  } finally {
+    session.endSession();
+  }
+};
+
+/**
+ * GET /api/admin/wallet/export-transactions
+ * Export transactions to CSV
+ */
+exports.exportTransactions = async (req, res) => {
+  try {
+    const { type, dateRange, format = "csv" } = req.query;
+
+    // Find system wallet
+    const adminWallet = await Wallet.findOne({ isSystem: true });
+    if (!adminWallet) {
+      return res.status(404).json({ message: "Admin wallet not found" });
+    }
+
+    // Build filter
+    let filter = { wallet: adminWallet._id };
+
+    // Date range filtering
+    if (dateRange) {
+      const now = new Date();
+      let startDate;
+
+      switch (dateRange) {
+        case "7days":
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case "30days":
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case "90days":
+          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          startDate = null;
+      }
+
+      if (startDate) {
+        filter.createdAt = { $gte: startDate };
+      }
+    }
+
+    if (type && type !== "ALL") {
+      filter.type = type;
+    }
+
+    // Get transactions
+    const transactions = await WalletTransaction.find(filter)
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Format data for export
+    const formattedData = transactions.map(t => ({
+      "ID": t._id.toString(),
+      "Loại giao dịch": getTransactionTypeLabel(t.type),
+      "Số tiền": t.amount,
+      "Số dư trước": t.balanceBefore,
+      "Số dư sau": t.balanceAfter,
+      "Mô tả": t.description,
+      "Trạng thái": t.status === "SUCCESS" ? "Thành công" : "Đang xử lý",
+      "Ngày tạo": new Date(t.createdAt).toLocaleString("vi-VN"),
+      "Reference Type": t.referenceType || "",
+      "Reference ID": t.referenceId ? t.referenceId.toString() : ""
+    }));
+
+    if (format === "csv") {
+      const fields = [
+        "ID", "Loại giao dịch", "Số tiền", "Số dư trước", "Số dư sau",
+        "Mô tả", "Trạng thái", "Ngày tạo", "Reference Type", "Reference ID"
+      ];
+      const json2csvParser = new Parser({ fields });
+      const csv = json2csvParser.parse(formattedData);
+
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename=wallet-transactions-${Date.now()}.csv`);
+      res.send("\uFEFF" + csv); // Add BOM for UTF-8
+    } else {
+      res.json({
+        success: true,
+        total: formattedData.length,
+        data: formattedData
+      });
+    }
+  } catch (error) {
+    console.error("Export transactions error:", error);
+    res.status(500).json({ message: "Lỗi khi xuất dữ liệu" });
+  }
+};
+
+// Helper function to translate transaction types
+function getTransactionTypeLabel(type) {
+  const labels = {
+    "PLATFORM_FEE": "Phí nền tảng",
+    "ESCROW_HOLD": "Tiền thuê tạm giữ",
+    "DEPOSIT_HOLD": "Tiền đặt cọc",
+    "SUPPLIER_PAYOUT": "Trả tiền nhà cung cấp",
+    "CUSTOMER_REFUND": "Hoàn tiền khách hàng",
+    "SERVICE_FEE": "Phí dịch vụ",
+    "PENALTY_FEE": "Phí phạt",
+    "TOP_UP": "Nạp tiền",
+    "WITHDRAW": "Rút tiền",
+    "PAYMENT": "Thanh toán",
+    "REFUND": "Hoàn tiền",
+    "ADJUSTMENT_IN": "Điều chỉnh tăng",
+    "ADJUSTMENT_OUT": "Điều chỉnh giảm"
+  };
+  return labels[type] || type;
+}
 
 /**
  * GET /api/admin/wallet

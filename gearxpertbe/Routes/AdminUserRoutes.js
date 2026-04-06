@@ -17,8 +17,10 @@ router.get('/devices', checkAccessToken, checkAdmin, adminDashboardController.ge
 
 // Wallet routes
 router.get('/wallet', checkAccessToken, checkAdmin, adminWalletController.getAdminWallet);
-
 router.get('/wallet/transactions', checkAccessToken, checkAdmin, adminWalletController.getAdminWalletTransactions);
+router.post('/wallet/adjust-balance', checkAccessToken, checkAdmin, adminWalletController.adjustWalletBalance);
+router.post('/wallet/manual-transaction', checkAccessToken, checkAdmin, adminWalletController.createManualTransaction);
+router.get('/wallet/export-transactions', checkAccessToken, checkAdmin, adminWalletController.exportTransactions);
 
 // Withdrawal routes
 router.get('/withdrawals', checkAccessToken, checkAdmin, adminWalletController.getWithdrawalRequests);

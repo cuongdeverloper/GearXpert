@@ -11,6 +11,21 @@ export const getAdminWalletTransactions = (params = {}) => {
   return axiosInstance.get(`${API_BASE}/admin/wallet/transactions`, { params });
 };
 
+export const adjustWalletBalance = (data) => {
+  return axiosInstance.post(`${API_BASE}/admin/wallet/adjust-balance`, data);
+};
+
+export const createManualTransaction = (data) => {
+  return axiosInstance.post(`${API_BASE}/admin/wallet/manual-transaction`, data);
+};
+
+export const exportWalletTransactions = (params = {}) => {
+  return axiosInstance.get(`${API_BASE}/admin/wallet/export-transactions`, { 
+    params,
+    responseType: 'blob'
+  });
+};
+
 // Admin Withdrawal APIs
 export const getWithdrawalRequests = (params = {}) => {
   return axiosInstance.get(`${API_BASE}/admin/withdrawals`, { params });
