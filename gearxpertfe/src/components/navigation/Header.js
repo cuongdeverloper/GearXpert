@@ -16,6 +16,8 @@ import {
   markNotificationAsRead,
   markAllNotificationsAsRead,
 } from '../../service/ApiService/notificationApi';
+import { getMyWallet } from '../../service/ApiService/WalletApi';
+import { doLogin } from '../../redux/action/userAction';
 
 // Magnetic Island Component for iOS-style hover tracking
 const MagneticIsland = ({ children, className, spotlightColor = "rgba(99, 102, 241, 0.12)" }) => {
@@ -157,6 +159,24 @@ export default function Header({ onMenuOpen }) {
     }
   }, [isAuthenticated]);
 
+  // Refresh wallet balance when dropdown opens
+  const refreshWalletBalance = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const walletRes = await getMyWallet();
+      if (walletRes && walletRes.balance !== undefined) {
+        dispatch(doLogin({
+          data: {
+            ...userAccount,
+            walletBalance: walletRes.balance,
+          }
+        }));
+      }
+    } catch (err) {
+      console.error('Refresh wallet error:', err);
+    }
+  }, [isAuthenticated, userAccount, dispatch]);
+
   // Load notifications khi authenticated
   useEffect(() => {
     if (isAuthenticated) {
@@ -182,6 +202,18 @@ export default function Header({ onMenuOpen }) {
       socketConnection.off('getNotification', handleNewNotification);
     };
   }, [socketConnection]);
+
+  // Refresh wallet balance when dropdown opens
+  const hasRefreshedWallet = useRef(false);
+  useEffect(() => {
+    if (isDropdownOpen && !hasRefreshedWallet.current) {
+      hasRefreshedWallet.current = true;
+      refreshWalletBalance();
+    }
+    if (!isDropdownOpen) {
+      hasRefreshedWallet.current = false;
+    }
+  }, [isDropdownOpen, refreshWalletBalance]);
 
   // Close panels on outside click
   useEffect(() => {

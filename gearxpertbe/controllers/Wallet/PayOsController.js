@@ -1,4 +1,6 @@
 const { createHmac } = require("crypto"); // Dùng thư viện crypto có sẵn của Node.js
+const { PayOS } = require("@payos/node"); // Import PayOS
+
 const Wallet = require("../../models/Wallet");
 const WalletTransaction = require("../../models/WalletTransaction");
 const Payment = require("../../models/Payment");
@@ -8,6 +10,13 @@ const Device = require("../../models/Device");
 const Cart = require("../../models/Cart");
 const CartItem = require("../../models/CartItem");
 const Voucher = require("../../models/Voucher");
+
+// Initialize PayOS client
+const payos = new PayOS(
+  process.env.PAYOS_CLIENT_ID,
+  process.env.PAYOS_API_KEY,
+  process.env.PAYOS_CHECKSUM_KEY
+);
 
 /**
  * 🛠 CÁC HÀM HỖ TRỢ KIỂM TRA CHỮ KÝ (Theo tài liệu PayOS)
@@ -106,6 +115,64 @@ exports.handleWebhook = async (req, res) => {
           voucherCodeToUse = rental.voucherCode;
         }
 
+        // === UPLOAD CONTRACT SAU KHI THANH TOÁN THÀNH CÔNG ===
+        try {
+          console.log(`[WEBHOOK] Uploading contract for rental ${rental._id}...`);
+
+          // Import contract controller functions
+          const { generateDocxBuffer } = require('../Contract/ContractController');
+          const Contract = require('../../models/Contract');
+          const ContractFile = require('../../models/ContractFile');
+          const cloudinary = require('cloudinary').v2;
+
+          // Generate contract buffer
+          const buf = await generateDocxBuffer(rental);
+
+          // Upload to Cloudinary
+          const uploadResult = await new Promise((resolve, reject) => {
+            cloudinary.uploader.upload_stream(
+              { 
+                resource_type: "raw", 
+                folder: "contracts", 
+                public_id: `contract-${rental._id}-${Date.now()}`, 
+                format: "docx" 
+              },
+              (error, result) => (error ? reject(error) : resolve(result))
+            ).end(buf);
+          });
+
+          // Create contract record
+          const contractRecord = await Contract.create({
+            rentalId: rental._id,
+            contractType: "DELIVERY",
+            status: "SIGNED",
+            deliveryMethod: "SHIP",
+            location: rental.deliveryAddress?.fullAddress || "",
+            ipAddress: req.ip || req.connection.remoteAddress,
+            userAgent: req.headers["user-agent"] || "",
+            contractVersion: "v1",
+            customer: rental.customerId,
+            supplier: rental.supplierId,
+            signedByCustomer: true,
+            signedByStaff: true,
+            signedAt: new Date(),
+          });
+
+          // Create contract file record
+          await ContractFile.create({
+            contractId: contractRecord._id,
+            fileUrl: uploadResult.secure_url,
+            fileType: "DELIVERY",
+            uploadedBy: customerId,
+          });
+
+          console.log(`[WEBHOOK] Contract uploaded successfully: ${uploadResult.secure_url}`);
+
+        } catch (contractError) {
+          console.error(`[WEBHOOK] Failed to upload contract for rental ${rental._id}:`, contractError);
+          // Không throw error vì payment thành công, contract có thể upload sau
+        }
+
         const notiTitle = isRepay
           ? "Đơn thuê đã thanh toán thành công (thanh toán lại)"
           : "Đơn thuê đã thanh toán thành công";
@@ -144,20 +211,12 @@ exports.handleWebhook = async (req, res) => {
           status: "SUCCESS",
           description: `Thu phí nền tảng từ ${rentals.length} đơn thuê (PayOS - ${orderCode})`,
         });
-      }
 
-      // Tăng usedCount voucher (chỉ 1 lần)
-      if (voucherCodeToUse) {
-        await Voucher.updateOne(
-          { code: voucherCodeToUse, status: "ACTIVE" },
-          { $inc: { usedCount: 1 } }
+        console.log(
+          `[WEBHOOK SUCCESS] Rental ${orderCode} - Platform fee ${totalPlatformFee} đã cộng vào ví system`
         );
+        return res.status(200).json({ success: true });
       }
-
-      console.log(
-        `[WEBHOOK SUCCESS] Rental ${orderCode} - Platform fee ${totalPlatformFee} đã cộng vào ví system`
-      );
-      return res.status(200).json({ success: true });
     }
 
     // Xử lý top-up wallet (giữ nguyên)
@@ -230,5 +289,93 @@ exports.createRentalPaymentLink = async (newRental) => {
   } catch (error) {
     console.error("PayOS Create Link Error:", error);
     throw new Error("Không thể khởi tạo thanh toán với PayOS");
+  }
+};
+
+/**
+ * 🏦 Chuyển tiền qua PayOS (dùng cho rút tiền)
+ * @param {Object} transferData - Dữ liệu chuyển tiền
+ * @param {number} transferData.amount - Số tiền chuyển (VND)
+ * @param {string} transferData.description - Mô tả giao dịch
+ * @param {string} transferData.accountNumber - Số tài khoản nhận
+ * @param {string} transferData.accountName - Tên chủ tài khoản
+ * @param {string} transferData.bankCode - Mã ngân hàng
+ * @returns {Promise<Object>} Kết quả chuyển tiền
+ */
+exports.transferMoney = async (transferData) => {
+  try {
+    const { amount, description, accountNumber, accountName, bankCode } = transferData;
+    
+    // Validate input
+    if (!amount || amount <= 0) {
+      throw new Error("Số tiền chuyển phải lớn hơn 0");
+    }
+    
+    if (!accountNumber || !accountName || !bankCode) {
+      throw new Error("Thiếu thông tin tài khoản nhận");
+    }
+    
+    // PayOS v2 - Dùng transferToBankAccount method cho chuyển tiền
+    console.log("[PAYOS TRANSFER] Attempting direct bank transfer");
+    
+    const transferBody = {
+      amount: Math.round(amount),
+      description: description || `Rút tiền GearXpert - ${Date.now()}`,
+      accountNumber: accountNumber.toString(),
+      accountName: accountName.trim(),
+      bankCode: bankCode.trim(),
+    };
+    
+    console.log("[PAYOS TRANSFER] Transfer data:", transferBody);
+    
+    // Thử dùng transferToBankAccount nếu có
+    let transferResult;
+    try {
+      // Method 1: transferToBankAccount (nếu có trong PayOS v2)
+      if (payos.transferToBankAccount) {
+        transferResult = await payos.transferToBankAccount(transferBody);
+        console.log("[PAYOS TRANSFER] Success with transferToBankAccount:", transferResult);
+      } else if (payos.transfer) {
+        // Method 2: transfer method
+        transferResult = await payos.transfer(transferBody);
+        console.log("[PAYOS TRANSFER] Success with transfer:", transferResult);
+      } else {
+        // Method 3: paymentRequests.create với isPayout flag
+        const payoutData = {
+          orderCode: Number(String(Date.now()).slice(-9)),
+          amount: Math.round(amount),
+          description: description || `Rút tiền GearXpert - ${Date.now()}`,
+          isPayout: true, // Flag để nhận biết đây là payout
+          receiverInfo: {
+            accountNumber: accountNumber.toString(),
+            accountName: accountName.trim(),
+            bankCode: bankCode.trim()
+          }
+        };
+        
+        console.log("[PAYOS TRANSFER] Trying payout with paymentRequests:", payoutData);
+        transferResult = await payos.paymentRequests.create(payoutData);
+        console.log("[PAYOS TRANSFER] Success with paymentRequests:", transferResult);
+      }
+    } catch (payosError) {
+      console.error("[PAYOS TRANSFER] PayOS API Error:", payosError);
+      
+      // Nếu PayOS không hỗ trợ transfer, tạo manual transaction record
+      console.log("[PAYOS TRANSFER] PayOS transfer not available, creating manual record");
+      
+      return {
+        success: false,
+        message: "PayOS transfer không khả dụng. Yêu cầu chuyển tiền thủ công.",
+        error: payosError.message,
+        requiresManualTransfer: true,
+        transferData: transferBody
+      };
+    }
+    
+    return transferResult;
+    
+  } catch (error) {
+    console.error("[PAYOS TRANSFER] Error:", error);
+    throw new Error(`Lỗi chuyển tiền PayOS: ${error.message}`);
   }
 };

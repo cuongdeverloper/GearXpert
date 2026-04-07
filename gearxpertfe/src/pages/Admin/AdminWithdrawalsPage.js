@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { FiDollarSign, FiCheck, FiX, FiClock, FiFilter, FiSearch, FiEye, FiUser } from "react-icons/fi";
+import { FiDollarSign, FiCheck, FiX, FiClock, FiFilter, FiSearch, FiEye, FiUser, FiAlertCircle, FiLoader } from "react-icons/fi";
 import { getWithdrawalRequests, approveWithdrawal, rejectWithdrawal } from "../../service/ApiService/AdminApi";
 
 export default function AdminWithdrawalsPage() {
@@ -10,6 +10,10 @@ export default function AdminWithdrawalsPage() {
   const [selectedWithdrawal, setSelectedWithdrawal] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [actionLoading, setActionLoading] = useState({});
+  const [showApproveModal, setShowApproveModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [notification, setNotification] = useState({ show: false, type: "", message: "" });
 
   const fetchWithdrawals = useCallback(async () => {
     try {
@@ -71,50 +75,86 @@ export default function AdminWithdrawalsPage() {
     fetchWithdrawals();
   }, [fetchWithdrawals]);
 
+  const showNotification = (type, message) => {
+    setNotification({ show: true, type, message });
+    setTimeout(() => setNotification({ show: false, type: "", message: "" }), 3000);
+  };
+
   const handleApprove = async (withdrawalId) => {
+    setSelectedWithdrawal(withdrawals.find(w => w._id === withdrawalId));
+    setShowApproveModal(true);
+  };
+
+  const confirmApprove = async () => {
+    if (!selectedWithdrawal) return;
+    
     try {
-      setActionLoading(prev => ({ ...prev, [withdrawalId]: true }));
-      await approveWithdrawal(withdrawalId);
+      setActionLoading(prev => ({ ...prev, [selectedWithdrawal._id]: true }));
+      const response = await approveWithdrawal(selectedWithdrawal._id);
       
-      setWithdrawals(prev => 
-        prev.map(w => 
-          w._id === withdrawalId 
-            ? { ...w, status: "APPROVED", processedAt: new Date() }
-            : w
-        )
-      );
-      
-      alert("Yêu cầu rút tiền đã được duyệt!");
+      // Backend doesn't return success field, check if response exists
+      if (response.data) {
+        setWithdrawals(prev => 
+          prev.map(w => 
+            w._id === selectedWithdrawal._id 
+              ? { ...w, status: "APPROVED", processedAt: new Date() }
+              : w
+          )
+        );
+        showNotification("success", "Yêu cầu rút tiền đã được duyệt và chuyển tiền thành công!");
+        setShowApproveModal(false);
+        // Auto-refresh data after 1 second
+        setTimeout(() => fetchWithdrawals(), 1000);
+      } else {
+        showNotification("error", "Lỗi khi duyệt yêu cầu rút tiền");
+      }
     } catch (error) {
       console.error("Error approving withdrawal:", error);
-      alert("Lỗi khi duyệt yêu cầu rút tiền");
+      const errorMessage = error.response?.data?.message || error.message || "Lỗi khi duyệt yêu cầu rút tiền";
+      showNotification("error", errorMessage);
     } finally {
-      setActionLoading(prev => ({ ...prev, [withdrawalId]: false }));
+      setActionLoading(prev => ({ ...prev, [selectedWithdrawal._id]: false }));
     }
   };
 
-  const handleReject = async (withdrawalId) => {
-    const reason = prompt("Vui lòng nhập lý do từ chối:");
-    if (!reason) return;
+  const handleReject = (withdrawalId) => {
+    setSelectedWithdrawal(withdrawals.find(w => w._id === withdrawalId));
+    setRejectReason("");
+    setShowRejectModal(true);
+  };
+
+  const confirmReject = async () => {
+    if (!selectedWithdrawal || !rejectReason.trim()) {
+      showNotification("error", "Vui lòng nhập lý do từ chối");
+      return;
+    }
 
     try {
-      setActionLoading(prev => ({ ...prev, [withdrawalId]: true }));
-      await rejectWithdrawal(withdrawalId, { reason });
+      setActionLoading(prev => ({ ...prev, [selectedWithdrawal._id]: true }));
+      const response = await rejectWithdrawal(selectedWithdrawal._id, { reason: rejectReason.trim() });
       
-      setWithdrawals(prev => 
-        prev.map(w => 
-          w._id === withdrawalId 
-            ? { ...w, status: "REJECTED", processedAt: new Date(), rejectionReason: reason }
-            : w
-        )
-      );
-      
-      alert("Yêu cầu rút tiền đã bị từ chối!");
+      // Backend doesn't return success field, check if response exists
+      if (response.data) {
+        setWithdrawals(prev => 
+          prev.map(w => 
+            w._id === selectedWithdrawal._id 
+              ? { ...w, status: "REJECTED", processedAt: new Date(), rejectionReason: rejectReason.trim() }
+              : w
+          )
+        );
+        showNotification("success", "Yêu cầu rút tiền đã bị từ chối!");
+        setShowRejectModal(false);
+        // Auto-refresh data after 1 second
+        setTimeout(() => fetchWithdrawals(), 1000);
+      } else {
+        showNotification("error", "Lỗi khi từ chối yêu cầu rút tiền");
+      }
     } catch (error) {
       console.error("Error rejecting withdrawal:", error);
-      alert("Lỗi khi từ chối yêu cầu rút tiền");
+      const errorMessage = error.response?.data?.message || error.message || "Lỗi khi từ chối yêu cầu rút tiền";
+      showNotification("error", errorMessage);
     } finally {
-      setActionLoading(prev => ({ ...prev, [withdrawalId]: false }));
+      setActionLoading(prev => ({ ...prev, [selectedWithdrawal._id]: false }));
     }
   };
 
@@ -178,56 +218,69 @@ export default function AdminWithdrawalsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-gray-50 p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Duyệt Yêu Cầu Rút Tiền</h1>
-          <p className="text-gray-500">Quản lý và phê duyệt các yêu cầu rút tiền từ nhà cung cấp</p>
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
+                <FiDollarSign className="text-white text-xl" />
+              </div>
+              Quản Lý Rút Tiền
+            </h1>
+            <p className="text-gray-600 mt-2">Phê duyệt và quản lý các yêu cầu rút tiền từ nhà cung cấp</p>
+          </div>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl p-6 border border-indigo-200 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Tổng yêu cầu</p>
-              <p className="text-2xl font-bold text-gray-900">{withdrawals.length}</p>
+              <p className="text-sm text-indigo-600 font-medium">Tổng yêu cầu</p>
+              <p className="text-3xl font-bold text-indigo-900 mt-1">{withdrawals.length}</p>
             </div>
-            <FiDollarSign className="text-3xl text-indigo-600" />
+            <div className="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center shadow-lg">
+              <FiDollarSign className="text-white text-xl" />
+            </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
+        <div className="bg-gradient-to-br from-amber-50 to-yellow-100 rounded-2xl p-6 border border-yellow-200 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Chờ duyệt</p>
-              <p className="text-2xl font-bold text-yellow-600">
+              <p className="text-sm text-yellow-600 font-medium">Chờ duyệt</p>
+              <p className="text-3xl font-bold text-yellow-900 mt-1">
                 {withdrawals.filter(w => w.status === "PENDING").length}
               </p>
             </div>
-            <FiClock className="text-3xl text-yellow-600" />
+            <div className="w-12 h-12 bg-yellow-500 rounded-xl flex items-center justify-center shadow-lg">
+              <FiClock className="text-white text-xl" />
+            </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
+        <div className="bg-gradient-to-br from-emerald-50 to-green-100 rounded-2xl p-6 border border-green-200 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Đã duyệt</p>
-              <p className="text-2xl font-bold text-green-600">
+              <p className="text-sm text-green-600 font-medium">Đã duyệt</p>
+              <p className="text-3xl font-bold text-green-900 mt-1">
                 {withdrawals.filter(w => w.status === "APPROVED").length}
               </p>
             </div>
-            <FiCheck className="text-3xl text-green-600" />
+            <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center shadow-lg">
+              <FiCheck className="text-white text-xl" />
+            </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
+        <div className="bg-gradient-to-br from-orange-50 to-red-100 rounded-2xl p-6 border border-orange-200 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Tổng tiền chờ duyệt</p>
-              <p className="text-2xl font-bold text-orange-600">
+              <p className="text-sm text-orange-600 font-medium">Tổng tiền chờ</p>
+              <p className="text-2xl font-bold text-orange-900 mt-1">
                 {formatCurrency(
                   withdrawals
                     .filter(w => w.status === "PENDING")
@@ -235,80 +288,87 @@ export default function AdminWithdrawalsPage() {
                 )}
               </p>
             </div>
-            <FiDollarSign className="text-3xl text-orange-600" />
+            <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center shadow-lg">
+              <FiDollarSign className="text-white text-xl" />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl p-4 border border-gray-200">
+      <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm mb-8">
         <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2">
-            <FiFilter className="text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">Lọc:</span>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
+              <FiFilter className="text-indigo-600" />
+            </div>
+            <span className="text-sm font-semibold text-gray-700">Bộ lọc</span>
           </div>
           
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="ALL">Tất cả trạng thái</option>
-            <option value="PENDING">Chờ duyệt</option>
-            <option value="APPROVED">Đã duyệt</option>
-            <option value="REJECTED">Đã từ chối</option>
-          </select>
+          <div className="flex items-center gap-3">
+            <label className="text-sm text-gray-600">Trạng thái:</label>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+            >
+              <option value="ALL">Tất cả trạng thái</option>
+              <option value="PENDING">Chờ duyệt</option>
+              <option value="APPROVED">Đã duyệt</option>
+              <option value="REJECTED">Đã từ chối</option>
+            </select>
+          </div>
 
           <div className="relative flex-1 max-w-md">
-            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               placeholder="Tìm kiếm theo tên, email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full pl-12 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>
         </div>
       </div>
 
       {/* Withdrawals Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Danh sách yêu cầu rút tiền</h2>
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="px-8 py-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-indigo-50">
+          <h2 className="text-xl font-bold text-gray-900">Danh sách yêu cầu rút tiền</h2>
         </div>
         
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-8 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Nhà cung cấp
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-8 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Số tiền
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-8 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Ngày yêu cầu
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-8 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Trạng thái
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-8 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Thao tác
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white divide-y divide-gray-100">
               {withdrawals.map((withdrawal) => (
-                <tr key={withdrawal._id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
-                        <FiUser className="text-indigo-600" />
+                <tr key={withdrawal._id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-8 py-5">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+                        <FiUser className="text-indigo-600 text-lg" />
                       </div>
                       <div>
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-semibold text-gray-900">
                           {withdrawal.supplierId?.fullName || "N/A"}
                         </div>
                         <div className="text-xs text-gray-500">
@@ -317,30 +377,30 @@ export default function AdminWithdrawalsPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
+                  <td className="px-8 py-5 whitespace-nowrap">
+                    <div className="text-sm font-bold text-gray-900">
                       {formatCurrency(withdrawal.amount)}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-8 py-5 whitespace-nowrap text-sm text-gray-600">
                     {new Date(withdrawal.createdAt).toLocaleString("vi-VN")}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
+                  <td className="px-8 py-5 whitespace-nowrap">
+                    <div className="flex items-center gap-3">
                       {getStatusIcon(withdrawal.status)}
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(withdrawal.status)}`}>
+                      <span className={`px-3 py-1.5 text-xs font-semibold rounded-full border ${getStatusColor(withdrawal.status)}`}>
                         {getStatusLabel(withdrawal.status)}
                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
+                  <td className="px-8 py-5 whitespace-nowrap">
+                    <div className="flex items-center justify-center gap-3">
                       <button
                         onClick={() => showDetail(withdrawal)}
-                        className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                        className="p-2.5 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all duration-200 hover:scale-105"
                         title="Xem chi tiết"
                       >
-                        <FiEye size={16} />
+                        <FiEye size={18} />
                       </button>
                       
                       {withdrawal.status === "PENDING" && (
@@ -348,16 +408,26 @@ export default function AdminWithdrawalsPage() {
                           <button
                             onClick={() => handleApprove(withdrawal._id)}
                             disabled={actionLoading[withdrawal._id]}
-                            className="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs font-semibold rounded-xl hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md hover:scale-105"
                           >
-                            {actionLoading[withdrawal._id] ? "..." : "Duyệt"}
+                            {actionLoading[withdrawal._id] ? (
+                              <FiLoader className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <FiCheck className="w-3.5 h-3.5" />
+                            )}
+                            {actionLoading[withdrawal._id] ? "Đang xử lý..." : "Duyệt"}
                           </button>
                           <button
                             onClick={() => handleReject(withdrawal._id)}
                             disabled={actionLoading[withdrawal._id]}
-                            className="px-3 py-1 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white text-xs font-semibold rounded-xl hover:from-red-600 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md hover:scale-105"
                           >
-                            {actionLoading[withdrawal._id] ? "..." : "Từ chối"}
+                            {actionLoading[withdrawal._id] ? (
+                              <FiLoader className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <FiX className="w-3.5 h-3.5" />
+                            )}
+                            {actionLoading[withdrawal._id] ? "Đang xử lý..." : "Từ chối"}
                           </button>
                         </>
                       )}
@@ -370,9 +440,12 @@ export default function AdminWithdrawalsPage() {
         </div>
 
         {withdrawals.length === 0 && (
-          <div className="text-center py-8">
-            <FiDollarSign className="mx-auto text-4xl text-gray-300 mb-4" />
-            <p className="text-gray-500">Không có yêu cầu rút tiền nào</p>
+          <div className="text-center py-16">
+            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FiDollarSign className="text-4xl text-gray-400" />
+            </div>
+            <p className="text-gray-500 text-lg font-medium">Không có yêu cầu rút tiền nào</p>
+            <p className="text-gray-400 text-sm mt-2">Các yêu cầu rút tiền sẽ xuất hiện ở đây</p>
           </div>
         )}
       </div>
@@ -380,81 +453,289 @@ export default function AdminWithdrawalsPage() {
       {/* Detail Modal */}
       {showDetailModal && selectedWithdrawal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-gray-900/50" onClick={() => setShowDetailModal(false)} />
-          <div className="relative bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">Chi tiết yêu cầu rút tiền</h3>
-              
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm text-gray-500">Nhà cung cấp</label>
-                    <p className="font-medium">{selectedWithdrawal.supplierId?.fullName}</p>
-                    <p className="text-sm text-gray-500">{selectedWithdrawal.supplierId?.email}</p>
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowDetailModal(false)} />
+          <div className="relative bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-8 py-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                    <FiEye className="text-white text-xl" />
                   </div>
                   <div>
-                    <label className="text-sm text-gray-500">Số tiền</label>
-                    <p className="font-medium text-lg">{formatCurrency(selectedWithdrawal.amount)}</p>
+                    <h3 className="text-xl font-bold text-white">Chi tiết yêu cầu rút tiền</h3>
+                    <p className="text-indigo-100 text-sm">Mã: #{selectedWithdrawal.referenceId}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowDetailModal(false)}
+                  className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center hover:bg-white/30 transition-colors"
+                >
+                  <FiX className="text-white" />
+                </button>
+              </div>
+            </div>
+            
+            {/* Modal Body */}
+            <div className="p-8 max-h-[60vh] overflow-y-auto">
+              <div className="space-y-6">
+                {/* Supplier Info */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-indigo-100">
+                  <h4 className="text-sm font-semibold text-indigo-700 mb-4 flex items-center gap-2">
+                    <FiUser className="text-indigo-600" />
+                    Thông tin nhà cung cấp
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Họ tên</p>
+                      <p className="font-semibold text-gray-900">{selectedWithdrawal.supplierId?.fullName}</p>
+                      <p className="text-sm text-gray-600">{selectedWithdrawal.supplierId?.email}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Số điện thoại</p>
+                      <p className="font-semibold text-gray-900">{selectedWithdrawal.supplierId?.phone || "N/A"}</p>
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-sm text-gray-500">Ngân hàng</label>
-                  <p className="font-medium">{selectedWithdrawal.bankInfo?.bankName}</p>
-                  <p className="text-sm">{selectedWithdrawal.bankInfo?.accountNumber}</p>
-                  <p className="text-sm">{selectedWithdrawal.bankInfo?.accountName}</p>
+                {/* Amount Info */}
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-100">
+                  <h4 className="text-sm font-semibold text-green-700 mb-4 flex items-center gap-2">
+                    <FiDollarSign className="text-green-600" />
+                    Thông tin số tiền
+                  </h4>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-500 mb-2">Số tiền yêu cầu</p>
+                    <p className="text-3xl font-bold text-green-600">{formatCurrency(selectedWithdrawal.amount)}</p>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="text-sm text-gray-500">Ghi chú</label>
-                  <p className="text-sm">{selectedWithdrawal.notes || "Không có"}</p>
+                {/* Bank Info */}
+                <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl p-6 border border-orange-100">
+                  <h4 className="text-sm font-semibold text-orange-700 mb-4 flex items-center gap-2">
+                    <FiDollarSign className="text-orange-600" />
+                    Thông tin ngân hàng
+                  </h4>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Ngân hàng</p>
+                      <p className="font-semibold text-gray-900">{selectedWithdrawal.bankInfo?.bankName || "N/A"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Số tài khoản</p>
+                      <p className="font-semibold text-gray-900 font-mono">{selectedWithdrawal.bankInfo?.accountNumber || "N/A"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Chủ tài khoản</p>
+                      <p className="font-semibold text-gray-900">{selectedWithdrawal.bankInfo?.accountName || "N/A"}</p>
+                    </div>
+                  </div>
                 </div>
 
+                {/* Notes */}
+                <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Ghi chú</h4>
+                  <p className="text-sm text-gray-600">{selectedWithdrawal.notes || "Không có ghi chú"}</p>
+                </div>
+
+                {/* Dates */}
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm text-gray-500">Ngày yêu cầu</label>
-                    <p className="text-sm">{new Date(selectedWithdrawal.createdAt).toLocaleString("vi-VN")}</p>
+                  <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                    <p className="text-xs text-blue-600 mb-1">Ngày yêu cầu</p>
+                    <p className="text-sm font-semibold text-blue-900">
+                      {new Date(selectedWithdrawal.createdAt).toLocaleString("vi-VN")}
+                    </p>
                   </div>
                   {selectedWithdrawal.processedAt && (
-                    <div>
-                      <label className="text-sm text-gray-500">Ngày xử lý</label>
-                      <p className="text-sm">{new Date(selectedWithdrawal.processedAt).toLocaleString("vi-VN")}</p>
+                    <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
+                      <p className="text-xs text-purple-600 mb-1">Ngày xử lý</p>
+                      <p className="text-sm font-semibold text-purple-900">
+                        {new Date(selectedWithdrawal.processedAt).toLocaleString("vi-VN")}
+                      </p>
                     </div>
                   )}
                 </div>
 
+                {/* Rejection Reason */}
                 {selectedWithdrawal.rejectionReason && (
-                  <div>
-                    <label className="text-sm text-gray-500">Lý do từ chối</label>
+                  <div className="bg-red-50 rounded-2xl p-6 border border-red-100">
+                    <h4 className="text-sm font-semibold text-red-700 mb-3">Lý do từ chối</h4>
                     <p className="text-sm text-red-600">{selectedWithdrawal.rejectionReason}</p>
                   </div>
                 )}
 
-                {selectedWithdrawal.status === "PENDING" && (
-                  <div className="flex gap-3 pt-4 border-t">
-                    <button
-                      onClick={() => {
-                        handleApprove(selectedWithdrawal._id);
-                        setShowDetailModal(false);
-                      }}
-                      disabled={actionLoading[selectedWithdrawal._id]}
-                      className="flex-1 px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 disabled:opacity-50"
-                    >
-                      Duyệt yêu cầu
-                    </button>
-                    <button
-                      onClick={() => {
-                        handleReject(selectedWithdrawal._id);
-                        setShowDetailModal(false);
-                      }}
-                      disabled={actionLoading[selectedWithdrawal._id]}
-                      className="flex-1 px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 disabled:opacity-50"
-                    >
-                      Từ chối yêu cầu
-                    </button>
+                {/* Status Badge */}
+                <div className="flex justify-center">
+                  <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border ${getStatusColor(selectedWithdrawal.status)}`}>
+                    {getStatusIcon(selectedWithdrawal.status)}
+                    <span className="text-sm font-semibold">{getStatusLabel(selectedWithdrawal.status)}</span>
                   </div>
-                )}
+                </div>
               </div>
+            </div>
+
+            {/* Modal Footer */}
+            {selectedWithdrawal.status === "PENDING" && (
+              <div className="bg-gray-50 px-8 py-6 border-t border-gray-200">
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => {
+                      handleApprove(selectedWithdrawal._id);
+                      setShowDetailModal(false);
+                    }}
+                    disabled={actionLoading[selectedWithdrawal._id]}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold rounded-xl hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                  >
+                    {actionLoading[selectedWithdrawal._id] && (
+                      <FiLoader className="w-4 h-4 animate-spin" />
+                    )}
+                    {actionLoading[selectedWithdrawal._id] ? "Đang xử lý..." : "Duyệt yêu cầu"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleReject(selectedWithdrawal._id);
+                      setShowDetailModal(false);
+                    }}
+                    disabled={actionLoading[selectedWithdrawal._id]}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white font-semibold rounded-xl hover:from-red-600 hover:to-pink-700 disabled:opacity-50 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                  >
+                    {actionLoading[selectedWithdrawal._id] && (
+                      <FiLoader className="w-4 h-4 animate-spin" />
+                    )}
+                    {actionLoading[selectedWithdrawal._id] ? "Đang xử lý..." : "Từ chối yêu cầu"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Notification Toast */}
+      {notification.show && (
+        <div className={`fixed top-4 right-4 z-50 max-w-sm p-4 rounded-lg shadow-lg border transform transition-all duration-300 ${
+          notification.type === "success" 
+            ? "bg-green-50 border-green-200 text-green-800" 
+            : "bg-red-50 border-red-200 text-red-800"
+        }`}>
+          <div className="flex items-center gap-3">
+            {notification.type === "success" ? (
+              <FiCheck className="w-5 h-5 text-green-600" />
+            ) : (
+              <FiAlertCircle className="w-5 h-5 text-red-600" />
+            )}
+            <div className="flex-1">
+              <p className="text-sm font-medium">{notification.message}</p>
+            </div>
+            <button
+              onClick={() => setNotification({ show: false, type: "", message: "" })}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <FiX className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Approve Confirmation Modal */}
+      {showApproveModal && selectedWithdrawal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/50" onClick={() => setShowApproveModal(false)} />
+          <div className="relative bg-white rounded-xl max-w-md w-full p-6 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                <FiCheck className="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Xác nhận duyệt rút tiền</h3>
+                <p className="text-sm text-gray-500">Thao tác này sẽ chuyển tiền ngay lập tức</p>
+              </div>
+            </div>
+            
+            <div className="bg-gray-50 p-4 rounded-lg space-y-2 mb-6">
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600">Số tiền:</span>
+                <span className="font-medium">{formatCurrency(selectedWithdrawal.amount)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600">Người yêu cầu:</span>
+                <span className="font-medium">{selectedWithdrawal.supplierId?.fullName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600">Tài khoản:</span>
+                <span className="font-medium">{selectedWithdrawal.bankInfo?.accountNumber}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowApproveModal(false)}
+                disabled={actionLoading[selectedWithdrawal._id]}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={confirmApprove}
+                disabled={actionLoading[selectedWithdrawal._id]}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {actionLoading[selectedWithdrawal._id] && (
+                  <FiLoader className="w-4 h-4 animate-spin" />
+                )}
+                {actionLoading[selectedWithdrawal._id] ? "Đang xử lý..." : "Xác nhận duyệt"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Confirmation Modal */}
+      {showRejectModal && selectedWithdrawal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/50" onClick={() => setShowRejectModal(false)} />
+          <div className="relative bg-white rounded-xl max-w-md w-full p-6 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <FiX className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Xác nhận từ chối rút tiền</h3>
+                <p className="text-sm text-gray-500">Vui lòng nhập lý do từ chối</p>
+              </div>
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Lý do từ chối <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Nhập lý do từ chối..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowRejectModal(false)}
+                disabled={actionLoading[selectedWithdrawal._id]}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={confirmReject}
+                disabled={actionLoading[selectedWithdrawal._id] || !rejectReason.trim()}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {actionLoading[selectedWithdrawal._id] && (
+                  <FiLoader className="w-4 h-4 animate-spin" />
+                )}
+                {actionLoading[selectedWithdrawal._id] ? "Đang xử lý..." : "Xác nhận từ chối"}
+              </button>
             </div>
           </div>
         </div>

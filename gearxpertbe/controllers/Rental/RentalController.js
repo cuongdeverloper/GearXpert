@@ -11,6 +11,8 @@ const WalletTransaction = require("../../models/WalletTransaction");
 const DeviceItem = require("../../models/DeviceItem");
 const DeliveryTask = require("../../models/DeliveryTask");
 const mongoose = require("mongoose");
+const cloudinary = require("cloudinary").v2;
+const ContractFile = require("../../models/ContractFile");
 const {
   ensureDraftForDelivery,
   syncCancelledRental,
@@ -32,6 +34,15 @@ const payos = new PayOS(
 // Đầu file RentalController.js (hoặc nơi bạn định nghĩa các hàm)
 const NotificationConfig = require("../../configs/NotificationConfig"); // điều chỉnh path cho đúng
 const { emitOperationStaffUpdate } = require("../../utils/operationStaffSocket");
+
+// Helper function to get client IP
+const getClientIp = (req) => {
+  const forwardedFor = req.headers["x-forwarded-for"];
+  if (typeof forwardedFor === "string" && forwardedFor.length > 0) {
+    return forwardedFor.split(",")[0].trim();
+  }
+  return req.ip;
+};
 
 // Helper gửi noti cho supplier hoặc customer
 const sendRentalNotification = async (
@@ -253,9 +264,20 @@ exports.getRentalById = async (req, res) => {
       items: itemsWithReports,
     };
 
+    // Lấy thông tin contract nếu có
+    const contract = await Contract.findOne({ rentalId: rental._id }).lean();
+    let contractUrl = null;
+    if (contract) {
+      const contractFile = await ContractFile.findOne({ contractId: contract._id }).lean();
+      if (contractFile) {
+        contractUrl = contractFile.fileUrl;
+      }
+    }
+
     res.json({
       success: true,
       rental: result,
+      contractUrl,
     });
   } catch (error) {
     console.error("Error getRentalById:", error);
@@ -568,10 +590,67 @@ exports.checkoutRental = async (req, res) => {
       createdRentals.push(rental);
     }
 
-    // 8. Notification (giữ nguyên)
-
+    // 8. Notification và upload contract cho WALLET payment
     if (walletSuccess) {
       for (const rental of createdRentals) {
+        // === UPLOAD CONTRACT SAU KHI THANH TOÁN WALLET THÀNH CÔNG ===
+        try {
+          console.log(`[CHECKOUT WALLET] Uploading contract for rental ${rental._id}...`);
+
+          // Import contract controller functions
+          const { generateDocxBuffer } = require('./Contract/ContractController');
+          const Contract = require('../../models/Contract');
+          const ContractFile = require('../../models/ContractFile');
+          const cloudinary = require('cloudinary').v2;
+
+          // Generate contract buffer
+          const buf = await generateDocxBuffer(rental);
+
+          // Upload to Cloudinary
+          const uploadResult = await new Promise((resolve, reject) => {
+            cloudinary.uploader.upload_stream(
+              { 
+                resource_type: "raw", 
+                folder: "contracts", 
+                public_id: `contract-${rental._id}-${Date.now()}`, 
+                format: "docx" 
+              },
+              (error, result) => (error ? reject(error) : resolve(result))
+            ).end(buf);
+          });
+
+          // Create contract record
+          const contractRecord = await Contract.create({
+            rentalId: rental._id,
+            contractType: "DELIVERY",
+            status: "SIGNED",
+            deliveryMethod: "SHIP",
+            location: rental.deliveryAddress?.fullAddress || "",
+            ipAddress: getClientIp(req),
+            userAgent: req.headers["user-agent"] || "",
+            contractVersion: "v1",
+            customer: rental.customerId,
+            supplier: rental.supplierId,
+            signedByCustomer: true,
+            signedByStaff: true,
+            signedAt: new Date(),
+          });
+
+          // Create contract file record
+          await ContractFile.create({
+            contractId: contractRecord._id,
+            fileUrl: uploadResult.secure_url,
+            fileType: "DELIVERY",
+            uploadedBy: customerId,
+          });
+
+          console.log(`[CHECKOUT WALLET] Contract uploaded successfully: ${uploadResult.secure_url}`);
+
+        } catch (contractError) {
+          console.error(`[CHECKOUT WALLET] Failed to upload contract for rental ${rental._id}:`, contractError);
+          // Không throw error vì payment thành công, contract có thể upload sau
+        }
+
         await sendRentalNotification(
           rental,
           "SUPPLIER",

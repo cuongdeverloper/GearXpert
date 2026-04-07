@@ -22,6 +22,8 @@
     "cloudinary": "^2.9.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "docx": "^9.6.1",
+    "docx-templates": "^4.15.0",
     "docxtemplater": "^3.68.3",
     "docxtemplater-image-module-free": "^1.1.1",
     "dotenv": "^17.2.3",

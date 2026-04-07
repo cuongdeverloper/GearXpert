@@ -4,6 +4,11 @@ const fs = require("fs/promises");
 const path = require("path");
 const fontkit = require("@pdf-lib/fontkit");
 
+// DOCX generation imports
+const PizZip = require("pizzip");
+const Docxtemplater = require("docxtemplater");
+const ImageModule = require("docxtemplater-image-module-free");
+
 const Contract = require("../../models/Contract");
 const ContractFile = require("../../models/ContractFile");
 const Rental = require("../../models/Rental");
@@ -14,7 +19,8 @@ const DeviceItem = require("../../models/DeviceItem"); // ← Lấy serial từ 
 const cloudinary = require("cloudinary").v2;
 
 // ====================== PATHS ======================
-const TEMPLATE_PATH = path.resolve(__dirname, "../../templatesContract/template_contract (5) (1).pdf");
+const TEMPLATE_PATH = path.resolve(__dirname, "../../templatesContract/template_contract_final.pdf");
+const DOCX_TEMPLATE_PATH = path.resolve(__dirname, "../../templatesContract/template_contract.docx");
 const FONT_PATH = path.resolve(__dirname, "../../fonts/DejaVuSans.ttf");
 
 // ====================== BUILD DATA (ĐÃ SỬA ĐẦY ĐỦ) ======================
@@ -202,8 +208,133 @@ const generatePdfBuffer = async (rental) => {
     }
   });
 
-  const resultPdf = await pdfDoc.save();
-  return Buffer.from(resultPdf);
+};
+
+// ====================== GENERATE DOCX BUFFER ======================
+const generateDocxBuffer = async (rental) => {
+  console.log("[DEBUG] Starting generateDocxBuffer");
+  
+  const templatePath = path.resolve(__dirname, "../../templatesContract/template_contract.docx");
+  
+  let templateBuffer;
+  try {
+    templateBuffer = await fs.readFile(templatePath, "binary");
+    console.log("[DEBUG] Template loaded, size:", templateBuffer.length);
+  } catch (templateError) {
+    console.error("[DEBUG] Template file không tìm tìm:", templateError.message);
+    throw new Error("Template file không tìm tìm: " + templateError.message);
+  }
+  
+  const data = await buildContractData(rental);
+  console.log("[DEBUG] Contract data built:", Object.keys(data));
+  
+  // Add signature if provided - same as supplier contract
+  const sigUrl = rental.signatureData || rental.customerSignature;
+  if (sigUrl && sigUrl.startsWith("data:image")) {
+    data.signatureDataUrl = sigUrl;
+  } else {
+    data.signatureDataUrl = "";
+  }
+  
+  try {
+    // Image module config - exactly like supplier contract
+    const base64DataURLToArrayBuffer = (dataURL) => {
+      const base64Regex = /^data:image\/(png|jpg|jpeg|svg|svg\+xml);base64,/;
+      if (!base64Regex.test(dataURL)) {
+        return false;
+      }
+      const stringBase64 = dataURL.replace(base64Regex, "");
+      const binaryString = Buffer.from(stringBase64, "base64").toString("binary");
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return bytes.buffer;
+    };
+    
+    const opts = {
+      centered: false,
+      fileType: "docx",
+      getImage: function (tagValue, tagName) {
+        if (tagValue && tagValue.startsWith("data:image")) {
+          return base64DataURLToArrayBuffer(tagValue);
+        }
+        return Buffer.from("");
+      },
+      getSize: function (img, tagValue, tagName) {
+        return [180, 70]; // Same as supplier contract
+      },
+    };
+    const imageModule = new ImageModule(opts);
+    
+    // Use docxtemplater - exactly like supplier contract
+    const zip = new PizZip(templateBuffer);
+    
+    // Debug: Check template placeholders
+    try {
+      const content = zip.file("word/document.xml")?.asText();
+      if (content) {
+        console.log("[DEBUG] Template placeholders found:");
+        // Extract placeholders from Word XML
+        const placeholderMatches = content.match(/\{\{[^}]*\}\}/g) || [];
+        const cleanPlaceholders = placeholderMatches.map(p => {
+          // Remove Word XML tags and extract clean placeholder name
+          const cleanMatch = p.match(/\{\{([^<]+)\}\}/);
+          return cleanMatch ? `{{${cleanMatch[1].trim()}}}` : p;
+        });
+        
+        // Remove duplicates and log
+        const uniquePlaceholders = [...new Set(cleanPlaceholders)];
+        uniquePlaceholders.forEach(p => console.log("  -", p));
+        
+        // Check if all data keys have placeholders
+        const missingPlaceholders = Object.keys(data).filter(key => 
+          !uniquePlaceholders.some(p => p.includes(key))
+        );
+        
+        if (missingPlaceholders.length > 0) {
+          console.warn("[DEBUG] Missing placeholders in template:", missingPlaceholders);
+        }
+      }
+    } catch (zipError) {
+      console.warn("[DEBUG] Could not read template content:", zipError.message);
+    }
+    
+    const doc = new Docxtemplater(zip, {
+      paragraphLoop: true,
+      linebreaks: true,
+      modules: [imageModule],
+      delimiters: { start: '{{', end: '}}' },
+    });
+    
+    // Render data - exactly like supplier contract
+    doc.render({
+      ...data,
+      signatureImage: data.signatureDataUrl, // Chuy qua {%signatureImage}
+    });
+    
+    const buf = doc.getZip().generate({
+      type: "nodebuffer",
+      compression: "DEFLATE",
+    });
+    
+    console.log("[DEBUG] DOCX generated, size:", buf.length);
+    return buf;
+    
+  } catch (docxError) {
+    console.error("[DEBUG] DOCX generation error:", docxError);
+    
+    // Handle docxtemplater syntax errors - exactly like supplier contract
+    if (docxError.properties && docxError.properties.errors) {
+      const errorMessages = docxError.properties.errors
+        .map((e) => e.properties.explanation)
+        .join("; ");
+      throw new Error("Lõi khuyn dng cu trúc file Word (Mau h dng): " + errorMessages);
+    }
+    
+    throw new Error("L khi tao DOCX: " + docxError.message);
+  }
 };
 
 // ====================== API ENDPOINTS ======================
@@ -212,11 +343,11 @@ exports.previewContractWithData = async (req, res) => {
     const rentalData = req.body;
     if (!rentalData) return res.status(400).json({ message: "Rental data not found" });
 
-    const buf = await generatePdfBuffer(rentalData);
+    const buf = await generateDocxBuffer(rentalData);
 
     const uploadResult = await new Promise((resolve, reject) => {
       cloudinary.uploader.upload_stream(
-        { resource_type: "raw", folder: "contracts/preview", public_id: `preview-${Date.now()}`, format: "pdf" },
+        { resource_type: "raw", folder: "contracts/preview", public_id: `preview-${Date.now()}`, format: "docx" },
         (error, result) => (error ? reject(error) : resolve(result))
       ).end(buf);
     });
@@ -224,7 +355,7 @@ exports.previewContractWithData = async (req, res) => {
     res.json({
       success: true,
       previewUrl: uploadResult.secure_url,
-      fileName: `hop-dong-thue-preview-${Date.now()}.pdf`,
+      fileName: `hop-dong-thue-preview-${Date.now()}.docx`,
     });
   } catch (error) {
     console.error("Preview contract error:", error);

@@ -113,6 +113,30 @@ exports.getWalletTransactions = async (req, res) => {
 
   res.json(transactions);
 };
+
+/**
+ * LẤY DANH SÁCH YÊU CẦU RÚT TIỀN
+ * GET /api/wallet/withdraw-requests
+ */
+exports.getMyWithdrawRequests = async (req, res) => {
+  try {
+    const withdrawRequests = await WithdrawRequest
+      .find({ user: req.user.id })
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      data: withdrawRequests,
+    });
+  } catch (error) {
+    console.error("Error fetching withdraw requests:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi khi lấy danh sách yêu cầu rút tiền",
+    });
+  }
+};
+
 exports.verifyTopUp = async (req, res) => {
   const mongoose = require('mongoose');
   const session = await mongoose.startSession();
