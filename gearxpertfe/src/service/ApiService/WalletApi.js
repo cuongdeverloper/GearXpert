@@ -15,6 +15,15 @@ const getMyWallet = async () => {
 const getWalletTransactions = async () => {
     return axios.get("/api/wallets/transactions");
 };
+
+/**
+ * Lấy danh sách yêu cầu rút tiền
+ * @returns {Promise} Trả về mảng các yêu cầu rút tiền với trạng thái
+ */
+const getMyWithdrawRequests = async () => {
+    return axios.get("/api/wallets/withdraw-requests");
+};
+
 const requestWithdraw = async (data) => {
     // data bao gồm { amount, bankInfo }
     return axios.post("/api/wallets/withdraw", data); 
@@ -33,5 +42,6 @@ const topUpWallet = async (amount) => {
 export {
     getMyWallet,
     getWalletTransactions,
+    getMyWithdrawRequests,
     topUpWallet,requestWithdraw
 };

@@ -62,6 +62,7 @@ const sections = [
     icon: FiClipboard,
     items: [
       { to: "/supplier/rental-requests", label: "Yêu cầu đặt thuê" },
+      { to: "/supplier/extension-requests", label: "Yêu cầu gia hạn" },
     ],
   },
   {

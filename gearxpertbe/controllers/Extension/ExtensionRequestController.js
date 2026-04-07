@@ -39,27 +39,41 @@ const checkSupplierPermission = async (req, res, next) => {
 const getSupplierExtensionRequests = async (req, res) => {
   try {
     const { supplierId } = req.params;
+    const { status } = req.query; // Optional status filter
     
-    const requests = await ExtensionRequest.find({
-      supplierId: supplierId,
-      status: "PENDING"
-    })
+    // Build query
+    const query = { supplierId };
+    if (status && ["PENDING", "APPROVED", "REJECTED"].includes(status)) {
+      query.status = status;
+    }
+    
+    const requests = await ExtensionRequest.find(query)
     .populate({
       path: "rentalId",
       populate: {
         path: "items",
         populate: {
           path: "deviceId",
-          select: "name"
+          select: "name images"
         }
       }
     })
-    .populate("customerId", "fullName")
+    .populate("customerId", "fullName avatar phoneNumber")
     .sort({ createdAt: -1 });
+
+    // Get stats
+    const stats = await ExtensionRequest.aggregate([
+      { $match: { supplierId: new mongoose.Types.ObjectId(supplierId) } },
+      { $group: { _id: "$status", count: { $sum: 1 } } }
+    ]);
+    
+    const statsMap = { PENDING: 0, APPROVED: 0, REJECTED: 0 };
+    stats.forEach(s => { statsMap[s._id] = s.count; });
 
     res.status(200).json({
       success: true,
-      extensionRequests: requests
+      extensionRequests: requests,
+      stats: statsMap
     });
   } catch (error) {
     console.error("Error fetching extension requests:", error);

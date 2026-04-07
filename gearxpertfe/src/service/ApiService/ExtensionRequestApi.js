@@ -1,7 +1,11 @@
 import axios from "../AxiosCustomize";
 
-export const getExtensionRequests = (supplierId) => {
-  return axios.get(`/api/extension-requests/supplier/${supplierId}`);
+export const getExtensionRequests = (supplierId, status = null) => {
+  let url = `/api/extension-requests/supplier/${supplierId}`;
+  if (status) {
+    url += `?status=${status}`;
+  }
+  return axios.get(url);
 };
 
 export const approveExtension = (requestId) => {

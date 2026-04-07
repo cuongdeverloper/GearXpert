@@ -20,6 +20,8 @@ import {
   ChevronRight,
   Receipt,
   HelpCircle,
+  FileText,
+  X,
 } from "lucide-react";
 
 export default function RentalDetail() {
@@ -27,6 +29,8 @@ export default function RentalDetail() {
   const navigate = useNavigate();
   const account = useSelector((state) => state.user.account);
   const [rental, setRental] = useState(null);
+  const [contractUrl, setContractUrl] = useState(null);
+  const [showContractModal, setShowContractModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [confirmingReceive, setConfirmingReceive] = useState(false);
 
@@ -46,6 +50,7 @@ export default function RentalDetail() {
           return;
         }
         setRental(data);
+        setContractUrl(res?.contractUrl || null);
       } catch (error) {
         toast.error("Lỗi khi tải dữ liệu");
         navigate(rentalsListPath, { replace: true });
@@ -162,6 +167,20 @@ export default function RentalDetail() {
                     {rental.items?.length || 0} thiết bị
                   </span>
                 </div>
+
+                {/* Contract View Button */}
+                {contractUrl && (
+                  <button
+                    onClick={() => setShowContractModal(true)}
+                    className="px-6 py-4 rounded-2xl flex flex-col items-center justify-center border-2 border-indigo-100 bg-indigo-50 hover:bg-indigo-100 transition-colors cursor-pointer"
+                  >
+                    <span className="text-sm font-bold text-indigo-400">HỢP ĐỒNG</span>
+                    <span className="text-sm font-black text-indigo-600 flex items-center gap-1">
+                      <FileText size={16} />
+                      Xem
+                    </span>
+                  </button>
+                )}
               </div>
 
               {/* Progress Steps */}
@@ -571,6 +590,56 @@ export default function RentalDetail() {
           </div>
         </div>
       </main>
+
+      {/* Contract Modal */}
+      {showContractModal && contractUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-[90vw] h-[90vh] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <FileText size={20} className="text-indigo-600" />
+                Hợp đồng thuê thiết bị
+              </h3>
+              <button
+                onClick={() => setShowContractModal(false)}
+                className="p-2 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                <X size={20} className="text-slate-600" />
+              </button>
+            </div>
+            {/* Modal Body - Iframe */}
+            <div className="flex-1 bg-slate-100">
+              <iframe
+                src={`https://docs.google.com/gview?url=${encodeURIComponent(contractUrl)}&embedded=true`}
+                className="w-full h-full border-0"
+                title="Contract Viewer"
+              />
+            </div>
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50">
+              <p className="text-sm text-slate-500">
+                Nếu không xem được, bạn có thể tải hợp đồng về máy
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => window.open(contractUrl, '_blank')}
+                  className="px-4 py-2 bg-white border border-slate-300 text-slate-700 font-bold rounded-lg hover:bg-slate-100 transition-colors"
+                >
+                  Tải về
+                </button>
+                <button
+                  onClick={() => setShowContractModal(false)}
+                  className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Footer />
     </div>
   );

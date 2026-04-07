@@ -6,6 +6,7 @@ const { checkAccessToken,requireEkyc } = require('../middleware/JWTAction');
 walletRouter.post('/topup',checkAccessToken,requireEkyc, walletCtrl.topUpWallet);
 walletRouter.get('/me', checkAccessToken, walletCtrl.getMyWallet);
 walletRouter.get('/transactions', checkAccessToken, walletCtrl.getWalletTransactions);
+walletRouter.get('/withdraw-requests', checkAccessToken, walletCtrl.getMyWithdrawRequests);
 walletRouter.post('/verifytopup', checkAccessToken, walletCtrl.verifyTopUp);
 walletRouter.post('/withdraw', checkAccessToken,requireEkyc, walletCtrl.requestWithdraw);
 
