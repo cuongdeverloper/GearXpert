@@ -1526,7 +1526,7 @@ exports.checkoutRental = async (req, res) => {
 
       const orderCode = Number(String(Date.now()).slice(-9));
 
-      const representativeRentalId = createdRentals[0]._id.toString();
+      const representativeRentalId = createdRentals[0].rental._id.toString();
 
 
 
