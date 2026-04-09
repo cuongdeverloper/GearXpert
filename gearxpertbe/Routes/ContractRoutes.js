@@ -3,6 +3,13 @@ const ContractRouter = express.Router();
 const contractController = require("../controllers/Contract/ContractController");
 const { checkAccessToken } = require("../middleware/JWTAction");
 
+// Test endpoint for debugging
+ContractRouter.post(
+  "/test-preview",
+  checkAccessToken,
+  contractController.testPreview
+);
+
 // Preview contract with rental data (no rentalId required)
 ContractRouter.post(
   "/preview-data",
