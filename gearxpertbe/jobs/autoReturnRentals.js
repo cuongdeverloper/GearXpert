@@ -28,8 +28,9 @@ async function runAutoReturn() {
 
   for (const rental of expiringRentals) {
     try {
-      rental.status = 'RETURNING';
-      await rental.save();
+      // rental.status = 'RETURNING';
+      // await rental.save();
+      await Rental.updateOne({ _id: rental._id }, { status: 'RETURNING' });
 
       // Ensure retrieval draft exists as soon as rental enters RETURNING.
       await ensureDraftForReturn({ rentalId: rental._id });
