@@ -426,7 +426,7 @@ const EkycVerification = ({ isModal = false, onClose, onSuccess }) => {
                         <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/5 rounded-full -ml-12 -mb-12"></div>
 
                         <div className="w-16 h-16 flex-shrink-0 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center mb-6 ring-1 ring-white/20 mx-auto">
-                            <span className="material-symbols-outlined text-white text-4xl">verified_user</span>
+                            <span className="material-symbols-outlined text-white text-4xl">Xác thực tài khoản</span>
                         </div>
                         <h2 className="text-3xl font-bold text-white font-display uppercase tracking-tight">Xác thực danh tính</h2>
                         <p className="text-indigo-100/80 text-sm mt-2 max-w-xs mx-auto">
