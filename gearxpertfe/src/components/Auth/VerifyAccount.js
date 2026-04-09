@@ -6,7 +6,6 @@ import { loadSlim } from "tsparticles-slim";
 import { ImSpinner9 } from "react-icons/im";
 import { FaCheckCircle, FaTimesCircle, FaArrowRight, FaHome } from "react-icons/fa";
 import { verifyAccountApi } from "../Auth/ApiAuth";
-// import brandLogo from "../../../assets/logoGearXpert.png";
 import "./VerifyAccount.scss";
 
 const VerifyAccount = () => {

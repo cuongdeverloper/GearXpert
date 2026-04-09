@@ -1,50 +1,48 @@
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
+// Cấu hình transporter cho Gmail
+// Nên sử dụng cổng 465 cho SSL hoặc 587 cho STARTTLS
 const transporter = nodemailer.createTransport({
     service: 'gmail',
-    pool: true, // Duy trì kết nối để tránh bị Gmail chặn khi gửi nhiều
-    maxConnections: 5,
-    maxMessages: 100,
-    rateDelta: 1000,
-    rateLimit: 5, // Giới hạn 5 mail mỗi giây để tránh spam filter
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // Use true for port 465, false for all other ports
     auth: {
-        user: process.env.MAIL_USERNAME,
-        pass: process.env.MAIL_PASSWORD,
+        user: process.env.MAIL_USERNAME, 
+        pass: process.env.MAIL_PASSWORD, // Mật khẩu ứng dụng 16 ký tự
     },
 });
 
-const sendMail = async (to, subject, html, retries = 3) => {
-    for (let attempt = 1; attempt <= retries; attempt++) {
-        try {
-            const mailOptions = {
-                from: `"GearXpert" <${process.env.MAIL_USERNAME}>`,
-                to: to,
-                subject: subject,
-                html: html,
-            };
+/**
+ * Gửi email sử dụng Nodemailer
+ * @param {string} to - Địa chỉ email người nhận
+ * @param {string} subject - Tiêu đề email
+ * @param {string} html - Nội dung email dạng HTML
+ */
+const sendMail = async (to, subject, html) => {
+    const mailOptions = {
+        from: `"GearXpert" <${process.env.MAIL_USERNAME}>`,
+        to: to,
+        subject: subject,
+        html: html,
+    };
 
-            const info = await transporter.sendMail(mailOptions);
-            return info;
-
-        } catch (error) {
-            console.error(`[Mail Attempt ${attempt}/${retries}] Lỗi khi gửi tới ${to}:`, error.message);
-
-            // Nếu lỗi do xác thực hoặc lỗi nghiêm trọng không thể thử lại
-            if (error.responseCode && (error.responseCode === 535 || error.responseCode === 550)) {
-                console.error(`[Mail Critical Error] Lỗi cấu hình hoặc tài khoản, không thử lại.`);
-                break;
-            }
-
-            if (attempt === retries) {
-                console.error(`[Mail Final Failure] Thất bại sau ${retries} lần thử.`);
-                return null;
-            }
-
-            // Chờ trước khi thử lại (tăng dần thời gian chờ)
-            const waitTime = attempt * 2000;
-            await new Promise(resolve => setTimeout(resolve, waitTime));
+    try {
+        console.log(`[Nodemailer] Đang gửi email tới: ${to}`);
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`[Nodemailer] Email gửi thành công: ${info.messageId}`);
+        return info;
+    } catch (error) {
+        console.error(`[Nodemailer] Lỗi khi gửi email tới ${to}:`);
+        console.error(`Mã lỗi: ${error.code}`);
+        console.error(`Thông báo: ${error.message}`);
+        
+        if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT') {
+            console.error('=> Gợi ý: Server deploy của bạn đang chặn cổng SMTP. Hãy kiểm tra lại firewall.');
         }
+
+        return null;
     }
 };
 
