@@ -142,16 +142,13 @@ export default function ProductDetailPage() {
   useEffect(() => {
     if (!socket || !device?._id) return;
 
-    console.log(`[SOCKET] Joining device room: device_${device._id}`);
     socket.emit("joinRoom", `device_${device._id}`);
 
     socket.on("deviceReviewUpdate", (data) => {
-      console.log("[SOCKET] Received deviceReviewUpdate:", data);
       fetchData();
     });
 
     return () => {
-      console.log(`[SOCKET] Leaving device room: device_${device._id}`);
       socket.emit("leaveRoom", `device_${device._id}`);
       socket.off("deviceReviewUpdate");
     };
@@ -228,19 +225,16 @@ export default function ProductDetailPage() {
         rentalEndDate: endDate,
         addons: addons.map((a) => a._id),
       });
-
-      console.log("[handleBuyNow] Response:", response.data);
-
       toast.success(t('productDetail.success_add_cart'), { id: toastId });
       navigate("/rental/checkout", {
         state: { cartType: "INSTANT" },
       });
     } catch (err) {
       console.error("[handleBuyNow] Error:", err);
-      
+
       // Detailed error handling
       const errorMessage = err.response?.data?.message || err.message || "Thuê ngay thất bại";
-      
+
       // Specific error messages
       if (errorMessage.includes("không tồn tại")) {
         toast.error("Thiết bị không tồn tại hoặc đã bị xóa", { id: toastId });
@@ -308,21 +302,21 @@ export default function ProductDetailPage() {
   const days =
     startDate && endDate
       ? Math.max(
-          1,
-          Math.ceil((new Date(endDate) - new Date(startDate)) / 86400000)
-        )
+        1,
+        Math.ceil((new Date(endDate) - new Date(startDate)) / 86400000)
+      )
       : 0;
 
   const discountPrice = device?.discountPrice || 0;
   const expiry = device?.discountExpiry ? new Date(device.discountExpiry) : null;
   const isExpired = (expiry && expiry < new Date());
   const effectivePrice = (discountPrice > 0 && !isExpired) ? discountPrice : (device?.rentPrice?.perDay || 0);
-  
+
   const totalPrice = device
     ? days *
-      (effectivePrice +
-        addons.reduce((s, a) => s + a.rentPrice.perDay, 0)) *
-      quantity
+    (effectivePrice +
+      addons.reduce((s, a) => s + a.rentPrice.perDay, 0)) *
+    quantity
     : 0;
 
   if (loading) {
@@ -376,11 +370,10 @@ export default function ProductDetailPage() {
                   />
                   <div className="absolute top-5 left-5">
                     <span
-                      className={`text-white text-xs font-black px-3 py-1 rounded-lg uppercase tracking-widest shadow-md ${
-                        device.stockQuantity > 0
+                      className={`text-white text-xs font-black px-3 py-1 rounded-lg uppercase tracking-widest shadow-md ${device.stockQuantity > 0
                           ? "bg-indigo-600"
                           : "bg-rose-500"
-                      }`}
+                        }`}
                     >
                       {device.stockQuantity > 0
                         ? t(`productDetail.status_${device.status}`, { defaultValue: device.status })
@@ -394,11 +387,10 @@ export default function ProductDetailPage() {
                     <button
                       key={i}
                       onClick={() => setSelectedImage(i)}
-                      className={`relative min-w-[90px] sm:min-w-[100px] h-20 sm:h-24 rounded-2xl overflow-hidden border-2 transition-all ${
-                        selectedImage === i
+                      className={`relative min-w-[90px] sm:min-w-[100px] h-20 sm:h-24 rounded-2xl overflow-hidden border-2 transition-all ${selectedImage === i
                           ? "border-indigo-600 scale-95 shadow-md"
                           : "border-transparent opacity-70 hover:opacity-100"
-                      }`}
+                        }`}
                     >
                       <img
                         src={img}
@@ -439,11 +431,10 @@ export default function ProductDetailPage() {
                                 {Array.from({ length: 5 }).map((_, i) => (
                                   <Star
                                     key={i}
-                                    className={`w-5 h-5 ${
-                                      i < myReview.rating
+                                    className={`w-5 h-5 ${i < myReview.rating
                                         ? "fill-amber-400 text-amber-400"
                                         : "text-slate-200"
-                                    }`}
+                                      }`}
                                   />
                                 ))}
                               </div>
@@ -518,11 +509,10 @@ export default function ProductDetailPage() {
                                   className="focus:outline-none transition-transform hover:scale-110"
                                 >
                                   <Star
-                                    className={`w-8 h-8 transition-all ${
-                                      star <= editRating
+                                    className={`w-8 h-8 transition-all ${star <= editRating
                                         ? "fill-amber-400 text-amber-400 drop-shadow-sm"
                                         : "text-slate-300 hover:text-amber-300"
-                                    }`}
+                                      }`}
                                   />
                                 </button>
                               ))}
@@ -554,11 +544,10 @@ export default function ProductDetailPage() {
                               disabled={
                                 isSubmittingReview || !editComment.trim()
                               }
-                              className={`min-w-[120px] px-5 py-2.5 rounded-xl text-white font-medium flex items-center justify-center gap-2 transition-all ${
-                                isSubmittingReview
+                              className={`min-w-[120px] px-5 py-2.5 rounded-xl text-white font-medium flex items-center justify-center gap-2 transition-all ${isSubmittingReview
                                   ? "bg-indigo-400 cursor-not-allowed"
                                   : "bg-indigo-600 hover:bg-indigo-700"
-                              }`}
+                                }`}
                             >
                               {isSubmittingReview ? (
                                 <>
@@ -617,11 +606,10 @@ export default function ProductDetailPage() {
                                 {Array.from({ length: 5 }).map((_, i) => (
                                   <Star
                                     key={i}
-                                    className={`w-3.5 h-3.5 ${
-                                      i < r.rating
+                                    className={`w-3.5 h-3.5 ${i < r.rating
                                         ? "fill-amber-400 text-amber-400"
                                         : "text-slate-200"
-                                    }`}
+                                      }`}
                                   />
                                 ))}
                               </div>
@@ -857,19 +845,17 @@ export default function ProductDetailPage() {
                         <button
                           key={a._id}
                           onClick={() => toggleAddon(a)}
-                          className={`w-full flex justify-between items-center p-4 rounded-2xl border-2 transition-all text-left ${
-                            isSelected
+                          className={`w-full flex justify-between items-center p-4 rounded-2xl border-2 transition-all text-left ${isSelected
                               ? "border-indigo-600 bg-indigo-50 shadow-sm"
                               : "border-slate-100 hover:border-slate-200 bg-white"
-                          }`}
+                            }`}
                         >
                           <div>
                             <p
-                              className={`font-bold text-sm ${
-                                isSelected
+                              className={`font-bold text-sm ${isSelected
                                   ? "text-indigo-700"
                                   : "text-slate-700"
-                              }`}
+                                }`}
                             >
                               {a.name}
                             </p>

@@ -24,7 +24,9 @@ const apiLogin = async (req, res) => {
         }
 
         const isPasswordValid = await userRecord.comparePassword(password);
-        if (!isPasswordValid) return res.status(200).json({ errorCode: 3, message: 'Invalid password' });
+        if (!isPasswordValid) {
+            return res.status(200).json({ errorCode: 3, message: 'Invalid password' });
+        }
 
         const payload = {
             id: userRecord._id,
@@ -37,8 +39,10 @@ const apiLogin = async (req, res) => {
 
         // Fetch wallet balance
         const wallet = await Wallet.findOne({ user: userRecord._id });
+        if (!wallet) {
+            console.warn(`[Login] Warning: Wallet not found for user ${userRecord._id}`);
+        }
         const walletBalance = wallet ? wallet.balance : 0;
-
         return res.status(200).json({
             errorCode: 0,
             message: 'Login successful',
@@ -60,7 +64,7 @@ const apiLogin = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error(error);
+        console.error('[Login] Error:', error);
         return res.status(500).json({ errorCode: 5, message: 'Login error' });
     }
 };
@@ -108,16 +112,26 @@ const apiRegister = async (req, res) => {
             const verifyLink = `${process.env.FRONTEND_URL}/verify-account?token=${verifyToken}`;
 
             const emailContent = registrationTemplate(fullName, verifyLink);
-            await sendMail(email, 'Xác thực tài khoản GearXpert', emailContent);
 
-            // Tự động xóa nếu không verify sau 5p
+            // Gửi mail bất đồng bộ để tránh làm treo response
+            sendMail(email, 'Xác thực tài khoản GearXpert', emailContent)
+                .then(info => {
+                    if (info) console.log(`[Register] Verification email sent to ${email}`);
+                    else console.error(`[Register] Failed to send verification email to ${email}`);
+                })
+                .catch(err => console.error(`[Register] Email service error:`, err));
+
             setTimeout(async () => {
-                const userCheck = await User.findById(newUser._id);
-                if (userCheck && !userCheck.isVerified) {
-                    await User.findByIdAndDelete(newUser._id);
-                    console.log(`🧹 Deleted unverified user: ${email}`);
+                try {
+                    const userCheck = await User.findById(newUser._id);
+                    if (userCheck && !userCheck.isVerified) {
+                        await User.findByIdAndDelete(newUser._id);
+                        console.log(`🧹 [Register] Deleted unverified user: ${email} (expired 15m)`);
+                    }
+                } catch (err) {
+                    console.error(`[Register] Cleanup error for ${email}:`, err);
                 }
-            }, 5 * 60 * 1000);
+            }, 15 * 60 * 1000);
 
             return res.status(201).json({
                 errorCode: 0,
@@ -126,6 +140,7 @@ const apiRegister = async (req, res) => {
             });
         });
     } catch (error) {
+        console.error('[Register] Error:', error);
         return res.status(500).json({ errorCode: 5, message: 'Registration error' });
     }
 };

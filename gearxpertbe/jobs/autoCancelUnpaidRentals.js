@@ -4,11 +4,10 @@ const Rental = require("../models/Rental");
 const RentalItem = require("../models/RentalItem");
 const DeviceItem = require("../models/DeviceItem");
 const CartItem = require("../models/CartItem");
-const { sendRentalNotification } = require("../controllers/Rental/RentalController"); 
+const { sendRentalNotification } = require("../controllers/Rental/RentalController");
 
 // Chạy mỗi ngày lúc 00:05 (hoặc chỉnh giờ bạn muốn)
 cron.schedule("5 0 * * *", async () => {
-  console.log("[CRON] Bắt đầu kiểm tra đơn UNPAID + PENDING quá 1 ngày...");
 
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
@@ -19,11 +18,9 @@ cron.schedule("5 0 * * *", async () => {
   }).lean();
 
   if (expiredRentals.length === 0) {
-    console.log("[CRON] Không có đơn nào cần hủy tự động.");
     return;
   }
 
-  console.log(`[CRON] Tìm thấy ${expiredRentals.length} đơn cần hủy tự động.`);
 
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -44,10 +41,6 @@ cron.schedule("5 0 * * *", async () => {
           );
 
           await DeviceItem.updateDeviceCounts(item.deviceId, session);
-
-          console.log(
-            `[CRON RESTORE] Đơn ${rental._id}: restored ${item.quantity} DeviceItem(s) for device ${item.deviceId}`
-          );
         }
       }
 
@@ -81,7 +74,6 @@ cron.schedule("5 0 * * *", async () => {
     }
 
     await session.commitTransaction();
-    console.log(`[CRON SUCCESS] Đã hủy tự động và restore ${expiredRentals.length} đơn.`);
   } catch (err) {
     await session.abortTransaction();
     console.error("[CRON ERROR] Auto cancel unpaid rentals failed:", err);
@@ -89,6 +81,3 @@ cron.schedule("5 0 * * *", async () => {
     session.endSession();
   }
 });
-
-// Khởi động cron khi server chạy (thêm vào file server chính, ví dụ app.js hoặc index.js)
-console.log("[CRON] Auto cancel unpaid rentals job đã được lên lịch (00:05 hàng ngày).");

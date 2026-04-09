@@ -31,7 +31,7 @@ export default function BecomeSupplierPage() {
     const [signatureDataUrl, setSignatureDataUrl] = useState(null);
     const [loading, setLoading] = useState(false);
     const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-    
+
     // Form fields
     const [formData, setFormData] = useState({
         supplierType: "Cá nhân",
@@ -74,8 +74,8 @@ export default function BecomeSupplierPage() {
     useEffect(() => {
         if (userAccount?.fullName && !signature) {
             setSignature(userAccount.fullName);
-            setFormData(prev => ({ 
-                ...prev, 
+            setFormData(prev => ({
+                ...prev,
                 fullName: prev.fullName || userAccount.fullName,
                 phone: prev.phone || userAccount.phone,
                 email: prev.email || userAccount.email
@@ -163,7 +163,6 @@ export default function BecomeSupplierPage() {
                 signerName: signature,
                 signatureDataUrl,
             });
-            console.log(response)
             if (response.success === true) {
                 if (response.signedPdfUrl) {
                     window.open(response.signedPdfUrl, "_blank");
@@ -242,7 +241,7 @@ export default function BecomeSupplierPage() {
                                     <label className="block text-sm font-bold text-slate-700 mb-2">Họ và tên / Tên đơn vị <span className="text-rose-500">*</span></label>
                                     <input type="text" name="fullName" value={formData.fullName} onChange={handleFormChange} required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
                                 </div>
-                                
+
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-2">Số điện thoại <span className="text-rose-500">*</span></label>
                                     <input type="text" name="phone" value={formData.phone} onChange={handleFormChange} required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
@@ -267,7 +266,7 @@ export default function BecomeSupplierPage() {
                                     <label className="block text-sm font-bold text-slate-700 mb-2">Ngày cấp</label>
                                     <input type="text" name="issueDate" value={formData.issueDate} onChange={handleFormChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
                                 </div>
-                                
+
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-2">Nơi cấp</label>
                                     <input type="text" name="issuePlace" value={formData.issuePlace} onChange={handleFormChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />

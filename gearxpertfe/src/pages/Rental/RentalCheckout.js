@@ -183,7 +183,7 @@ export default function CheckoutPage() {
     cart.forEach((item) => {
       const supplierId = item.deviceId?.supplierId?._id || "unknown";
       const supplierName = item.deviceId?.supplierId?.fullName || "Unknown Supplier";
-      
+
       if (!groups[supplierId]) {
         groups[supplierId] = {
           supplierId,
@@ -192,14 +192,14 @@ export default function CheckoutPage() {
           subtotal: 0,
         };
       }
-      
+
       groups[supplierId].items.push(item);
-      groups[supplierId].subtotal += 
-        (item.deviceId?.rentPrice?.perDay || 0) * 
-        item.totalDays * 
+      groups[supplierId].subtotal +=
+        (item.deviceId?.rentPrice?.perDay || 0) *
+        item.totalDays *
         item.quantity;
     });
-    
+
     return Object.values(groups);
   }, [cart]);
 
@@ -210,14 +210,14 @@ export default function CheckoutPage() {
       return sum + ((item.deviceId?.depositAmount || item.deviceId?.deposit || 0) * item.quantity);
     }, 0);
     const total = subtotal + totalDeposit + deliveryFee - (appliedVoucher?.discount || 0);
-    
+
     return { subtotal, totalDeposit, total };
   }, [groupedBySupplier, cart, deliveryFee, appliedVoucher]);
 
   // Apply voucher
   const handleApplyVoucher = useCallback(async () => {
     if (!voucherCode) return;
-    
+
     setIsApplyingVoucher(true);
     try {
       const res = await validateVoucher(voucherCode, subtotal);
@@ -247,7 +247,7 @@ export default function CheckoutPage() {
   // Fill default user info
   const fillDefaultUserInfo = useCallback(() => {
     if (!account?.username) return;
-    
+
     setAddress({
       receiverName: account.fullName || account.username,
       street: account.address?.street || "",
@@ -308,23 +308,18 @@ export default function CheckoutPage() {
 
     setIsPreviewLoading(true);
     try {
-      console.log("[FRONTEND DEBUG] Cart items:", JSON.stringify(cart, null, 2));
       const rentalData = {
         customerId: account.id,
         items: cart.map((item) => {
-          console.log("[FRONTEND DEBUG] Processing item:", JSON.stringify(item, null, 2));
-          console.log("[FRONTEND DEBUG] Item deviceId:", item.deviceId);
-          console.log("[FRONTEND DEBUG] Item rentPrice:", item.rentPrice);
-          
           // Get serial numbers from device items (for preview, we'll get first available)
-          const deviceSerials = item.deviceId.deviceItems?.length > 0 
+          const deviceSerials = item.deviceId.deviceItems?.length > 0
             ? item.deviceId.deviceItems
-                .filter(di => di.status === 'AVAILABLE')
-                .slice(0, item.quantity)
-                .map(di => di.serialNumber || di.internalCode || `SN-${di._id?.toString().slice(-6)}`)
-                .join(', ')
+              .filter(di => di.status === 'AVAILABLE')
+              .slice(0, item.quantity)
+              .map(di => di.serialNumber || di.internalCode || `SN-${di._id?.toString().slice(-6)}`)
+              .join(', ')
             : `Chờ cấp serial (${item.quantity} cái)`;
-          
+
           return {
             deviceId: item.deviceId._id,
             deviceName: item.deviceId.name,
@@ -352,12 +347,7 @@ export default function CheckoutPage() {
         customerSignature: signatureDataUrl,
       };
 
-      console.log("[FRONTEND DEBUG] Preview data:", JSON.stringify(rentalData, null, 2));
-
       const response = await axios.post("/api/contracts/preview-data", rentalData);
-      
-      console.log("[FRONTEND DEBUG] Preview response:", response);
-      
       if (response?.previewUrl) {
         window.open(response.previewUrl, "_blank");
       } else {
@@ -414,11 +404,8 @@ export default function CheckoutPage() {
         voucherCode: appliedVoucher?.code,
         paymentMethod: selectedPayment,
       };
-
-      console.log("Checkout data:", JSON.stringify(rentalData, null, 2));
-
       const res = await checkout(rentalData);
-      
+
       setOrderResult(res);
       setCurrentStep(4);
 
@@ -442,13 +429,13 @@ export default function CheckoutPage() {
       click: (e) => {
         const { lat, lng } = e.latlng;
         setMapPosition([lat, lng]);
-        
+
         const dist = calculateDistance(FPT_COORDS.lat, FPT_COORDS.lng, lat, lng);
         const fee = Math.max(MIN_DELIVERY_FEE, Math.round(dist * FEE_PER_KM));
-        
+
         setDistance(dist);
         setDeliveryFee(fee);
-        
+
         fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=vi`)
           .then(res => res.json())
           .then(data => {
@@ -507,17 +494,17 @@ export default function CheckoutPage() {
               <ChevronLeft size={20} />
               {currentStep > 1 ? "Quay lại" : "Giỏ hàng"}
             </button>
-            
+
             <h1 className="text-xl font-bold text-gray-900">
               {currentStep === 1 && "Xác nhận giỏ hàng"}
               {currentStep === 2 && "Thông tin giao hàng"}
               {currentStep === 3 && "Thanh toán"}
               {currentStep === 4 && "Đặt hàng thành công"}
             </h1>
-            
+
             <div className="w-20"></div>
           </div>
-          
+
           {/* Step Progress */}
           <div className="pb-4">
             <div className="flex items-center justify-center max-w-2xl mx-auto">
@@ -525,29 +512,26 @@ export default function CheckoutPage() {
                 const Icon = step.icon;
                 const isActive = step.id === currentStep;
                 const isCompleted = step.id < currentStep;
-                
+
                 return (
                   <React.Fragment key={step.id}>
                     <div className="flex flex-col items-center">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                        isCompleted 
-                          ? "bg-emerald-500 text-white" 
-                          : isActive 
-                            ? "bg-indigo-600 text-white ring-4 ring-indigo-100" 
-                            : "bg-gray-100 text-gray-400"
-                      }`}>
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${isCompleted
+                        ? "bg-emerald-500 text-white"
+                        : isActive
+                          ? "bg-indigo-600 text-white ring-4 ring-indigo-100"
+                          : "bg-gray-100 text-gray-400"
+                        }`}>
                         <Icon size={18} />
                       </div>
-                      <span className={`text-xs mt-2 font-medium ${
-                        isActive ? "text-indigo-600" : isCompleted ? "text-emerald-600" : "text-gray-400"
-                      }`}>
+                      <span className={`text-xs mt-2 font-medium ${isActive ? "text-indigo-600" : isCompleted ? "text-emerald-600" : "text-gray-400"
+                        }`}>
                         {step.label}
                       </span>
                     </div>
                     {idx < 3 && (
-                      <div className={`w-16 h-0.5 mx-3 ${
-                        isCompleted ? "bg-emerald-500" : "bg-gray-200"
-                      }`} />
+                      <div className={`w-16 h-0.5 mx-3 ${isCompleted ? "bg-emerald-500" : "bg-gray-200"
+                        }`} />
                     )}
                   </React.Fragment>
                 );
@@ -559,7 +543,7 @@ export default function CheckoutPage() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
+
         {/* ========== STEP 1: CART REVIEW ========== */}
         {currentStep === 1 && (
           <div className="max-w-6xl mx-auto">
@@ -585,7 +569,7 @@ export default function CheckoutPage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="p-6 space-y-6">
                     {groupedBySupplier.map((group, groupIdx) => (
                       <div key={groupIdx} className={groupIdx > 0 ? "pt-6 border-t border-gray-200" : ""}>
@@ -603,7 +587,7 @@ export default function CheckoutPage() {
                             <p className="font-bold text-indigo-600">{group.subtotal.toLocaleString()}đ</p>
                           </div>
                         </div>
-                        
+
                         {/* Items */}
                         <div className="space-y-4 mt-4">
                           {group.items.map((item) => (
@@ -638,8 +622,8 @@ export default function CheckoutPage() {
                                   <p className="text-2xl font-bold text-indigo-600">
                                     {(item.deviceId?.rentPrice?.perDay * item.totalDays * item.quantity).toLocaleString()}đ
                                   </p>
-                            
-     
+
+
                                 </div>
                               </div>
                             </div>
@@ -650,7 +634,7 @@ export default function CheckoutPage() {
                   </div>
                 </div>
               </div>
-              
+
               {/* Order Summary Sidebar */}
               <div className="lg:col-span-1">
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 sticky top-24">
@@ -660,7 +644,7 @@ export default function CheckoutPage() {
                       Tóm tắt đơn hàng
                     </h3>
                   </div>
-                  
+
                   <div className="p-6 space-y-4">
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
@@ -676,14 +660,14 @@ export default function CheckoutPage() {
                         <span className="font-semibold text-emerald-600">Tính ở bước sau</span>
                       </div>
                     </div>
-                    
+
                     <div className="border-t pt-4">
                       <div className="flex justify-between items-center">
                         <span className="text-lg font-bold text-gray-900">Tổng dự kiến</span>
                         <span className="text-2xl font-bold text-indigo-600">{(subtotal + totalDeposit).toLocaleString()}đ</span>
                       </div>
                     </div>
-                    
+
                     <div className="bg-indigo-50 rounded-xl p-4 mt-4">
                       <div className="flex items-center gap-3">
                         <ShieldCheck size={20} className="text-indigo-600" />
@@ -694,7 +678,7 @@ export default function CheckoutPage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="p-6 pt-0">
                     <button
                       onClick={handleNextStep}
@@ -730,7 +714,7 @@ export default function CheckoutPage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="p-6 space-y-6">
                     {/* Quick Selection */}
                     <div>
@@ -752,16 +736,14 @@ export default function CheckoutPage() {
                             setDeliveryFee(0);
                             toast.success("Nhận tại kho - Miễn phí!");
                           }}
-                          className={`p-6 rounded-2xl border-2 font-medium transition-all ${
-                            address.street === "Kho GearXpert"
-                              ? "border-emerald-600 bg-emerald-50 text-emerald-700 shadow-lg"
-                              : "border-gray-200 hover:border-emerald-300 bg-white text-gray-700"
-                          }`}
+                          className={`p-6 rounded-2xl border-2 font-medium transition-all ${address.street === "Kho GearXpert"
+                            ? "border-emerald-600 bg-emerald-50 text-emerald-700 shadow-lg"
+                            : "border-gray-200 hover:border-emerald-300 bg-white text-gray-700"
+                            }`}
                         >
                           <div className="flex flex-col items-center gap-3">
-                            <div className={`w-16 h-16 rounded-xl flex items-center justify-center ${
-                              address.street === "Kho GearXpert" ? "bg-emerald-600 text-white" : "bg-gray-100 text-gray-500"
-                            }`}>
+                            <div className={`w-16 h-16 rounded-xl flex items-center justify-center ${address.street === "Kho GearXpert" ? "bg-emerald-600 text-white" : "bg-gray-100 text-gray-500"
+                              }`}>
                               <Building size={32} />
                             </div>
                             <div className="text-center">
@@ -774,19 +756,17 @@ export default function CheckoutPage() {
                             </span>
                           </div>
                         </button>
-                        
+
                         <button
                           onClick={() => setShowMapModal(true)}
-                          className={`p-6 rounded-2xl border-2 font-medium transition-all ${
-                            address.street && address.street !== "Kho GearXpert"
-                              ? "border-indigo-600 bg-indigo-50 text-indigo-700 shadow-lg"
-                              : "border-gray-200 hover:border-indigo-300 bg-white text-gray-700"
-                          }`}
+                          className={`p-6 rounded-2xl border-2 font-medium transition-all ${address.street && address.street !== "Kho GearXpert"
+                            ? "border-indigo-600 bg-indigo-50 text-indigo-700 shadow-lg"
+                            : "border-gray-200 hover:border-indigo-300 bg-white text-gray-700"
+                            }`}
                         >
                           <div className="flex flex-col items-center gap-3">
-                            <div className={`w-16 h-16 rounded-xl flex items-center justify-center ${
-                              address.street && address.street !== "Kho GearXpert" ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-500"
-                            }`}>
+                            <div className={`w-16 h-16 rounded-xl flex items-center justify-center ${address.street && address.street !== "Kho GearXpert" ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-500"
+                              }`}>
                               <Map size={32} />
                             </div>
                             <div className="text-center">
@@ -802,7 +782,7 @@ export default function CheckoutPage() {
                         </button>
                       </div>
                     </div>
-                    
+
                     {/* Distance Info */}
                     {distance > 0 && (
                       <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-200">
@@ -825,7 +805,7 @@ export default function CheckoutPage() {
                     )}
                   </div>
                 </div>
-                
+
                 {/* Delivery Details Form */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                   <div className="px-6 py-4 border-b border-gray-200">
@@ -844,7 +824,7 @@ export default function CheckoutPage() {
                       </button>
                     </div>
                   </div>
-                  
+
                   <div className="p-6 space-y-6">
                     {/* Saved Address */}
                     {account?.address?.street && (
@@ -865,16 +845,14 @@ export default function CheckoutPage() {
                             setPhoneNumber(account.phone || "");
                             toast.success("Đã chọn địa chỉ mặc định");
                           }}
-                          className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
-                            address.street === account.address.street
-                              ? "border-indigo-600 bg-indigo-50"
-                              : "border-indigo-200 hover:border-indigo-300 bg-white"
-                          }`}
+                          className={`w-full p-4 rounded-xl border-2 text-left transition-all ${address.street === account.address.street
+                            ? "border-indigo-600 bg-indigo-50"
+                            : "border-indigo-200 hover:border-indigo-300 bg-white"
+                            }`}
                         >
                           <div className="flex items-start gap-3">
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                              address.street === account.address.street ? "bg-indigo-600 text-white" : "bg-indigo-100 text-indigo-600"
-                            }`}>
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${address.street === account.address.street ? "bg-indigo-600 text-white" : "bg-indigo-100 text-indigo-600"
+                              }`}>
                               <MapPinHouse size={20} />
                             </div>
                             <div className="flex-1">
@@ -891,7 +869,7 @@ export default function CheckoutPage() {
                         </button>
                       </div>
                     )}
-                    
+
                     {/* Address Form */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
@@ -918,7 +896,7 @@ export default function CheckoutPage() {
                         />
                       </div>
                     </div>
-                    
+
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Địa chỉ chi tiết <span className="text-red-500">*</span>
@@ -931,7 +909,7 @@ export default function CheckoutPage() {
                         onChange={(e) => setAddress({ ...address, street: e.target.value })}
                       />
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -961,7 +939,7 @@ export default function CheckoutPage() {
                         />
                       </div>
                     </div>
-                    
+
                     {/* Notes */}
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -977,7 +955,7 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Voucher Section */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                   <div className="px-6 py-4 border-b border-gray-200">
@@ -1022,7 +1000,7 @@ export default function CheckoutPage() {
                   </div>
                 </div>
               </div>
-              
+
               {/* Order Summary Sidebar */}
               <div className="lg:col-span-1">
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 sticky top-24">
@@ -1032,7 +1010,7 @@ export default function CheckoutPage() {
                       Tóm tắt đơn hàng
                     </h3>
                   </div>
-                  
+
                   <div className="p-6 space-y-4">
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
@@ -1056,14 +1034,14 @@ export default function CheckoutPage() {
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="border-t pt-4">
                       <div className="flex justify-between items-center">
                         <span className="text-lg font-bold text-gray-900">Tổng cộng</span>
                         <span className="text-2xl font-bold text-indigo-600">{total.toLocaleString()}đ</span>
                       </div>
                     </div>
-                    
+
                     <div className="bg-blue-50 rounded-xl p-4 mt-4">
                       <div className="flex items-center gap-3">
                         <Clock size={20} className="text-blue-600" />
@@ -1074,7 +1052,7 @@ export default function CheckoutPage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="p-6 pt-0 space-y-3">
                     <button
                       onClick={handlePrevStep}
@@ -1116,15 +1094,14 @@ export default function CheckoutPage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="p-6 space-y-4">
                     {/* Bank Transfer */}
                     <label
-                      className={`block p-6 rounded-2xl border-2 cursor-pointer transition-all ${
-                        selectedPayment === "BANK"
-                          ? "border-purple-600 bg-purple-50 shadow-lg"
-                          : "border-gray-200 hover:border-purple-300 bg-white"
-                      }`}
+                      className={`block p-6 rounded-2xl border-2 cursor-pointer transition-all ${selectedPayment === "BANK"
+                        ? "border-purple-600 bg-purple-50 shadow-lg"
+                        : "border-gray-200 hover:border-purple-300 bg-white"
+                        }`}
                     >
                       <input
                         type="radio"
@@ -1133,9 +1110,8 @@ export default function CheckoutPage() {
                         onChange={() => setSelectedPayment("BANK")}
                       />
                       <div className="flex items-center gap-4">
-                        <div className={`w-16 h-16 rounded-xl flex items-center justify-center ${
-                          selectedPayment === "BANK" ? "bg-purple-600 text-white" : "bg-gray-100 text-gray-500"
-                        }`}>
+                        <div className={`w-16 h-16 rounded-xl flex items-center justify-center ${selectedPayment === "BANK" ? "bg-purple-600 text-white" : "bg-gray-100 text-gray-500"
+                          }`}>
                           <CreditCardIcon size={32} />
                         </div>
                         <div className="flex-1">
@@ -1160,11 +1136,10 @@ export default function CheckoutPage() {
 
                     {/* Wallet */}
                     <label
-                      className={`block p-6 rounded-2xl border-2 cursor-pointer transition-all ${
-                        selectedPayment === "WALLET"
-                          ? "border-purple-600 bg-purple-50 shadow-lg"
-                          : "border-gray-200 hover:border-purple-300 bg-white"
-                      }`}
+                      className={`block p-6 rounded-2xl border-2 cursor-pointer transition-all ${selectedPayment === "WALLET"
+                        ? "border-purple-600 bg-purple-50 shadow-lg"
+                        : "border-gray-200 hover:border-purple-300 bg-white"
+                        }`}
                     >
                       <input
                         type="radio"
@@ -1173,16 +1148,14 @@ export default function CheckoutPage() {
                         onChange={() => setSelectedPayment("WALLET")}
                       />
                       <div className="flex items-center gap-4">
-                        <div className={`w-16 h-16 rounded-xl flex items-center justify-center ${
-                          selectedPayment === "WALLET" ? "bg-purple-600 text-white" : "bg-gray-100 text-gray-500"
-                        }`}>
+                        <div className={`w-16 h-16 rounded-xl flex items-center justify-center ${selectedPayment === "WALLET" ? "bg-purple-600 text-white" : "bg-gray-100 text-gray-500"
+                          }`}>
                           <Wallet size={32} />
                         </div>
                         <div className="flex-1">
                           <p className="font-bold text-lg text-gray-900">Ví GearXpert</p>
-                          <p className={`text-sm mt-1 ${
-                            wallet?.balance >= total ? "text-emerald-600" : "text-red-500"
-                          }`}>
+                          <p className={`text-sm mt-1 ${wallet?.balance >= total ? "text-emerald-600" : "text-red-500"
+                            }`}>
                             Số dư: {wallet?.balance?.toLocaleString()}đ
                           </p>
                           {wallet?.balance >= total ? (
@@ -1218,7 +1191,7 @@ export default function CheckoutPage() {
                     )}
                   </div>
                 </div>
-                
+
                 {/* Digital Signature */}
                 <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
                   <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-5">
@@ -1232,7 +1205,7 @@ export default function CheckoutPage() {
                       </div>
                     </div>
                   </div>
-                   
+
                   <div className="p-8 bg-gray-50">
                     <div className="mb-4">
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -1256,7 +1229,7 @@ export default function CheckoutPage() {
                         * Ký bằng ngón tay hoặc stylus. Hãy ký rõ ràng và đầy đủ.
                       </p>
                     </div>
-                    
+
                     <div className="flex gap-4">
                       <button
                         onClick={() => {
@@ -1291,7 +1264,7 @@ export default function CheckoutPage() {
                         </div>
                       </button>
                     </div>
-                    
+
                     {signatureDataUrl && (
                       <div className="mt-6 p-5 bg-green-50 rounded-2xl border-2 border-green-200">
                         <div className="flex items-center gap-3">
@@ -1304,9 +1277,9 @@ export default function CheckoutPage() {
                           </div>
                         </div>
                         <div className="mt-3 p-3 bg-white rounded-lg border border-green-200">
-                          <img 
-                            src={signatureDataUrl} 
-                            alt="Signature" 
+                          <img
+                            src={signatureDataUrl}
+                            alt="Signature"
                             className="h-16 mx-auto border border-gray-300 rounded"
                           />
                         </div>
@@ -1314,7 +1287,7 @@ export default function CheckoutPage() {
                     )}
                   </div>
                 </div>
-                
+
                 {/* Preview Contract */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                   <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
@@ -1328,7 +1301,7 @@ export default function CheckoutPage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="p-6">
                     <button
                       onClick={handlePreviewContract}
@@ -1349,7 +1322,7 @@ export default function CheckoutPage() {
                     </button>
                   </div>
                 </div>
-                
+
                 {/* Terms */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                   <div className="p-6">
@@ -1364,14 +1337,14 @@ export default function CheckoutPage() {
                         <p className="text-sm font-semibold text-gray-900 mb-2">Điều khoản và điều kiện</p>
                         <p className="text-sm text-gray-600">
                           Tôi đã đọc và đồng ý với{" "}
-                          <button 
+                          <button
                             onClick={() => window.open('/terms', '_blank')}
                             className="text-indigo-600 underline hover:text-indigo-800 font-medium mx-1"
                           >
                             Điều khoản sử dụng
                           </button>
                           {" và "}
-                          <button 
+                          <button
                             onClick={() => window.open('/privacy', '_blank')}
                             className="text-indigo-600 underline hover:text-indigo-800 font-medium mx-1"
                           >
@@ -1384,7 +1357,7 @@ export default function CheckoutPage() {
                   </div>
                 </div>
               </div>
-              
+
               {/* Order Summary Sidebar */}
               <div className="lg:col-span-1">
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 sticky top-24">
@@ -1394,7 +1367,7 @@ export default function CheckoutPage() {
                       Tổng thanh toán
                     </h3>
                   </div>
-                  
+
                   <div className="p-6 space-y-4">
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
@@ -1418,19 +1391,18 @@ export default function CheckoutPage() {
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="border-t pt-4">
                       <div className="flex justify-between items-center">
                         <span className="text-lg font-bold text-gray-900">Tổng cộng</span>
                         <span className="text-2xl font-bold text-indigo-600">{total.toLocaleString()}đ</span>
                       </div>
                     </div>
-                    
+
                     <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 mt-4 border border-indigo-200">
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                          selectedPayment === "BANK" ? "bg-purple-600 text-white" : "bg-emerald-600 text-white"
-                        }`}>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedPayment === "BANK" ? "bg-purple-600 text-white" : "bg-emerald-600 text-white"
+                          }`}>
                           {selectedPayment === "BANK" ? <CreditCardIcon size={20} /> : <Wallet size={20} />}
                         </div>
                         <div>
@@ -1444,7 +1416,7 @@ export default function CheckoutPage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="p-6 pt-0 space-y-3">
                     <button
                       onClick={handleCheckout}
@@ -1472,8 +1444,8 @@ export default function CheckoutPage() {
                     </button>
                   </div>
                 </div>
+              </div>
             </div>
-          </div>
           </div>
         )}
 
@@ -1488,7 +1460,7 @@ export default function CheckoutPage() {
                 <h1 className="text-3xl font-bold text-white mb-2">Đặt hàng thành công!</h1>
                 <p className="text-emerald-100 text-lg">Cảm ơn bạn đã sử dụng dịch vụ GearXpert</p>
               </div>
-              
+
               {/* Order Details */}
               <div className="p-8">
                 <div className="max-w-2xl mx-auto space-y-6">
@@ -1498,7 +1470,7 @@ export default function CheckoutPage() {
                       Đơn hàng của bạn đã được xác nhận và sẽ được xử lý trong thời gian sớm nhất.
                     </p>
                   </div>
-                  
+
                   {/* Order Information */}
                   {orderResult && (
                     <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6 border border-indigo-200">
@@ -1506,7 +1478,7 @@ export default function CheckoutPage() {
                         <Receipt size={24} className="text-indigo-600" />
                         Thông tin đơn hàng
                       </h3>
-                      
+
                       <div className="space-y-4">
                         <div className="flex justify-between items-center p-3 bg-white rounded-xl">
                           <span className="text-gray-600 font-medium">Mã đơn hàng</span>
@@ -1514,35 +1486,34 @@ export default function CheckoutPage() {
                             #{orderResult.rentalIds?.[0]?.toString().slice(-6)}
                           </span>
                         </div>
-                        
+
                         <div className="flex justify-between items-center p-3 bg-white rounded-xl">
                           <span className="text-gray-600 font-medium">Phương thức thanh toán</span>
                           <span className="font-medium text-gray-900">
                             {orderResult.paymentMethod === "WALLET" ? "Ví GearXpert" : "Chuyển khoản ngân hàng"}
                           </span>
                         </div>
-                        
+
                         <div className="flex justify-between items-center p-3 bg-white rounded-xl">
                           <span className="text-gray-600 font-medium">Tổng thanh toán</span>
                           <span className="font-bold text-indigo-600 text-lg">
                             {orderResult.totalAmount?.toLocaleString()}đ
                           </span>
                         </div>
-                        
+
                         <div className="flex justify-between items-center p-3 bg-white rounded-xl">
                           <span className="text-gray-600 font-medium">Trạng thái thanh toán</span>
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                            orderResult.paymentMethod === "BANK" 
-                              ? "bg-amber-100 text-amber-800" 
-                              : "bg-emerald-100 text-emerald-800"
-                          }`}>
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${orderResult.paymentMethod === "BANK"
+                            ? "bg-amber-100 text-amber-800"
+                            : "bg-emerald-100 text-emerald-800"
+                            }`}>
                             {orderResult.paymentMethod === "BANK" ? "Chờ thanh toán" : "Đã thanh toán"}
                           </span>
                         </div>
                       </div>
                     </div>
                   )}
-                  
+
                   {/* Next Steps */}
                   <div className="bg-blue-50 rounded-2xl p-6 border border-blue-200">
                     <h3 className="text-lg font-bold text-blue-900 mb-4 flex items-center gap-2">
@@ -1579,7 +1550,7 @@ export default function CheckoutPage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Contact Support */}
                   <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
                     <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -1598,7 +1569,7 @@ export default function CheckoutPage() {
                       </p>
                     </div>
                   </div>
-                  
+
                   {/* Action Buttons */}
                   <div className="flex flex-col sm:flex-row gap-4 justify-center pt-6">
                     <button
@@ -1633,7 +1604,7 @@ export default function CheckoutPage() {
                 <X size={20} className="text-gray-500" />
               </button>
             </div>
-            
+
             <div className="h-[400px]">
               <MapContainer center={mapPosition} zoom={14} style={{ height: "100%", width: "100%" }}>
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
@@ -1643,7 +1614,7 @@ export default function CheckoutPage() {
                 <MapEventsHandler />
               </MapContainer>
             </div>
-            
+
             <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
               <div className="text-sm text-gray-600">
                 <p>Khoảng cách: {distance.toFixed(1)} km</p>
@@ -1671,7 +1642,7 @@ export default function CheckoutPage() {
           </div>
         </div>
       )}
-      
+
       <ToastContainer position="top-right" />
     </div>
   );

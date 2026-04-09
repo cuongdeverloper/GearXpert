@@ -10,7 +10,6 @@ const startRentalDueReminders = () => {
   cron.schedule("0 8 * * *", async () => {
     if (mongoose.connection.readyState !== 1) return;
 
-    console.log("🔄 Đang quét RentalItems sắp hết hạn...");
 
     const now = new Date();
     const todayStart = new Date(now.setHours(0, 0, 0, 0));
@@ -40,11 +39,10 @@ const startRentalDueReminders = () => {
           senderId: rental.supplierId,
           receiverId: rental.customerId,
           title: "⏰ Còn 1 ngày nữa phải trả thiết bị!",
-          message: `Thiết bị ${
-            item.deviceSnapshot?.name
-          } trong đơn #${rental._id
-            .toString()
-            .slice(-6)} sẽ hết hạn vào ngày mai.`,
+          message: `Thiết bị ${item.deviceSnapshot?.name
+            } trong đơn #${rental._id
+              .toString()
+              .slice(-6)} sẽ hết hạn vào ngày mai.`,
           link: `/my-rentals/${rental._id}`,
           type: "RENTAL_REMINDER",
         });
@@ -53,7 +51,6 @@ const startRentalDueReminders = () => {
         await Rental.findByIdAndUpdate(rental._id, {
           isRemindedTomorrow: true,
         });
-        console.log(`✅ Đã gửi nhắc nhở ngày mai cho đơn: ${rental._id}`);
       }
 
       // --- 2. NHẮC ĐÚNG NGÀY HÔM NAY ---
@@ -73,17 +70,15 @@ const startRentalDueReminders = () => {
           senderId: rental.supplierId,
           receiverId: rental.customerId,
           title: "📦 Hôm nay là ngày trả thiết bị",
-          message: `Thiết bị ${
-            item.deviceSnapshot?.name
-          } trong đơn #${rental._id
-            .toString()
-            .slice(-6)} đã đến hạn trả hôm nay.`,
+          message: `Thiết bị ${item.deviceSnapshot?.name
+            } trong đơn #${rental._id
+              .toString()
+              .slice(-6)} đã đến hạn trả hôm nay.`,
           link: `/my-rentals/${rental._id}`,
           type: "RENTAL_REMINDER",
         });
 
         await Rental.findByIdAndUpdate(rental._id, { isRemindedToday: true });
-        console.log(`✅ Đã gửi nhắc nhở hôm nay cho đơn: ${rental._id}`);
       }
     } catch (error) {
       console.error("❌ Cron RentalItem Error:", error);

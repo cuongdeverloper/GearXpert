@@ -1,23 +1,23 @@
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 
-const doc = new PDFDocument({size: 'A4', margins: {top:50, bottom:50, left:50, right:50}});
+const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
 doc.font('./fonts/DejaVuSans.ttf');
 doc.fontSize(10);
 doc.lineGap(3);
 
 const lines = [
-'- Hình thức: ',
-'- Họ và tên / Tên đơn vị: ',
-'- Ngày sinh / Mã số thuế: ',
-'- Số CCCD / Giấy Phép KD: ',
-'- Ngày cấp:                               Nơi cấp: ',
-'- Địa chỉ: ',
-'- Người đại diện (nếu tổ chức): ',
-'- Chức vụ: ',
-'- Số điện thoại: ',
-'- Email: ',
-'- Tài khoản ngân hàng: '
+  '- Hình thức: ',
+  '- Họ và tên / Tên đơn vị: ',
+  '- Ngày sinh / Mã số thuế: ',
+  '- Số CCCD / Giấy Phép KD: ',
+  '- Ngày cấp:                               Nơi cấp: ',
+  '- Địa chỉ: ',
+  '- Người đại diện (nếu tổ chức): ',
+  '- Chức vụ: ',
+  '- Số điện thoại: ',
+  '- Email: ',
+  '- Tài khoản ngân hàng: '
 ];
 
 const textParts = `GEARXPERT
@@ -57,9 +57,8 @@ BÊN B: ĐỐI TÁC CUNG CẤP THIẾT BỊ (SUPPLIER)
 `.split('\n');
 
 for (const line of textParts) {
-  doc.text(line, {align: 'left'});
+  doc.text(line, { align: 'left' });
 }
 for (const line of lines) {
-  console.log(line, '=> y:', doc.y);
-  doc.text(line, {align: 'left'});
+  doc.text(line, { align: 'left' });
 }

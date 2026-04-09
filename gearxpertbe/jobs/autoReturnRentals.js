@@ -24,12 +24,12 @@ async function runAutoReturn() {
 
   if (expiringRentals.length === 0) return;
 
-  console.log(`[AutoReturn] Processing ${expiringRentals.length} overdue rental(s)...`);
 
   for (const rental of expiringRentals) {
     try {
-      rental.status = 'RETURNING';
-      await rental.save();
+      // rental.status = 'RETURNING';
+      // await rental.save();
+      await Rental.updateOne({ _id: rental._id }, { status: 'RETURNING' });
 
       // Ensure retrieval draft exists as soon as rental enters RETURNING.
       await ensureDraftForReturn({ rentalId: rental._id });
@@ -67,8 +67,6 @@ async function runAutoReturn() {
         message: 'Có đơn chuyển sang thu hồi (hết hạn).',
         rentalId: String(rental._id),
       });
-
-      console.log(`[AutoReturn] Rental ${rental._id} → RETURNING`);
     } catch (err) {
       console.error(`[AutoReturn] Failed for rental ${rental._id}:`, err.message);
     }
@@ -78,14 +76,12 @@ async function runAutoReturn() {
 function startAutoReturnJob() {
   // Chạy mỗi 30 phút để kiểm tra đơn hết hạn
   cron.schedule('*/30 * * * *', async () => {
-    console.log('[AutoReturn] Running auto-return check...');
     try {
       await runAutoReturn();
     } catch (err) {
       console.error('[AutoReturn] Unexpected error:', err.message);
     }
   });
-  console.log('[AutoReturn] Job scheduled (every 30 minutes).');
 }
 
 module.exports = { startAutoReturnJob };

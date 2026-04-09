@@ -126,9 +126,9 @@ const sendRentalNotification = async (
 
       : linkSuffix
 
-      ? `/my-rentals/${rid}${linkSuffix}`
+        ? `/my-rentals/${rid}${linkSuffix}`
 
-      : `/my-rentals/${rid}`;
+        : `/my-rentals/${rid}`;
 
 
 
@@ -212,7 +212,7 @@ const generateRentalContract = async (rentalId) => {
 
       });
 
-    
+
 
     if (!rental) {
 
@@ -1182,7 +1182,7 @@ exports.checkoutRental = async (req, res) => {
 
       const rentalPlain = rental.toObject();
 
-      
+
 
       createdRentals.push({
 
@@ -1205,19 +1205,9 @@ exports.checkoutRental = async (req, res) => {
       for (const { rental, items } of createdRentals) {
 
         try {
-
-          console.log(`[CHECKOUT] Creating contract for rental ${rental._id}...`);
-
           await createContractForRental(rental, req, items);
-
-          console.log(`[CHECKOUT] Contract creation completed for rental ${rental._id}`);
-
         } catch (error) {
-
-          console.error(`[CHECKOUT] Contract creation failed for rental ${rental._id}:`, error);
-
           console.error(`[CHECKOUT] Error stack:`, error.stack);
-
         }
 
       }
@@ -1229,37 +1219,16 @@ exports.checkoutRental = async (req, res) => {
     // 8.1 Verify contract creation after all attempts
 
     setTimeout(async () => {
-
-      console.log("[CHECKOUT] Verifying contract creation for all rentals...");
-
       for (const { rental } of createdRentals) {
 
         try {
-
           const contract = await Contract.findOne({ rentalId: rental._id }).lean();
-
           if (contract) {
-
             const contractFile = await ContractFile.findOne({ contractId: contract._id }).lean();
-
-            if (contractFile) {
-
-              console.log(`[CHECKOUT] ✓ Contract created successfully for rental ${rental._id}: ${contractFile.fileUrl}`);
-
-            } else {
-
-              console.warn(`[CHECKOUT] ⚠ Contract record exists but no file for rental ${rental._id}`);
-
-            }
-
           } else {
-
             console.warn(`[CHECKOUT] ⚠ No contract found for rental ${rental._id}`);
-
           }
-
         } catch (verifyError) {
-
           console.error(`[CHECKOUT] Error verifying contract for rental ${rental._id}:`, verifyError);
 
         }
@@ -1273,17 +1242,7 @@ exports.checkoutRental = async (req, res) => {
     // Helper function to create contract
 
     async function createContractForRental(rental, req, rentalItemsData = []) {
-
       try {
-
-        console.log(`[CHECKOUT CONTRACT] Starting contract upload for rental ${rental._id}...`);
-
-        console.log(`[CHECKOUT CONTRACT] Rental data:`, JSON.stringify(rental, null, 2));
-
-        console.log(`[CHECKOUT CONTRACT] Items data count:`, rentalItemsData.length);
-
-
-
         // Import contract controller functions
 
         const ContractController = require('../Contract/ContractController');
@@ -1295,34 +1254,22 @@ exports.checkoutRental = async (req, res) => {
         const DeviceItem = require('../../models/DeviceItem');
 
         const Device = require('../../models/Device');
-
-        
-
         // Use provided items data, enrich with device and deviceItem info
-
-        console.log(`[CHECKOUT CONTRACT] Enriching rental items with device info...`);
-
-        
-
         const enrichedItems = [];
 
         for (const item of rentalItemsData) {
 
           // Fetch device info
-
           const device = await Device.findById(item.deviceId).select('name condition');
-
-          
-
           // Fetch device items for serial numbers
 
-          const deviceItems = await DeviceItem.find({ 
+          const deviceItems = await DeviceItem.find({
 
             _id: { $in: item.deviceItemIds || [] }
 
           }).select('serialNumber imei');
 
-          
+
 
           enrichedItems.push({
 
@@ -1335,40 +1282,24 @@ exports.checkoutRental = async (req, res) => {
           });
 
         }
-
-        
-
-        console.log(`[CHECKOUT CONTRACT] Enriched ${enrichedItems.length} items`);
-
-        
-
-        console.log(`[CHECKOUT CONTRACT] Generating DOCX buffer...`);
-
         // Generate contract buffer with enriched rental items
 
         const buf = await ContractController.generateDocxBuffer(rental, enrichedItems);
-
-        console.log(`[CHECKOUT CONTRACT] DOCX buffer generated, size: ${buf.length}`);
-
-        
-
-        console.log(`[CHECKOUT CONTRACT] Uploading to Cloudinary...`);
-
         // Upload to Cloudinary
 
         const uploadResult = await new Promise((resolve, reject) => {
 
           cloudinary.uploader.upload_stream(
 
-            { 
+            {
 
-              resource_type: "raw", 
+              resource_type: "raw",
 
-              folder: "contracts", 
+              folder: "contracts",
 
-              public_id: `contract-${rental._id}-${Date.now()}`, 
+              public_id: `contract-${rental._id}-${Date.now()}`,
 
-              format: "docx" 
+              format: "docx"
 
             },
 
@@ -1377,15 +1308,6 @@ exports.checkoutRental = async (req, res) => {
           ).end(buf);
 
         });
-
-
-
-        console.log(`[CHECKOUT CONTRACT] Upload successful: ${uploadResult.secure_url}`);
-
-
-
-        console.log(`[CHECKOUT CONTRACT] Creating contract record...`);
-
         // Create contract record
 
         const contractRecord = await Contract.create({
@@ -1418,14 +1340,6 @@ exports.checkoutRental = async (req, res) => {
 
         });
 
-
-
-        console.log(`[CHECKOUT CONTRACT] Contract record created: ${contractRecord._id}`);
-
-
-
-        console.log(`[CHECKOUT CONTRACT] Creating contract file record...`);
-
         // Create contract file record
 
         const contractFileRecord = await ContractFile.create({
@@ -1440,22 +1354,9 @@ exports.checkoutRental = async (req, res) => {
 
         });
 
-
-
-        console.log(`[CHECKOUT CONTRACT] Contract file record created: ${contractFileRecord._id}`);
-
-        console.log(`[CHECKOUT CONTRACT] Contract upload completed: ${uploadResult.secure_url}`);
-
-
-
       } catch (contractError) {
 
-        console.error(`[CHECKOUT CONTRACT] Failed to upload contract for rental ${rental._id}:`, contractError);
-
-        console.error(`[CHECKOUT CONTRACT] Error stack:`, contractError.stack);
-
         // Không throw error vì payment thành công, contract có thê upload sau
-
       }
 
     }
@@ -1645,17 +1546,6 @@ async function allocateDeviceItems(deviceId, quantity, session) {
   // Số lượng Device = gộp từ DeviceItem (hook save đã gọi updateDeviceCounts).
 
   // Không $inc tay lên Device — stockQuantity trên Device = tổng số DeviceItem.
-
-
-
-  console.log(
-
-    `[ALLOCATE SUCCESS] Device ${deviceId}: assigned ${quantity} DeviceItem(s) → RENTED`
-
-  );
-
-
-
   return items.map((item) => item._id);
 
 }
@@ -1717,12 +1607,6 @@ exports.verifyRentalPayment = async (req, res) => {
     // Gọi sang PayOS để lấy trạng thái mới nhất (không cần Ngrok)
 
     const paymentInfo = await payos.getPaymentLinkInformation(rental.orderCode);
-
-
-
-    console.log("Trạng thái đơn hàng từ PayOS:", paymentInfo.status);
-
-
 
     // QUAN TRỌNG: PayOS trả về trạng thái 'PAID' nếu đã thanh toán
 
@@ -2440,31 +2324,12 @@ exports.approveRental = async (req, res) => {
 
       return res.status(400).json({ message: "Đơn đã được duyệt" });
 
-    
+
 
     rental.status = "APPROVED";
 
     await rental.save();
-
-    
-
     // Generate contract automatically
-
-    try {
-
-      const contractData = await generateRentalContract(rentalId);
-
-      console.log("Contract generated:", contractData);
-
-    } catch (contractError) {
-
-      console.error("Failed to generate contract:", contractError);
-
-      // Continue with approval even if contract generation fails
-
-    }
-
-    
 
     await sendRentalNotification(
 
@@ -2478,7 +2343,7 @@ exports.approveRental = async (req, res) => {
 
     );
 
-    
+
 
     res.json({ success: true, message: "Đã duyệt đơn thuê", rental });
 
@@ -2564,11 +2429,9 @@ exports.rejectRental = async (req, res) => {
 
       title: "Đơn thuê bị từ chối",
 
-      message: `Đơn thuê của bạn đã bị từ chối. Lý do: ${
+      message: `Đơn thuê của bạn đã bị từ chối. Lý do: ${reason || "Không có lý do cụ thể"
 
-        reason || "Không có lý do cụ thể"
-
-      }${details ? " - " + details : ""}`,
+        }${details ? " - " + details : ""}`,
 
       link: `/my-rentals/${rental._id}`,
 
@@ -3741,23 +3604,6 @@ exports.extendRental = async (req, res) => {
     const { rentalId } = req.params;
 
     let { newEndDate, requestedDays, extraAmount = 0, note = "" } = req.body;
-
-
-
-    console.log("📥 Extend Request received:", {
-
-      rentalId,
-
-      newEndDate,
-
-      requestedDays,
-
-      extraAmount,
-
-    });
-
-
-
     if (!newEndDate) throw new Error("Vui lòng chọn ngày gia hạn mới");
 
 
@@ -4043,13 +3889,6 @@ exports.startDelivery = async (req, res) => {
     rental.assignmentLockedAt = null;
 
     await rental.save();
-
-    console.log("Starting delivery for rental:", rentalId);
-
-    console.log("Current paymentBreakdown:", rental.paymentBreakdown);
-
-
-
     // Calculate payment breakdown
 
     const platformFee = Math.round(rental.totalAmount * 0.1);
@@ -4058,7 +3897,7 @@ exports.startDelivery = async (req, res) => {
 
     const supplierReceive = rentAmount;
 
-    
+
 
     const paymentBreakdown = {
 
@@ -4077,13 +3916,6 @@ exports.startDelivery = async (req, res) => {
       supplierPayAmount: rentAmount
 
     };
-
-
-
-    console.log("Calculated paymentBreakdown:", paymentBreakdown);
-
-
-
     // Use $set to avoid validation issues
 
     await Rental.updateOne(
@@ -4103,11 +3935,6 @@ exports.startDelivery = async (req, res) => {
       }
 
     );
-
-    console.log("Rental updated with $set");
-
-
-
     await sendRentalNotification(
 
       rental,
@@ -4119,10 +3946,6 @@ exports.startDelivery = async (req, res) => {
       "Nhà cung cấp đã bắt đầu giao hàng. Vui lòng theo dõi trạng thái."
 
     );
-
-    console.log("Notification sent");
-
-
 
     // 2️⃣ create contract DELIVERY
 
@@ -4140,15 +3963,7 @@ exports.startDelivery = async (req, res) => {
 
     });
 
-    console.log("Contract created:", contract._id);
-
-
-
     // 3️⃣ create contract items (reuse rentalItems already fetched above)
-
-    console.log("Found rental items:", rentalItems.length);
-
-
 
     const contractItems = rentalItems.map((item) => ({
 
@@ -4163,12 +3978,6 @@ exports.startDelivery = async (req, res) => {
       conditionBefore: item.conditionBeforeRent,
 
     }));
-
-
-
-    console.log("Contract items to insert:", contractItems);
-
-
 
     await ContractItem.insertMany(contractItems);
 
@@ -4218,10 +4027,6 @@ exports.startDelivery = async (req, res) => {
 
     });
 
-    console.log("Contract items inserted");
-
-
-
     return res.status(200).json({
 
       message: "Delivery started & contract created",
@@ -4240,11 +4045,11 @@ exports.startDelivery = async (req, res) => {
 
     console.error("Error stack:", err.stack);
 
-    res.status(500).json({ 
+    res.status(500).json({
 
-      message: "Server error", 
+      message: "Server error",
 
-      error: err.message 
+      error: err.message
 
     });
 
@@ -4476,16 +4281,6 @@ exports.confirmReturn = async (req, res) => {
 
     // → Payout tiền thuê cho supplier (sau trừ phí nền tảng)
 
-    console.log("Rental data:", {
-
-      rentPriceTotal: rental.rentPriceTotal,
-
-      depositAmount: rental.depositAmount
-
-    });
-
-    
-
     const PLATFORM_FEE_RATE = 0.1; // 10% phí nền tảng
 
     const rentAfterDiscount = rental.rentPriceTotal; // Không có discount trong confirmReturn
@@ -4493,20 +4288,6 @@ exports.confirmReturn = async (req, res) => {
     const platformFee = Math.round(rentAfterDiscount * PLATFORM_FEE_RATE);
 
     const supplierReceive = rentAfterDiscount - platformFee;
-
-    
-
-    console.log("Payment calculation:", {
-
-      rentAfterDiscount,
-
-      platformFee,
-
-      supplierReceive
-
-    });
-
-
 
     const supplierWallet = await Wallet.findOne({
 
@@ -4634,7 +4415,7 @@ exports.confirmReturn = async (req, res) => {
 
     const adminBefore = adminWallet.balance;
 
-    
+
 
     if (adminWallet.balance < totalDeductFromAdmin) {
 
@@ -4722,7 +4503,7 @@ exports.confirmReturn = async (req, res) => {
 
     rental.escrowStatus = "RELEASED";
 
-    
+
 
     // Gán paymentBreakdown để tránh validation error
 
@@ -4738,7 +4519,7 @@ exports.confirmReturn = async (req, res) => {
 
     };
 
-    
+
 
     await rental.save({ session });
 

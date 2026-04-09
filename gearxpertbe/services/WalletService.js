@@ -19,7 +19,6 @@ const ensureUserWallet = async (userId) => {
                 status: 'ACTIVE'
             });
             await wallet.save();
-            console.log(`✅ Wallet created for user: ${userId}`);
         }
 
         return wallet;
