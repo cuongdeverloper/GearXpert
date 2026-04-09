@@ -130,4 +130,3 @@ doc.text(contractText, {
 });
 
 doc.end();
-console.log("PDF Created At:", path.join(__dirname, '../templatesContract/GearXpert_Contact_Supplier.pdf'));

@@ -21,13 +21,13 @@ const socketHandler = (io) => {
       }
     });
     socket.on("callUser", ({ userToCall, signalData, from, name }) => {
-      
-      const user = getUser(userToCall); 
-      
+
+      const user = getUser(userToCall);
+
       if (user) {
         io.to(user.socketId).emit("callUser", {
           signal: signalData,
-          from: from, 
+          from: from,
           name: name
         });
       } else {
@@ -38,13 +38,13 @@ const socketHandler = (io) => {
       io.to(data.to).emit("callAccepted", data.signal);
     });
 
-    socket.on("endCall", ({ id }) => { 
-        const user = getUser(id);
-        if (user) {
-            io.to(user.socketId).emit("endCall");
-        }
+    socket.on("endCall", ({ id }) => {
+      const user = getUser(id);
+      if (user) {
+        io.to(user.socketId).emit("endCall");
+      }
     });
-    
+
     socket.on("disconnect", () => {
       removeUser(socket.id);
       io.emit("getUsers", getUsers());
@@ -59,12 +59,10 @@ const socketHandler = (io) => {
 
     socket.on("joinRoom", (roomId) => {
       socket.join(roomId);
-      console.log(`[SOCKET] User ${socket.id} joined room: ${roomId}`);
     });
 
     socket.on("leaveRoom", (roomId) => {
       socket.leave(roomId);
-      console.log(`[SOCKET] User ${socket.id} left room: ${roomId}`);
     });
   });
 };

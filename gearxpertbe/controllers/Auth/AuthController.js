@@ -25,7 +25,6 @@ const apiLogin = async (req, res) => {
 
         const isPasswordValid = await userRecord.comparePassword(password);
         if (!isPasswordValid) {
-            console.log(`[Login] Failed: Incorrect password for ${email}`);
             return res.status(200).json({ errorCode: 3, message: 'Invalid password' });
         }
 
@@ -44,8 +43,6 @@ const apiLogin = async (req, res) => {
             console.warn(`[Login] Warning: Wallet not found for user ${userRecord._id}`);
         }
         const walletBalance = wallet ? wallet.balance : 0;
-
-        console.log(`[Login] Success: User ${email} logged in.`);
         return res.status(200).json({
             errorCode: 0,
             message: 'Login successful',
@@ -99,7 +96,6 @@ const apiRegister = async (req, res) => {
             const existingUser = await User.findOne({ email });
             if (existingUser) return res.status(200).json({ errorCode: 2, message: 'Email already exists' });
 
-            console.log(`[Register] Creating user: ${email}`);
             const newUser = new User({
                 fullName, email, password, phone, avatar,
                 role: role || 'CUSTOMER',
@@ -107,18 +103,16 @@ const apiRegister = async (req, res) => {
             });
 
             await newUser.save();
-            console.log(`[Register] User saved: ${newUser._id}`);
 
             // Tự động tạo ví cho người dùng mới
             await ensureUserWallet(newUser._id);
-            console.log(`[Register] Wallet ensured for user: ${newUser._id}`);
 
             // Tạo Token xác thực
             const verifyToken = createJWTVerifyEmail({ id: newUser._id, email: newUser.email });
             const verifyLink = `${process.env.FRONTEND_URL}/verify-account?token=${verifyToken}`;
 
             const emailContent = registrationTemplate(fullName, verifyLink);
-            
+
             // Gửi mail bất đồng bộ để tránh làm treo response
             sendMail(email, 'Xác thực tài khoản GearXpert', emailContent)
                 .then(info => {
@@ -127,7 +121,6 @@ const apiRegister = async (req, res) => {
                 })
                 .catch(err => console.error(`[Register] Email service error:`, err));
 
-            // Tự động xóa nếu không verify sau 15p (tăng lên từ 5p cho thoải mái)
             setTimeout(async () => {
                 try {
                     const userCheck = await User.findById(newUser._id);

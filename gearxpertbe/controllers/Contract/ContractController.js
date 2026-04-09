@@ -62,7 +62,7 @@ const buildPreviewContractData = async (rentalData) => {
 
     name: "Shop Supplier",
 
-    cccd: "N/A", 
+    cccd: "N/A",
 
     address: "N/A",
 
@@ -86,7 +86,7 @@ const buildPreviewContractData = async (rentalData) => {
 
       const device = await Device.findById(rentalData.items[0].deviceId).populate('supplierId');
 
-      
+
 
       if (device && device.supplierId) {
 
@@ -96,7 +96,7 @@ const buildPreviewContractData = async (rentalData) => {
 
         const supplierProfile = await SupplierProfile.findOne({ userId: device.supplierId._id });
 
-        
+
 
         supplierInfo = {
 
@@ -104,13 +104,13 @@ const buildPreviewContractData = async (rentalData) => {
 
           cccd: device.supplierId.identityInfo?.cccdNumber || "N/A",
 
-          address: supplierProfile?.warehouseAddress?.fullAddress || 
+          address: supplierProfile?.warehouseAddress?.fullAddress ||
 
-                  supplierProfile?.warehouseAddress?.street + ", " + 
+            supplierProfile?.warehouseAddress?.street + ", " +
 
-                  supplierProfile?.warehouseAddress?.district + ", " + 
+            supplierProfile?.warehouseAddress?.district + ", " +
 
-                  supplierProfile?.warehouseAddress?.city || "N/A",
+            supplierProfile?.warehouseAddress?.city || "N/A",
 
           phone: supplierProfile?.contactPhone || device.supplierId.phone || "N/A",
 
@@ -120,9 +120,8 @@ const buildPreviewContractData = async (rentalData) => {
 
         };
 
-        
 
-        console.log("[PREVIEW CONTRACT] Supplier info found:", supplierInfo.name);
+
 
       }
 
@@ -154,7 +153,7 @@ const buildPreviewContractData = async (rentalData) => {
 
     supplier_address: supplierInfo.address,
 
-    supplier_phone: supplierInfo.phone, 
+    supplier_phone: supplierInfo.phone,
 
     supplier_email: supplierInfo.email,
 
@@ -242,7 +241,6 @@ const buildPreviewContractData = async (rentalData) => {
 
 const buildContractData = async (rental, providedItems = null) => {
 
-  console.log("[BUILD CONTRACT] Starting buildContractData for rental:", rental._id);
 
   const today = new Date();
 
@@ -252,25 +250,17 @@ const buildContractData = async (rental, providedItems = null) => {
 
   let populatedRental;
 
-  
+
 
   // If rental has customerId with fullName property, it's already populated
 
   const isPopulated = typeof rental.customerId === 'object' && rental.customerId?.fullName;
 
-  
+
 
   if (isPopulated) {
-
-    console.log("[BUILD CONTRACT] Using provided rental object (already populated)");
-
     populatedRental = rental;
-
   } else {
-
-    // Try to populate rental with customer, supplier, and items from DB
-
-    console.log("[BUILD CONTRACT] Populating rental data from DB...");
 
     try {
 
@@ -308,14 +298,6 @@ const buildContractData = async (rental, providedItems = null) => {
 
     if (!populatedRental || !populatedRental.items || populatedRental.items.length === 0) {
 
-      if (populatedRental) {
-
-        console.log("[BUILD CONTRACT] DB returned rental but items are empty, will populate manually");
-
-      }
-
-      
-
       // Fetch customer and supplier data since rental object only has IDs
 
       const User = require('../../models/User');
@@ -324,7 +306,7 @@ const buildContractData = async (rental, providedItems = null) => {
 
       const supplier = await User.findById(rental.supplierId).select('fullName email phone identityInfo');
 
-      
+
 
       // Use provided items if available, otherwise fetch from DB
 
@@ -340,28 +322,11 @@ const buildContractData = async (rental, providedItems = null) => {
 
       }
 
-      
+
 
       // Convert rental to plain object if it's a Mongoose document
 
       const rentalData = rental.toObject ? rental.toObject() : rental;
-
-      console.log("[BUILD CONTRACT] rentalData keys:", Object.keys(rentalData));
-
-      console.log("[BUILD CONTRACT] rentalData financial:", {
-
-        rentPriceTotal: rentalData.rentPriceTotal,
-
-        depositAmount: rentalData.depositAmount,
-
-        deliveryFee: rentalData.deliveryFee,
-
-        totalAmount: rentalData.totalAmount
-
-      });
-
-      
-
       populatedRental = {
 
         ...rentalData,
@@ -373,30 +338,9 @@ const buildContractData = async (rental, providedItems = null) => {
         items: items || [],
 
       };
-
-      
-
-      console.log("[BUILD CONTRACT] Fetched customer:", customer?.fullName);
-
-      console.log("[BUILD CONTRACT] Fetched supplier:", supplier?.fullName);
-
-      console.log("[BUILD CONTRACT] Items count:", items?.length || 0);
-
     }
 
   }
-
-
-
-  console.log("[BUILD CONTRACT] Rental populated successfully");
-
-  console.log("[BUILD CONTRACT] Customer:", populatedRental.customerId?.fullName);
-
-  console.log("[BUILD CONTRACT] Customer address:", JSON.stringify(populatedRental.customerId?.address || populatedRental.deliveryAddress));
-
-  console.log("[BUILD CONTRACT] Supplier:", populatedRental.supplierId?.fullName);
-
-  console.log("[BUILD CONTRACT] Items count:", populatedRental.items?.length || 0);
 
   // Debug first item structure
 
@@ -404,31 +348,9 @@ const buildContractData = async (rental, providedItems = null) => {
 
     const firstItem = populatedRental.items[0];
 
-    console.log("[BUILD CONTRACT] First item structure:");
 
-    console.log("  - deviceId:", typeof firstItem.deviceId, firstItem.deviceId?.name || firstItem.deviceId);
-
-    console.log("  - deviceSnapshot:", JSON.stringify(firstItem.deviceSnapshot));
-
-    console.log("  - deviceItems:", firstItem.deviceItems?.length || 0);
-
-    console.log("  - quantity:", firstItem.quantity);
-
-    console.log("  - conditionBeforeRent:", firstItem.conditionBeforeRent);
 
   }
-
-  console.log("[BUILD CONTRACT] Financial data:", {
-
-    rentPriceTotal: populatedRental.rentPriceTotal,
-
-    depositAmount: populatedRental.depositAmount,
-
-    deliveryFee: populatedRental.deliveryFee,
-
-    totalAmount: populatedRental.totalAmount
-
-  });
 
   // Get supplier profile
 
@@ -437,8 +359,6 @@ const buildContractData = async (rental, providedItems = null) => {
   if (populatedRental.supplierId) {
 
     supplierProfile = await SupplierProfile.findOne({ userId: populatedRental.supplierId._id });
-
-    console.log("[BUILD CONTRACT] Supplier profile found:", !!supplierProfile);
 
   }
 
@@ -450,13 +370,11 @@ const buildContractData = async (rental, providedItems = null) => {
 
   if (populatedRental.items && populatedRental.items.length > 0) {
 
-    console.log("[BUILD CONTRACT] Getting device serials...");
-
     for (const item of populatedRental.items) {
 
       let serials = [];
 
-      
+
 
       // If deviceItems already provided (from RentalController), use them
 
@@ -464,31 +382,26 @@ const buildContractData = async (rental, providedItems = null) => {
 
         serials = item.deviceItems.map(di => di.serialNumber || di.imei || "N/A");
 
-        console.log(`[BUILD CONTRACT] Item ${item._id}: ${serials.length} serials from provided deviceItems`);
-
       } else {
 
         // Otherwise query from DB
 
-        const deviceItems = await DeviceItem.find({ 
+        const deviceItems = await DeviceItem.find({
 
           _id: { $in: item.deviceItemIds || [] }
 
         }).select("serialNumber imei");
 
-        
+
 
         serials = deviceItems.map(di => di.serialNumber || di.imei || "N/A");
-
-        console.log(`[BUILD CONTRACT] Item ${item._id}: ${serials.length} serials fetched from DB`);
-
       }
 
-      
+
 
       deviceSerials.push(...serials);
 
-      
+
 
       // If no device items, use fallback
 
@@ -501,18 +414,11 @@ const buildContractData = async (rental, providedItems = null) => {
     }
 
   }
-
-
-
-  console.log("[BUILD CONTRACT] Total serials found:", deviceSerials.length);
-
-
-
   // Safely get _id - handle both ObjectId and string
 
   const rentalIdStr = populatedRental._id ? populatedRental._id.toString() : rental._id.toString();
 
-  
+
 
   const contractData = {
 
@@ -544,12 +450,12 @@ const buildContractData = async (rental, providedItems = null) => {
 
     customer_cccd: populatedRental.customerId?.identityInfo?.cccdNumber || "",
 
-    customer_address: populatedRental.deliveryAddress?.fullAddress || 
-                     (populatedRental.deliveryAddress?.street ? 
-                       `${populatedRental.deliveryAddress.street}, ${populatedRental.deliveryAddress.district}, ${populatedRental.deliveryAddress.city}` : "") ||
-                     populatedRental.customerId?.address?.fullAddress ||
-                     (populatedRental.customerId?.address?.street ? 
-                       `${populatedRental.customerId.address.street}, ${populatedRental.customerId.address.district}, ${populatedRental.customerId.address.city}` : ""),
+    customer_address: populatedRental.deliveryAddress?.fullAddress ||
+      (populatedRental.deliveryAddress?.street ?
+        `${populatedRental.deliveryAddress.street}, ${populatedRental.deliveryAddress.district}, ${populatedRental.deliveryAddress.city}` : "") ||
+      populatedRental.customerId?.address?.fullAddress ||
+      (populatedRental.customerId?.address?.street ?
+        `${populatedRental.customerId.address.street}, ${populatedRental.customerId.address.district}, ${populatedRental.customerId.address.city}` : ""),
 
 
 
@@ -616,19 +522,6 @@ const buildContractData = async (rental, providedItems = null) => {
     total_payment: (populatedRental.totalAmount || 0).toLocaleString("vi-VN") + " VNÐ",
 
   };
-
-
-
-  console.log("[BUILD CONTRACT] Contract data built successfully");
-
-  console.log("[BUILD CONTRACT] Contract number:", contractData.contract_number);
-
-  console.log("[BUILD CONTRACT] Customer name:", contractData.customer_name);
-
-  console.log("[BUILD CONTRACT] Supplier name:", contractData.supplier_name);
-
-  
-
   return contractData;
 
 };
@@ -656,19 +549,7 @@ const generatePdfBuffer = async (rental) => {
   const form = pdfDoc.getForm();
 
   const data = await buildContractData(rental);
-
-
-
   // Debug fields
-
-  console.log("\n=== DANH SÁCH FORM FIELDS ===");
-
-  form.getFields().forEach((f, i) => console.log(`${i + 1}. ${f.getName()}`));
-
-  console.log("========================\n");
-
-
-
   const safeSetText = (name, value) => {
 
     try {
@@ -678,8 +559,6 @@ const generatePdfBuffer = async (rental) => {
       if (field) {
 
         field.setText(String(value || ""));
-
-        console.log(`✓ Điền thành công: ${name}`);
 
       } else {
 
@@ -783,13 +662,13 @@ const generatePdfBuffer = async (rental) => {
 
       const signatureBytes = Buffer.from(base64Data, "base64");
 
-      
+
 
       // Embed PNG signature
 
       const signatureImage = await pdfDoc.embedPng(signatureBytes);
 
-      
+
 
       // Get page 5 (index 4) to draw signature
 
@@ -797,15 +676,11 @@ const generatePdfBuffer = async (rental) => {
 
       const targetPage = pages[4] || pages[pages.length - 1]; // Page 5 hoặc trang cuối nếu không đủ
 
-      
+
 
       // Lấy kích thước trang để tính vị trí tương đối
 
       const { width: pageWidth, height: pageHeight } = targetPage.getSize();
-
-      console.log(`[SIGNATURE] Page size: ${pageWidth} x ${pageHeight}`);
-
-      
 
       // Vị trí chữ ký BÊN THUÊ - cải thiện cho chính xác hơn
 
@@ -813,20 +688,13 @@ const generatePdfBuffer = async (rental) => {
 
       const signatureHeight = 50;  // Giảm height cho prop
 
-      
+
 
       // Đặt vị trí ở góc dưới bên phải của khu vực ký tên
 
       const signatureX = pageWidth - signatureWidth - 50; // Cách lề phải 50px
 
       const signatureY = pageHeight - 180; // Cách đáy 180px
-
-      
-
-      console.log(`[SIGNATURE] Position: x=${signatureX}, y=${signatureY}, size=${signatureWidth}x${signatureHeight}`);
-
-      
-
       targetPage.drawImage(signatureImage, {
 
         x: signatureX,
@@ -838,11 +706,6 @@ const generatePdfBuffer = async (rental) => {
         height: signatureHeight,
 
       });
-
-      
-
-      console.log("✓ Đã merge chữ ký vào PDF");
-
     } catch (sigError) {
 
       console.warn("⚠ Lỗi khi merge chữ ký:", sigError.message);
@@ -875,22 +738,14 @@ const generatePdfBuffer = async (rental) => {
 
 const generateDocxBufferFromData = async (data) => {
 
-  console.log("[DEBUG] Starting generateDocxBufferFromData");
-
-  
-
   const templatePath = path.resolve(__dirname, "../../templatesContract/template_contract.docx");
 
-  
+
 
   let templateBuffer;
 
   try {
-
     templateBuffer = await fs.readFile(templatePath, "binary");
-
-    console.log("[DEBUG] Template loaded, size:", templateBuffer.length);
-
   } catch (templateError) {
 
     console.error("[DEBUG] Template file không tìm tìm:", templateError.message);
@@ -898,13 +753,6 @@ const generateDocxBufferFromData = async (data) => {
     throw new Error("Template file không tìm tìm: " + templateError.message);
 
   }
-
-  
-
-  console.log("[DEBUG] Contract data built:", Object.keys(data));
-
-  
-
   try {
 
     // Image module config - exactly like supplier contract
@@ -937,7 +785,7 @@ const generateDocxBufferFromData = async (data) => {
 
     };
 
-    
+
 
     const opts = {
 
@@ -967,13 +815,13 @@ const generateDocxBufferFromData = async (data) => {
 
     const imageModule = new ImageModule(opts);
 
-    
+
 
     // Use docxtemplater - exactly like supplier contract
 
     const zip = new PizZip(templateBuffer);
 
-    
+
 
     const doc = new Docxtemplater(zip, {
 
@@ -987,7 +835,7 @@ const generateDocxBufferFromData = async (data) => {
 
     });
 
-    
+
 
     // Render data - exactly like supplier contract
 
@@ -999,7 +847,7 @@ const generateDocxBufferFromData = async (data) => {
 
     });
 
-    
+
 
     const buf = doc.getZip().generate({
 
@@ -1008,21 +856,8 @@ const generateDocxBufferFromData = async (data) => {
       compression: "DEFLATE",
 
     });
-
-    
-
-    console.log("[DEBUG] DOCX generated, size:", buf.length);
-
     return buf;
-
-    
-
   } catch (docxError) {
-
-    console.error("[DEBUG] DOCX generation error:", docxError);
-
-    
-
     // Handle docxtemplater syntax errors - exactly like supplier contract
 
     if (docxError.properties && docxError.properties.errors) {
@@ -1037,7 +872,7 @@ const generateDocxBufferFromData = async (data) => {
 
     }
 
-    
+
 
     throw new Error("Lõi khi tao DOCX: " + docxError.message);
 
@@ -1048,24 +883,15 @@ const generateDocxBufferFromData = async (data) => {
 // ====================== GENERATE DOCX BUFFER ======================
 
 const generateDocxBuffer = async (rental, items = null) => {
-
-  console.log("[DEBUG] Starting generateDocxBuffer");
-
-  console.log("[DEBUG] Items parameter:", items?.length || 0);
-
-  
-
   const templatePath = path.resolve(__dirname, "../../templatesContract/template_contract.docx");
 
-  
+
 
   let templateBuffer;
 
   try {
 
     templateBuffer = await fs.readFile(templatePath, "binary");
-
-    console.log("[DEBUG] Template loaded, size:", templateBuffer.length);
 
   } catch (templateError) {
 
@@ -1075,14 +901,9 @@ const generateDocxBuffer = async (rental, items = null) => {
 
   }
 
-  
+
 
   const data = await buildContractData(rental, items);
-
-  console.log("[DEBUG] Contract data built:", Object.keys(data));
-
-  
-
   // Add signature if provided - same as supplier contract
 
   const sigUrl = rental.signatureData || rental.customerSignature;
@@ -1097,7 +918,7 @@ const generateDocxBuffer = async (rental, items = null) => {
 
   }
 
-  
+
 
   try {
 
@@ -1131,7 +952,7 @@ const generateDocxBuffer = async (rental, items = null) => {
 
     };
 
-    
+
 
     const opts = {
 
@@ -1161,13 +982,13 @@ const generateDocxBuffer = async (rental, items = null) => {
 
     const imageModule = new ImageModule(opts);
 
-    
+
 
     // Use docxtemplater - exactly like supplier contract
 
     const zip = new PizZip(templateBuffer);
 
-    
+
 
     // Debug: Check template placeholders
 
@@ -1177,7 +998,6 @@ const generateDocxBuffer = async (rental, items = null) => {
 
       if (content) {
 
-        console.log("[DEBUG] Template placeholders found:");
 
         // Extract placeholders from Word XML
 
@@ -1193,7 +1013,7 @@ const generateDocxBuffer = async (rental, items = null) => {
 
         });
 
-        
+
 
         // Remove duplicates and log
 
@@ -1201,17 +1021,17 @@ const generateDocxBuffer = async (rental, items = null) => {
 
         uniquePlaceholders.forEach(p => console.log("  -", p));
 
-        
+
 
         // Check if all data keys have placeholders
 
-        const missingPlaceholders = Object.keys(data).filter(key => 
+        const missingPlaceholders = Object.keys(data).filter(key =>
 
           !uniquePlaceholders.some(p => p.includes(key))
 
         );
 
-        
+
 
         if (missingPlaceholders.length > 0) {
 
@@ -1227,7 +1047,7 @@ const generateDocxBuffer = async (rental, items = null) => {
 
     }
 
-    
+
 
     const doc = new Docxtemplater(zip, {
 
@@ -1241,7 +1061,7 @@ const generateDocxBuffer = async (rental, items = null) => {
 
     });
 
-    
+
 
     // Render data - exactly like supplier contract
 
@@ -1253,7 +1073,7 @@ const generateDocxBuffer = async (rental, items = null) => {
 
     });
 
-    
+
 
     const buf = doc.getZip().generate({
 
@@ -1263,19 +1083,18 @@ const generateDocxBuffer = async (rental, items = null) => {
 
     });
 
-    
 
-    console.log("[DEBUG] DOCX generated, size:", buf.length);
+
 
     return buf;
 
-    
+
 
   } catch (docxError) {
 
     console.error("[DEBUG] DOCX generation error:", docxError);
 
-    
+
 
     // Handle docxtemplater syntax errors - exactly like supplier contract
 
@@ -1291,7 +1110,7 @@ const generateDocxBuffer = async (rental, items = null) => {
 
     }
 
-    
+
 
     throw new Error("Lõi khi tao DOCX: " + docxError.message);
 
@@ -1306,48 +1125,20 @@ const generateDocxBuffer = async (rental, items = null) => {
 const generatePreviewContract = async (req, res) => {
 
   try {
-
-    console.log("[DEBUG PREVIEW] Request body:", JSON.stringify(req.body, null, 2));
-
-
-
     const rentalData = req.body;
-
     const data = await buildPreviewContractData(rentalData);
-
-    console.log("[DEBUG PREVIEW] Building preview data...");
-
-
-
     // Add signature if provided
 
     if (rentalData.customerSignature && rentalData.customerSignature.startsWith("data:image")) {
 
       data.signatureDataUrl = rentalData.customerSignature;
-
-      console.log("[DEBUG PREVIEW] Signature added");
-
     } else {
 
       data.signatureDataUrl = "";
 
     }
 
-
-
-    console.log("[DEBUG PREVIEW] Preview data built:", Object.keys(data));
-
-
-
-    console.log("[DEBUG PREVIEW] Generating DOCX buffer...");
-
     const buf = await generateDocxBufferFromData(data);
-
-    console.log("[DEBUG PREVIEW] DOCX buffer generated, size:", buf.length);
-
-
-
-    console.log("[DEBUG PREVIEW] Uploading to Cloudinary...");
 
     const uploadResult = await new Promise((resolve, reject) => {
 
@@ -1370,13 +1161,6 @@ const generatePreviewContract = async (req, res) => {
       ).end(buf);
 
     });
-
-
-
-    console.log("[DEBUG PREVIEW] Upload successful:", uploadResult.secure_url);
-
-
-
     res.json({
 
       success: true,

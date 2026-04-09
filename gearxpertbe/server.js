@@ -128,7 +128,7 @@ startAutoReturnJob();
     await connection();
     doLoginWGoogle();
     server.listen(port, () => {
-      console.log(`Backend + Socket listening on port ${port}`);
+      console.log(`Backend listening on port ${port}`);
     });
   } catch (error) {
     console.error("Error connecting to the database:", error);

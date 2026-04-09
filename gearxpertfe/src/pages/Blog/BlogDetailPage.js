@@ -137,11 +137,9 @@ export default function BlogDetailPage() {
     useEffect(() => {
         if (!socket || !id) return;
 
-        console.log(`[SOCKET] Joining room: blog_${id}`);
         socket.emit("joinRoom", `blog_${id}`);
 
         socket.on("blogUpdate", (data) => {
-            console.log("[SOCKET] Received blogUpdate:", data);
             const { type, blog: updatedBlog } = data;
 
             // Update components based on what changed
@@ -159,7 +157,6 @@ export default function BlogDetailPage() {
         });
 
         return () => {
-            console.log(`[SOCKET] Leaving room: blog_${id}`);
             socket.emit("leaveRoom", `blog_${id}`);
             socket.off("blogUpdate");
         };
@@ -391,7 +388,7 @@ export default function BlogDetailPage() {
                         ) : (
                             <div
                                 className={`grid gap-1 bg-slate-200 transition-all duration-300 ${blog.images.length === 2 ? "grid-cols-2 h-[300px] md:h-[400px]" :
-                                        "grid-cols-4 h-[400px] md:h-[550px]"
+                                    "grid-cols-4 h-[400px] md:h-[550px]"
                                     }`}
                             >
                                 {blog.images.length === 2 && blog.images.map((img, idx) => (

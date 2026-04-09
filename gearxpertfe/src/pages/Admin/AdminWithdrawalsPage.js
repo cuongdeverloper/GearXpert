@@ -18,31 +18,17 @@ export default function AdminWithdrawalsPage() {
   const fetchWithdrawals = useCallback(async () => {
     try {
       setLoading(true);
-      console.log("Fetching withdrawals with params:", {
-        status: filterStatus,
-        search: searchTerm,
-      });
-
       const response = await getWithdrawalRequests({
         status: filterStatus,
         search: searchTerm,
       });
-
-      console.log("Withdrawals API response:", response);
-
       const list = response.withdrawals || [];
-      console.log("Setting withdrawals:", list);
       setWithdrawals(list);
-
-      if (list.length === 0) {
-        console.log("No withdrawals found in response");
-      }
     } catch (error) {
       console.error("Error fetching withdrawal requests:", error);
       console.error("Error response:", error.response);
 
       if (error.response?.status === 404 || error.response?.status === 500) {
-        console.log("API error, showing sample data");
         setWithdrawals([
           {
             _id: "sample1",
@@ -87,16 +73,16 @@ export default function AdminWithdrawalsPage() {
 
   const confirmApprove = async () => {
     if (!selectedWithdrawal) return;
-    
+
     try {
       setActionLoading(prev => ({ ...prev, [selectedWithdrawal._id]: true }));
       const response = await approveWithdrawal(selectedWithdrawal._id);
-      
+
       // Backend doesn't return success field, check if response exists
       if (response.data) {
-        setWithdrawals(prev => 
-          prev.map(w => 
-            w._id === selectedWithdrawal._id 
+        setWithdrawals(prev =>
+          prev.map(w =>
+            w._id === selectedWithdrawal._id
               ? { ...w, status: "APPROVED", processedAt: new Date() }
               : w
           )
@@ -132,12 +118,12 @@ export default function AdminWithdrawalsPage() {
     try {
       setActionLoading(prev => ({ ...prev, [selectedWithdrawal._id]: true }));
       const response = await rejectWithdrawal(selectedWithdrawal._id, { reason: rejectReason.trim() });
-      
+
       // Backend doesn't return success field, check if response exists
       if (response.data) {
-        setWithdrawals(prev => 
-          prev.map(w => 
-            w._id === selectedWithdrawal._id 
+        setWithdrawals(prev =>
+          prev.map(w =>
+            w._id === selectedWithdrawal._id
               ? { ...w, status: "REJECTED", processedAt: new Date(), rejectionReason: rejectReason.trim() }
               : w
           )
@@ -304,7 +290,7 @@ export default function AdminWithdrawalsPage() {
             </div>
             <span className="text-sm font-semibold text-gray-700">Bộ lọc</span>
           </div>
-          
+
           <div className="flex items-center gap-3">
             <label className="text-sm text-gray-600">Trạng thái:</label>
             <select
@@ -337,7 +323,7 @@ export default function AdminWithdrawalsPage() {
         <div className="px-8 py-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-indigo-50">
           <h2 className="text-xl font-bold text-gray-900">Danh sách yêu cầu rút tiền</h2>
         </div>
-        
+
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
@@ -402,7 +388,7 @@ export default function AdminWithdrawalsPage() {
                       >
                         <FiEye size={18} />
                       </button>
-                      
+
                       {withdrawal.status === "PENDING" && (
                         <>
                           <button
@@ -475,7 +461,7 @@ export default function AdminWithdrawalsPage() {
                 </button>
               </div>
             </div>
-            
+
             {/* Modal Body */}
             <div className="p-8 max-h-[60vh] overflow-y-auto">
               <div className="space-y-6">
@@ -613,11 +599,10 @@ export default function AdminWithdrawalsPage() {
 
       {/* Notification Toast */}
       {notification.show && (
-        <div className={`fixed top-4 right-4 z-50 max-w-sm p-4 rounded-lg shadow-lg border transform transition-all duration-300 ${
-          notification.type === "success" 
-            ? "bg-green-50 border-green-200 text-green-800" 
-            : "bg-red-50 border-red-200 text-red-800"
-        }`}>
+        <div className={`fixed top-4 right-4 z-50 max-w-sm p-4 rounded-lg shadow-lg border transform transition-all duration-300 ${notification.type === "success"
+          ? "bg-green-50 border-green-200 text-green-800"
+          : "bg-red-50 border-red-200 text-red-800"
+          }`}>
           <div className="flex items-center gap-3">
             {notification.type === "success" ? (
               <FiCheck className="w-5 h-5 text-green-600" />
@@ -651,7 +636,7 @@ export default function AdminWithdrawalsPage() {
                 <p className="text-sm text-gray-500">Thao tác này sẽ chuyển tiền ngay lập tức</p>
               </div>
             </div>
-            
+
             <div className="bg-gray-50 p-4 rounded-lg space-y-2 mb-6">
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Số tiền:</span>
@@ -704,7 +689,7 @@ export default function AdminWithdrawalsPage() {
                 <p className="text-sm text-gray-500">Vui lòng nhập lý do từ chối</p>
               </div>
             </div>
-            
+
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Lý do từ chối <span className="text-red-500">*</span>

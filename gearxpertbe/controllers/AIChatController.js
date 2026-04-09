@@ -1,8 +1,6 @@
 require("dotenv").config();
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-const Device = require("../models/Device"); 
-
-console.log("Check Key Gemini:", process.env.GEMINI_API_KEY ? "Đã nhận Key" : "CHƯA CÓ KEY!");
+const Device = require("../models/Device");
 
 const genAI = process.env.GEMINI_API_KEY
   ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
@@ -153,10 +151,10 @@ const searchDevicesForChat = async (queryText) => {
         deviceUrl: `/device/${p._id}`,
         seller: supplierId
           ? {
-              id: supplierId,
-              name: p.supplierId?.fullName || "Supplier",
-              url: `/supplier/${supplierId}`,
-            }
+            id: supplierId,
+            name: p.supplierId?.fullName || "Supplier",
+            url: `/supplier/${supplierId}`,
+          }
           : null,
       };
     });
@@ -281,12 +279,12 @@ const handleAIChat = async (req, res) => {
 
     const productContext = relevantProducts.map(p => {
       const priceDay = p.rentPrice?.perDay ? p.rentPrice.perDay.toLocaleString() + " VNĐ" : "Liên hệ";
-      
+
       let specsText = "Cơ bản";
       if (p.specs && p.specs instanceof Map) {
-         specsText = JSON.stringify(Object.fromEntries(p.specs));
+        specsText = JSON.stringify(Object.fromEntries(p.specs));
       } else if (typeof p.specs === 'object') {
-         specsText = JSON.stringify(p.specs);
+        specsText = JSON.stringify(p.specs);
       }
 
       const supplierId = p?.supplierId?._id || p?.supplierId;
@@ -300,7 +298,7 @@ const handleAIChat = async (req, res) => {
       - Link sản phẩm: [Link sản phẩm](/device/${p._id})
       ${supplierId ? `- Link người bán: [Link nhà cung cấp](/supplier/${supplierId})` : ""}
       `;
-    }).join("\n"); 
+    }).join("\n");
 
     // If Gemini key isn't configured, return a deterministic reply + recommendations
     if (!genAI) {

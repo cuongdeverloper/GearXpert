@@ -18,7 +18,6 @@ export const SocketProvider = ({ children }) => {
     if (!tutorId) return;
 
     const backendUrl = process.env.REACT_APP_BACKEND_URL || "http://localhost:1357";
-    console.log("[SOCKET] Attempting connection to:", backendUrl);
 
     const newSocket = io(backendUrl, {
       transports: ["websocket", "polling"],
@@ -29,7 +28,6 @@ export const SocketProvider = ({ children }) => {
     });
 
     newSocket.on("connect", () => {
-      console.log("[SOCKET] Connected successfully! ID:", newSocket.id);
       newSocket.emit("addUser", tutorId);
       dispatch(setSocketConnection(newSocket));
     });
@@ -47,7 +45,6 @@ export const SocketProvider = ({ children }) => {
     });
 
     newSocket.on("disconnect", (reason) => {
-      console.log("[SOCKET] Disconnected:", reason);
       dispatch(setSocketConnection(null));
       setOnlineUsers([]);
     });
@@ -71,4 +68,4 @@ export const SocketProvider = ({ children }) => {
       {children}
     </SocketContext.Provider>
   );
-};
+};
