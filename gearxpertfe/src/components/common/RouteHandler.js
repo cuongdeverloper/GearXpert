@@ -31,7 +31,6 @@ const RouteHandler = () => {
 
                 // Redirect to signin or just stay as guest depending on preference
                 // Here we let it stay as guest for a smoother experience unless it's a restricted page
-                console.log("Session expired or token missing, switching to guest mode.");
             }
         };
 

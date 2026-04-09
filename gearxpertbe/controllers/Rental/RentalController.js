@@ -126,9 +126,9 @@ const sendRentalNotification = async (
 
       : linkSuffix
 
-      ? `/my-rentals/${rid}${linkSuffix}`
+        ? `/my-rentals/${rid}${linkSuffix}`
 
-      : `/my-rentals/${rid}`;
+        : `/my-rentals/${rid}`;
 
 
 
@@ -212,7 +212,7 @@ const generateRentalContract = async (rentalId) => {
 
       });
 
-    
+
 
     if (!rental) {
 
@@ -1182,7 +1182,7 @@ exports.checkoutRental = async (req, res) => {
 
       const rentalPlain = rental.toObject();
 
-      
+
 
       createdRentals.push({
 
@@ -1205,19 +1205,9 @@ exports.checkoutRental = async (req, res) => {
       for (const { rental, items } of createdRentals) {
 
         try {
-
-          console.log(`[CHECKOUT] Creating contract for rental ${rental._id}...`);
-
           await createContractForRental(rental, req, items);
-
-          console.log(`[CHECKOUT] Contract creation completed for rental ${rental._id}`);
-
         } catch (error) {
-
-          console.error(`[CHECKOUT] Contract creation failed for rental ${rental._id}:`, error);
-
           console.error(`[CHECKOUT] Error stack:`, error.stack);
-
         }
 
       }
@@ -1235,31 +1225,13 @@ exports.checkoutRental = async (req, res) => {
       for (const { rental } of createdRentals) {
 
         try {
-
           const contract = await Contract.findOne({ rentalId: rental._id }).lean();
-
           if (contract) {
-
             const contractFile = await ContractFile.findOne({ contractId: contract._id }).lean();
-
-            if (contractFile) {
-
-              console.log(`[CHECKOUT] ✓ Contract created successfully for rental ${rental._id}: ${contractFile.fileUrl}`);
-
-            } else {
-
-              console.warn(`[CHECKOUT] ⚠ Contract record exists but no file for rental ${rental._id}`);
-
-            }
-
           } else {
-
             console.warn(`[CHECKOUT] ⚠ No contract found for rental ${rental._id}`);
-
           }
-
         } catch (verifyError) {
-
           console.error(`[CHECKOUT] Error verifying contract for rental ${rental._id}:`, verifyError);
 
         }
@@ -1296,13 +1268,13 @@ exports.checkoutRental = async (req, res) => {
 
         const Device = require('../../models/Device');
 
-        
+
 
         // Use provided items data, enrich with device and deviceItem info
 
         console.log(`[CHECKOUT CONTRACT] Enriching rental items with device info...`);
 
-        
+
 
         const enrichedItems = [];
 
@@ -1312,17 +1284,17 @@ exports.checkoutRental = async (req, res) => {
 
           const device = await Device.findById(item.deviceId).select('name condition');
 
-          
+
 
           // Fetch device items for serial numbers
 
-          const deviceItems = await DeviceItem.find({ 
+          const deviceItems = await DeviceItem.find({
 
             _id: { $in: item.deviceItemIds || [] }
 
           }).select('serialNumber imei');
 
-          
+
 
           enrichedItems.push({
 
@@ -1336,11 +1308,11 @@ exports.checkoutRental = async (req, res) => {
 
         }
 
-        
+
 
         console.log(`[CHECKOUT CONTRACT] Enriched ${enrichedItems.length} items`);
 
-        
+
 
         console.log(`[CHECKOUT CONTRACT] Generating DOCX buffer...`);
 
@@ -1350,7 +1322,7 @@ exports.checkoutRental = async (req, res) => {
 
         console.log(`[CHECKOUT CONTRACT] DOCX buffer generated, size: ${buf.length}`);
 
-        
+
 
         console.log(`[CHECKOUT CONTRACT] Uploading to Cloudinary...`);
 
@@ -1360,15 +1332,15 @@ exports.checkoutRental = async (req, res) => {
 
           cloudinary.uploader.upload_stream(
 
-            { 
+            {
 
-              resource_type: "raw", 
+              resource_type: "raw",
 
-              folder: "contracts", 
+              folder: "contracts",
 
-              public_id: `contract-${rental._id}-${Date.now()}`, 
+              public_id: `contract-${rental._id}-${Date.now()}`,
 
-              format: "docx" 
+              format: "docx"
 
             },
 
@@ -2440,13 +2412,13 @@ exports.approveRental = async (req, res) => {
 
       return res.status(400).json({ message: "Đơn đã được duyệt" });
 
-    
+
 
     rental.status = "APPROVED";
 
     await rental.save();
 
-    
+
 
     // Generate contract automatically
 
@@ -2464,7 +2436,7 @@ exports.approveRental = async (req, res) => {
 
     }
 
-    
+
 
     await sendRentalNotification(
 
@@ -2478,7 +2450,7 @@ exports.approveRental = async (req, res) => {
 
     );
 
-    
+
 
     res.json({ success: true, message: "Đã duyệt đơn thuê", rental });
 
@@ -2564,11 +2536,9 @@ exports.rejectRental = async (req, res) => {
 
       title: "Đơn thuê bị từ chối",
 
-      message: `Đơn thuê của bạn đã bị từ chối. Lý do: ${
+      message: `Đơn thuê của bạn đã bị từ chối. Lý do: ${reason || "Không có lý do cụ thể"
 
-        reason || "Không có lý do cụ thể"
-
-      }${details ? " - " + details : ""}`,
+        }${details ? " - " + details : ""}`,
 
       link: `/my-rentals/${rental._id}`,
 
@@ -4058,7 +4028,7 @@ exports.startDelivery = async (req, res) => {
 
     const supplierReceive = rentAmount;
 
-    
+
 
     const paymentBreakdown = {
 
@@ -4240,11 +4210,11 @@ exports.startDelivery = async (req, res) => {
 
     console.error("Error stack:", err.stack);
 
-    res.status(500).json({ 
+    res.status(500).json({
 
-      message: "Server error", 
+      message: "Server error",
 
-      error: err.message 
+      error: err.message
 
     });
 
@@ -4484,7 +4454,7 @@ exports.confirmReturn = async (req, res) => {
 
     });
 
-    
+
 
     const PLATFORM_FEE_RATE = 0.1; // 10% phí nền tảng
 
@@ -4494,7 +4464,7 @@ exports.confirmReturn = async (req, res) => {
 
     const supplierReceive = rentAfterDiscount - platformFee;
 
-    
+
 
     console.log("Payment calculation:", {
 
@@ -4634,7 +4604,7 @@ exports.confirmReturn = async (req, res) => {
 
     const adminBefore = adminWallet.balance;
 
-    
+
 
     if (adminWallet.balance < totalDeductFromAdmin) {
 
@@ -4722,7 +4692,7 @@ exports.confirmReturn = async (req, res) => {
 
     rental.escrowStatus = "RELEASED";
 
-    
+
 
     // Gán paymentBreakdown để tránh validation error
 
@@ -4738,7 +4708,7 @@ exports.confirmReturn = async (req, res) => {
 
     };
 
-    
+
 
     await rental.save({ session });
 

@@ -59,7 +59,6 @@ const checkAccessToken = async (req, res, next) => {
     const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
-        console.log("No token found");
         return res.status(401).json({
             EC: -1,
             data: '',
@@ -70,7 +69,6 @@ const checkAccessToken = async (req, res, next) => {
     const verifiedToken = verifyAccessToken(token);
 
     if (!verifiedToken) {
-        console.log("Token verification failed");
         return res.status(401).json({ message: 'Invalid or expired access token' });
     }
 

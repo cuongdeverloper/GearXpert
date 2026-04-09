@@ -1,16 +1,16 @@
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.MAIL_USERNAME,
+        pass: process.env.MAIL_PASSWORD,
+    },
+});
+
 const sendMail = async (to, subject, html) => {
     try {
-        const transporter = nodemailer.createTransport({
-            service: 'gmail', 
-            auth: {
-                user: process.env.MAIL_USERNAME, // Email của bạn (ví dụ: gearxpert@gmail.com)
-                pass: process.env.MAIL_PASSWORD, // Mật khẩu ứng dụng 16 ký tự
-            },
-        });
-
         const mailOptions = {
             from: `"GearXpert" <${process.env.MAIL_USERNAME}>`,
             to: to,
@@ -22,6 +22,7 @@ const sendMail = async (to, subject, html) => {
         return info;
 
     } catch (error) {
+        console.error(`[Mail Error] Lỗi khi gửi mail tới ${to}:`, error.message);
         return null;
     }
 };

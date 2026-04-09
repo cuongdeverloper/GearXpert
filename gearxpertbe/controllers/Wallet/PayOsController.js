@@ -88,7 +88,6 @@ exports.handleWebhook = async (req, res) => {
 
     // Chỉ xử lý khi thanh toán thành công
     if (body.code !== "00" || webhookData.code !== "00") {
-      console.log(`[WEBHOOK] Đơn ${orderCode} thất bại/hủy`);
       return res.status(200).json({ success: true });
     }
 
@@ -117,8 +116,6 @@ exports.handleWebhook = async (req, res) => {
 
         // === UPLOAD CONTRACT SAU KHI THANH TOÁN THÀNH CÔNG ===
         try {
-          console.log(`[WEBHOOK] Uploading contract for rental ${rental._id}...`);
-
           // Import contract controller functions
           const { generateDocxBuffer } = require('../Contract/ContractController');
           const Contract = require('../../models/Contract');
@@ -131,11 +128,11 @@ exports.handleWebhook = async (req, res) => {
           // Upload to Cloudinary
           const uploadResult = await new Promise((resolve, reject) => {
             cloudinary.uploader.upload_stream(
-              { 
-                resource_type: "raw", 
-                folder: "contracts", 
-                public_id: `contract-${rental._id}-${Date.now()}`, 
-                format: "docx" 
+              {
+                resource_type: "raw",
+                folder: "contracts",
+                public_id: `contract-${rental._id}-${Date.now()}`,
+                format: "docx"
               },
               (error, result) => (error ? reject(error) : resolve(result))
             ).end(buf);
@@ -165,9 +162,6 @@ exports.handleWebhook = async (req, res) => {
             fileType: "DELIVERY",
             uploadedBy: customerId,
           });
-
-          console.log(`[WEBHOOK] Contract uploaded successfully: ${uploadResult.secure_url}`);
-
         } catch (contractError) {
           console.error(`[WEBHOOK] Failed to upload contract for rental ${rental._id}:`, contractError);
           // Không throw error vì payment thành công, contract có thể upload sau
@@ -178,11 +172,11 @@ exports.handleWebhook = async (req, res) => {
           : "Đơn thuê đã thanh toán thành công";
         const notiMessage = isRepay
           ? `Khách hàng đã thanh toán lại ${rental.totalAmount.toLocaleString(
-              "vi-VN"
-            )}₫ qua ngân hàng.`
+            "vi-VN"
+          )}₫ qua ngân hàng.`
           : `Khách hàng đã thanh toán ${rental.totalAmount.toLocaleString(
-              "vi-VN"
-            )}₫ qua ngân hàng.`;
+            "vi-VN"
+          )}₫ qua ngân hàng.`;
 
         await NotificationConfig.sendNotification({
           senderId: customerId,
@@ -211,10 +205,6 @@ exports.handleWebhook = async (req, res) => {
           status: "SUCCESS",
           description: `Thu phí nền tảng từ ${rentals.length} đơn thuê (PayOS - ${orderCode})`,
         });
-
-        console.log(
-          `[WEBHOOK SUCCESS] Rental ${orderCode} - Platform fee ${totalPlatformFee} đã cộng vào ví system`
-        );
         return res.status(200).json({ success: true });
       }
     }
@@ -305,19 +295,18 @@ exports.createRentalPaymentLink = async (newRental) => {
 exports.transferMoney = async (transferData) => {
   try {
     const { amount, description, accountNumber, accountName, bankCode } = transferData;
-    
+
     // Validate input
     if (!amount || amount <= 0) {
       throw new Error("Số tiền chuyển phải lớn hơn 0");
     }
-    
+
     if (!accountNumber || !accountName || !bankCode) {
       throw new Error("Thiếu thông tin tài khoản nhận");
     }
-    
+
     // PayOS v2 - Dùng transferToBankAccount method cho chuyển tiền
-    console.log("[PAYOS TRANSFER] Attempting direct bank transfer");
-    
+
     const transferBody = {
       amount: Math.round(amount),
       description: description || `Rút tiền GearXpert - ${Date.now()}`,
@@ -325,20 +314,17 @@ exports.transferMoney = async (transferData) => {
       accountName: accountName.trim(),
       bankCode: bankCode.trim(),
     };
-    
-    console.log("[PAYOS TRANSFER] Transfer data:", transferBody);
-    
+
+
     // Thử dùng transferToBankAccount nếu có
     let transferResult;
     try {
       // Method 1: transferToBankAccount (nếu có trong PayOS v2)
       if (payos.transferToBankAccount) {
         transferResult = await payos.transferToBankAccount(transferBody);
-        console.log("[PAYOS TRANSFER] Success with transferToBankAccount:", transferResult);
       } else if (payos.transfer) {
         // Method 2: transfer method
         transferResult = await payos.transfer(transferBody);
-        console.log("[PAYOS TRANSFER] Success with transfer:", transferResult);
       } else {
         // Method 3: paymentRequests.create với isPayout flag
         const payoutData = {
@@ -352,17 +338,11 @@ exports.transferMoney = async (transferData) => {
             bankCode: bankCode.trim()
           }
         };
-        
-        console.log("[PAYOS TRANSFER] Trying payout with paymentRequests:", payoutData);
         transferResult = await payos.paymentRequests.create(payoutData);
-        console.log("[PAYOS TRANSFER] Success with paymentRequests:", transferResult);
       }
     } catch (payosError) {
       console.error("[PAYOS TRANSFER] PayOS API Error:", payosError);
-      
-      // Nếu PayOS không hỗ trợ transfer, tạo manual transaction record
-      console.log("[PAYOS TRANSFER] PayOS transfer not available, creating manual record");
-      
+
       return {
         success: false,
         message: "PayOS transfer không khả dụng. Yêu cầu chuyển tiền thủ công.",
@@ -371,9 +351,9 @@ exports.transferMoney = async (transferData) => {
         transferData: transferBody
       };
     }
-    
+
     return transferResult;
-    
+
   } catch (error) {
     console.error("[PAYOS TRANSFER] Error:", error);
     throw new Error(`Lỗi chuyển tiền PayOS: ${error.message}`);
