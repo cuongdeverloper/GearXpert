@@ -748,7 +748,7 @@ export default function ProfilePage() {
                                                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                                                     required
                                                     maxLength={6}
-                                                    className="w-full px-4 py-3 border border-slate-200/60 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400 font-mono tracking-widest text-center text-xl"
+                                                    className="w-full px-4 py-3 border border-slate-200/60 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 text-slate-900 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.1)] placeholder:text-slate-400 font-mono tracking-widest text-center text-xl"
                                                     placeholder="• • • • • •"
                                                 />
                                             </div>
