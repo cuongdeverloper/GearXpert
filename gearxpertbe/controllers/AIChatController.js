@@ -312,7 +312,7 @@ const handleAIChat = async (req, res) => {
       });
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const chat = model.startChat({
       history: [
@@ -362,7 +362,7 @@ YÊU CẦU:
       success: true,
       reply: text || buildFallbackReply(message, recommendations),
       recommendations: productIntent ? recommendations : [],
-      meta: { provider: "gemini-1.5-flash" },
+      meta: { provider: "gemini-2.5-flash" },
     });
 
   } catch (error) {

@@ -8,8 +8,8 @@ exports.getSmartGearSuggestion = async (req, res) => {
     const { prompt, lang = 'vi' } = req.body;
 
     if (!prompt) {
-      return res.status(400).json({ 
-        message: lang === 'en' ? "Please enter your needs." : "Vui lòng nhập nhu cầu của bạn." 
+      return res.status(400).json({
+        message: lang === 'en' ? "Please enter your needs." : "Vui lòng nhập nhu cầu của bạn."
       });
     }
 
@@ -19,8 +19,8 @@ exports.getSmartGearSuggestion = async (req, res) => {
     }).select("_id name category rentPrice depositAmount");
 
     if (availableDevices.length === 0) {
-      return res.status(404).json({ 
-        message: lang === 'en' ? "No devices currently available." : "Hiện không có thiết bị nào khả dụng." 
+      return res.status(404).json({
+        message: lang === 'en' ? "No devices currently available." : "Hiện không có thiết bị nào khả dụng."
       });
     }
 
@@ -104,7 +104,7 @@ exports.getSmartGearSuggestion = async (req, res) => {
   }
 `;
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const result = await model.generateContent(aiPrompt);
     let responseText = result.response.text();
 

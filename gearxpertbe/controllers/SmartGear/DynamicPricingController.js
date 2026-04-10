@@ -10,16 +10,16 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 exports.getDiscountSuggestions = async (req, res) => {
     try {
         const supplierId = req.user.id;
-        
+
         // Fetch current active discount IDs to exclude them from suggestions
-        const currentActiveDiscounts = await Device.find({ 
-            supplierId, 
-            discountPrice: { $gt: 0 } 
+        const currentActiveDiscounts = await Device.find({
+            supplierId,
+            discountPrice: { $gt: 0 }
         }).select("_id");
         const excludedIds = currentActiveDiscounts.map(d => d._id);
 
-        const devices = await Device.find({ 
-            supplierId, 
+        const devices = await Device.find({
+            supplierId,
             status: "AVAILABLE",
             _id: { $nin: excludedIds }
         }).select("_id name category rentPrice stockQuantity slug");
@@ -79,17 +79,17 @@ exports.getDiscountSuggestions = async (req, res) => {
         `;
 
         try {
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+            const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
             const result = await model.generateContent(aiPrompt);
             let responseText = result.response.text();
-            
+
             responseText = responseText.replace(/```json/g, "").replace(/```/g, "").replace(/JSON/g, "").trim();
             const startIdx = responseText.indexOf("[");
             const endIdx = responseText.lastIndexOf("]");
             if (startIdx !== -1 && endIdx !== -1) {
                 responseText = responseText.substring(startIdx, endIdx + 1);
             }
-            
+
             const aiReasons = JSON.parse(responseText);
             const finalSuggestions = baseSuggestions.map(s => {
                 const aiMatch = aiReasons.find(r => String(r.deviceId) === String(s.deviceId));
@@ -119,7 +119,7 @@ exports.getActiveDiscounts = async (req, res) => {
     try {
         const supplierId = req.user.id;
         const now = new Date();
-        
+
         const activeDiscounts = await Device.find({
             supplierId,
             discountPrice: { $gt: 0 },
@@ -161,7 +161,7 @@ exports.applyDiscount = async (req, res) => {
 
         device.discountPrice = discountPrice;
         device.discountReason = reason;
-        
+
         if (durationInDays && durationInDays > 0) {
             const expiryDate = new Date();
             expiryDate.setDate(expiryDate.getDate() + parseInt(durationInDays));
@@ -191,7 +191,7 @@ exports.removeDiscount = async (req, res) => {
         device.discountPrice = 0;
         device.discountReason = "";
         device.discountExpiry = null;
-        
+
         await device.save();
         res.status(200).json({ success: true, message: "Đã hủy giảm giá cho sản phẩm." });
     } catch (error) {
