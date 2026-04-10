@@ -13,6 +13,7 @@ exports.getSmartGearSuggestion = async (req, res) => {
       });
     }
 
+    // Lấy danh sách thiết bị khả dụng
     const availableDevices = await Device.find({
       status: "AVAILABLE",
       stockQuantity: { $gt: 0 }
@@ -104,14 +105,64 @@ exports.getSmartGearSuggestion = async (req, res) => {
   }
 `;
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const result = await model.generateContent(aiPrompt);
-    let responseText = result.response.text();
+    let jsonResult;
 
-    responseText = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
+    // --- BẮT ĐẦU BLOCK XỬ LÝ AI CÓ FALLBACK ---
+    try {
+      // Đã đổi xuống 1.5-flash để tỷ lệ thành công cao hơn, ít bị 503 hơn
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const result = await model.generateContent(aiPrompt);
+      let responseText = result.response.text();
 
-    const jsonResult = JSON.parse(responseText);
+      responseText = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
+      jsonResult = JSON.parse(responseText);
 
+    } catch (aiError) {
+      console.warn("[SmartGear Fallback] AI bị lỗi hoặc quá tải. Kích hoạt combo dự phòng.", aiError.message);
+
+      // Lấy an toàn 3 thiết bị từ database để ghép vào combo dự phòng
+      // Việc dùng ID thật giúp frontend bấm vào xem chi tiết thiết bị không bị lỗi 404
+      const d1 = availableDevices[0];
+      const d2 = availableDevices.length > 1 ? availableDevices[1] : d1;
+      const d3 = availableDevices.length > 2 ? availableDevices[2] : d2;
+
+      jsonResult = {
+        "budget": {
+          "comboName": lang === 'en' ? "Basic Bundle (Auto)" : "Gói Cơ Bản (Tự động)",
+          "description": lang === 'en' ? "Standard suggestion due to high traffic." : "Gợi ý tiêu chuẩn do hệ thống AI đang bận.",
+          "totalPricePerDay": d1.rentPrice.perDay,
+          "devices": [{
+            "deviceId": d1._id,
+            "name": d1.name,
+            "price": d1.rentPrice.perDay,
+            "quantity": 1,
+            "reason": lang === 'en' ? "Highly recommended standard choice." : "Lựa chọn tiêu chuẩn được đánh giá cao."
+          }]
+        },
+        "standard": {
+          "comboName": lang === 'en' ? "Standard Bundle (Auto)" : "Gói Tiêu Chuẩn (Tự động)",
+          "description": lang === 'en' ? "A balanced package for most needs." : "Gói thiết bị cân bằng cho hầu hết các nhu cầu.",
+          "totalPricePerDay": d1.rentPrice.perDay + d2.rentPrice.perDay,
+          "devices": [
+            { "deviceId": d1._id, "name": d1.name, "price": d1.rentPrice.perDay, "quantity": 1, "reason": "Base unit" },
+            { "deviceId": d2._id, "name": d2.name, "price": d2.rentPrice.perDay, "quantity": 1, "reason": "Standard addition" }
+          ]
+        },
+        "premium": {
+          "comboName": lang === 'en' ? "Premium Bundle (Auto)" : "Gói Cao Cấp (Tự động)",
+          "description": lang === 'en' ? "Full setup for professional requirements." : "Bộ thiết bị đầy đủ đáp ứng nhu cầu chuyên nghiệp.",
+          "totalPricePerDay": d1.rentPrice.perDay + d2.rentPrice.perDay + d3.rentPrice.perDay,
+          "devices": [
+            { "deviceId": d1._id, "name": d1.name, "price": d1.rentPrice.perDay, "quantity": 1, "reason": "Base unit" },
+            { "deviceId": d2._id, "name": d2.name, "price": d2.rentPrice.perDay, "quantity": 1, "reason": "Enhancement" },
+            { "deviceId": d3._id, "name": d3.name, "price": d3.rentPrice.perDay, "quantity": 1, "reason": "Premium quality" }
+          ]
+        }
+      };
+    }
+    // --- KẾT THÚC BLOCK XỬ LÝ AI ---
+
+    // Luôn trả về 200 OK để frontend hiển thị được dữ liệu (dù là thật hay dự phòng)
     res.status(200).json({
       success: true,
       message: lang === 'en' ? "Suggestion success" : "Đề xuất thành công",
@@ -119,10 +170,11 @@ exports.getSmartGearSuggestion = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("[SmartGear AI Error]:", error);
+    // Catch này chỉ còn bắt các lỗi đặc biệt nghiêm trọng của Server (vd: mất kết nối Database)
+    console.error("[SmartGear Server Error]:", error);
     res.status(500).json({
       success: false,
-      message: req.body.lang === 'en' ? "AI processing error. Please try again later." : "Lỗi khi AI xử lý đề xuất. Vui lòng thử lại sau.",
+      message: req.body.lang === 'en' ? "Server processing error. Please try again later." : "Lỗi máy chủ nội bộ. Vui lòng thử lại sau.",
       error: error.message
     });
   }
