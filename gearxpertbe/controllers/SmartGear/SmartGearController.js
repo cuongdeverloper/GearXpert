@@ -109,8 +109,7 @@ exports.getSmartGearSuggestion = async (req, res) => {
 
     // --- BẮT ĐẦU BLOCK XỬ LÝ AI CÓ FALLBACK ---
     try {
-      // Đã đổi xuống 1.5-flash để tỷ lệ thành công cao hơn, ít bị 503 hơn
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(aiPrompt);
       let responseText = result.response.text();
 
