@@ -207,6 +207,10 @@ exports.getDevices = async (req, res) => {
       limit = 12,
       page = 1,
       sort = "popular",
+      minRating,
+      inStock,
+      rentalStartDate,
+      rentalEndDate,
     } = req.query;
 
     const query = {
@@ -217,14 +221,16 @@ exports.getDevices = async (req, res) => {
       query.category = category;
     }
 
-    // Chỉ lấy thiết bị còn hàng (available >= 1)
-    // Không dùng status = AVAILABLE nữa, mà dùng rentedQuantity < stockQuantity
-    query.$expr = { $gt: ["$stockQuantity", "$rentedQuantity"] };
-
-    // Nếu người dùng muốn xem cả thiết bị hết hàng (admin/debug)
-    if (includeAll === "true") {
-      delete query.$expr;
+    // Filter by minimum rating
+    if (minRating && !isNaN(parseFloat(minRating))) {
+      query.ratingAvg = { $gte: parseFloat(minRating) };
     }
+
+    // Filter by in stock (availableQuantity > 0) - only when explicitly requested
+    if (inStock === "true") {
+      query.$expr = { $gt: ["$availableQuantity", 0] };
+    }
+    // Note: Default now shows all devices including out of stock to show the indicator on cards
 
     // Nếu vẫn muốn lọc status (enum catalog: AVAILABLE | SUSPICIOUS | …)
     if (status) {
@@ -238,26 +244,116 @@ exports.getDevices = async (req, res) => {
       sortQuery = { "rentPrice.perDay": 1 };
     } else if (sort === "priceDesc") {
       sortQuery = { "rentPrice.perDay": -1 };
+    } else if (sort === "ratingDesc") {
+      sortQuery = { ratingAvg: -1, reviewCount: -1 };
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const devicesRaw = await Device.find(query)
+    // First, get the devices matching basic filters
+    let devicesRaw = await Device.find(query)
       .select(
         "name slug description rentPrice ratingAvg reviewCount location images category status stockQuantity rentedQuantity depositAmount supplierId createdAt discountPrice discountReason discountExpiry"
       )
       .populate("supplierId", "fullName")
-      .limit(parseInt(limit))
+      .limit(parseInt(limit) * 2) // Get more to filter by availability
       .skip(skip)
       .sort(sortQuery)
       .lean(); // nhanh hơn, trả plain object
 
-    // Thêm availableQuantity & supplierName
-    const devices = devicesRaw.map((device) => ({
-      ...device,
-      supplierName: device.supplierId?.fullName || "Unknown",
-      availableQuantity: device.stockQuantity - (device.rentedQuantity || 0),
-    }));
+    // Get all device IDs to query DeviceItem availability
+    const deviceIds = devicesRaw.map(d => d._id.toString());
+    
+    // Count available DeviceItem for each device (status = AVAILABLE)
+    const deviceItemAvailability = await DeviceItem.aggregate([
+      {
+        $match: {
+          deviceId: { $in: deviceIds.map(id => new mongoose.Types.ObjectId(id)) },
+          status: "AVAILABLE"
+        }
+      },
+      {
+        $group: {
+          _id: "$deviceId",
+          availableCount: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    // Create a map for quick lookup
+    const availabilityMap = {};
+    deviceItemAvailability.forEach(item => {
+      availabilityMap[item._id.toString()] = item.availableCount;
+    });
+
+    // Filter by rental period availability if dates provided
+    if (rentalStartDate && rentalEndDate) {
+      const startDate = new Date(rentalStartDate);
+      const endDate = new Date(rentalEndDate);
+
+      if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+        // Get all busy rental items in the requested period
+        const busyStatuses = [
+          "PENDING",
+          "PAID",
+          "DELIVERING",
+          "RENTING",
+          "RETURNING",
+          "INSPECTING",
+        ];
+
+        const conflictingRentals = await RentalItem.find({
+          $or: [
+            // Rental starts within requested period
+            {
+              rentalStartDate: { $gte: startDate, $lte: endDate },
+            },
+            // Rental ends within requested period
+            {
+              rentalEndDate: { $gte: startDate, $lte: endDate },
+            },
+            // Rental covers the entire requested period
+            {
+              rentalStartDate: { $lte: startDate },
+              rentalEndDate: { $gte: endDate },
+            },
+          ],
+          status: { $in: busyStatuses },
+        }).select("deviceId quantity rentalStartDate rentalEndDate").lean();
+
+        // Calculate busy quantity per device
+        const deviceBusyMap = {};
+        conflictingRentals.forEach((rental) => {
+          if (!deviceBusyMap[rental.deviceId]) {
+            deviceBusyMap[rental.deviceId] = 0;
+          }
+          deviceBusyMap[rental.deviceId] += rental.quantity || 1;
+        });
+
+        // Filter devices that have available quantity for the period
+        devicesRaw = devicesRaw.filter((device) => {
+          const stockQty = device.stockQuantity || 0;
+          const rentedQty = device.rentedQuantity || 0;
+          const busyQty = deviceBusyMap[device._id?.toString()] || 0;
+          const availableQty = stockQty - rentedQty - busyQty;
+          return availableQty > 0;
+        });
+      }
+    }
+
+    // Apply limit after rental availability filtering
+    devicesRaw = devicesRaw.slice(0, parseInt(limit));
+
+    // Thêm supplierName và availableQuantity (đếm trực tiếp từ DeviceItem)
+    const devices = devicesRaw.map((device) => {
+      const deviceId = device._id.toString();
+      const realAvailable = availabilityMap[deviceId] || 0;
+      return {
+        ...device,
+        supplierName: device.supplierId?.fullName || "Unknown",
+        availableQuantity: realAvailable,
+      };
+    });
 
     const total = await Device.countDocuments(query);
 
@@ -478,7 +574,7 @@ exports.getDeviceDetail = async (req, res) => {
     // 1. Lấy thông tin thiết bị và thông tin Supplier (slug hoặc _id)
     const device = await Device.findOne(
       isObjectId ? { _id: param } : { slug: param }
-    ).populate("supplierId", "fullName avatar email phone");
+    ).populate("supplierId", "_id fullName avatar email phone");
 
     if (!device) {
       return res.status(404).json({ message: "Device not found" });
@@ -530,13 +626,19 @@ exports.getDeviceDetail = async (req, res) => {
         quantity: item.quantity,
       }));
 
-    // 4. Lấy thông tin SupplierProfile (store name, store avatar)
+    // 4. Lấy thông tin SupplierProfile (store name, store avatar, stats)
     let supplierProfile = null;
     if (device.supplierId?._id) {
       supplierProfile = await SupplierProfile.findOne({ userId: device.supplierId._id })
-        .select('businessName businessAvatar')
+        .select('businessName businessAvatar supplierRating supplierReviewCount')
         .lean();
     }
+
+    // 4.1 Đếm số thiết bị của supplier
+    const supplierDeviceCount = await Device.countDocuments({
+      supplierId: device.supplierId?._id,
+      status: "AVAILABLE",
+    });
 
     // 5. Hợp nhất dữ liệu trả về
     const deviceData = device.toObject();
@@ -547,6 +649,15 @@ exports.getDeviceDetail = async (req, res) => {
         ...deviceData.supplierId,
         businessName: supplierProfile.businessName,
         businessAvatar: supplierProfile.businessAvatar,
+        ratingAvg: supplierProfile.supplierRating,
+        reviewCount: supplierProfile.supplierReviewCount,
+        deviceCount: supplierDeviceCount,
+      };
+    } else {
+      // Nếu không có profile, vẫn trả về deviceCount
+      deviceData.supplierId = {
+        ...deviceData.supplierId,
+        deviceCount: supplierDeviceCount,
       };
     }
 
