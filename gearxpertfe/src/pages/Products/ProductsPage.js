@@ -21,6 +21,12 @@ export default function ProductsPage() {
   const [sortBy, setSortBy] = useState("featured");
   const [priceRange, setPriceRange] = useState([0, 10000000]);
 
+  // New filter states
+  const [minRating, setMinRating] = useState(0);
+  const [inStockOnly, setInStockOnly] = useState(true);
+  const [rentalStartDate, setRentalStartDate] = useState("");
+  const [rentalEndDate, setRentalEndDate] = useState("");
+
   // Compare states
   const [selectedForCompare, setSelectedForCompare] = useState([]); // max 2 _id
   const [compareData, setCompareData] = useState({ device1: null, device2: null });
@@ -73,12 +79,34 @@ export default function ProductsPage() {
     { name: "Khác", id: "OTHER", icon: "category" },
   ];
 
+  const sortOptions = [
+    { id: "featured", label: "Nổi bật", icon: "auto_awesome" },
+    { id: "newest", label: "Hàng mới về", icon: "new_releases" },
+    { id: "price_asc", label: "Giá: Thấp → Cao", icon: "trending_up" },
+    { id: "price_desc", label: "Giá: Cao → Thấp", icon: "trending_down" },
+    { id: "rating_desc", label: "Đánh giá cao nhất", icon: "star" },
+  ];
+
+  const ratingOptions = [
+    { value: 0, label: "Tất cả đánh giá" },
+    { value: 5, label: "5 sao" },
+    { value: 4, label: "4 sao trở lên" },
+    { value: 3, label: "3 sao trở lên" },
+    { value: 2, label: "2 sao trở lên" },
+    { value: 1, label: "1 sao trở lên" },
+  ];
+
   const fetchDevices = useCallback(async () => {
     try {
       setLoading(true);
       const params = {
         limit: 100,
         ...(selectedCategory && { category: selectedCategory }),
+        ...(minRating > 0 && { minRating }),
+        ...(inStockOnly && { inStock: true }),
+        ...(rentalStartDate && { rentalStartDate }),
+        ...(rentalEndDate && { rentalEndDate }),
+        ...(sortBy === "rating_desc" ? { sort: "ratingDesc" } : {}),
       };
       const response = await getDevices(params);
       setDevices(response.devices || []);
@@ -87,7 +115,7 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory]);
+  }, [selectedCategory, minRating, inStockOnly, rentalStartDate, rentalEndDate, sortBy]);
 
   const applyFiltersAndSort = useCallback(() => {
     let result = [...devices];
@@ -127,6 +155,16 @@ export default function ProductsPage() {
   useEffect(() => {
     fetchDevices();
   }, [fetchDevices]);
+
+  // Debounced fetch for date filters
+  useEffect(() => {
+    if (rentalStartDate && rentalEndDate) {
+      const timer = setTimeout(() => {
+        fetchDevices();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [rentalStartDate, rentalEndDate, fetchDevices]);
 
   useEffect(() => {
     if (categoryFromUrl) {
@@ -225,26 +263,26 @@ export default function ProductsPage() {
 
       <main className="flex-grow w-full pb-12">
         {/* Premium Hero Section - giữ nguyên */}
-        <section className="relative w-full bg-slate-900 overflow-hidden mb-10 pt-48 pb-24 lg:pt-56 lg:pb-32" data-theme="dark">
+        <section className="relative w-full bg-slate-900 overflow-hidden mb-6 pt-32 pb-16 lg:pt-40 lg:pb-24" data-theme="dark">
           <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?q=80&w=2070')] bg-cover bg-center opacity-30 mix-blend-overlay"></div>
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-900/80 to-slate-50"></div>
 
-          <div className="relative z-10 max-w-[1440px] mx-auto px-6 lg:px-10 text-center">
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 font-display tracking-tight">
+          <div className="relative z-10 max-w-[1200px] mx-auto px-4 lg:px-8 text-center">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 font-display tracking-tight">
               Danh mục <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-cyan to-indigo-400">Thiết bị chuyên nghiệp</span>
             </h1>
-            <p className="text-lg md:text-xl text-slate-300 max-w-3xl mx-auto font-light mb-10">
-              Trang bị cho tầm nhìn của bạn những máy ảnh, ống kính và ánh sáng tiêu chuẩn công nghiệp. <br className="hidden md:block" /> Được bảo trì tỉ mỉ và sẵn sàng cho buổi quay tiếp theo của bạn.
+            <p className="text-base md:text-lg text-slate-300 max-w-2xl mx-auto font-light mb-6">
+              Trang bị cho tầm nhìn của bạn những máy ảnh, ống kính và ánh sáng tiêu chuẩn công nghiệp.
             </p>
 
-            <div className="max-w-2xl mx-auto relative group">
-              <div className="absolute inset-0 bg-gradient-to-r from-accent-cyan to-indigo-500 rounded-2xl blur opacity-25 group-hover:opacity-40 transition-opacity"></div>
-              <div className="relative bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-2 flex items-center shadow-2xl">
-                <span className="material-symbols-outlined text-white/50 ml-3 mr-2 text-2xl">search</span>
+            <div className="max-w-xl mx-auto relative group">
+              <div className="absolute inset-0 bg-gradient-to-r from-accent-cyan to-indigo-500 rounded-xl blur opacity-25 group-hover:opacity-40 transition-opacity"></div>
+              <div className="relative bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-1.5 flex items-center shadow-xl">
+                <span className="material-symbols-outlined text-white/50 ml-2 mr-2 text-xl">search</span>
                 <input
                   type="text"
                   placeholder="Tìm kiếm 'Sony FX3', 'Aputure', 'Ronin'..."
-                  className="flex-1 bg-transparent border-none text-white placeholder-white/50 focus:ring-0 text-lg h-12"
+                  className="flex-1 bg-transparent border-none text-white placeholder-white/50 focus:ring-0 text-base h-10"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => {
@@ -255,7 +293,7 @@ export default function ProductsPage() {
                 />
                 <button
                   onClick={triggerAIFromCurrentFilters}
-                  className="px-6 py-3 bg-white text-slate-900 font-bold rounded-xl hover:bg-indigo-50 transition-colors"
+                  className="px-4 py-2 bg-white text-slate-900 font-bold rounded-lg hover:bg-indigo-50 transition-colors text-sm"
                 >
                   Tìm kiếm
                 </button>
@@ -264,17 +302,17 @@ export default function ProductsPage() {
           </div>
         </section>
 
-        <div className="max-w-[1440px] mx-auto px-6 lg:px-10 -mt-20 relative z-20">
-          <div className="flex flex-col lg:flex-row gap-8">
+        <div className="max-w-[1200px] mx-auto px-4 lg:px-8 -mt-12 relative z-20">
+          <div className="flex flex-col lg:flex-row gap-5">
             {/* Sidebar - giữ nguyên */}
-            <aside className="w-full lg:w-72 flex-shrink-0">
-              <div className="bg-white/80 backdrop-blur-xl rounded-[24px] p-6 shadow-xl border border-white/60 sticky top-24">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Lọc theo danh mục</h3>
+            <aside className="w-full lg:w-64 flex-shrink-0">
+              <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-5 shadow-lg border border-white/60 sticky top-20">
+                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">Lọc theo danh mục</h3>
                 
                 <Popover as="div" className="relative">
-                  <Popover.Button className="w-full flex items-center justify-between gap-3 px-5 py-4 rounded-2xl bg-slate-900 shadow-xl shadow-slate-200/50 text-white transition-all hover:bg-slate-800">
-                    <div className="flex items-center gap-3">
-                      <span className="material-symbols-outlined text-accent-cyan text-[22px]">
+                  <Popover.Button className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-slate-900 shadow-lg shadow-slate-200/50 text-white transition-all hover:bg-slate-800">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-accent-cyan text-lg">
                         {categories.find(c => c.id === selectedCategory)?.icon || "grid_view"}
                       </span>
                       <span className="font-bold tracking-tight">
@@ -327,9 +365,9 @@ export default function ProductsPage() {
                   </Transition>
                 </Popover>
 
-                <div className="mt-10 border-t border-slate-100 pt-8">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Khoảng giá</h3>
+                <div className="mt-6 border-t border-slate-100 pt-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Khoảng giá</h3>
                     <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">VNĐ / Ngày</span>
                   </div>
                   
@@ -387,43 +425,13 @@ export default function ProductsPage() {
                   </div>
                 </div>
 
-                <div className="mt-10 border-t border-slate-100 pt-8">
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Sắp xếp theo</h3>
-                  <div className="grid grid-cols-1 gap-2">
-                    {[
-                      { id: "featured", label: "Nổi bật", icon: "auto_awesome" },
-                      { id: "newest", label: "Hàng mới về", icon: "new_releases" },
-                      { id: "price_asc", label: "Giá: Thấp đến Cao", icon: "trending_up" },
-                      { id: "price_desc", label: "Giá: Cao xuống Thấp", icon: "trending_down" },
-                    ].map((option) => (
-                      <button
-                        key={option.id}
-                        onClick={() => setSortBy(option.id)}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left text-sm ${
-                          sortBy === option.id
-                            ? "bg-indigo-50 text-indigo-700 font-bold border border-indigo-100"
-                            : "text-slate-600 hover:bg-slate-50 border border-transparent"
-                        }`}
-                      >
-                        <span className={`material-symbols-outlined text-[18px] ${
-                          sortBy === option.id ? "text-indigo-600" : "text-slate-400"
-                        }`}>
-                          {option.icon}
-                        </span>
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
 
-
-
-                <div className="mt-10 p-6 bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl text-white relative overflow-hidden" data-theme="dark">
-                  <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
-                  <h4 className="font-bold font-display text-lg mb-2 relative z-10">Bạn cần một combo?</h4>
-                  <p className="text-xs text-indigo-100 mb-4 relative z-10 leading-relaxed">Giảm ngay 15% khi bạn thuê trọn bộ máy ảnh chuyên nghiệp.</p>
-                  <button className="px-4 py-2 bg-white text-indigo-700 text-xs font-bold rounded-lg hover:bg-indigo-50 transition-colors w-full shadow-lg relative z-10">
-                    Xem các gói thuê
+                <div className="mt-6 p-4 bg-gradient-to-br from-indigo-600 to-purple-700 rounded-xl text-white relative overflow-hidden" data-theme="dark">
+                  <div className="absolute -right-4 -top-4 w-16 h-16 bg-white/10 rounded-full blur-xl"></div>
+                  <h4 className="font-bold font-display text-sm mb-1 relative z-10">Combo giảm 15%</h4>
+                  <p className="text-[10px] text-indigo-100 mb-3 relative z-10 leading-relaxed">Thuê trọn bộ máy ảnh chuyên nghiệp.</p>
+                  <button className="px-3 py-1.5 bg-white text-indigo-700 text-[11px] font-bold rounded-md hover:bg-indigo-50 transition-colors w-full shadow-md relative z-10">
+                    Xem gói thuê
                   </button>
                 </div>
               </div>
@@ -431,26 +439,212 @@ export default function ProductsPage() {
 
             {/* Main Content */}
             <div className="flex-1">
+              {/* Filters Bar */}
+              <div className="bg-white rounded-xl p-3 mb-4 border border-slate-200 shadow-sm">
+                <div className="flex flex-wrap items-center gap-3 text-xs">
+                  {/* Sort - Custom Dropdown */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-indigo-500 text-[16px]">sort</span>
+                    <Popover className="relative">
+                      <Popover.Button className="flex items-center gap-2 px-3 py-1.5 pr-2 bg-gradient-to-r from-indigo-50 to-white border border-indigo-200 rounded-lg text-xs text-slate-700 font-medium cursor-pointer hover:border-indigo-300 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/30">
+                        {sortOptions.find(o => o.id === sortBy)?.label}
+                        <span className="material-symbols-outlined text-[14px] text-indigo-400">expand_more</span>
+                      </Popover.Button>
+                      <Transition
+                        as={Fragment}
+                        enter="transition ease-out duration-100"
+                        enterFrom="transform opacity-0 scale-95"
+                        enterTo="transform opacity-100 scale-100"
+                        leave="transition ease-in duration-75"
+                        leaveFrom="transform opacity-100 scale-100"
+                        leaveTo="transform opacity-0 scale-95"
+                      >
+                        <Popover.Panel className="absolute z-50 mt-1 w-44 bg-white rounded-xl shadow-xl border border-indigo-100 overflow-hidden">
+                          <div className="py-1">
+                            {sortOptions.map((option) => (
+                              <button
+                                key={option.id}
+                                onClick={() => setSortBy(option.id)}
+                                className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2 transition-colors ${
+                                  sortBy === option.id
+                                    ? 'bg-indigo-50 text-indigo-700 font-medium'
+                                    : 'text-slate-700 hover:bg-slate-50'
+                                }`}
+                              >
+                                <span className="material-symbols-outlined text-[14px] text-slate-400">{option.icon}</span>
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
+                        </Popover.Panel>
+                      </Transition>
+                    </Popover>
+                  </div>
+
+                  {/* Rating Filter - Custom Dropdown */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-amber-400 text-[16px]">star</span>
+                    <Popover className="relative">
+                      <Popover.Button className="flex items-center gap-2 px-3 py-1.5 pr-2 bg-gradient-to-r from-amber-50 to-white border border-amber-200 rounded-lg text-xs text-slate-700 font-medium cursor-pointer hover:border-amber-300 transition-all focus:outline-none focus:ring-2 focus:ring-amber-500/30">
+                        {ratingOptions.find(o => o.value === minRating)?.label}
+                        <span className="material-symbols-outlined text-[14px] text-amber-400">expand_more</span>
+                      </Popover.Button>
+                      <Transition
+                        as={Fragment}
+                        enter="transition ease-out duration-100"
+                        enterFrom="transform opacity-0 scale-95"
+                        enterTo="transform opacity-100 scale-100"
+                        leave="transition ease-in duration-75"
+                        leaveFrom="transform opacity-100 scale-100"
+                        leaveTo="transform opacity-0 scale-95"
+                      >
+                        <Popover.Panel className="absolute z-50 mt-1 w-40 bg-white rounded-xl shadow-xl border border-amber-100 overflow-hidden">
+                          <div className="py-1">
+                            {ratingOptions.map((option) => (
+                              <button
+                                key={option.value}
+                                onClick={() => setMinRating(option.value)}
+                                className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2 transition-colors ${
+                                  minRating === option.value
+                                    ? 'bg-amber-50 text-amber-700 font-medium'
+                                    : 'text-slate-700 hover:bg-slate-50'
+                                }`}
+                              >
+                                {option.value > 0 ? (
+                                  <div className="flex items-center gap-0.5">
+                                    {[...Array(5)].map((_, i) => (
+                                      <span
+                                        key={i}
+                                        className={`material-symbols-outlined text-[12px] ${
+                                          i < option.value ? 'text-amber-400' : 'text-slate-200'
+                                        }`}
+                                      >
+                                        star
+                                      </span>
+                                    ))}
+                                    <span className="ml-1 text-slate-500">trở lên</span>
+                                  </div>
+                                ) : (
+                                  <span>Tất cả đánh giá</span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </Popover.Panel>
+                      </Transition>
+                    </Popover>
+                  </div>
+
+                  {/* In Stock */}
+                  <label className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg cursor-pointer hover:from-green-100 hover:to-emerald-100 transition-all group">
+                    <input
+                      type="checkbox"
+                      checked={inStockOnly}
+                      onChange={(e) => setInStockOnly(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded border-green-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <span className="text-xs text-slate-700 font-medium flex items-center gap-1 group-hover:text-emerald-700">
+                      <span className="material-symbols-outlined text-[14px] text-emerald-500">inventory_2</span>
+                      Còn hàng
+                    </span>
+                  </label>
+
+                  {/* Rental Period - Styled Date Inputs */}
+                  <div className="flex items-center gap-2 ml-auto bg-gradient-to-r from-emerald-50 to-teal-50 px-3 py-1.5 rounded-xl border border-emerald-200">
+                    <span className="material-symbols-outlined text-emerald-500 text-[16px]">calendar_month</span>
+                    <div className="flex items-center gap-2">
+                      {/* Start Date Button */}
+                      <Popover className="relative">
+                        <Popover.Button className="flex items-center gap-1 px-2.5 py-1 bg-white border border-emerald-200 rounded-lg text-xs text-slate-700 font-medium cursor-pointer hover:border-emerald-400 hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/30 w-[100px] justify-between">
+                          {rentalStartDate ? new Date(rentalStartDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : 'Nhận'}
+                          <span className="material-symbols-outlined text-[12px] text-emerald-400">calendar_today</span>
+                        </Popover.Button>
+                        <Transition
+                          as={Fragment}
+                          enter="transition ease-out duration-100"
+                          enterFrom="transform opacity-0 scale-95"
+                          enterTo="transform opacity-100 scale-100"
+                          leave="transition ease-in duration-75"
+                          leaveFrom="transform opacity-100 scale-100"
+                          leaveTo="transform opacity-0 scale-95"
+                        >
+                          <Popover.Panel className="absolute z-50 mt-1 p-3 bg-white rounded-xl shadow-xl border border-emerald-100">
+                            <input
+                              type="date"
+                              value={rentalStartDate}
+                              onChange={(e) => setRentalStartDate(e.target.value)}
+                              min={new Date().toISOString().split('T')[0]}
+                              className="px-2 py-1 border border-emerald-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            />
+                          </Popover.Panel>
+                        </Transition>
+                      </Popover>
+                      
+                      <span className="text-emerald-400 font-bold">→</span>
+                      
+                      {/* End Date Button */}
+                      <Popover className="relative">
+                        <Popover.Button className="flex items-center gap-1 px-2.5 py-1 bg-white border border-emerald-200 rounded-lg text-xs text-slate-700 font-medium cursor-pointer hover:border-emerald-400 hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/30 w-[100px] justify-between">
+                          {rentalEndDate ? new Date(rentalEndDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : 'Trả'}
+                          <span className="material-symbols-outlined text-[12px] text-emerald-400">event</span>
+                        </Popover.Button>
+                        <Transition
+                          as={Fragment}
+                          enter="transition ease-out duration-100"
+                          enterFrom="transform opacity-0 scale-95"
+                          enterTo="transform opacity-100 scale-100"
+                          leave="transition ease-in duration-75"
+                          leaveFrom="transform opacity-100 scale-100"
+                          leaveTo="transform opacity-0 scale-95"
+                        >
+                          <Popover.Panel className="absolute z-50 mt-1 p-3 bg-white rounded-xl shadow-xl border border-emerald-100 right-0">
+                            <input
+                              type="date"
+                              value={rentalEndDate}
+                              onChange={(e) => setRentalEndDate(e.target.value)}
+                              min={rentalStartDate || new Date().toISOString().split('T')[0]}
+                              className="px-2 py-1 border border-emerald-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            />
+                          </Popover.Panel>
+                        </Transition>
+                      </Popover>
+                    </div>
+                    {rentalStartDate && rentalEndDate && (
+                      <button
+                        onClick={() => {
+                          setRentalStartDate("");
+                          setRentalEndDate("");
+                        }}
+                        className="ml-1 p-1 text-emerald-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                        title="Xóa ngày"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">close</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Controls Bar */}
-              <div className="bg-white/50 backdrop-blur-md rounded-2xl p-4 mb-8 flex flex-wrap items-center justify-between gap-4 border border-white/60 shadow-sm">
-                <h2 className="text-lg font-bold text-slate-700">
+              <div className="bg-white/50 backdrop-blur-md rounded-xl p-3 mb-5 flex flex-wrap items-center justify-between gap-3 border border-white/60 shadow-sm">
+                <h2 className="text-sm font-bold text-slate-700">
                   Đang hiển thị <span className="text-slate-900">{filteredDevices.length}</span> kết quả
                 </h2>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   {selectedForCompare.length > 0 && (
-                    <div className="flex gap-2">
+                    <div className="flex gap-1.5">
                       {selectedForCompare.map((id) => {
                         const dev = devices.find((d) => d._id === id);
                         return dev ? (
                           <div
                             key={id}
-                            className="bg-indigo-100 px-3 py-1 rounded-full text-xs flex items-center gap-2 shadow-sm border border-indigo-200"
+                            className="bg-indigo-100 px-2 py-0.5 rounded-full text-[11px] flex items-center gap-1.5 shadow-sm border border-indigo-200"
                           >
-                            <span className="font-semibold text-indigo-700 truncate max-w-[120px]">{dev.name}</span>
+                            <span className="font-semibold text-indigo-700 truncate max-w-[100px]">{dev.name}</span>
                             <button
                               onClick={() => handleToggleCompare(dev)}
-                              className="text-red-500 hover:text-red-700 font-bold text-lg leading-none"
+                              className="text-red-500 hover:text-red-700 font-bold leading-none"
                             >
                               ×
                             </button>
@@ -464,15 +658,15 @@ export default function ProductsPage() {
                     <button
                       onClick={fetchCompareData}
                       disabled={selectedForCompare.length !== 2 || loadingCompare}
-                      className={`px-8 py-2.5 rounded-xl font-extrabold text-white transition-all transform active:scale-95 shadow-md ${
+                      className={`px-4 py-2 rounded-lg font-bold text-white transition-all transform active:scale-95 shadow-sm text-xs ${
                         selectedForCompare.length === 2 && !loadingCompare
                           ? "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200"
                           : "bg-slate-300 cursor-not-allowed"
                       }`}
                     >
-                      {loadingCompare ? "Đang tải..." : "So sánh thiết bị"}
+                      {loadingCompare ? "Đang tải..." : "So sánh"}
                     </button>
-                    {compareError && <p className="text-red-600 text-[10px] mt-1 font-bold">{compareError}</p>}
+                    {compareError && <p className="text-red-600 text-[9px] mt-0.5 font-bold">{compareError}</p>}
                   </div>
                 </div>
               </div>
@@ -557,6 +751,11 @@ export default function ProductsPage() {
                         setSearchQuery("");
                         setSelectedCategory(null);
                         setPriceRange([0, 10000000]);
+                        setMinRating(0);
+                        setInStockOnly(true);
+                        setRentalStartDate("");
+                        setRentalEndDate("");
+                        setSortBy("featured");
                       }}
                       className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-primary transition-colors cursor-pointer"
                     >

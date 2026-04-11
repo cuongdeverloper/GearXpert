@@ -10,8 +10,17 @@ export const createDevice = (data) => {
   return axios.post(`/api/devices`, data);
 };
 
-export const getDevices = (params = {}) =>
-  axios.get(`/api/devices`, { params });
+export const getDevices = (params = {}) => {
+  // Ensure dates are in ISO format if present
+  const formattedParams = { ...params };
+  if (params.rentalStartDate) {
+    formattedParams.rentalStartDate = new Date(params.rentalStartDate).toISOString();
+  }
+  if (params.rentalEndDate) {
+    formattedParams.rentalEndDate = new Date(params.rentalEndDate).toISOString();
+  }
+  return axios.get(`/api/devices`, { params: formattedParams });
+};
 
 export const getSupplierDevices = (supplierId, params = {}) =>
   axios.get(`/api/devices/supplier/${supplierId}`, { params });

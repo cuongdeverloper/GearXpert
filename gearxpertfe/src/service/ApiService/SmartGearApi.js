@@ -5,7 +5,7 @@ export const getSmartGearSuggestion = (data) =>
   axios.post(`/api/smartgear/suggest`, data);
 
 export const addComboToCart = (data) => 
-  axios.post(`/api/cart/combo`, data);
+  axios.post(`/api/carts/combo`, data);
 
 /**
  * AI Dynamic Pricing Suggestions for Supplier
