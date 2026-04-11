@@ -4,7 +4,6 @@ const uploadCloud = require('../configs/cloudinaryConfig');
 const {
   checkoutRental,
   hasRentedDevice,
-  verifyRentalPayment,
   getSupplierRentals,
   getDeliveringRentals,
   getReturningRentals,
@@ -30,7 +29,6 @@ const { hasReviewed, createReview, uploadReviewImages, getDeviceReviews } = requ
 
 rentalRouter.post('/checkout', checkAccessToken,requireEkyc, checkoutRental);
 rentalRouter.get('/has-rented/:deviceId', checkAccessToken, hasRentedDevice);
-rentalRouter.post('/verify-payment', checkAccessToken, verifyRentalPayment);
 rentalRouter.get('/delivering', checkAccessToken, getDeliveringRentals);
 rentalRouter.get('/returning', checkAccessToken, getReturningRentals);
 rentalRouter.post('/delivery-tasks/:taskId/claim', checkAccessToken, claimDeliveryTask);

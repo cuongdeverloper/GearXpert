@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "test": "jest --runInBand",
-    "start": "nodemon ./src/server.js",
+    "start": "nodemon ./server.js",
     "smoke:reviews": "node scripts/smokeReviews.js"
   },
   "keywords": [],
