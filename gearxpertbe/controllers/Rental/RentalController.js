@@ -1447,15 +1447,12 @@ exports.checkoutRental = async (req, res) => {
 
 
 
-      await Rental.updateMany(
-
-        { _id: { $in: createdRentals.map((r) => r._id) } },
-
+      const updateResult = await Rental.updateMany(
+        { _id: { $in: createdRentals.map((r) => r.rental._id) } },
         { orderCode },
-
         { session }
-
       );
+      console.log(`[CHECKOUT] Updated ${updateResult.modifiedCount} rentals with orderCode: ${orderCode}`);
 
     }
 
@@ -1583,62 +1580,6 @@ exports.hasRentedDevice = async (req, res) => {
   } catch (error) {
 
     res.status(500).json({ message: "Lỗi kiểm tra lịch sử thuê" });
-
-  }
-
-};
-
-// Thêm vào file controller của bạn
-
-exports.verifyRentalPayment = async (req, res) => {
-
-  try {
-
-    const { rentalId } = req.body;
-
-    const rental = await Rental.findById(rentalId);
-
-
-
-    if (!rental) return res.status(404).json({ message: "Không tìm thấy đơn" });
-
-
-
-    // Gọi sang PayOS để lấy trạng thái mới nhất (không cần Ngrok)
-
-    const paymentInfo = await payos.getPaymentLinkInformation(rental.orderCode);
-
-    // QUAN TRỌNG: PayOS trả về trạng thái 'PAID' nếu đã thanh toán
-
-    if (paymentInfo.status === "PAID") {
-
-      rental.paymentStatus = "PAID";
-
-
-
-      // Sửa dòng này cho khớp với Enum của bạn (thường là APPROVED hoặc PAID)
-
-      // Nếu Model của bạn dùng 'PAID' thì để 'PAID', nếu dùng 'APPROVED' thì để 'APPROVED'
-
-      rental.status = "DELIVERING";
-
-
-
-      await rental.save();
-
-      return res.status(200).json({ success: true });
-
-    }
-
-
-
-    res.status(200).json({ success: false, status: paymentInfo.status });
-
-  } catch (error) {
-
-    console.error("Lỗi Verify:", error.message);
-
-    res.status(500).json({ message: "Lỗi kết nối PayOS" });
 
   }
 

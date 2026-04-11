@@ -1,17 +1,12 @@
-const { createHmac } = require("crypto"); // Dùng thư viện crypto có sẵn của Node.js
-const { PayOS } = require("@payos/node"); // Import PayOS
+const { createHmac } = require("crypto");
+const { PayOS } = require("@payos/node");
 
 const Wallet = require("../../models/Wallet");
 const WalletTransaction = require("../../models/WalletTransaction");
 const Payment = require("../../models/Payment");
 const Rental = require("../../models/Rental");
-const RentalItem = require("../../models/RentalItem");
-const Device = require("../../models/Device");
-const Cart = require("../../models/Cart");
-const CartItem = require("../../models/CartItem");
-const Voucher = require("../../models/Voucher");
 
-// Initialize PayOS client
+// Init PayOS
 const payos = new PayOS(
   process.env.PAYOS_CLIENT_ID,
   process.env.PAYOS_API_KEY,
@@ -19,7 +14,7 @@ const payos = new PayOS(
 );
 
 /**
- * 🛠 CÁC HÀM HỖ TRỢ KIỂM TRA CHỮ KÝ (Theo tài liệu PayOS)
+ * ================= HELPER =================
  */
 function sortObjDataByKey(object) {
   return Object.keys(object)
@@ -46,9 +41,6 @@ function convertObjToQueryStr(object) {
     .join("&");
 }
 
-/**
- * Hàm kiểm tra tính chính xác của dữ liệu Webhook
- */
 function isValidWebhookSignature(webhookBody, checksumKey) {
   const { data, signature } = webhookBody;
   if (!data || !signature) return false;
@@ -63,44 +55,76 @@ function isValidWebhookSignature(webhookBody, checksumKey) {
 }
 
 /**
- * 🔔 WEBHOOK PAYOS - Xử lý thông báo
+ * ================= WEBHOOK =================
+ * ⚠️ TRẢ RESPONSE NGAY - KHÔNG XỬ LÝ NẶNG
  */
 exports.handleWebhook = async (req, res) => {
   try {
     const body = req.body;
     const checksumKey = process.env.PAYOS_CHECKSUM_KEY;
 
+    console.log("🔥 PAYOS WEBHOOK:", body);
+
+    // Ping test
     if (!body || Object.keys(body).length === 0 || body.desc === "test") {
-      return res
-        .status(200)
-        .json({ success: true, message: "Webhook URL active" });
-    }
-
-    if (!isValidWebhookSignature(body, checksumKey)) {
-      console.error("[WEBHOOK] Invalid signature");
-      return res
-        .status(200)
-        .json({ success: false, message: "Invalid Signature" });
-    }
-
-    const webhookData = body.data;
-    const orderCode = webhookData.orderCode;
-
-    // Chỉ xử lý khi thanh toán thành công
-    if (body.code !== "00" || webhookData.code !== "00") {
       return res.status(200).json({ success: true });
     }
 
+    // Verify signature
+    if (!isValidWebhookSignature(body, checksumKey)) {
+      console.error("[WEBHOOK] Invalid signature");
+      return res.status(200).json({ success: false });
+    }
+
+    // ✅ TRẢ NGAY (QUAN TRỌNG NHẤT)
+    res.status(200).json({ success: true });
+
+    // 👉 xử lý async phía sau
+    console.log("[WEBHOOK] Processing async...");
+    processWebhook(body).catch((err) => {
+      console.error("[WEBHOOK] Async processing error:", err);
+    });
+
+  } catch (err) {
+    console.error("WEBHOOK ERROR:", err);
+    return res.status(200).json({ success: true });
+  }
+};
+
+/**
+ * ================= PROCESS BACKGROUND =================
+ */
+const processWebhook = async (body) => {
+  try {
+    const webhookData = body.data;
+    const orderCode = webhookData?.orderCode;
+
+    console.log("[WEBHOOK] Received orderCode:", orderCode);
+    console.log("[WEBHOOK] Body code:", body.code, "Data code:", webhookData?.code);
+
+    if (!orderCode) {
+      console.log("[WEBHOOK] ❌ No orderCode found");
+      return;
+    }
+
+    // chỉ xử lý khi thành công
+    if (body.code !== "00" || webhookData.code !== "00") {
+      console.log("[WEBHOOK] ❌ Payment not successful, skipping");
+      return;
+    }
+
+    console.log("[WEBHOOK] ✅ Processing order:", orderCode);
+
     const rentals = await Rental.find({ orderCode });
+    console.log("[WEBHOOK] Found rentals:", rentals.length);
+    
+    if (rentals.length > 0) {
+      console.log("[WEBHOOK] Rental status:", rentals[0].paymentStatus);
+    }
 
-    if (rentals.length === 0) {
-      // Có thể là top-up wallet hoặc order khác → xử lý tiếp bên dưới
-    } else if (rentals[0].paymentStatus !== "PAID") {
-      // Đây là thanh toán rental (BANK)
-      const customerId = rentals[0].customerId;
-      let voucherCodeToUse = null;
-      const isRepay = rentals.length === 1;
-
+    // ===== CASE 1: RENTAL =====
+    if (rentals.length > 0 && rentals[0].paymentStatus !== "PAID") {
+      console.log("[WEBHOOK] 🔄 Updating rental to PAID...");
       let totalPlatformFee = 0;
 
       for (const rental of rentals) {
@@ -108,90 +132,16 @@ exports.handleWebhook = async (req, res) => {
         rental.status = "PENDING";
         await rental.save();
 
-        totalPlatformFee += rental.paymentBreakdown.platformFee;
+        totalPlatformFee += rental.paymentBreakdown?.platformFee || 0;
 
-        if (rental.voucherCode && !voucherCodeToUse) {
-          voucherCodeToUse = rental.voucherCode;
-        }
-
-        // === UPLOAD CONTRACT SAU KHI THANH TOÁN THÀNH CÔNG ===
-        try {
-          // Import contract controller functions
-          const { generateDocxBuffer } = require('../Contract/ContractController');
-          const Contract = require('../../models/Contract');
-          const ContractFile = require('../../models/ContractFile');
-          const cloudinary = require('cloudinary').v2;
-
-          // Generate contract buffer
-          const buf = await generateDocxBuffer(rental);
-
-          // Upload to Cloudinary
-          const uploadResult = await new Promise((resolve, reject) => {
-            cloudinary.uploader.upload_stream(
-              {
-                resource_type: "raw",
-                folder: "contracts",
-                public_id: `contract-${rental._id}-${Date.now()}`,
-                format: "docx"
-              },
-              (error, result) => (error ? reject(error) : resolve(result))
-            ).end(buf);
-          });
-
-          // Create contract record
-          const contractRecord = await Contract.create({
-            rentalId: rental._id,
-            contractType: "DELIVERY",
-            status: "SIGNED",
-            deliveryMethod: "SHIP",
-            location: rental.deliveryAddress?.fullAddress || "",
-            ipAddress: req.ip || req.connection.remoteAddress,
-            userAgent: req.headers["user-agent"] || "",
-            contractVersion: "v1",
-            customer: rental.customerId,
-            supplier: rental.supplierId,
-            signedByCustomer: true,
-            signedByStaff: true,
-            signedAt: new Date(),
-          });
-
-          // Create contract file record
-          await ContractFile.create({
-            contractId: contractRecord._id,
-            fileUrl: uploadResult.secure_url,
-            fileType: "DELIVERY",
-            uploadedBy: customerId,
-          });
-        } catch (contractError) {
-          console.error(`[WEBHOOK] Failed to upload contract for rental ${rental._id}:`, contractError);
-          // Không throw error vì payment thành công, contract có thể upload sau
-        }
-
-        const notiTitle = isRepay
-          ? "Đơn thuê đã thanh toán thành công (thanh toán lại)"
-          : "Đơn thuê đã thanh toán thành công";
-        const notiMessage = isRepay
-          ? `Khách hàng đã thanh toán lại ${rental.totalAmount.toLocaleString(
-            "vi-VN"
-          )}₫ qua ngân hàng.`
-          : `Khách hàng đã thanh toán ${rental.totalAmount.toLocaleString(
-            "vi-VN"
-          )}₫ qua ngân hàng.`;
-
-        await NotificationConfig.sendNotification({
-          senderId: customerId,
-          receiverId: rental.supplierId,
-          title: notiTitle,
-          message: notiMessage,
-          link: `/supplier/orders/${rental._id}`,
-          type: "ORDER",
-        });
+        // 👉 xử lý nặng tách riêng
+        handleContractUpload(rental);
       }
 
-      // Cộng phí nền tảng vào ví system
+      // cộng tiền system
       const systemWallet = await Wallet.findOne({ isSystem: true });
       if (systemWallet) {
-        const sysBalanceBefore = systemWallet.balance;
+        const before = systemWallet.balance;
         systemWallet.balance += totalPlatformFee;
         await systemWallet.save();
 
@@ -199,25 +149,26 @@ exports.handleWebhook = async (req, res) => {
           wallet: systemWallet._id,
           type: "PLATFORM_FEE",
           amount: totalPlatformFee,
-          balanceBefore: sysBalanceBefore,
+          balanceBefore: before,
           balanceAfter: systemWallet.balance,
-          referenceType: "RENTAL",
           status: "SUCCESS",
-          description: `Thu phí nền tảng từ ${rentals.length} đơn thuê (PayOS - ${orderCode})`,
+          description: `Platform fee (PayOS - ${orderCode})`,
         });
-        return res.status(200).json({ success: true });
       }
+
+      return;
     }
 
-    // Xử lý top-up wallet (giữ nguyên)
+    // ===== CASE 2: WALLET TOPUP =====
     const payment = await Payment.findOne({ orderCode });
     if (payment && payment.status !== "PAID") {
       payment.status = "PAID";
       await payment.save();
 
       let wallet = await Wallet.findOne({ user: payment.user });
-      if (!wallet)
+      if (!wallet) {
         wallet = await Wallet.create({ user: payment.user, balance: 0 });
+      }
 
       const before = wallet.balance;
       wallet.balance += payment.amount;
@@ -230,132 +181,90 @@ exports.handleWebhook = async (req, res) => {
         balanceBefore: before,
         balanceAfter: wallet.balance,
         status: "SUCCESS",
-        description: `Nạp tiền PayOS (Mã: ${orderCode})`,
+        description: `Topup PayOS (${orderCode})`,
       });
-
-      return res.status(200).json({ success: true });
     }
 
-    // Idempotent
-    return res.status(200).json({ success: true });
   } catch (err) {
-    console.error("WEBHOOK ERROR:", err.message);
-    return res.status(200).json({ success: true }); // Luôn trả 200 cho PayOS
+    console.error("❌ PROCESS WEBHOOK ERROR:", err);
   }
 };
 
 /**
- * 🛠 HÀM TẠO LINK THANH TOÁN (Dùng trong Checkout Rental)
- * Sử dụng chuẩn PayOS v2
+ * ================= CONTRACT UPLOAD (ASYNC) =================
+ */
+const handleContractUpload = async (rental) => {
+  try {
+    const { generateDocxBuffer } = require("../Contract/ContractController");
+    const Contract = require("../../models/Contract");
+    const ContractFile = require("../../models/ContractFile");
+    const cloudinary = require("cloudinary").v2;
+
+    const buf = await generateDocxBuffer(rental);
+
+    const uploadResult = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        {
+          resource_type: "raw",
+          folder: "contracts",
+          public_id: `contract-${rental._id}-${Date.now()}`,
+          format: "docx",
+        },
+        (err, result) => (err ? reject(err) : resolve(result))
+      ).end(buf);
+    });
+
+    const contractRecord = await Contract.create({
+      rentalId: rental._id,
+      contractType: "DELIVERY",
+      status: "SIGNED",
+      customer: rental.customerId,
+      supplier: rental.supplierId,
+      signedAt: new Date(),
+    });
+
+    await ContractFile.create({
+      contractId: contractRecord._id,
+      fileUrl: uploadResult.secure_url,
+      fileType: "DELIVERY",
+      uploadedBy: rental.customerId,
+    });
+
+  } catch (err) {
+    console.error("❌ CONTRACT ERROR:", err);
+  }
+};
+
+/**
+ * ================= CREATE PAYMENT =================
  */
 exports.createRentalPaymentLink = async (newRental) => {
   try {
-    // Tạo orderCode duy nhất (9 chữ số cuối của timestamp)
     const orderCode = Number(String(Date.now()).slice(-9));
 
     const body = {
-      orderCode: orderCode,
+      orderCode,
       amount: newRental.totalAmount,
       description: `GXP ${String(newRental._id).slice(-6)}`.toUpperCase(),
       returnUrl: `${process.env.FRONTEND_URL}/payment/success?rentalId=${newRental._id}`,
       cancelUrl: `${process.env.FRONTEND_URL}/payment/cancel?rentalId=${newRental._id}`,
       items: [
         {
-          name: "Thuê thiết bị GearXpert",
+          name: "GearXpert Rental",
           quantity: 1,
           price: newRental.totalAmount,
         },
       ],
     };
 
-    // Gọi SDK PayOS v2
-    const paymentLinkRes = await payos.createPaymentLink(body);
+    const resPay = await payos.createPaymentLink(body);
 
-    // Lưu orderCode vào đơn hàng để Webhook đối soát sau này
     newRental.orderCode = orderCode;
     await newRental.save();
 
-    return paymentLinkRes;
-  } catch (error) {
-    console.error("PayOS Create Link Error:", error);
-    throw new Error("Không thể khởi tạo thanh toán với PayOS");
-  }
-};
-
-/**
- * 🏦 Chuyển tiền qua PayOS (dùng cho rút tiền)
- * @param {Object} transferData - Dữ liệu chuyển tiền
- * @param {number} transferData.amount - Số tiền chuyển (VND)
- * @param {string} transferData.description - Mô tả giao dịch
- * @param {string} transferData.accountNumber - Số tài khoản nhận
- * @param {string} transferData.accountName - Tên chủ tài khoản
- * @param {string} transferData.bankCode - Mã ngân hàng
- * @returns {Promise<Object>} Kết quả chuyển tiền
- */
-exports.transferMoney = async (transferData) => {
-  try {
-    const { amount, description, accountNumber, accountName, bankCode } = transferData;
-
-    // Validate input
-    if (!amount || amount <= 0) {
-      throw new Error("Số tiền chuyển phải lớn hơn 0");
-    }
-
-    if (!accountNumber || !accountName || !bankCode) {
-      throw new Error("Thiếu thông tin tài khoản nhận");
-    }
-
-    // PayOS v2 - Dùng transferToBankAccount method cho chuyển tiền
-
-    const transferBody = {
-      amount: Math.round(amount),
-      description: description || `Rút tiền GearXpert - ${Date.now()}`,
-      accountNumber: accountNumber.toString(),
-      accountName: accountName.trim(),
-      bankCode: bankCode.trim(),
-    };
-
-
-    // Thử dùng transferToBankAccount nếu có
-    let transferResult;
-    try {
-      // Method 1: transferToBankAccount (nếu có trong PayOS v2)
-      if (payos.transferToBankAccount) {
-        transferResult = await payos.transferToBankAccount(transferBody);
-      } else if (payos.transfer) {
-        // Method 2: transfer method
-        transferResult = await payos.transfer(transferBody);
-      } else {
-        // Method 3: paymentRequests.create với isPayout flag
-        const payoutData = {
-          orderCode: Number(String(Date.now()).slice(-9)),
-          amount: Math.round(amount),
-          description: description || `Rút tiền GearXpert - ${Date.now()}`,
-          isPayout: true, // Flag để nhận biết đây là payout
-          receiverInfo: {
-            accountNumber: accountNumber.toString(),
-            accountName: accountName.trim(),
-            bankCode: bankCode.trim()
-          }
-        };
-        transferResult = await payos.paymentRequests.create(payoutData);
-      }
-    } catch (payosError) {
-      console.error("[PAYOS TRANSFER] PayOS API Error:", payosError);
-
-      return {
-        success: false,
-        message: "PayOS transfer không khả dụng. Yêu cầu chuyển tiền thủ công.",
-        error: payosError.message,
-        requiresManualTransfer: true,
-        transferData: transferBody
-      };
-    }
-
-    return transferResult;
-
-  } catch (error) {
-    console.error("[PAYOS TRANSFER] Error:", error);
-    throw new Error(`Lỗi chuyển tiền PayOS: ${error.message}`);
+    return resPay;
+  } catch (err) {
+    console.error("Create PayOS Error:", err);
+    throw err;
   }
 };

@@ -155,7 +155,7 @@ exports.verifyTopUp = async (req, res) => {
     }
 
     // 2. Kiểm tra trạng thái thực tế từ PayOS
-    const info = await payos.getPaymentLinkInformation(orderCode);
+    const info = await payos.paymentRequests.create(orderCode);
 
     if (info.status === 'PAID') {
       // A. Cập nhật trạng thái Payment
