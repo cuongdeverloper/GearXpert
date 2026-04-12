@@ -620,7 +620,7 @@ export default function SupplierMaintenance() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Chi phí (₫)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Chi phí (VND)</label>
               <input
                 type="number"
                 min={0}
