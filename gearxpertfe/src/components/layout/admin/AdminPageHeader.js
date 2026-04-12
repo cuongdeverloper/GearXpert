@@ -8,6 +8,11 @@ const navGroups = [
       { to: "/admin", label: "Bảng điều khiển", description: "Theo dõi các chỉ số và KPI của hệ thống" },
       { to: "/admin/users", label: "Người dùng", description: "Quản lý tài khoản người dùng và quyền hạn" },
       { to: "/admin/suppliers", label: "Nhà cung cấp", description: "Quản lý tài khoản nhà cung cấp" },
+      {
+        to: "/admin/supplier-onboarding",
+        label: "Duyệt đăng ký NCC",
+        description: "Phê duyệt hoặc từ chối yêu cầu trở thành nhà cung cấp",
+      },
       { to: "/admin/devices", label: "Thiết bị", description: "Kiểm duyệt danh sách thiết bị" },
       { to: "/admin/rentals", label: "Đơn thuê", description: "Theo dõi các giao dịch đơn thuê" },
       { to: "/admin/reports", label: "Báo cáo", description: "Xem báo cáo hệ thống" },
