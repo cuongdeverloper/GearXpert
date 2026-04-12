@@ -42,8 +42,8 @@ const runPreventiveMaintenanceJob = async () => {
         {
           $expr: {
             $gte: [
-              "$rentalCountSinceLastMaintenance",
-              "$maintenanceInterval",
+              { $ifNull: ["$rentalCountSinceLastMaintenance", 0] },
+              { $ifNull: ["$maintenanceInterval", 5] },
             ],
           },
         },
@@ -78,8 +78,11 @@ const runPreventiveMaintenanceJob = async () => {
       }
 
       // Xác định loại trigger
+      const rentalCount = item.rentalCountSinceLastMaintenance || 0;
+      const interval = item.maintenanceInterval || 5;
+
       let triggerType = "RENTAL_COUNT";
-      let triggerValue = `Đã thuê ${item.rentalCountSinceLastMaintenance}/${item.maintenanceInterval} lần`;
+      let triggerValue = `Đã thuê ${rentalCount}/${interval} lần`;
 
       if (item.nextMaintenanceDue && new Date(item.nextMaintenanceDue) <= today) {
         const daysPast = Math.floor(
