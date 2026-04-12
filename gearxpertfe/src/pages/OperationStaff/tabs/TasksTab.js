@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import {
-  Truck, PackageCheck, Wrench,
+  Truck, PackageCheck,
   CheckCircle, X, MapPin, Phone, FileText, User, Laptop
 } from 'lucide-react';
 import { getDeliveringRentals, getReturningRentals, claimDeliveryTask, confirmPickup } from '../../../service/ApiService/RentalApi';
@@ -223,7 +223,6 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
               { id: 'all', label: 'Tất cả' },
               { id: 'delivery', label: 'Giao hàng' },
               { id: 'return', label: 'Thu hồi' },
-              { id: 'maintenance', label: 'Bảo trì' },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -268,8 +267,7 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
                 onClick={() => setSelectedTask(task)}
               >
                 <div className={`px-4 py-3 flex justify-between items-center ${
-                  task.type === 'delivery' ? 'bg-blue-50/50' :
-                  task.type === 'return' ? 'bg-amber-50/50' : 'bg-purple-50/50'
+                  task.type === 'delivery' ? 'bg-blue-50/50' : 'bg-amber-50/50'
                 }`}>
                   <div className="flex items-center gap-2">
                     {task.type === 'delivery' && (
@@ -280,11 +278,6 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
                     {task.type === 'return' && (
                       <span className="flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-100/50 px-2 py-1 rounded-md">
                         <PackageCheck size={14} /> THU HỒI
-                      </span>
-                    )}
-                    {task.type === 'maintenance' && (
-                      <span className="flex items-center gap-1.5 text-xs font-bold text-purple-700 bg-purple-100/50 px-2 py-1 rounded-md">
-                        <Wrench size={14} /> BẢO TRÌ
                       </span>
                     )}
                   </div>
@@ -347,15 +340,10 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
                       <PackageCheck size={20} />
                     </div>
                   )}
-                  {selectedTask.type === 'maintenance' && (
-                    <div className="bg-purple-100 text-purple-700 p-2 rounded-xl">
-                      <Wrench size={20} />
-                    </div>
-                  )}
                   <div>
                     <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Loại nhiệm vụ</p>
                     <p className="font-bold text-slate-900 text-sm">
-                      {selectedTask.type === 'delivery' ? 'GIAO HÀNG' : selectedTask.type === 'return' ? 'THU HỒI' : 'BẢO TRÌ'}
+                      {selectedTask.type === 'delivery' ? 'GIAO HÀNG' : 'THU HỒI'}
                     </p>
                   </div>
                 </div>
