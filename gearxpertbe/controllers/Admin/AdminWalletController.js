@@ -340,7 +340,7 @@ exports.exportTransactions = async (req, res) => {
 };
 
 // Helper function to translate transaction types
-function getTransactionTypeLabel(type) {
+function getTransactionTypeLabel2(type) {
   const labels = {
     "PLATFORM_FEE": "Phí nền tảng",
     "ESCROW_HOLD": "Tiền thuê tạm giữ",
@@ -584,7 +584,7 @@ exports.getAdminWalletTransactions = async (req, res) => {
         // Additional formatted fields
         amountFormatted: Math.abs(t.amount).toLocaleString('vi-VN') + ' VNĐ',
         isPositive: t.amount > 0,
-        typeLabel: getTransactionTypeLabel(t.type),
+        typeLabel: getTransactionTypeLabel2(t.type),
         statusLabel: t.status === 'SUCCESS' ? 'Thành công' : 
                     t.status === 'PENDING' ? 'Đang xử lý' : 
                     t.status === 'FAILED' ? 'Thất bại' : 'Đã hủy',

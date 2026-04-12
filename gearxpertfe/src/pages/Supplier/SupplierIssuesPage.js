@@ -23,6 +23,7 @@ import {
 } from "react-icons/fi";
 import { HiOutlineChatAlt2 } from "react-icons/hi";
 import { getSupplierIssues, patchSupplierIssueStatus } from "../../service/ApiService/ReportApi";
+import { createWorkOrderFromIssue, getDeviceItemsByDeviceIds } from "../../service/ApiService/MaintenanceApi";
 import { toast } from "react-toastify";
 import ReturnFailureDetailDialog from "../OperationStaff/tabs/handover/components/ReturnFailureDetailDialog";
 
@@ -209,6 +210,14 @@ export default function SupplierIssuesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [lightboxImg, setLightboxImg] = useState(null);
   const [dialogDetail, setDialogDetail] = useState(null);
+  const [woIssueModal, setWoIssueModal] = useState(null);
+  const [woIssueForm, setWoIssueForm] = useState({ deviceItemId: "", scheduledDate: "", notes: "" });
+  const [woSubmitting, setWoSubmitting] = useState(false);
+  // DeviceItems từ rental để hiển thị dropdown
+  const [woRentalDeviceItems, setWoRentalDeviceItems] = useState([]);
+  const [woDeviceItemsLoading, setWoDeviceItemsLoading] = useState(false);
+
+  const todayStr = () => new Date().toISOString().split("T")[0];
 
   const loadIssues = useCallback(async () => {
     try {
@@ -262,6 +271,72 @@ export default function SupplierIssuesPage() {
       images: Array.isArray(report?.images) ? report.images : [],
       reasonLabel: isReturn ? "Lý do thu hồi thất bại" : "Lý do giao hàng thất bại",
     });
+  };
+
+  const openWoIssueModal = async (issue) => {
+    setWoIssueModal(issue);
+    setWoIssueForm({ deviceItemId: "", scheduledDate: todayStr(), notes: "" });
+    setWoRentalDeviceItems([]);
+
+    // Lấy DeviceItems từ các device có trong issue (issue.deviceIds đã được populate trên FE)
+    // deviceIds có trong cả DAMAGE (issue.deviceId) và DELIVERY/RETURN (issue.deviceIds)
+    let deviceIds = [];
+    if (issue._type === "DAMAGE") {
+      // DamageReport: issue.deviceId là 1 Device object
+      const did = issue.deviceId?._id || issue.deviceId;
+      if (did) deviceIds = [String(did)];
+    } else {
+      // DeliveryIssueReport: issue.deviceIds là mảng Device objects
+      deviceIds = (issue.deviceIds || []).map((d) => String(d?._id || d)).filter(Boolean);
+    }
+
+    if (deviceIds.length === 0) return;
+
+    setWoDeviceItemsLoading(true);
+    try {
+      const res = await getDeviceItemsByDeviceIds(deviceIds);
+      const items = Array.isArray(res?.data) ? res.data : (res?.data?.data || []);
+      setWoRentalDeviceItems(items);
+      // Tự chọn sẵn nếu chỉ có 1 item
+      if (items.length === 1 && items[0]._id) {
+        setWoIssueForm((f) => ({ ...f, deviceItemId: String(items[0]._id) }));
+      }
+    } catch {
+      // silent
+    } finally {
+      setWoDeviceItemsLoading(false);
+    }
+  };
+
+  const handleCreateWoFromIssue = async () => {
+    if (!woIssueModal) return;
+    if (!woIssueForm.deviceItemId) {
+      toast.warning("Vui lòng chọn thiết bị");
+      return;
+    }
+    if (!woIssueForm.scheduledDate) {
+      toast.warning("Vui lòng chọn ngày thực hiện");
+      return;
+    }
+    setWoSubmitting(true);
+    try {
+      // Xác định issueModel
+      const issueModel = woIssueModal._type === "DAMAGE" ? "DamageReport" : "DeliveryIssueReport";
+      await createWorkOrderFromIssue({
+        deviceItemId: woIssueForm.deviceItemId,
+        issueId: woIssueModal._id,
+        issueModel,
+        scheduledDate: woIssueForm.scheduledDate,
+        notes: woIssueForm.notes,
+      });
+      toast.success("Đã tạo lệnh sửa chữa! Thiết bị chuyển sang REPAIR.");
+      setWoIssueModal(null);
+      await loadIssues();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Không thể tạo lệnh sửa chữa");
+    } finally {
+      setWoSubmitting(false);
+    }
   };
 
   // Normalize into unified list for display
@@ -435,6 +510,7 @@ export default function SupplierIssuesPage() {
               onImageClick={setLightboxImg}
               onOperationalDetail={openOperationalDetail}
               onIssueUpdated={loadIssues}
+              onCreateWorkOrder={openWoIssueModal}
             />
           ))}
         </div>
@@ -504,6 +580,114 @@ export default function SupplierIssuesPage() {
         detail={dialogDetail}
       />
 
+      {/* Modal: Tạo lệnh sửa chữa từ issue */}
+      {woIssueModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-slate-100">
+              <h3 className="text-base font-bold text-slate-900">Tạo lệnh sửa chữa</h3>
+              <button onClick={() => setWoIssueModal(null)} className="text-slate-400 hover:text-slate-700">
+                <FiX size={18} />
+              </button>
+            </div>
+            <div className="px-5 pt-4 pb-2 space-y-4">
+              {/* Thông tin sự cố */}
+              <div className="text-sm text-slate-600 bg-slate-50 rounded-xl px-3 py-2">
+                <div>
+                  <span className="font-medium">Sự cố:</span>{" "}
+                  {woIssueModal._type === "DAMAGE" ? "Hư hỏng khi thuê" : woIssueModal._type === "RETURN" ? "Thu hồi" : "Giao hàng"}
+                  {" — "}{woIssueModal._customerName}
+                </div>
+                {woIssueModal._devices?.length > 0 && (
+                  <div className="mt-1 border-t border-slate-200/60 pt-1">
+                    <span className="font-medium">Sản phẩm:</span> {woIssueModal._devices.join(", ")}
+                  </div>
+                )}
+              </div>
+
+              {/* Dropdown Thiết bị */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Thiết bị <span className="text-rose-500">*</span>
+                </label>
+                {woDeviceItemsLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-slate-400 py-2">
+                    <FiTool size={13} className="animate-spin" /> Đang tải thiết bị trong đơn...
+                  </div>
+                ) : woRentalDeviceItems.length === 0 ? (
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    ⚠️ Không tìm thấy thiết bị trong đơn hàng này. Đơn có thể chưa được phân bổ serial.
+                  </p>
+                ) : (
+                  <select
+                    value={woIssueForm.deviceItemId}
+                    onChange={(e) => setWoIssueForm((f) => ({ ...f, deviceItemId: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-rose-400"
+                  >
+                    <option value="">— Chọn thiết bị cần sửa —</option>
+                    {woRentalDeviceItems.map((item, idx) => {
+                      if (!item._id) return null;
+                      const devName = item.device?.name || "Thiết bị";
+                      const serial = item.internalCode || item.serialNumber || `#${idx + 1}`;
+                      const statusTag =
+                        item.status === "AVAILABLE" ? " ✅" :
+                        item.status === "PENDING_RESOLUTION" ? " 🔴" :
+                        item.status === "REPAIR" ? " 🔧" : "";
+                      return (
+                        <option key={item._id} value={item._id}>
+                          {devName} — {serial}{statusTag}
+                        </option>
+                      );
+                    })}
+                  </select>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Ngày thực hiện <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={woIssueForm.scheduledDate}
+                  onChange={(e) => setWoIssueForm((f) => ({ ...f, scheduledDate: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Ghi chú</label>
+                <textarea
+                  rows={2}
+                  value={woIssueForm.notes}
+                  onChange={(e) => setWoIssueForm((f) => ({ ...f, notes: e.target.value }))}
+                  placeholder="Nội dung cần sửa chữa..."
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-rose-400"
+                />
+              </div>
+              <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                ⚠️ Thiết bị sẽ chuyển sang trạng thái <strong>REPAIR</strong>.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 px-5 pb-5 pt-2">
+              <button
+                onClick={() => setWoIssueModal(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleCreateWoFromIssue}
+                disabled={woSubmitting}
+                className="px-5 py-2 rounded-xl bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                {woSubmitting && <FiTool size={13} className="animate-pulse" />}
+                Tạo lệnh sửa chữa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {lightboxImg && (
         <div
           className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
@@ -545,7 +729,7 @@ function StatCard({ label, value, color }) {
   );
 }
 
-function IssueCard({ issue, onImageClick, onOperationalDetail, onIssueUpdated }) {
+function IssueCard({ issue, onImageClick, onOperationalDetail, onIssueUpdated, onCreateWorkOrder  }) {
   const [expanded, setExpanded] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -790,6 +974,31 @@ function IssueCard({ issue, onImageClick, onOperationalDetail, onIssueUpdated })
                 <HiOutlineChatAlt2 size={16} className="shrink-0 opacity-80" />
                 Liên hệ khách
               </button>
+              {/* Nút Tạo lệnh sửa chữa */}
+              {onCreateWorkOrder && ["OPEN"].includes(issue.status) && (
+                <button
+                  type="button"
+                  title="Tạo lệnh sửa chữa cho thiết bị này"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCreateWorkOrder(issue);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:border-rose-300 transition-colors shadow-sm"
+                >
+                  <FiTool size={14} className="shrink-0 opacity-80" />
+                  Tạo lệnh sửa chữa
+                </button>
+              )}
+              {onCreateWorkOrder && ["PROCESSING", "RESOLVED"].includes(issue.status) && (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm opacity-80 cursor-default"
+                >
+                  <FiTool size={14} className="shrink-0" />
+                  Đã tạo lệnh sửa chữa
+                </button>
+              )}
             </div>
           </div>
 
