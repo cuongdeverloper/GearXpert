@@ -228,7 +228,9 @@
     "benefit_2_title": "Có lý do AI cho từng thiết bị",
     "benefit_2_desc": "Hiển thị rõ vì sao AI chọn camera, mic, ánh sáng.",
     "benefit_3_title": "Thêm combo vào giỏ chỉ 1 chạm",
-    "benefit_3_desc": "Không cần chọn từng món, tiết kiệm rất nhiều thời gian."
+    "benefit_3_desc": "Không cần chọn từng món, tiết kiệm rất nhiều thời gian.",
+    "benefit_4_title": "Đổi món thông minh & Cảnh báo tương thích",
+    "benefit_4_desc": "Tự do tùy biến"
   },
   "messenger": {
     "title": "Đoạn chat",

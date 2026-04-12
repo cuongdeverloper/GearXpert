@@ -27,14 +27,14 @@ export default function SmartGearPromoSection() {
     <section className="px-6 lg:px-10 mt-10 mb-14">
       <div className="relative overflow-hidden rounded-[30px] border border-slate-200 bg-slate-950 shadow-2xl">
         {/* Background Image with Overlay */}
-        <div 
+        <div
           className="absolute inset-0 bg-cover bg-center opacity-30"
           style={{
             backgroundImage: 'url("https://images.unsplash.com/photo-1485846234645-a62644f84728?w=1920&q=80")'
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-br from-slate-950/80 via-slate-900/60 to-cyan-950/80" />
-        
+
         <div className="absolute -top-20 -left-16 w-72 h-72 bg-cyan-400/20 blur-3xl rounded-full" />
         <div className="absolute -bottom-24 -right-8 w-80 h-80 bg-indigo-500/25 blur-3xl rounded-full" />
 
@@ -98,6 +98,10 @@ export default function SmartGearPromoSection() {
                 <div className="rounded-xl border border-white/15 bg-black/20 p-3">
                   <p className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">{t('smartgear.benefit_3_title')}</p>
                   <p className="text-sm text-slate-200 mt-1">{t('smartgear.benefit_3_desc')}</p>
+                </div>
+                <div className="rounded-xl border border-white/15 bg-black/20 p-3">
+                  <p className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">{t('smartgear.benefit_3_title')}</p>
+                  <p className="text-sm text-slate-200 mt-1">{t('smartgear.benefit_4_desc')}</p>
                 </div>
               </div>
             </div>
