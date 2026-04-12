@@ -749,14 +749,6 @@ export default function Header({ onMenuOpen }) {
               <div className="flex items-center gap-2 md:gap-3">
                 <MagneticItem distance={0.2}>
                   <button
-                    onClick={() => i18n.changeLanguage(i18n.language === 'vi' ? 'en' : 'vi')}
-                    className={`text-sm font-bold px-2 py-1 rounded-lg transition-colors ${isDark ? 'text-white hover:bg-white/10' : 'text-slate-600 hover:bg-slate-100'}`}
-                  >
-                    {i18n.language.toUpperCase()}
-                  </button>
-                </MagneticItem>
-                <MagneticItem distance={0.2}>
-                  <button
                     onClick={() => navigate('/signin', { state: { isSignUp: true } })}
                     className={`text-sm font-bold px-3 py-2 transition-colors cursor-pointer ${
                       isDark ? 'text-white/80 hover:text-white' : 'text-slate-600 hover:text-primary'
