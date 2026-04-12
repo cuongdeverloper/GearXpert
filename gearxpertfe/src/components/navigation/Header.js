@@ -252,10 +252,10 @@ export default function Header({ onMenuOpen }) {
       ? [{ label: t('header.become_supplier'), icon: 'storefront', path: '/become-supplier' }]
       : []),
 
-    { label: 'Đơn thuê của tôi', icon: 'description', path: '/user/myrental' },
-    { label: 'Đánh giá của tôi', icon: 'star', path: '/user/my-reviews' },
-    { label: 'Vouchers', icon: 'local_activity', path: '/vouchers' },
-    { label: 'Yêu thích', icon: 'favorite', path: '/favorites' },
+    { label: t('header.my_rentals'), icon: 'description', path: '/user/myrental' },
+    { label: t('productDetail.my_review'), icon: 'star', path: '/user/my-reviews' },
+    { label: t('header.vouchers'), icon: 'local_activity', path: '/vouchers' },
+    { label: t('header.favorites'), icon: 'favorite', path: '/favorites' },
   ];
 
   const handleRestrictedNavigation = (path) => {

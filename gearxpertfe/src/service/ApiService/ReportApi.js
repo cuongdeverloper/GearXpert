@@ -37,3 +37,7 @@ export const adminUpdateShopReportStatus = (reportId, data) =>
 // Supplier: lấy tất cả sự cố liên quan đến đơn hàng của supplier
 export const getSupplierIssues = () =>
   axios.get("/api/reports/supplier-issues");
+
+/** Supplier: cập nhật trạng thái báo cáo — PROCESSING (đang xử lý) hoặc RESOLVED (xác nhận khi đơn REJECTED) */
+export const patchSupplierIssueStatus = (issueId, data) =>
+  axios.patch(`/api/reports/supplier-issues/${issueId}`, data);

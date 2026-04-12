@@ -1,12 +1,14 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import { motion, AnimatePresence } from "framer-motion";
 import { Editor } from "@tinymce/tinymce-react";
 import { createBlog, updateBlog } from "../../service/ApiService/BlogApi";
 import { CATEGORY_MAP } from "./BlogConstants";
+import { useTranslation } from "react-i18next";
 
 const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
+    const { t } = useTranslation();
     const userAccount = useSelector((state) => state.user.account);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isCategoryOpen, setIsCategoryOpen] = useState(false);
@@ -245,7 +247,7 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                                             >
                                                 <div className="flex items-center gap-3">
                                                     <div className={`h-2.5 w-2.5 rounded-full ${CATEGORY_MAP[submitFormData.category]?.color || "bg-primary"}`} />
-                                                    <span className="text-slate-700">{CATEGORY_MAP[submitFormData.category]?.label || "Chọn Chuyên mục"}</span>
+                                                    <span className="text-slate-700">{t(`blog.categories.${submitFormData.category}`, { defaultValue: "Chọn Chuyên mục" })}</span>
                                                 </div>
                                                 <span className={`material-symbols-outlined text-slate-400 transition-transform duration-300 ${isCategoryOpen ? "rotate-180" : ""}`}>expand_more</span>
                                             </button>
@@ -273,7 +275,7 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                                                                     }`}
                                                                 >
                                                                     <div className={`h-2 w-2 rounded-full ${color}`} />
-                                                                    {label}
+                                                                    {t(`blog.categories.${key}`)}
                                                                     {submitFormData.category === key && (
                                                                         <span className="material-symbols-outlined ml-auto text-sm">check_circle</span>
                                                                     )}

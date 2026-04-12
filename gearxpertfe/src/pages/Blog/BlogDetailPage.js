@@ -17,27 +17,8 @@ import {
 import { useSocket } from "../../SocketContext";
 import ImageWithFallback from "../../components/common/ImageWithFallback";
 import blogFallback from "../../assets/bai-viet.png";
-
-const CATEGORY_MAP = {
-    CAMERA: { label: "Máy ảnh", color: "bg-primary" },
-    DRONE: { label: "Drone", color: "bg-primary" },
-    LIGHTING: { label: "Ánh sáng", color: "bg-amber-500" },
-    AI_TECH: { label: "Công nghệ AI", color: "bg-accent-cyan" },
-    AUDIO: { label: "Thiết bị âm thanh", color: "bg-primary" },
-    CINEMATOGRAPHY: { label: "Quay phim điện ảnh", color: "bg-violet-500" },
-    ACCESSORIES: { label: "Phụ kiện", color: "bg-primary" },
-    INDUSTRY_NEWS: { label: "Tin tức ngành", color: "bg-slate-800" },
-};
-
-const formatDate = (dateStr) => {
-    if (!dateStr) return "";
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("vi-VN", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-    });
-};
+import { useTranslation } from "react-i18next";
+import { CATEGORY_MAP, formatDate } from "./BlogConstants";
 
 const formatTimeAgo = (dateStr) => {
     if (!dateStr) return "";
@@ -61,6 +42,7 @@ const formatTimeAgo = (dateStr) => {
 };
 
 export default function BlogDetailPage() {
+    const { t } = useTranslation();
     const { id } = useParams();
     const navigate = useNavigate();
     const [blog, setBlog] = useState(null);
@@ -355,7 +337,7 @@ export default function BlogDetailPage() {
                     {/* Category Badge */}
                     <div className="mb-6">
                         <span className={`inline-block rounded-lg ${catInfo.color} px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white mb-4`}>
-                            {catInfo.label}
+                            {t(`blog.categories.${blog.category}`, { defaultValue: blog.category })}
                         </span>
 
                         {/* Title */}
@@ -739,7 +721,7 @@ export default function BlogDetailPage() {
                             {relatedBlogs.map((rb) => {
                                 const rbCat = CATEGORY_MAP[rb.category] || { label: rb.category, color: "bg-primary" };
                                 return (
-                                    <div 
+                                <div 
                                         key={rb._id}
                                         onClick={() => navigate(`/blog/${rb._id}`)}
                                         className="group cursor-pointer flex gap-4 p-3 rounded-2xl hover:bg-white hover:shadow-xl hover:shadow-primary/5 transition-all border border-transparent hover:border-slate-100"
@@ -752,7 +734,7 @@ export default function BlogDetailPage() {
                                         </div>
                                         <div className="flex flex-col justify-center gap-1">
                                             <span className={`text-[8px] font-black uppercase tracking-tighter w-fit px-1.5 py-0.5 rounded ${rbCat.color} text-white`}>
-                                                {rbCat.label}
+                                                {t(`blog.categories.${rb.category}`, { defaultValue: rb.category })}
                                             </span>
                                             <h4 className="text-sm font-bold text-slate-900 leading-tight group-hover:text-primary transition-colors line-clamp-2">
                                                 {rb.title}

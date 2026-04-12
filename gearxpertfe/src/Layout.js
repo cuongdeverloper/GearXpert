@@ -40,6 +40,7 @@ import AdminLayout from "./components/layout/AdminLayout";
 import DashboardPage from "./pages/Admin/DashboardPage";
 import UsersPage from "./pages/Admin/UsersPage";
 import SuppliersPage from "./pages/Admin/SuppliersPage";
+import SupplierOnboardingPage from "./pages/Admin/SupplierOnboardingPage";
 import DevicesModerationPage from "./pages/Admin/DevicesModerationPage";
 import RentalsPage from "./pages/Admin/RentalsPage";
 import ReportsPage from "./pages/Admin/ReportsPage";
@@ -243,6 +244,7 @@ export default function Layout() {
             <Route path="users" element={<UsersPage />} />
             <Route path="suppliers" element={<SuppliersPage />} />
             <Route path="shop-reports" element={<AdminShopReports />} />
+            <Route path="supplier-onboarding" element={<SupplierOnboardingPage />} />
             <Route path="devices" element={<DevicesModerationPage />} />
             <Route path="rentals" element={<RentalsPage />} />
             <Route path="reports" element={<ReportsPage />} />

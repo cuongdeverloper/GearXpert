@@ -67,9 +67,13 @@ export default function ProductCard({
       if (isAuthenticated && deviceId) {
         try {
           const response = await checkIsFavorite(deviceId);
-          const isFav = response?.data?.isFavorited ?? response?.isFavorited ?? false;
+          console.log("ProductCard favorite check response:", response);
+          // Backend returns isFavorited field (axios auto-unwraps response)
+          const isFav = response?.isFavorited ?? false;
+          console.log("ProductCard setting favorite to:", isFav);
           setIsFavorited(isFav);
         } catch (error) {
+          console.log("ProductCard favorite error:", error);
           setIsFavorited(false);
         }
       } else {
@@ -108,7 +112,10 @@ export default function ProductCard({
 
     try {
       const response = await toggleFavorite(deviceId);
-      const isFav = response?.data?.isFavorited ?? response?.isFavorited ?? !previousState;
+      console.log("ProductCard toggle favorite response:", response);
+      // Backend returns isFavorited field (axios auto-unwraps response)
+      const isFav = response?.isFavorited ?? !previousState;
+      console.log("ProductCard setting favorite to:", isFav);
       setIsFavorited(isFav);
 
       if (onFavoriteChange) onFavoriteChange(isFav);
@@ -148,19 +155,12 @@ export default function ProductCard({
         <div className="aspect-square rounded-xl overflow-hidden isolate mb-4 bg-slate-50 relative shrink-0">
           {/* Rating Badge */}
           {rating !== null && (
-            <div className="absolute top-3 left-3 z-10 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1 text-xs font-semibold text-gray-900">
+            <div className="absolute top-3 left-3 z-30 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1 text-xs font-semibold text-gray-900">
               <span className="material-symbols-outlined text-[14px] fill-yellow-400 text-yellow-400">star</span>
               {rating.toFixed(1)}
             </div>
           )}
 
-          {/* Out of Stock Badge */}
-          {isOutOfStock && (
-            <div className="absolute top-3 left-3 z-20 bg-red-500 text-white px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-bold shadow-lg">
-              <span className="material-symbols-outlined text-[14px]">block</span>
-              Hết hàng
-            </div>
-          )}
 
           {/* Favorite + Compare Buttons - Stack vertically */}
           <div className="absolute top-3 right-3 z-10 flex flex-col gap-2">
@@ -248,17 +248,11 @@ export default function ProductCard({
       <div className="bg-white rounded-2xl overflow-hidden isolate flex flex-col h-full">
         {/* Image Section */}
         <div className="relative h-44 overflow-hidden rounded-t-[16px]">
-          {/* Out of Stock Badge */}
-          {isOutOfStock && (
-            <div className="absolute top-3 left-3 z-20 bg-red-500 text-white px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-bold shadow-lg">
-              <span className="material-symbols-outlined text-[14px]">block</span>
-              Hết hàng
-            </div>
-          )}
+
 
           {/* Rating Badge */}
-          {rating !== null && !isOutOfStock && (
-            <div className={`absolute top-3 ${isOutOfStock ? 'left-24' : 'left-3'} z-10 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full flex items-center gap-1 text-xs font-semibold text-gray-900`}>
+          {rating !== null && (
+            <div className="absolute top-3 left-3 z-30 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full flex items-center gap-1 text-xs font-semibold text-gray-900">
               <span className="material-symbols-outlined text-[14px] fill-yellow-400 text-yellow-400">star</span>
               {rating.toFixed(1)}
             </div>

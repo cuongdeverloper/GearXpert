@@ -44,7 +44,7 @@ export default function PaymentSuccess() {
           
           <h1 className="text-3xl font-black text-slate-900 uppercase italic tracking-tighter mb-2">Thanh toán thành công!</h1>
           <p className="text-slate-500 font-medium mb-4 leading-relaxed">
-            Đơn hàng <span className="text-indigo-600 font-bold">#{rentalId?.slice(-6).toUpperCase()}</span> đã được xác nhận.
+            Đơn hàng <span className="text-indigo-600 font-bold">#{rentalId?.slice(-8).toUpperCase()}</span> đã xác nhận.
           </p>
           <p className="text-slate-400 text-sm mb-6">
             Tự động chuyển trang sau {countdown} giây...

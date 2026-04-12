@@ -57,6 +57,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "csv-writer": "^1.6.0",
     "jest": "^29.7.0",
     "nodemon": "^3.1.11",
     "supertest": "^6.3.4"

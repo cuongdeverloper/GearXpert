@@ -1,18 +1,21 @@
+import i18next from "i18next";
+
 export const CATEGORY_MAP = {
-    CAMERA: { label: "Máy ảnh", color: "bg-primary" },
-    DRONE: { label: "Drone", color: "bg-primary" },
-    LIGHTING: { label: "Ánh sáng", color: "bg-amber-500" },
-    AI_TECH: { label: "Công nghệ AI", color: "bg-accent-cyan" },
-    AUDIO: { label: "Thiết bị âm thanh", color: "bg-primary" },
-    CINEMATOGRAPHY: { label: "Quay phim điện ảnh", color: "bg-violet-500" },
-    ACCESSORIES: { label: "Phụ kiện", color: "bg-primary" },
-    INDUSTRY_NEWS: { label: "Tin tức ngành", color: "bg-slate-800" },
+    CAMERA: { color: "bg-primary" },
+    DRONE: { color: "bg-primary" },
+    LIGHTING: { color: "bg-amber-500" },
+    AI_TECH: { color: "bg-accent-cyan" },
+    AUDIO: { color: "bg-primary" },
+    CINEMATOGRAPHY: { color: "bg-violet-500" },
+    ACCESSORIES: { color: "bg-primary" },
+    INDUSTRY_NEWS: { color: "bg-slate-800" },
 };
 
 export const formatDate = (dateStr) => {
     if (!dateStr) return "";
     const d = new Date(dateStr);
-    return d.toLocaleDateString("en-US", {
+    const lang = i18next.language === "vi" ? "vi-VN" : "en-US";
+    return d.toLocaleDateString(lang, {
         year: "numeric",
         month: "long",
         day: "numeric",

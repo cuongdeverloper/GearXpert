@@ -656,7 +656,7 @@ exports.getDeviceDetail = async (req, res) => {
     let supplierProfile = null;
     if (device.supplierId?._id) {
       supplierProfile = await SupplierProfile.findOne({ userId: device.supplierId._id })
-        .select('businessName businessAvatar supplierRating supplierReviewCount')
+        .select('businessName businessAvatar')
         .lean();
     }
 
@@ -665,6 +665,21 @@ exports.getDeviceDetail = async (req, res) => {
       supplierId: device.supplierId?._id,
       status: "AVAILABLE",
     });
+
+    // 4.2 Tính toán rating trung bình của supplier từ tất cả thiết bị
+    const supplierRatingAgg = await Device.aggregate([
+      { $match: { supplierId: device.supplierId._id } },
+      {
+        $group: {
+          _id: null,
+          avgRating: { $avg: "$ratingAvg" },
+          totalReviews: { $sum: "$reviewCount" },
+        },
+      },
+    ]);
+
+    const calculatedSupplierRating = supplierRatingAgg[0]?.avgRating || 0;
+    const calculatedReviewCount = supplierRatingAgg[0]?.totalReviews || 0;
 
     // 5. Hợp nhất dữ liệu trả về
     const deviceData = device.toObject();
@@ -675,14 +690,16 @@ exports.getDeviceDetail = async (req, res) => {
         ...deviceData.supplierId,
         businessName: supplierProfile.businessName,
         businessAvatar: supplierProfile.businessAvatar,
-        ratingAvg: supplierProfile.supplierRating,
-        reviewCount: supplierProfile.supplierReviewCount,
+        ratingAvg: calculatedSupplierRating,
+        reviewCount: calculatedReviewCount,
         deviceCount: supplierDeviceCount,
       };
     } else {
-      // Nếu không có profile, vẫn trả về deviceCount
+      // Nếu không có profile, vẫn trả về deviceCount và rating tính toán
       deviceData.supplierId = {
         ...deviceData.supplierId,
+        ratingAvg: calculatedSupplierRating,
+        reviewCount: calculatedReviewCount,
         deviceCount: supplierDeviceCount,
       };
     }

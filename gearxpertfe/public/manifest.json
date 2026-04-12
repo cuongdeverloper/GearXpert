@@ -1,19 +1,19 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "GearXpert",
+  "name": "GearXpert - All your gear in one place",
   "icons": [
     {
-      "src": "favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
+      "src": "gearxpertlogo.ico",
+      "sizes": "16x16 24x24 32x32 64x64 128x128 256x256",
       "type": "image/x-icon"
     },
     {
-      "src": "logo192.png",
+      "src": "gearxpertlogo.png",
       "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "logo512.png",
+      "src": "gearxpertlogo.png",
       "type": "image/png",
       "sizes": "512x512"
     }

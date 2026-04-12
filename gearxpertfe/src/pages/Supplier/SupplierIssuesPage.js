@@ -1,5 +1,8 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { ApiCreateConversation, ApiGetUserByUserId } from "../../components/Message Socket/ApiMessage";
+import { openChatWindow } from "../../redux/reducer/chatWindowReducer";
 import {
   FiAlertTriangle,
   FiSearch,
@@ -16,10 +19,11 @@ import {
   FiMessageSquare,
   FiCheckCircle,
   FiUpload,
-  FiPhone,
   FiShield,
 } from "react-icons/fi";
-import { getSupplierIssues } from "../../service/ApiService/ReportApi";
+import { HiOutlineChatAlt2 } from "react-icons/hi";
+import { getSupplierIssues, patchSupplierIssueStatus } from "../../service/ApiService/ReportApi";
+import { createWorkOrderFromIssue, getDeviceItemsByDeviceIds } from "../../service/ApiService/MaintenanceApi";
 import { toast } from "react-toastify";
 import ReturnFailureDetailDialog from "../OperationStaff/tabs/handover/components/ReturnFailureDetailDialog";
 
@@ -169,6 +173,27 @@ const supplierIssueActions = [
   },
 ];
 
+/**
+ * Đơn đã bị từ chối (rental REJECTED): không hiện "Gửi bằng chứng";
+ * nút xử lý đổi thành "Xác nhận" (từ chối đơn là trường hợp vận hành bình thường).
+ */
+function getSupplierActionsForIssue(issue) {
+  const rentalStatus = issue.rentalId?.status;
+  const isRejectedRental = rentalStatus === "REJECTED";
+  return supplierIssueActions
+    .filter((a) => !(isRejectedRental && a.key === "evidence"))
+    .map((a) => {
+      if (a.key === "processing" && isRejectedRental) {
+        return {
+          ...a,
+          label: "Xác nhận",
+          hint: "Xác nhận đã nắm thông tin. Từ chối đơn là thao tác vận hành bình thường — không cần gửi bằng chứng.",
+        };
+      }
+      return a;
+    });
+}
+
 /* ─── Component ───────────────────────────────────────────────────────────── */
 
 export default function SupplierIssuesPage() {
@@ -185,6 +210,14 @@ export default function SupplierIssuesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [lightboxImg, setLightboxImg] = useState(null);
   const [dialogDetail, setDialogDetail] = useState(null);
+  const [woIssueModal, setWoIssueModal] = useState(null);
+  const [woIssueForm, setWoIssueForm] = useState({ deviceItemId: "", scheduledDate: "", notes: "" });
+  const [woSubmitting, setWoSubmitting] = useState(false);
+  // DeviceItems từ rental để hiển thị dropdown
+  const [woRentalDeviceItems, setWoRentalDeviceItems] = useState([]);
+  const [woDeviceItemsLoading, setWoDeviceItemsLoading] = useState(false);
+
+  const todayStr = () => new Date().toISOString().split("T")[0];
 
   const loadIssues = useCallback(async () => {
     try {
@@ -238,6 +271,72 @@ export default function SupplierIssuesPage() {
       images: Array.isArray(report?.images) ? report.images : [],
       reasonLabel: isReturn ? "Lý do thu hồi thất bại" : "Lý do giao hàng thất bại",
     });
+  };
+
+  const openWoIssueModal = async (issue) => {
+    setWoIssueModal(issue);
+    setWoIssueForm({ deviceItemId: "", scheduledDate: todayStr(), notes: "" });
+    setWoRentalDeviceItems([]);
+
+    // Lấy DeviceItems từ các device có trong issue (issue.deviceIds đã được populate trên FE)
+    // deviceIds có trong cả DAMAGE (issue.deviceId) và DELIVERY/RETURN (issue.deviceIds)
+    let deviceIds = [];
+    if (issue._type === "DAMAGE") {
+      // DamageReport: issue.deviceId là 1 Device object
+      const did = issue.deviceId?._id || issue.deviceId;
+      if (did) deviceIds = [String(did)];
+    } else {
+      // DeliveryIssueReport: issue.deviceIds là mảng Device objects
+      deviceIds = (issue.deviceIds || []).map((d) => String(d?._id || d)).filter(Boolean);
+    }
+
+    if (deviceIds.length === 0) return;
+
+    setWoDeviceItemsLoading(true);
+    try {
+      const res = await getDeviceItemsByDeviceIds(deviceIds);
+      const items = Array.isArray(res?.data) ? res.data : (res?.data?.data || []);
+      setWoRentalDeviceItems(items);
+      // Tự chọn sẵn nếu chỉ có 1 item
+      if (items.length === 1 && items[0]._id) {
+        setWoIssueForm((f) => ({ ...f, deviceItemId: String(items[0]._id) }));
+      }
+    } catch {
+      // silent
+    } finally {
+      setWoDeviceItemsLoading(false);
+    }
+  };
+
+  const handleCreateWoFromIssue = async () => {
+    if (!woIssueModal) return;
+    if (!woIssueForm.deviceItemId) {
+      toast.warning("Vui lòng chọn thiết bị");
+      return;
+    }
+    if (!woIssueForm.scheduledDate) {
+      toast.warning("Vui lòng chọn ngày thực hiện");
+      return;
+    }
+    setWoSubmitting(true);
+    try {
+      // Xác định issueModel
+      const issueModel = woIssueModal._type === "DAMAGE" ? "DamageReport" : "DeliveryIssueReport";
+      await createWorkOrderFromIssue({
+        deviceItemId: woIssueForm.deviceItemId,
+        issueId: woIssueModal._id,
+        issueModel,
+        scheduledDate: woIssueForm.scheduledDate,
+        notes: woIssueForm.notes,
+      });
+      toast.success("Đã tạo lệnh sửa chữa! Thiết bị chuyển sang REPAIR.");
+      setWoIssueModal(null);
+      await loadIssues();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Không thể tạo lệnh sửa chữa");
+    } finally {
+      setWoSubmitting(false);
+    }
   };
 
   // Normalize into unified list for display
@@ -410,6 +509,8 @@ export default function SupplierIssuesPage() {
               issue={issue}
               onImageClick={setLightboxImg}
               onOperationalDetail={openOperationalDetail}
+              onIssueUpdated={loadIssues}
+              onCreateWorkOrder={openWoIssueModal}
             />
           ))}
         </div>
@@ -479,6 +580,114 @@ export default function SupplierIssuesPage() {
         detail={dialogDetail}
       />
 
+      {/* Modal: Tạo lệnh sửa chữa từ issue */}
+      {woIssueModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-slate-100">
+              <h3 className="text-base font-bold text-slate-900">Tạo lệnh sửa chữa</h3>
+              <button onClick={() => setWoIssueModal(null)} className="text-slate-400 hover:text-slate-700">
+                <FiX size={18} />
+              </button>
+            </div>
+            <div className="px-5 pt-4 pb-2 space-y-4">
+              {/* Thông tin sự cố */}
+              <div className="text-sm text-slate-600 bg-slate-50 rounded-xl px-3 py-2">
+                <div>
+                  <span className="font-medium">Sự cố:</span>{" "}
+                  {woIssueModal._type === "DAMAGE" ? "Hư hỏng khi thuê" : woIssueModal._type === "RETURN" ? "Thu hồi" : "Giao hàng"}
+                  {" — "}{woIssueModal._customerName}
+                </div>
+                {woIssueModal._devices?.length > 0 && (
+                  <div className="mt-1 border-t border-slate-200/60 pt-1">
+                    <span className="font-medium">Sản phẩm:</span> {woIssueModal._devices.join(", ")}
+                  </div>
+                )}
+              </div>
+
+              {/* Dropdown Thiết bị */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Thiết bị <span className="text-rose-500">*</span>
+                </label>
+                {woDeviceItemsLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-slate-400 py-2">
+                    <FiTool size={13} className="animate-spin" /> Đang tải thiết bị trong đơn...
+                  </div>
+                ) : woRentalDeviceItems.length === 0 ? (
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    ⚠️ Không tìm thấy thiết bị trong đơn hàng này. Đơn có thể chưa được phân bổ serial.
+                  </p>
+                ) : (
+                  <select
+                    value={woIssueForm.deviceItemId}
+                    onChange={(e) => setWoIssueForm((f) => ({ ...f, deviceItemId: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-rose-400"
+                  >
+                    <option value="">— Chọn thiết bị cần sửa —</option>
+                    {woRentalDeviceItems.map((item, idx) => {
+                      if (!item._id) return null;
+                      const devName = item.device?.name || "Thiết bị";
+                      const serial = item.internalCode || item.serialNumber || `#${idx + 1}`;
+                      const statusTag =
+                        item.status === "AVAILABLE" ? " ✅" :
+                        item.status === "PENDING_RESOLUTION" ? " 🔴" :
+                        item.status === "REPAIR" ? " 🔧" : "";
+                      return (
+                        <option key={item._id} value={item._id}>
+                          {devName} — {serial}{statusTag}
+                        </option>
+                      );
+                    })}
+                  </select>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Ngày thực hiện <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={woIssueForm.scheduledDate}
+                  onChange={(e) => setWoIssueForm((f) => ({ ...f, scheduledDate: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Ghi chú</label>
+                <textarea
+                  rows={2}
+                  value={woIssueForm.notes}
+                  onChange={(e) => setWoIssueForm((f) => ({ ...f, notes: e.target.value }))}
+                  placeholder="Nội dung cần sửa chữa..."
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-rose-400"
+                />
+              </div>
+              <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                ⚠️ Thiết bị sẽ chuyển sang trạng thái <strong>REPAIR</strong>.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 px-5 pb-5 pt-2">
+              <button
+                onClick={() => setWoIssueModal(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleCreateWoFromIssue}
+                disabled={woSubmitting}
+                className="px-5 py-2 rounded-xl bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                {woSubmitting && <FiTool size={13} className="animate-pulse" />}
+                Tạo lệnh sửa chữa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {lightboxImg && (
         <div
           className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
@@ -520,8 +729,67 @@ function StatCard({ label, value, color }) {
   );
 }
 
-function IssueCard({ issue, onImageClick, onOperationalDetail }) {
+function IssueCard({ issue, onImageClick, onOperationalDetail, onIssueUpdated, onCreateWorkOrder  }) {
   const [expanded, setExpanded] = useState(false);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const isAuthenticated = useSelector((state) => state.user?.isAuthenticated);
+
+  const supplierActions = useMemo(
+    () => getSupplierActionsForIssue(issue),
+    [issue._id, issue.rentalId?.status]
+  );
+
+  const handleSupplierAction = async (e) => {
+    e.stopPropagation();
+    if (String(issue._id).startsWith("return-failed-")) {
+      toast.warning(
+        "Không thể cập nhật bản ghi tổng hợp từ hệ thống. Liên hệ vận hành nếu cần."
+      );
+      return;
+    }
+    const rentalStatus = issue.rentalId?.status;
+    const isRejectedRental = rentalStatus === "REJECTED";
+    const targetStatus = isRejectedRental ? "RESOLVED" : "PROCESSING";
+    try {
+      await patchSupplierIssueStatus(issue._id, { status: targetStatus });
+      toast.success(
+        isRejectedRental
+          ? "Đã xác nhận — báo cáo chuyển sang Đã xử lý (RESOLVED)"
+          : "Đã đánh dấu đang xử lý — trạng thái báo cáo: PROCESSING"
+      );
+      onIssueUpdated?.();
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Không thể cập nhật trạng thái";
+      toast.error(msg);
+    }
+  };
+
+  const handleContactCustomerChat = async (e) => {
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      toast.info("Vui lòng đăng nhập để nhắn tin");
+      navigate("/signin");
+      return;
+    }
+    const customerId =
+      issue.rentalId?.customerId?._id || issue.rentalId?.customerId;
+    if (!customerId) {
+      toast.error("Không tìm thấy tài khoản khách trên đơn.");
+      return;
+    }
+    try {
+      const conversation = await ApiCreateConversation(customerId);
+      const friendInfo = await ApiGetUserByUserId(customerId);
+      dispatch(openChatWindow({ ...conversation, friendInfo }));
+    } catch (err) {
+      console.error(err);
+      toast.error("Không thể mở cuộc trò chuyện");
+    }
+  };
 
   const showOperationalDetail =
     issue._type !== "DAMAGE" &&
@@ -668,39 +936,69 @@ function IssueCard({ issue, onImageClick, onOperationalDetail }) {
               Thao tác xử lý (nhà cung cấp)
             </h4>
             <div className="flex flex-wrap gap-2">
-              {supplierIssueActions.map(({ key, label, hint, icon: Icon }) => (
+              {supplierActions.map(({ key, label, hint, icon: Icon }) => {
+                const rentalSt = issue.rentalId?.status;
+                const isRejectedRental = rentalSt === "REJECTED";
+                const processingDisabled =
+                  key === "processing" &&
+                  (!isRejectedRental
+                    ? issue.status !== "OPEN"
+                    : !["OPEN", "PROCESSING"].includes(issue.status));
+                return (
                 <button
                   key={key}
                   type="button"
                   title={hint}
+                  disabled={processingDisabled}
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (key === "processing") {
+                      handleSupplierAction(e);
+                      return;
+                    }
                     toast.info(label);
                   }}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-indigo-200 bg-white text-indigo-800 hover:bg-indigo-50 hover:border-indigo-300 transition-colors shadow-sm"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-indigo-200 bg-white text-indigo-800 hover:bg-indigo-50 hover:border-indigo-300 transition-colors shadow-sm disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:bg-white"
                 >
                   <Icon size={14} className="shrink-0 opacity-80" />
                   {label}
                 </button>
-              ))}
+              );
+              })}
               <button
                 type="button"
-                title="Gọi SĐT khách trên đơn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const raw = issue._customerPhone;
-                  const digits = String(raw || "").replace(/\D/g, "");
-                  if (digits.length >= 9) {
-                    window.location.href = `tel:${digits}`;
-                  } else {
-                    toast.info("Không có số điện thoại khách trên báo cáo này.");
-                  }
-                }}
+                title="Mở khung chat Messenger với khách hàng (theo tài khoản đơn thuê)"
+                onClick={handleContactCustomerChat}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-sm"
               >
-                <FiPhone size={14} className="shrink-0 opacity-80" />
+                <HiOutlineChatAlt2 size={16} className="shrink-0 opacity-80" />
                 Liên hệ khách
               </button>
+              {/* Nút Tạo lệnh sửa chữa */}
+              {onCreateWorkOrder && ["OPEN"].includes(issue.status) && (
+                <button
+                  type="button"
+                  title="Tạo lệnh sửa chữa cho thiết bị này"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCreateWorkOrder(issue);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:border-rose-300 transition-colors shadow-sm"
+                >
+                  <FiTool size={14} className="shrink-0 opacity-80" />
+                  Tạo lệnh sửa chữa
+                </button>
+              )}
+              {onCreateWorkOrder && ["PROCESSING", "RESOLVED"].includes(issue.status) && (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm opacity-80 cursor-default"
+                >
+                  <FiTool size={14} className="shrink-0" />
+                  Đã tạo lệnh sửa chữa
+                </button>
+              )}
             </div>
           </div>
 

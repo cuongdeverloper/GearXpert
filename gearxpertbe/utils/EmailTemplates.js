@@ -3,6 +3,15 @@
  * Centralizes all email HTML structures for GearXpert
  */
 
+const escapeHtml = (s) => {
+  if (s == null || s === undefined) return "";
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+};
+
 const baseTemplate = (content) => `
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #f0f0f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
         <div style="background: #1a1a1a; color: #ffffff; padding: 24px; text-align: center;">
@@ -25,7 +34,7 @@ const baseTemplate = (content) => `
 const registrationTemplate = (fullName, verifyLink) => {
     return baseTemplate(`
         <h2 style="color: #1a1a1a; margin-top: 0;">Xác thực tài khoản</h2>
-        <p>Xin chào <strong>${fullName}</strong>,</p>
+        <p>Xin chào <strong>${escapeHtml(fullName)}</strong>,</p>
         <p>Chào mừng bạn đến với <strong>GearXpert</strong>! Cảm ơn bạn đã tin tưởng và sử dụng dịch vụ của chúng tôi.</p>
         <p>Để hoàn tất quá trình đăng ký, vui lòng xác nhận địa chỉ email của bạn bằng cách nhấn vào nút bên dưới:</p>
         <div style="text-align: center; margin: 35px 0;">
@@ -117,6 +126,49 @@ const accountStatusChangeTemplate = (fullName, newStatus) => {
             Trân trọng,<br>
             <strong>Đội ngũ Quản trị viên GearXpert</strong>
         </p>
+    `);
+};
+
+/**
+ * Supplier onboarding: đăng ký NCC được admin phê duyệt
+ */
+const supplierOnboardingApprovedTemplate = (fullName) => {
+  const baseUrl = (process.env.FRONTEND_URL || "").replace(/\/$/, "");
+  const supplierUrl = baseUrl ? `${baseUrl}/supplier` : "#";
+  const safeName = escapeHtml(fullName || "Quý khách");
+  return baseTemplate(`
+        <h2 style="color: #1a1a1a; margin-top: 0;">Đăng ký nhà cung cấp được phê duyệt</h2>
+        <p>Xin chào <strong>${safeName}</strong>,</p>
+        <p>Yêu cầu trở thành nhà cung cấp của bạn đã được <strong style="color:#16a34a;">phê duyệt</strong>.</p>
+        <p>Tài khoản của bạn đã được nâng cấp thành <strong>Nhà cung cấp</strong>. Bạn có thể đăng thiết bị, quản lý cửa hàng và nhận đơn thuê trên GearXpert.</p>
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="${supplierUrl}" style="background: #16a34a; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 10px; font-weight: bold; display: inline-block;">Vào khu vực nhà cung cấp</a>
+        </div>
+        <p style="font-size: 13px; color: #718096;">Trân trọng,<br><strong>Đội ngũ GearXpert</strong></p>
+    `);
+};
+
+/**
+ * Supplier onboarding: đăng ký NCC bị từ chối
+ */
+const supplierOnboardingRejectedTemplate = (fullName, rejectionReason) => {
+  const baseUrl = (process.env.FRONTEND_URL || "").replace(/\/$/, "");
+  const profileUrl = baseUrl ? `${baseUrl}/profile` : "#";
+  const safeName = escapeHtml(fullName || "Quý khách");
+  const safeReason = escapeHtml(rejectionReason || "");
+  return baseTemplate(`
+        <h2 style="color: #1a1a1a; margin-top: 0;">Kết quả duyệt đăng ký nhà cung cấp</h2>
+        <p>Xin chào <strong>${safeName}</strong>,</p>
+        <p>Rất tiếc, yêu cầu trở thành nhà cung cấp của bạn <strong style="color:#dc2626;">chưa được chấp nhận</strong> tại thời điểm này.</p>
+        <div style="background: #fef2f2; padding: 16px 18px; border-radius: 10px; border-left: 4px solid #ef4444; margin: 22px 0;">
+            <p style="margin:0; font-size: 12px; font-weight: bold; color: #991b1b; text-transform: uppercase;">Lý do</p>
+            <p style="margin: 8px 0 0; color: #334155; line-height: 1.5;">${safeReason}</p>
+        </div>
+        <p style="color: #4b5563;">Bạn có thể cập nhật thông tin và gửi lại yêu cầu khi đã chuẩn bị đầy đủ hồ sơ.</p>
+        <div style="text-align: center; margin: 28px 0;">
+            <a href="${profileUrl}" style="background: #1a1a1a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Về trang cá nhân</a>
+        </div>
+        <p style="font-size: 13px; color: #718096;">Trân trọng,<br><strong>Đội ngũ GearXpert</strong></p>
     `);
 };
 
@@ -303,6 +355,8 @@ module.exports = {
     passwordResetTemplate,
     otpPasswordChangeTemplate,
     accountStatusChangeTemplate,
+    supplierOnboardingApprovedTemplate,
+    supplierOnboardingRejectedTemplate,
     blogStatusTemplate,
     commentDeletedTemplate,
     shopReportStatusTemplate,

@@ -144,13 +144,13 @@ export default function Homepage() {
   };
 
   const categories = [
-    { name: 'Máy ảnh', id: 'CAMERA', category: 'CAMERA' },
-    { name: 'Ánh sáng', id: 'LIGHTING', category: 'LIGHTING' },
-    { name: 'Âm thanh', id: 'AUDIO', category: 'AUDIO' },
-    { name: 'Văn phòng', id: 'OFFICE', category: 'OFFICE' },
-    { name: 'Trò chơi', id: 'GAMING', category: 'GAMING' },
-    { name: 'Phụ kiện', id: 'ACCESSORY', category: 'ACCESSORY' },
-    { name: 'Flycam', id: 'DRONE', category: 'DRONE' },
+    { name: t('categories.CAMERA'), id: 'CAMERA', category: 'CAMERA' },
+    { name: t('categories.LIGHTING'), id: 'LIGHTING', category: 'LIGHTING' },
+    { name: t('categories.AUDIO'), id: 'AUDIO', category: 'AUDIO' },
+    { name: t('categories.OFFICE'), id: 'OFFICE', category: 'OFFICE' },
+    { name: t('categories.GAMING'), id: 'GAMING', category: 'GAMING' },
+    { name: t('categories.ACCESSORY'), id: 'ACCESSORY', category: 'ACCESSORY' },
+    { name: t('categories.DRONE'), id: 'DRONE', category: 'DRONE' },
   ];
 
   if (loading) {
