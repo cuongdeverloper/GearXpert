@@ -1,5 +1,8 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { ApiCreateConversation, ApiGetUserByUserId } from "../../components/Message Socket/ApiMessage";
+import { openChatWindow } from "../../redux/reducer/chatWindowReducer";
 import {
   FiAlertTriangle,
   FiSearch,
@@ -16,10 +19,10 @@ import {
   FiMessageSquare,
   FiCheckCircle,
   FiUpload,
-  FiPhone,
   FiShield,
 } from "react-icons/fi";
-import { getSupplierIssues } from "../../service/ApiService/ReportApi";
+import { HiOutlineChatAlt2 } from "react-icons/hi";
+import { getSupplierIssues, patchSupplierIssueStatus } from "../../service/ApiService/ReportApi";
 import { createWorkOrderFromIssue, getDeviceItemsByDeviceIds } from "../../service/ApiService/MaintenanceApi";
 import { toast } from "react-toastify";
 import ReturnFailureDetailDialog from "../OperationStaff/tabs/handover/components/ReturnFailureDetailDialog";
@@ -169,6 +172,27 @@ const supplierIssueActions = [
     icon: FiShield,
   },
 ];
+
+/**
+ * Đơn đã bị từ chối (rental REJECTED): không hiện "Gửi bằng chứng";
+ * nút xử lý đổi thành "Xác nhận" (từ chối đơn là trường hợp vận hành bình thường).
+ */
+function getSupplierActionsForIssue(issue) {
+  const rentalStatus = issue.rentalId?.status;
+  const isRejectedRental = rentalStatus === "REJECTED";
+  return supplierIssueActions
+    .filter((a) => !(isRejectedRental && a.key === "evidence"))
+    .map((a) => {
+      if (a.key === "processing" && isRejectedRental) {
+        return {
+          ...a,
+          label: "Xác nhận",
+          hint: "Xác nhận đã nắm thông tin. Từ chối đơn là thao tác vận hành bình thường — không cần gửi bằng chứng.",
+        };
+      }
+      return a;
+    });
+}
 
 /* ─── Component ───────────────────────────────────────────────────────────── */
 
@@ -485,6 +509,7 @@ export default function SupplierIssuesPage() {
               issue={issue}
               onImageClick={setLightboxImg}
               onOperationalDetail={openOperationalDetail}
+              onIssueUpdated={loadIssues}
               onCreateWorkOrder={openWoIssueModal}
             />
           ))}
@@ -704,8 +729,67 @@ function StatCard({ label, value, color }) {
   );
 }
 
-function IssueCard({ issue, onImageClick, onOperationalDetail, onCreateWorkOrder }) {
+function IssueCard({ issue, onImageClick, onOperationalDetail, onIssueUpdated, onCreateWorkOrder  }) {
   const [expanded, setExpanded] = useState(false);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const isAuthenticated = useSelector((state) => state.user?.isAuthenticated);
+
+  const supplierActions = useMemo(
+    () => getSupplierActionsForIssue(issue),
+    [issue._id, issue.rentalId?.status]
+  );
+
+  const handleSupplierAction = async (e) => {
+    e.stopPropagation();
+    if (String(issue._id).startsWith("return-failed-")) {
+      toast.warning(
+        "Không thể cập nhật bản ghi tổng hợp từ hệ thống. Liên hệ vận hành nếu cần."
+      );
+      return;
+    }
+    const rentalStatus = issue.rentalId?.status;
+    const isRejectedRental = rentalStatus === "REJECTED";
+    const targetStatus = isRejectedRental ? "RESOLVED" : "PROCESSING";
+    try {
+      await patchSupplierIssueStatus(issue._id, { status: targetStatus });
+      toast.success(
+        isRejectedRental
+          ? "Đã xác nhận — báo cáo chuyển sang Đã xử lý (RESOLVED)"
+          : "Đã đánh dấu đang xử lý — trạng thái báo cáo: PROCESSING"
+      );
+      onIssueUpdated?.();
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Không thể cập nhật trạng thái";
+      toast.error(msg);
+    }
+  };
+
+  const handleContactCustomerChat = async (e) => {
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      toast.info("Vui lòng đăng nhập để nhắn tin");
+      navigate("/signin");
+      return;
+    }
+    const customerId =
+      issue.rentalId?.customerId?._id || issue.rentalId?.customerId;
+    if (!customerId) {
+      toast.error("Không tìm thấy tài khoản khách trên đơn.");
+      return;
+    }
+    try {
+      const conversation = await ApiCreateConversation(customerId);
+      const friendInfo = await ApiGetUserByUserId(customerId);
+      dispatch(openChatWindow({ ...conversation, friendInfo }));
+    } catch (err) {
+      console.error(err);
+      toast.error("Không thể mở cuộc trò chuyện");
+    }
+  };
 
   const showOperationalDetail =
     issue._type !== "DAMAGE" &&
@@ -852,37 +936,42 @@ function IssueCard({ issue, onImageClick, onOperationalDetail, onCreateWorkOrder
               Thao tác xử lý (nhà cung cấp)
             </h4>
             <div className="flex flex-wrap gap-2">
-              {supplierIssueActions.map(({ key, label, hint, icon: Icon }) => (
+              {supplierActions.map(({ key, label, hint, icon: Icon }) => {
+                const rentalSt = issue.rentalId?.status;
+                const isRejectedRental = rentalSt === "REJECTED";
+                const processingDisabled =
+                  key === "processing" &&
+                  (!isRejectedRental
+                    ? issue.status !== "OPEN"
+                    : !["OPEN", "PROCESSING"].includes(issue.status));
+                return (
                 <button
                   key={key}
                   type="button"
                   title={hint}
+                  disabled={processingDisabled}
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (key === "processing") {
+                      handleSupplierAction(e);
+                      return;
+                    }
                     toast.info(label);
                   }}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-indigo-200 bg-white text-indigo-800 hover:bg-indigo-50 hover:border-indigo-300 transition-colors shadow-sm"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-indigo-200 bg-white text-indigo-800 hover:bg-indigo-50 hover:border-indigo-300 transition-colors shadow-sm disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:bg-white"
                 >
                   <Icon size={14} className="shrink-0 opacity-80" />
                   {label}
                 </button>
-              ))}
+              );
+              })}
               <button
                 type="button"
-                title="Gọi SĐT khách trên đơn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const raw = issue._customerPhone;
-                  const digits = String(raw || "").replace(/\D/g, "");
-                  if (digits.length >= 9) {
-                    window.location.href = `tel:${digits}`;
-                  } else {
-                    toast.info("Không có số điện thoại khách trên báo cáo này.");
-                  }
-                }}
+                title="Mở khung chat Messenger với khách hàng (theo tài khoản đơn thuê)"
+                onClick={handleContactCustomerChat}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-sm"
               >
-                <FiPhone size={14} className="shrink-0 opacity-80" />
+                <HiOutlineChatAlt2 size={16} className="shrink-0 opacity-80" />
                 Liên hệ khách
               </button>
               {/* Nút Tạo lệnh sửa chữa */}

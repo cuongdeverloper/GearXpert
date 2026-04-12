@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { FiX, FiHome, FiUsers, FiUserCheck, FiBox, FiFileText, FiBarChart2, FiSettings } from "react-icons/fi";
+import { FiX, FiHome, FiUsers, FiUserCheck, FiBox, FiFileText, FiBarChart2, FiSettings, FiClipboard } from "react-icons/fi";
 import logo from "../../../assets/logoGearXpert.png";
 
 const navGroups = [
@@ -9,6 +9,7 @@ const navGroups = [
       { to: "/admin", label: "Bảng điều khiển", icon: FiHome },
       { to: "/admin/users", label: "Người dùng", icon: FiUsers },
       { to: "/admin/suppliers", label: "Nhà cung cấp", icon: FiUserCheck },
+      { to: "/admin/supplier-onboarding", label: "Duyệt đăng ký NCC", icon: FiClipboard },
       { to: "/admin/devices", label: "Thiết bị", icon: FiBox },
       { to: "/admin/rentals", label: "Đơn thuê", icon: FiFileText },
       { to: "/admin/reports", label: "Báo cáo", icon: FiBarChart2 },

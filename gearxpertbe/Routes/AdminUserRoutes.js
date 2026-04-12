@@ -3,6 +3,7 @@ const router = express.Router();
 const adminUserController = require('../controllers/Admin/AdminUserController');
 const adminDashboardController = require('../controllers/Admin/AdminDashboardController');
 const adminWalletController = require('../controllers/Admin/AdminWalletController');
+const adminSupplierOnboardingController = require('../controllers/Admin/AdminSupplierOnboardingController');
 const { checkAccessToken, checkAdmin } = require('../middleware/JWTAction');
 
 router.get('/users', checkAccessToken, checkAdmin, adminUserController.getAllUsers);
@@ -14,6 +15,26 @@ router.get('/rentals', checkAccessToken, checkAdmin, adminDashboardController.ge
 router.get('/reports', checkAccessToken, checkAdmin, adminDashboardController.getAdminReports);
 router.get('/suppliers', checkAccessToken, checkAdmin, adminDashboardController.getAdminSuppliers);
 router.get('/devices', checkAccessToken, checkAdmin, adminDashboardController.getAdminDevices);
+
+// Supplier onboarding (become supplier contract approval)
+router.get(
+  '/supplier-onboarding',
+  checkAccessToken,
+  checkAdmin,
+  adminSupplierOnboardingController.listSupplierOnboardingRequests
+);
+router.post(
+  '/supplier-onboarding/:id/approve',
+  checkAccessToken,
+  checkAdmin,
+  adminSupplierOnboardingController.approveSupplierOnboarding
+);
+router.post(
+  '/supplier-onboarding/:id/reject',
+  checkAccessToken,
+  checkAdmin,
+  adminSupplierOnboardingController.rejectSupplierOnboarding
+);
 
 // Wallet routes
 router.get('/wallet', checkAccessToken, checkAdmin, adminWalletController.getAdminWallet);
