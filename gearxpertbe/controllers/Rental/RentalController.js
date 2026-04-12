@@ -694,7 +694,13 @@ exports.checkoutRental = async (req, res) => {
 
 
 
-      const rent = device.rentPrice.perDay * item.totalDays * item.quantity;
+      // Use discountPrice if available and not expired, otherwise use regular rentPrice
+      const now = new Date();
+      const discountExpiry = device.discountExpiry ? new Date(device.discountExpiry) : null;
+      const isDiscountValid = device.discountPrice && discountExpiry && discountExpiry > now;
+      
+      const effectivePrice = isDiscountValid ? device.discountPrice : device.rentPrice.perDay;
+      const rent = effectivePrice * item.totalDays * item.quantity;
 
       const deposit = device.depositAmount * item.quantity;
 
@@ -1470,11 +1476,13 @@ exports.checkoutRental = async (req, res) => {
 
           : "Checkout thành công",
 
-      rentalIds: createdRentals.map((r) => r._id),
+      rentalIds: createdRentals.map((r) => r.rental._id),
 
       paymentMethod,
 
       paymentLink,
+
+      orderCode: paymentMethod === "BANK" ? orderCode : null,
 
       totalAmount: grandTotalAmount,
 
@@ -1484,7 +1492,7 @@ exports.checkoutRental = async (req, res) => {
 
     await session.abortTransaction();
 
-    console.error("CHECKOUT ERROR:", err);
+    console.error("CHECKOUT ERROR:", err.stack);
 
     res.status(400).json({ message: err.message || "Thanh toán thất bại" });
 

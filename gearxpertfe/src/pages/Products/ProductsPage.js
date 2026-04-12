@@ -135,6 +135,13 @@ export default function ProductsPage() {
         (device.rentPrice?.perDay || 0) <= priceRange[1]
     );
 
+    // Stock Filter (local backup for API filter)
+    if (inStockOnly) {
+      result = result.filter(
+        (device) => (device?.availableQuantity ?? 0) > 0
+      );
+    }
+
     switch (sortBy) {
       case "price_asc":
         result.sort((a, b) => (a.rentPrice?.perDay || 0) - (b.rentPrice?.perDay || 0));
@@ -150,7 +157,7 @@ export default function ProductsPage() {
     }
 
     setFilteredDevices(result);
-  }, [devices, searchQuery, sortBy, priceRange]);
+  }, [devices, searchQuery, sortBy, priceRange, inStockOnly]);
 
   useEffect(() => {
     fetchDevices();
@@ -440,15 +447,15 @@ export default function ProductsPage() {
             {/* Main Content */}
             <div className="flex-1">
               {/* Filters Bar */}
-              <div className="bg-white rounded-xl p-3 mb-4 border border-slate-200 shadow-sm">
+              <div className="bg-white rounded-2xl p-4 mb-4 border border-slate-200/60 shadow-lg shadow-slate-200/50">
                 <div className="flex flex-wrap items-center gap-3 text-xs">
                   {/* Sort - Custom Dropdown */}
                   <div className="flex items-center gap-1.5">
                     <span className="material-symbols-outlined text-indigo-500 text-[16px]">sort</span>
                     <Popover className="relative">
-                      <Popover.Button className="flex items-center gap-2 px-3 py-1.5 pr-2 bg-gradient-to-r from-indigo-50 to-white border border-indigo-200 rounded-lg text-xs text-slate-700 font-medium cursor-pointer hover:border-indigo-300 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/30">
+                      <Popover.Button className="flex items-center gap-2 px-3 py-2 pr-2 bg-gradient-to-r from-white to-slate-50 border border-slate-200/60 rounded-xl text-xs text-slate-700 font-medium cursor-pointer hover:border-indigo-200 hover:from-indigo-50 hover:to-white hover:text-indigo-700 hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 shadow-sm">
                         {sortOptions.find(o => o.id === sortBy)?.label}
-                        <span className="material-symbols-outlined text-[14px] text-indigo-400">expand_more</span>
+                        <span className="material-symbols-outlined text-[14px] text-slate-400">expand_more</span>
                       </Popover.Button>
                       <Transition
                         as={Fragment}
@@ -483,11 +490,11 @@ export default function ProductsPage() {
 
                   {/* Rating Filter - Custom Dropdown */}
                   <div className="flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-amber-400 text-[16px]">star</span>
+                    <span className="material-symbols-outlined text-indigo-500 text-[16px]">star</span>
                     <Popover className="relative">
-                      <Popover.Button className="flex items-center gap-2 px-3 py-1.5 pr-2 bg-gradient-to-r from-amber-50 to-white border border-amber-200 rounded-lg text-xs text-slate-700 font-medium cursor-pointer hover:border-amber-300 transition-all focus:outline-none focus:ring-2 focus:ring-amber-500/30">
+                      <Popover.Button className="flex items-center gap-2 px-3 py-2 pr-2 bg-gradient-to-r from-white to-slate-50 border border-slate-200/60 rounded-xl text-xs text-slate-700 font-medium cursor-pointer hover:border-indigo-200 hover:from-indigo-50 hover:to-white hover:text-indigo-700 hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 shadow-sm">
                         {ratingOptions.find(o => o.value === minRating)?.label}
-                        <span className="material-symbols-outlined text-[14px] text-amber-400">expand_more</span>
+                        <span className="material-symbols-outlined text-[14px] text-slate-400">expand_more</span>
                       </Popover.Button>
                       <Transition
                         as={Fragment}
@@ -536,28 +543,28 @@ export default function ProductsPage() {
                   </div>
 
                   {/* In Stock */}
-                  <label className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg cursor-pointer hover:from-green-100 hover:to-emerald-100 transition-all group">
+                  <label className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-white to-slate-50 border border-slate-200/60 rounded-xl cursor-pointer hover:border-indigo-200 hover:from-indigo-50 hover:to-white hover:text-indigo-700 hover:shadow-md transition-all duration-200 group shadow-sm">
                     <input
                       type="checkbox"
                       checked={inStockOnly}
                       onChange={(e) => setInStockOnly(e.target.checked)}
-                      className="w-3.5 h-3.5 rounded border-green-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                      className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                     />
-                    <span className="text-xs text-slate-700 font-medium flex items-center gap-1 group-hover:text-emerald-700">
-                      <span className="material-symbols-outlined text-[14px] text-emerald-500">inventory_2</span>
+                    <span className="text-xs text-slate-700 font-medium flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px] text-indigo-500">inventory_2</span>
                       Còn hàng
                     </span>
                   </label>
 
                   {/* Rental Period - Styled Date Inputs */}
-                  <div className="flex items-center gap-2 ml-auto bg-gradient-to-r from-emerald-50 to-teal-50 px-3 py-1.5 rounded-xl border border-emerald-200">
-                    <span className="material-symbols-outlined text-emerald-500 text-[16px]">calendar_month</span>
+                  <div className="flex items-center gap-2 ml-auto bg-gradient-to-r from-white to-slate-50 border border-slate-200/60 px-3 py-2 rounded-xl shadow-sm">
+                    <span className="material-symbols-outlined text-indigo-500 text-[16px]">calendar_month</span>
                     <div className="flex items-center gap-2">
                       {/* Start Date Button */}
                       <Popover className="relative">
-                        <Popover.Button className="flex items-center gap-1 px-2.5 py-1 bg-white border border-emerald-200 rounded-lg text-xs text-slate-700 font-medium cursor-pointer hover:border-emerald-400 hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/30 w-[100px] justify-between">
+                        <Popover.Button className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-slate-200/60 rounded-xl text-xs text-slate-700 font-medium cursor-pointer hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 w-[100px] justify-between shadow-sm">
                           {rentalStartDate ? new Date(rentalStartDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : 'Nhận'}
-                          <span className="material-symbols-outlined text-[12px] text-emerald-400">calendar_today</span>
+                          <span className="material-symbols-outlined text-[12px] text-slate-400">calendar_today</span>
                         </Popover.Button>
                         <Transition
                           as={Fragment}
@@ -580,13 +587,13 @@ export default function ProductsPage() {
                         </Transition>
                       </Popover>
                       
-                      <span className="text-emerald-400 font-bold">→</span>
+                      <span className="material-symbols-outlined text-slate-400 text-[16px]">arrow_forward</span>
                       
                       {/* End Date Button */}
                       <Popover className="relative">
-                        <Popover.Button className="flex items-center gap-1 px-2.5 py-1 bg-white border border-emerald-200 rounded-lg text-xs text-slate-700 font-medium cursor-pointer hover:border-emerald-400 hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/30 w-[100px] justify-between">
+                        <Popover.Button className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-slate-200/60 rounded-xl text-xs text-slate-700 font-medium cursor-pointer hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 w-[100px] justify-between shadow-sm">
                           {rentalEndDate ? new Date(rentalEndDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : 'Trả'}
-                          <span className="material-symbols-outlined text-[12px] text-emerald-400">event</span>
+                          <span className="material-symbols-outlined text-[12px] text-slate-400">event</span>
                         </Popover.Button>
                         <Transition
                           as={Fragment}

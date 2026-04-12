@@ -76,7 +76,12 @@ const CartPage = () => {
           endDate: new Date(item.rentalEndDate),
           quantity: item.quantity,
           totalDays: calculateDays(item.rentalStartDate, item.rentalEndDate),
-          rentPrice: item.deviceId?.rentPrice?.perDay || 0,
+          rentPrice: (() => {
+            const now = new Date();
+            const discountExpiry = item.deviceId?.discountExpiry ? new Date(item.deviceId.discountExpiry) : null;
+            const isDiscountValid = item.deviceId?.discountPrice && discountExpiry && discountExpiry > now;
+            return isDiscountValid ? item.deviceId.discountPrice : (item.deviceId?.rentPrice?.perDay || 0);
+          })(),
         });
 
         return acc;
@@ -247,20 +252,18 @@ const CartPage = () => {
               groupedBySupplier.map((supplierGroup) => (
                 <div
                   key={supplierGroup.supplierId}
-                  className="bg-white rounded-[40px] p-8 border border-slate-100 shadow-xl hover:shadow-2xl transition-all duration-500 relative group overflow-hidden"
+                  className="bg-white rounded-2xl p-6 border border-slate-200/60 shadow-sm hover:shadow-md transition-all duration-200"
                 >
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/30 rounded-full -mr-32 -mt-32 blur-3xl group-hover:bg-indigo-100/40 transition-colors"></div>
-
                   {/* SUPPLIER HEADER */}
-                  <div className="relative flex items-center gap-4 mb-6 pb-4 border-b border-slate-100">
-                    <div className="p-3 bg-indigo-100 rounded-2xl">
-                      <Store size={28} className="text-indigo-600" />
+                  <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                    <div className="p-2.5 bg-indigo-100 rounded-xl">
+                      <Store size={20} className="text-indigo-600" />
                     </div>
                     <div>
-                      <h2 className="text-2xl font-black text-slate-900">
+                      <h2 className="text-lg font-bold text-slate-900">
                         {supplierGroup.supplierName}
                       </h2>
-                      <p className="text-sm text-slate-500">
+                      <p className="text-xs text-slate-500">
                         Nhà cung cấp thiết bị
                       </p>
                     </div>
@@ -272,86 +275,142 @@ const CartPage = () => {
                       key={deviceGroup.device._id}
                       className="mb-8 last:mb-0"
                     >
-                      <div className="flex flex-col md:flex-row gap-6 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
-                        {/* THUMBNAIL */}
-                        <div className="w-full md:w-40 h-40 bg-white rounded-2xl overflow-hidden border border-slate-200 flex-shrink-0">
-                          <img
-                            src={
-                              deviceGroup.device?.images?.[0] ||
-                              "https://via.placeholder.com/150"
-                            }
-                            alt={deviceGroup.device?.name}
-                            className="w-full h-full object-cover"
-                          />
+                      <div className="bg-gradient-to-br from-white via-slate-50/30 to-white rounded-2xl border border-slate-200/80 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group">
+                        {/* DEVICE HEADER WITH ENHANCED DESIGN */}
+                        <div className="relative">
+                          <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 via-purple-500/5 to-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                          <div className="relative flex items-center gap-5 p-6 border-b border-slate-100/60">
+                            <div className="relative">
+                              <div className="w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl overflow-hidden border-2 border-white shadow-lg flex-shrink-0 group-hover:scale-105 transition-transform duration-300">
+                                <img
+                                  src={
+                                    deviceGroup.device?.images?.[0] ||
+                                    "https://via.placeholder.com/150"
+                                  }
+                                  alt={deviceGroup.device?.name}
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                />
+                              </div>
+                              <div className="absolute -top-2 -right-2 w-6 h-6 bg-emerald-500 rounded-full border-2 border-white shadow-md flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">{deviceGroup.bookings.length}</span>
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-bold text-slate-900 text-lg mb-2 leading-tight group-hover:text-indigo-600 transition-colors">
+                                {deviceGroup.device?.name}
+                              </h3>
+                              <div className="flex items-center gap-3">
+                                <span className="inline-flex items-center px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full">
+                                  {deviceGroup.bookings.length} lịch thuê
+                                </span>
+                                <span className="inline-flex items-center px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full">
+                                  Còn hàng
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() =>
+                                handleRemove(
+                                  deviceGroup.bookings[0]?.id,
+                                  deviceGroup.device?.name
+                                )
+                              }
+                              className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all group-hover:shadow-md"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
                         </div>
 
-                        {/* CONTENT */}
-                        <div className="flex-1">
-                          <h3 className="text-xl font-bold text-slate-900 mb-2">
-                            {deviceGroup.device?.name}
-                          </h3>
-
-                          {/* BOOKINGS */}
-                          <div className="space-y-4">
-                            {deviceGroup.bookings.map((booking) => (
-                              <div
-                                key={booking.id}
-                                className="flex flex-wrap justify-between items-start gap-4 bg-white p-4 rounded-xl border border-slate-200"
-                              >
-                                <div className="flex items-center gap-4">
-                                  <Calendar
-                                    size={20}
-                                    className="text-indigo-600"
-                                  />
-                                  <div>
-                                    <p className="font-medium">
-                                      {booking.startDate.toLocaleDateString(
-                                        "vi-VN"
-                                      )}{" "}
-                                      →{" "}
-                                      {booking.endDate.toLocaleDateString(
-                                        "vi-VN"
-                                      )}
-                                    </p>
-                                    <p className="text-sm text-slate-500">
-                                      {booking.totalDays} ngày • SL:{" "}
-                                      {booking.quantity}
-                                    </p>
+                        {/* BOOKINGS LIST WITH ENHANCED DESIGN */}
+                        <div className="divide-y divide-slate-100/40">
+                          {deviceGroup.bookings.map((booking, index) => (
+                            <div
+                              key={booking.id}
+                              className="p-6 hover:bg-gradient-to-r hover:from-indigo-50/30 hover:to-purple-50/30 transition-all duration-200 group/item"
+                            >
+                              <div className="flex items-start justify-between gap-6">
+                                {/* ENHANCED DATE INFO */}
+                                <div className="flex items-start gap-4">
+                                  <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg group-hover/item:scale-110 transition-transform">
+                                    <Calendar size={20} className="text-white" />
+                                  </div>
+                                  <div className="pt-1">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <span className="inline-flex items-center px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-lg">
+                                        #{index + 1}
+                                      </span>
+                                      <span className="text-sm font-semibold text-slate-900">
+                                        {booking.startDate.toLocaleDateString("vi-VN")}
+                                      </span>
+                                      <span className="text-slate-300">-</span>
+                                      <span className="text-sm font-semibold text-slate-900">
+                                        {booking.endDate.toLocaleDateString("vi-VN")}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-4 text-xs text-slate-500">
+                                      <span className="flex items-center gap-1">
+                                        <span className="w-2 h-2 bg-indigo-400 rounded-full"></span>
+                                        {booking.totalDays} ngày
+                                      </span>
+                                      <span className="flex items-center gap-1">
+                                        <span className="w-2 h-2 bg-emerald-400 rounded-full"></span>
+                                        SL: {booking.quantity}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
 
-                                <div className="flex items-center gap-5">
+                                {/* ENHANCED PRICE & ACTIONS */}
+                                <div className="flex items-end gap-4">
                                   <button
                                     onClick={() => handleEditBooking(booking)}
-                                    className="text-indigo-500 hover:text-indigo-700 transition-colors flex items-center gap-1 text-sm font-medium"
+                                    className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all group-hover/item:shadow-md"
                                   >
-                                    <Edit size={16} /> Sửa
+                                    <Edit size={16} />
                                   </button>
 
-                                  <p className="font-bold text-indigo-600 min-w-[90px] text-right">
-                                    {(
-                                      booking.rentPrice *
-                                      booking.totalDays *
-                                      booking.quantity
-                                    ).toLocaleString()}
-                                    đ
-                                  </p>
-
-                                  <button
-                                    onClick={() =>
-                                      handleRemove(
-                                        booking.id,
-                                        deviceGroup.device?.name
-                                      )
-                                    }
-                                    className="text-red-400 hover:text-red-600 transition-colors"
-                                  >
-                                    <Trash2 size={18} />
-                                  </button>
+                                  <div className="text-right">
+                                    {(() => {
+                                      const device = deviceGroup.device;
+                                      const now = new Date();
+                                      const discountExpiry = device?.discountExpiry ? new Date(device.discountExpiry) : null;
+                                      const isDiscountValid = device?.discountPrice && discountExpiry && discountExpiry > now;
+                                      const regularPrice = device?.rentPrice?.perDay || 0;
+                                      const discountPrice = device?.discountPrice;
+                                      const effectivePrice = isDiscountValid ? discountPrice : regularPrice;
+                                      
+                                      return (
+                                        <div className="space-y-1">
+                                          {isDiscountValid && regularPrice > 0 && (
+                                            <div className="flex flex-col items-end gap-1">
+                                              <div className="flex items-center gap-2">
+                                                <span className="text-xs text-slate-400 line-through">
+                                                  {(regularPrice * booking.totalDays * booking.quantity).toLocaleString()}d
+                                                </span>
+                                                <span className="px-2 py-0.5 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold rounded-full shadow-md">
+                                                  -{Math.round((1 - discountPrice/regularPrice) * 100)}%
+                                                </span>
+                                              </div>
+                                            </div>
+                                          )}
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                                              {(effectivePrice * booking.totalDays * booking.quantity).toLocaleString()}
+                                            </span>
+                                            <span className="text-sm font-semibold text-slate-400">d</span>
+                                          </div>
+                                          <div className="text-xs text-slate-500">
+                                            {effectivePrice.toLocaleString()}d × {booking.totalDays} ngày × {booking.quantity} SL
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
+                                  </div>
                                 </div>
                               </div>
-                            ))}
-                          </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     </div>

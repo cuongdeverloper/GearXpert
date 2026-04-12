@@ -21,7 +21,7 @@ exports.getCart = async (req, res) => {
       path: "items",
       populate: {
         path: "deviceId",
-        select: "supplierId name slug rentPrice depositAmount images status",
+        select: "supplierId name slug rentPrice depositAmount discountPrice discountReason discountExpiry images status",
         populate: {
           path: "supplierId",
           select: "fullName avatar cccd address phone email username",
@@ -84,7 +84,7 @@ exports.getCart = async (req, res) => {
         path: "items",
         populate: {
           path: "deviceId",
-          select: "supplierId name slug rentPrice depositAmount images status",
+          select: "supplierId name slug rentPrice depositAmount discountPrice discountReason discountExpiry images status",
           populate: { path: "supplierId", select: "fullName avatar cccd address phone email username" },
         },
       });
@@ -261,7 +261,7 @@ exports.addInstantToCart = async (req, res) => {
       path: "items",
       populate: {
         path: "deviceId",
-        select: "name slug rentPrice images status",
+        select: "name slug rentPrice depositAmount discountPrice discountReason discountExpiry images status",
         populate: { path: "supplierId", select: "fullName avatar" },
       },
     });
@@ -496,7 +496,7 @@ exports.updateCartItem = async (req, res) => {
     // Trả về cartItem đã update + thông tin device để frontend dễ render
     const populatedItem = await CartItem.findById(cartItem._id).populate({
       path: "deviceId",
-      select: "name slug rentPrice depositAmount images status",
+      select: "name slug rentPrice depositAmount discountPrice discountReason discountExpiry images status",
       populate: { path: "supplierId", select: "fullName" },
     });
 
