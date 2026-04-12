@@ -194,8 +194,14 @@ export default function CheckoutPage() {
       }
 
       groups[supplierId].items.push(item);
+      // Use discountPrice if available and not expired, otherwise use regular rentPrice
+      const now = new Date();
+      const discountExpiry = item.deviceId?.discountExpiry ? new Date(item.deviceId.discountExpiry) : null;
+      const isDiscountValid = item.deviceId?.discountPrice && discountExpiry && discountExpiry > now;
+      const effectivePrice = isDiscountValid ? item.deviceId.discountPrice : (item.deviceId?.rentPrice?.perDay || 0);
+      
       groups[supplierId].subtotal +=
-        (item.deviceId?.rentPrice?.perDay || 0) *
+        effectivePrice *
         item.totalDays *
         item.quantity;
     });
@@ -326,7 +332,12 @@ export default function CheckoutPage() {
             deviceSerial: deviceSerials,
             deviceCondition: item.deviceId.condition || "Good",
             quantity: item.quantity,
-            rentPrice: item.rentPrice?.perDay || item.deviceId?.rentPrice?.perDay || 0,
+            rentPrice: (() => {
+              const now = new Date();
+              const discountExpiry = item.deviceId?.discountExpiry ? new Date(item.deviceId.discountExpiry) : null;
+              const isDiscountValid = item.deviceId?.discountPrice && discountExpiry && discountExpiry > now;
+              return isDiscountValid ? item.deviceId.discountPrice : (item.rentPrice?.perDay || item.deviceId?.rentPrice?.perDay || 0);
+            })(),
             totalDays: item.totalDays,
             rentalStartDate: item.rentalStartDate,
             rentalEndDate: item.rentalEndDate,
@@ -382,7 +393,12 @@ export default function CheckoutPage() {
           deviceSerial: item.deviceId.serialNumber || "N/A",
           deviceCondition: item.deviceId.condition || "Good",
           quantity: item.quantity,
-          rentPrice: item.rentPrice?.perDay || item.deviceId?.rentPrice?.perDay || 0,
+          rentPrice: (() => {
+            const now = new Date();
+            const discountExpiry = item.deviceId?.discountExpiry ? new Date(item.deviceId.discountExpiry) : null;
+            const isDiscountValid = item.deviceId?.discountPrice && discountExpiry && discountExpiry > now;
+            return isDiscountValid ? item.deviceId.discountPrice : (item.rentPrice?.perDay || item.deviceId?.rentPrice?.perDay || 0);
+          })(),
           totalDays: item.totalDays,
           rentalStartDate: new Date(item.rentalStartDate).toISOString(),
           rentalEndDate: new Date(item.rentalEndDate).toISOString(),
@@ -406,6 +422,9 @@ export default function CheckoutPage() {
       };
       const res = await checkout(rentalData);
 
+      console.log('Checkout response:', res);
+      console.log('Rental IDs:', res.rentalIds);
+      console.log('First rental ID:', res.rentalIds?.[0]);
       setOrderResult(res);
       setCurrentStep(4);
 
@@ -607,7 +626,13 @@ export default function CheckoutPage() {
                                   <h4 className="font-bold text-gray-900 text-lg">{item.deviceId?.name}</h4>
                                   <div className="flex items-center gap-4 mt-2">
                                     <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                                      {item.deviceId?.rentPrice?.perDay?.toLocaleString()}đ/ngày
+                                      {(() => {
+                                        const now = new Date();
+                                        const discountExpiry = item.deviceId?.discountExpiry ? new Date(item.deviceId.discountExpiry) : null;
+                                        const isDiscountValid = item.deviceId?.discountPrice && discountExpiry && discountExpiry > now;
+                                        const effectivePrice = isDiscountValid ? item.deviceId.discountPrice : item.deviceId?.rentPrice?.perDay;
+                                        return effectivePrice?.toLocaleString() || 0;
+                                      })()}đ/ngày
                                     </span>
                                     <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
                                       {item.totalDays} ngày
@@ -620,10 +645,14 @@ export default function CheckoutPage() {
                                 </div>
                                 <div className="text-right">
                                   <p className="text-2xl font-bold text-indigo-600">
-                                    {(item.deviceId?.rentPrice?.perDay * item.totalDays * item.quantity).toLocaleString()}đ
+                                    {(() => {
+                                      const now = new Date();
+                                      const discountExpiry = item.deviceId?.discountExpiry ? new Date(item.deviceId.discountExpiry) : null;
+                                      const isDiscountValid = item.deviceId?.discountPrice && discountExpiry && discountExpiry > now;
+                                      const effectivePrice = isDiscountValid ? item.deviceId.discountPrice : item.deviceId?.rentPrice?.perDay;
+                                      return ((effectivePrice || 0) * item.totalDays * item.quantity).toLocaleString();
+                                    })()}đ
                                   </p>
-
-
                                 </div>
                               </div>
                             </div>
@@ -1483,7 +1512,7 @@ export default function CheckoutPage() {
                         <div className="flex justify-between items-center p-3 bg-white rounded-xl">
                           <span className="text-gray-600 font-medium">Mã đơn hàng</span>
                           <span className="font-bold text-indigo-600 text-lg">
-                            #{orderResult.rentalIds?.[0]?.toString().slice(-6)}
+                            #{orderResult.rentalIds?.[0]?.toString().slice(-8).toUpperCase() || 'N/A'}
                           </span>
                         </div>
 
