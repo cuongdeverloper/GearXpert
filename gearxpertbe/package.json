@@ -1,11 +1,11 @@
 {
   "name": "gearxpertbe",
   "version": "1.0.0",
-  "description": "",
+  "description": "gearxpertbe",
   "main": "server.js",
   "scripts": {
     "test": "jest --runInBand",
-    "start": "nodemon ./src/server.js",
+    "start": "nodemon ./server.js",
     "smoke:reviews": "node scripts/smokeReviews.js"
   },
   "keywords": [],
@@ -49,6 +49,7 @@
     "pdf-lib": "^1.17.1",
     "pizzip": "^3.2.0",
     "request": "^2.88.2",
+    "resend": "^6.10.0",
     "socket.io": "^4.8.1",
     "uuid": "^13.0.0",
     "vnpay": "^2.4.4",

@@ -8,7 +8,7 @@ import { persistor } from '../redux/store';
 const instance = axios.create({
     baseURL: process.env.REACT_APP_BACKEND_URL,
     withCredentials: true,
-    timeout: 30000,
+    timeout: 60000,
 });
 
 // Request interceptor

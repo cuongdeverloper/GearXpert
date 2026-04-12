@@ -87,18 +87,12 @@ async function syncParentDeviceCounts(deviceId) {
 
 // 1. Hook khi save từng document — luôn gộp lại Device (post-save không nên dựa isModified)
 deviceItemSchema.post("save", async function (doc) {
-  console.log(
-    `[HOOK SAVE] DeviceItem ${doc._id} saved - status: ${doc.status}, deviceId: ${doc.deviceId}`
-  );
   await syncParentDeviceCounts(doc.deviceId);
 });
 
 // 2. Hook cho findOneAndUpdate / updateOne
 deviceItemSchema.post("findOneAndUpdate", async function (doc) {
-  console.log("[HOOK findOneAndUpdate] Triggered");
-
   if (!doc) {
-    console.log("[HOOK] No document found → skip update counts");
     return;
   }
 
@@ -111,9 +105,6 @@ deviceItemSchema.post("findOneAndUpdate", async function (doc) {
     setOps.condition !== undefined || update.condition !== undefined;
 
   if (statusChanged || conditionChanged) {
-    console.log(
-      `[HOOK] Status/Condition changed for ${doc._id} → updating counts`
-    );
     await syncParentDeviceCounts(doc.deviceId);
   } else {
     console.log("[HOOK] No relevant change detected → skip");
@@ -122,16 +113,11 @@ deviceItemSchema.post("findOneAndUpdate", async function (doc) {
 
 // 3. Hook cho updateMany (bulk update status)
 deviceItemSchema.post("updateMany", async function () {
-  console.log("[HOOK updateMany] Triggered");
-
   const filter = this.getFilter();
   const update = this.getUpdate() || {};
 
   const hasStatusChange = update.$set?.status || update.status;
   if (filter.deviceId && hasStatusChange) {
-    console.log(
-      `[HOOK updateMany] Status changed on deviceId ${filter.deviceId} → updating counts`
-    );
     await syncParentDeviceCounts(filter.deviceId);
   }
 });
@@ -140,9 +126,6 @@ deviceItemSchema.post("updateMany", async function () {
 deviceItemSchema.post("insertMany", async function (docs) {
   if (docs && docs.length > 0) {
     const deviceId = docs[0].deviceId;
-    console.log(
-      `[HOOK insertMany] ${docs.length} items inserted → updating counts for ${deviceId}`
-    );
     await syncParentDeviceCounts(deviceId);
   }
 });
@@ -155,10 +138,6 @@ deviceItemSchema.statics.updateDeviceCounts = async function (
   deviceId,
   session = null
 ) {
-  console.log(
-    `[CACHE] Bắt đầu cập nhật cache cho deviceId: ${deviceId.toString()}`
-  );
-
   const counts = await this.aggregate([
     // dùng this thay vì mongoose.model("DeviceItem")
     { $match: { deviceId: new mongoose.Types.ObjectId(deviceId) } },
@@ -188,7 +167,6 @@ deviceItemSchema.statics.updateDeviceCounts = async function (
     damaged: 0,
   };
 
-  console.log(`[CACHE] Kết quả đếm thực tế:`, result);
 
   const updateResult = await mongoose.model("Device").updateOne(
     { _id: new mongoose.Types.ObjectId(deviceId) },
@@ -203,8 +181,6 @@ deviceItemSchema.statics.updateDeviceCounts = async function (
     },
     { session }
   );
-
-  console.log(`[CACHE] Kết quả update Device:`, updateResult);
 
   if (updateResult.modifiedCount === 0) {
     console.warn(`[CACHE WARNING] Không update được Device ${deviceId}`);

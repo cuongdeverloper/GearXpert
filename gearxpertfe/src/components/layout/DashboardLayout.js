@@ -14,10 +14,6 @@ export default function DashboardLayout() {
 
   const currentPage = 'dashboard'
 
-  const onNavigate = (page) => {
-    console.log('Navigate to:', page)
-  }
-
   const onLogout = async () => {
     try {
       // Disconnect socket if connected

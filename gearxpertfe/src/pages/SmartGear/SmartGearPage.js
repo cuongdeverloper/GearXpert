@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import { ShoppingCart, Loader2, CheckCircle, Calendar as CalendarIcon, Zap, ChevronRight } from "lucide-react";
 import { getSmartGearSuggestion, addComboToCart } from "../../service/ApiService/SmartGearApi";
 import Header from "../../components/navigation/Header";
 
@@ -83,6 +84,7 @@ export default function SmartGearPage() {
 
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
 
   const today = getTodayLocalDate();
   const rentalDays = useMemo(() => getRentalDays(startDate, endDate), [startDate, endDate]);
@@ -148,7 +150,7 @@ export default function SmartGearPage() {
     }
   };
 
-  const handleAddComboToCartClick = async (devicesList) => {
+  const handleAddComboToCartClick = async (devicesList, comboKey) => {
     if (!Array.isArray(devicesList) || devicesList.length === 0) {
       return toast.warning("Combo này chưa có thiết bị hợp lệ để thêm vào giỏ.");
     }
@@ -161,6 +163,8 @@ export default function SmartGearPage() {
       return toast.warning("Ngày kết thúc phải sau ngày bắt đầu!");
     }
 
+    setIsAddingToCart(comboKey);
+
     try {
       const comboItems = devicesList
         .filter((item) => item.deviceId)
@@ -170,6 +174,7 @@ export default function SmartGearPage() {
         }));
 
       if (!comboItems.length) {
+        setIsAddingToCart(false);
         return toast.warning("Không thể thêm combo vì thiếu thông tin thiết bị.");
       }
 
@@ -183,7 +188,9 @@ export default function SmartGearPage() {
       const isSuccess = res.success || res.data?.success;
 
       if (isSuccess) {
-        toast.success(res.message || res.data?.message || "Đã thêm combo vào giỏ hàng!");
+        toast.success(res.message || res.data?.message || "Đã thêm combo vào giỏ hàng!", {
+          icon: <CheckCircle className="w-5 h-5 text-emerald-500" />
+        });
         navigate("/user/cart");
       } else {
         toast.error(res.message || res.data?.message || "Có lỗi khi thêm vào giỏ");
@@ -191,6 +198,8 @@ export default function SmartGearPage() {
     } catch (error) {
       console.error(error);
       toast.error(error?.response?.data?.message || "Lỗi khi thêm vào giỏ hàng.");
+    } finally {
+      setIsAddingToCart(false);
     }
   };
 
@@ -255,15 +264,33 @@ export default function SmartGearPage() {
           </div>
 
           <button
-            onClick={() => handleAddComboToCartClick(comboData.devices)}
-            disabled={!startDate || !endDate}
-            className="w-full rounded-2xl bg-slate-900 text-white py-3.5 font-semibold hover:bg-slate-800 transition disabled:opacity-60 disabled:cursor-not-allowed"
+            onClick={() => handleAddComboToCartClick(comboData.devices, key)}
+            disabled={!startDate || !endDate || isAddingToCart === key}
+            className={`w-full rounded-2xl py-3.5 font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
+              isAddingToCart === key
+                ? 'bg-slate-700 text-slate-300 cursor-wait'
+                : 'bg-gradient-to-r from-slate-900 to-slate-800 text-white hover:from-slate-800 hover:to-slate-700 hover:shadow-lg hover:shadow-slate-900/20 active:scale-[0.98]'
+            } disabled:opacity-60 disabled:cursor-not-allowed`}
           >
-            Thêm combo vào giỏ hàng
+            {isAddingToCart === key ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Đang thêm...
+              </>
+            ) : (
+              <>
+                <ShoppingCart className="w-5 h-5" />
+                Thêm combo vào giỏ
+                <ChevronRight className="w-4 h-4" />
+              </>
+            )}
           </button>
 
           {(!startDate || !endDate) && (
-            <p className="mt-2 text-xs text-amber-600">Bạn cần chọn lịch thuê trước khi thêm combo vào giỏ.</p>
+            <p className="mt-2 text-xs text-amber-600 flex items-center gap-1">
+              <CalendarIcon className="w-3 h-3" />
+              Bạn cần chọn lịch thuê trước khi thêm combo vào giỏ.
+            </p>
           )}
         </div>
       </article>

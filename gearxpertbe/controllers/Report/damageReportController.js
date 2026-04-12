@@ -72,7 +72,7 @@ exports.createDamageReport = async (req, res) => {
     } else if (!Array.isArray(deviceItemIds)) {
       normalizedDeviceItemIds = [];
     }
-    
+
     const hasSerials =
       Array.isArray(rentalItem.deviceItemIds) &&
       rentalItem.deviceItemIds.length > 0;
@@ -170,9 +170,6 @@ exports.createDamageReport = async (req, res) => {
           link: `/damage-reports/${report._id}`,
           type: "DAMAGE_REPORT", // hoặc "RENTAL_ISSUE" tùy bạn
         });
-        console.log(
-          `[Notification] Đã gửi thông báo hư hỏng đến supplier ${supplierId}`
-        );
       } else {
         console.warn(
           `[Notification] Không tìm thấy supplierId cho rental ${rental._id}`

@@ -107,7 +107,7 @@ export default function MyRentals() {
   const navigate = useNavigate();
   const ITEMS_PER_PAGE = 5;
   const [currentPage, setCurrentPage] = useState(1);
-  
+
   // Pagination for sidebars
   const REPORTS_PER_PAGE = 5;
   const [reportsPage, setReportsPage] = useState(1);
@@ -169,13 +169,13 @@ export default function MyRentals() {
     const config =
       type === "CANCEL"
         ? {
-            title: "Xác nhận hủy đơn?",
-            description: "Tiền sẽ được hoàn về ví nếu bạn đã thanh toán thành công.",
-          }
+          title: "Xác nhận hủy đơn?",
+          description: "Tiền sẽ được hoàn về ví nếu bạn đã thanh toán thành công.",
+        }
         : {
-            title: "Xác nhận nhận hàng?",
-            description: "Vui lòng chỉ xác nhận khi bạn đã kiểm tra kỹ thiết bị.",
-          };
+          title: "Xác nhận nhận hàng?",
+          description: "Vui lòng chỉ xác nhận khi bạn đã kiểm tra kỹ thiết bị.",
+        };
     setModalConfig({ isOpen: true, type, selectedId: id, ...config });
   };
 
@@ -232,10 +232,7 @@ export default function MyRentals() {
     try {
       const order = DeliReportModal.order;
       const items = order?.items || [];
-      
-      console.log("DEBUG - Selected items:", DeliReportModal.selectedItems);
-      console.log("DEBUG - Order items:", items.map(i => ({ id: i._id, name: i.deviceId?.name })));
-      
+
       const rentalItemIdSet = new Set(items.map((i) => i._id?.toString()).filter(Boolean));
 
       const rentalItemIds = new Set();
@@ -261,10 +258,6 @@ export default function MyRentals() {
           deviceItemIds.push(selectedId);
         }
       }
-
-      console.log("DEBUG - rentalItemIds:", Array.from(rentalItemIds));
-      console.log("DEBUG - deviceItemIds:", deviceItemIds);
-
       if (rentalItemIds.size === 0) {
         return toast.warning("Không xác định được sản phẩm cần báo cáo");
       }
@@ -524,7 +517,7 @@ export default function MyRentals() {
     }));
   };
 
-  const minExtendDate = extendModal.currentEndDate 
+  const minExtendDate = extendModal.currentEndDate
     ? new Date(extendModal.currentEndDate).toISOString().split('T')[0]
     : new Date().toISOString().split('T')[0];
 
@@ -582,7 +575,6 @@ export default function MyRentals() {
       for (const item of rental.items || []) {
         // Check delivery issues
         const deliveryIssues = item.deliveryIssues || [];
-        console.log("DEBUG - Item:", item.deviceId?.name, "deliveryIssues:", deliveryIssues.length);
         for (const r of deliveryIssues) {
           reports.push({
             type: "DELIVERY",
@@ -597,7 +589,6 @@ export default function MyRentals() {
         }
         // Check damage reports
         const damageReports = item.damageReports || [];
-        console.log("DEBUG - Item:", item.deviceId?.name, "damageReports:", damageReports.length);
         for (const r of damageReports) {
           reports.push({
             type: "DAMAGE",
@@ -615,7 +606,6 @@ export default function MyRentals() {
     }
 
     reports.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    console.log("DEBUG - Total reports:", reports.length);
     return reports;
   }, [rentals]);
 
@@ -697,97 +687,94 @@ export default function MyRentals() {
                 <div className="text-sm text-gray-500">Chưa có báo cáo nào.</div>
               ) : (
                 <>
-                <div className="space-y-3">
-                  {currentReports.map((r, idx) => (
-                    <div
-                      key={`${r.type}-${idx}`}
-                      className="p-4 rounded-2xl bg-gray-50 border border-gray-100"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="text-xs font-black text-gray-900 truncate">
-                            {r.itemName || "Thiết bị"}{" "}
-                            <span className="text-gray-400 font-bold">
-                              {r.rentalCode
-                                ? `• BK${String(r.rentalCode).padStart(4, "0")}`
+                  <div className="space-y-3">
+                    {currentReports.map((r, idx) => (
+                      <div
+                        key={`${r.type}-${idx}`}
+                        className="p-4 rounded-2xl bg-gray-50 border border-gray-100"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-xs font-black text-gray-900 truncate">
+                              {r.itemName || "Thiết bị"}{" "}
+                              <span className="text-gray-400 font-bold">
+                                {r.rentalCode
+                                  ? `• BK${String(r.rentalCode).padStart(4, "0")}`
+                                  : ""}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-gray-500 mt-1 line-clamp-2">
+                              {r.description || "-"}
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <div
+                              className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase ${r.type === "DELIVERY"
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-red-100 text-red-700"
+                                }`}
+                            >
+                              {r.type === "DELIVERY" ? "Delivery" : "Damage"}
+                            </div>
+                            <div className="text-[10px] font-bold text-gray-400">
+                              {r.createdAt
+                                ? new Date(r.createdAt).toLocaleDateString("vi-VN")
                                 : ""}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between">
+                          <div className="text-[11px] font-bold text-gray-500">
+                            Status:{" "}
+                            <span className="text-gray-700">
+                              {r.status || "OPEN"}
                             </span>
                           </div>
-                          <div className="text-[11px] text-gray-500 mt-1 line-clamp-2">
-                            {r.description || "-"}
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-1">
-                          <div
-                            className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase ${
-                              r.type === "DELIVERY"
-                                ? "bg-amber-100 text-amber-700"
-                                : "bg-red-100 text-red-700"
-                            }`}
-                          >
-                            {r.type === "DELIVERY" ? "Delivery" : "Damage"}
-                          </div>
-                          <div className="text-[10px] font-bold text-gray-400">
-                            {r.createdAt
-                              ? new Date(r.createdAt).toLocaleDateString("vi-VN")
-                              : ""}
-                          </div>
+                          {r.type === "DAMAGE" && r.severity && (
+                            <div className="text-[11px] font-bold text-gray-500">
+                              Severity:{" "}
+                              <span className="text-gray-700">{r.severity}</span>
+                            </div>
+                          )}
+                          {r.type === "DELIVERY" && r.issueType && (
+                            <div className="text-[11px] font-bold text-gray-500">
+                              Type:{" "}
+                              <span className="text-gray-700">{r.issueType}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <div className="mt-3 flex items-center justify-between">
-                        <div className="text-[11px] font-bold text-gray-500">
-                          Status:{" "}
-                          <span className="text-gray-700">
-                            {r.status || "OPEN"}
-                          </span>
-                        </div>
-                        {r.type === "DAMAGE" && r.severity && (
-                          <div className="text-[11px] font-bold text-gray-500">
-                            Severity:{" "}
-                            <span className="text-gray-700">{r.severity}</span>
-                          </div>
-                        )}
-                        {r.type === "DELIVERY" && r.issueType && (
-                          <div className="text-[11px] font-bold text-gray-500">
-                            Type:{" "}
-                            <span className="text-gray-700">{r.issueType}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
-                {/* Pagination for Reports */}
-                {totalReportsPages > 1 && (
-                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
-                    <button
-                      disabled={reportsPage <= 1}
-                      onClick={() => setReportsPage((p) => Math.max(1, p - 1))}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
-                        reportsPage <= 1
-                          ? "text-gray-300 cursor-not-allowed"
-                          : "text-gray-600 hover:bg-gray-100"
-                      }`}
-                    >
-                      ← Trước
-                    </button>
-                    <span className="text-xs font-semibold text-gray-500">
-                      {reportsPage} / {totalReportsPages}
-                    </span>
-                    <button
-                      disabled={reportsPage >= totalReportsPages}
-                      onClick={() => setReportsPage((p) => Math.min(totalReportsPages, p + 1))}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
-                        reportsPage >= totalReportsPages
-                          ? "text-gray-300 cursor-not-allowed"
-                          : "text-gray-600 hover:bg-gray-100"
-                      }`}
-                    >
-                      Sau →
-                    </button>
+                    ))}
                   </div>
-                )}
+
+                  {/* Pagination for Reports */}
+                  {totalReportsPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
+                      <button
+                        disabled={reportsPage <= 1}
+                        onClick={() => setReportsPage((p) => Math.max(1, p - 1))}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold ${reportsPage <= 1
+                            ? "text-gray-300 cursor-not-allowed"
+                            : "text-gray-600 hover:bg-gray-100"
+                          }`}
+                      >
+                        ← Trước
+                      </button>
+                      <span className="text-xs font-semibold text-gray-500">
+                        {reportsPage} / {totalReportsPages}
+                      </span>
+                      <button
+                        disabled={reportsPage >= totalReportsPages}
+                        onClick={() => setReportsPage((p) => Math.min(totalReportsPages, p + 1))}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold ${reportsPage >= totalReportsPages
+                            ? "text-gray-300 cursor-not-allowed"
+                            : "text-gray-600 hover:bg-gray-100"
+                          }`}
+                      >
+                        Sau →
+                      </button>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -804,75 +791,75 @@ export default function MyRentals() {
             />
 
             {loading ? (
-          <div className="flex flex-col items-center py-20">
-            <div className="animate-spin w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full mb-4" />
-            <span className="text-[10px] font-bold uppercase text-gray-400 tracking-widest italic">
-              Loading your orders...
-            </span>
-          </div>
-        ) : (
-          <div className="space-y-8">
-            {currentRentals.length > 0 ? (
-              currentRentals.map((order) => (
-                <RentalCard
-                  key={`${order._id}-${reviewStatusMap[order._id] ?? false}`}
-                  order={order}
-                  onPayNow={() => handlePayNow(order)}
-                  onCancel={() => handleOpenModal("CANCEL", order._id)}
-                  onConfirmReceived={() => handleOpenModal("CONFIRM", order._id)}
-                  onTrack={() => setTrackingModal({ isOpen: true, order })}
-                  onExtend={() =>
-                    setExtendModal({
-                      isOpen: true,
-                      orderId: order._id,
-                      currentEndDate: order.items?.[0]?.rentalEndDate,
-                      dailyPrice:
-                        order.items?.[0]?.rentPrice / (order.items?.[0]?.totalDays || 1),
-                      order,
-                    })
-                  }
-                  onReportDelivery={(item) =>
-                    setDeliReportModal({
-                      isOpen: true,
-                      rentalId: order._id,
-                      selectedItems: [],
-                      order,
-                    })
-                  }
-                  onReportDamage={() =>
-                    setDamageReportModal({
-                      isOpen: true,
-                      rentalId: order._id,
-                      selectedItems: [],
-                      severity: "MEDIUM",
-                      description: "",
-                      files: [],
-                      order,
-                    })
-                  }
-                  onReview={() => openReviewModal(order)}
-                  onClickDetail={() => navigate(`/my-rentals/${order._id}`)}
-                  onReRent={() => handleReRent(order)}
-                  hasReviewed={reviewStatusMap[order._id] ?? false}
-                />
-              ))
+              <div className="flex flex-col items-center py-20">
+                <div className="animate-spin w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full mb-4" />
+                <span className="text-[10px] font-bold uppercase text-gray-400 tracking-widest italic">
+                  Loading your orders...
+                </span>
+              </div>
             ) : (
-              <div className="bg-white rounded-3xl p-16 text-center border border-dashed border-gray-200">
-                <div className="mx-auto w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-gray-300 mb-6">
-                  📦
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900">Chưa có đơn thuê nào</h3>
-                <p className="text-gray-500 mt-2">Bạn chưa có giao dịch nào trong mục này</p>
-                <button
-                  onClick={() => navigate("/devices")}
-                  className="mt-8 px-10 py-4 bg-gray-900 hover:bg-black text-white rounded-2xl font-bold text-sm"
-                >
-                  Khám phá thiết bị
-                </button>
+              <div className="space-y-8">
+                {currentRentals.length > 0 ? (
+                  currentRentals.map((order) => (
+                    <RentalCard
+                      key={`${order._id}-${reviewStatusMap[order._id] ?? false}`}
+                      order={order}
+                      onPayNow={() => handlePayNow(order)}
+                      onCancel={() => handleOpenModal("CANCEL", order._id)}
+                      onConfirmReceived={() => handleOpenModal("CONFIRM", order._id)}
+                      onTrack={() => setTrackingModal({ isOpen: true, order })}
+                      onExtend={() =>
+                        setExtendModal({
+                          isOpen: true,
+                          orderId: order._id,
+                          currentEndDate: order.items?.[0]?.rentalEndDate,
+                          dailyPrice:
+                            order.items?.[0]?.rentPrice / (order.items?.[0]?.totalDays || 1),
+                          order,
+                        })
+                      }
+                      onReportDelivery={(item) =>
+                        setDeliReportModal({
+                          isOpen: true,
+                          rentalId: order._id,
+                          selectedItems: [],
+                          order,
+                        })
+                      }
+                      onReportDamage={() =>
+                        setDamageReportModal({
+                          isOpen: true,
+                          rentalId: order._id,
+                          selectedItems: [],
+                          severity: "MEDIUM",
+                          description: "",
+                          files: [],
+                          order,
+                        })
+                      }
+                      onReview={() => openReviewModal(order)}
+                      onClickDetail={() => navigate(`/my-rentals/${order._id}`)}
+                      onReRent={() => handleReRent(order)}
+                      hasReviewed={reviewStatusMap[order._id] ?? false}
+                    />
+                  ))
+                ) : (
+                  <div className="bg-white rounded-3xl p-16 text-center border border-dashed border-gray-200">
+                    <div className="mx-auto w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-gray-300 mb-6">
+                      📦
+                    </div>
+                    <h3 className="text-2xl font-bold text-gray-900">Chưa có đơn thuê nào</h3>
+                    <p className="text-gray-500 mt-2">Bạn chưa có giao dịch nào trong mục này</p>
+                    <button
+                      onClick={() => navigate("/devices")}
+                      className="mt-8 px-10 py-4 bg-gray-900 hover:bg-black text-white rounded-2xl font-bold text-sm"
+                    >
+                      Khám phá thiết bị
+                    </button>
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
           </main>
 
           {/* RIGHT SIDEBAR */}
@@ -898,77 +885,75 @@ export default function MyRentals() {
                 </div>
               ) : (
                 <>
-                <div className="space-y-3">
-                  {currentExtendRequests.map((r, idx) => (
-                    <div
-                      key={`${r.rentalId}-${idx}`}
-                      className="p-4 rounded-2xl bg-indigo-50 border border-indigo-100"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="text-xs font-black text-gray-900 truncate">
-                            {r.rentalCode
-                              ? `BK${String(r.rentalCode).padStart(4, "0")}`
-                              : r.rentalId}
+                  <div className="space-y-3">
+                    {currentExtendRequests.map((r, idx) => (
+                      <div
+                        key={`${r.rentalId}-${idx}`}
+                        className="p-4 rounded-2xl bg-indigo-50 border border-indigo-100"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-xs font-black text-gray-900 truncate">
+                              {r.rentalCode
+                                ? `BK${String(r.rentalCode).padStart(4, "0")}`
+                                : r.rentalId}
+                            </div>
+                            <div className="text-[11px] text-gray-600 mt-1">
+                              Đến ngày:{" "}
+                              <span className="font-bold">
+                                {r.requestedEndDate
+                                  ? new Date(r.requestedEndDate).toLocaleDateString("vi-VN")
+                                  : "-"}
+                              </span>{" "}
+                              • {r.requestedDays || 0} ngày
+                            </div>
                           </div>
-                          <div className="text-[11px] text-gray-600 mt-1">
-                            Đến ngày:{" "}
-                            <span className="font-bold">
-                              {r.requestedEndDate
-                                ? new Date(r.requestedEndDate).toLocaleDateString("vi-VN")
-                                : "-"}
-                            </span>{" "}
-                            • {r.requestedDays || 0} ngày
+                          <div className="flex flex-col items-end gap-1">
+                            <div className="px-3 py-1 rounded-xl text-[10px] font-black uppercase bg-indigo-600 text-white">
+                              {r.status || "PENDING"}
+                            </div>
+                            <div className="text-[10px] font-bold text-indigo-700">
+                              {(r.proposedExtraAmount || 0).toLocaleString()} ₫
+                            </div>
                           </div>
                         </div>
-                        <div className="flex flex-col items-end gap-1">
-                          <div className="px-3 py-1 rounded-xl text-[10px] font-black uppercase bg-indigo-600 text-white">
-                            {r.status || "PENDING"}
+                        {r.note && (
+                          <div className="text-[11px] text-indigo-700 mt-2 line-clamp-2">
+                            {r.note}
                           </div>
-                          <div className="text-[10px] font-bold text-indigo-700">
-                            {(r.proposedExtraAmount || 0).toLocaleString()} ₫
-                          </div>
-                        </div>
+                        )}
                       </div>
-                      {r.note && (
-                        <div className="text-[11px] text-indigo-700 mt-2 line-clamp-2">
-                          {r.note}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                
-                {/* Pagination for Extend Requests */}
-                {totalExtendPages > 1 && (
-                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
-                    <button
-                      disabled={extendPage <= 1}
-                      onClick={() => setExtendPage((p) => Math.max(1, p - 1))}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
-                        extendPage <= 1
-                          ? "text-gray-300 cursor-not-allowed"
-                          : "text-gray-600 hover:bg-gray-100"
-                      }`}
-                    >
-                      ← Trước
-                    </button>
-                    <span className="text-xs font-semibold text-gray-500">
-                      {extendPage} / {totalExtendPages}
-                    </span>
-                    <button
-                      disabled={extendPage >= totalExtendPages}
-                      onClick={() => setExtendPage((p) => Math.min(totalExtendPages, p + 1))}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
-                        extendPage >= totalExtendPages
-                          ? "text-gray-300 cursor-not-allowed"
-                          : "text-gray-600 hover:bg-gray-100"
-                      }`}
-                    >
-                      Sau →
-                    </button>
+                    ))}
                   </div>
-                )}
+
+                  {/* Pagination for Extend Requests */}
+                  {totalExtendPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
+                      <button
+                        disabled={extendPage <= 1}
+                        onClick={() => setExtendPage((p) => Math.max(1, p - 1))}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold ${extendPage <= 1
+                            ? "text-gray-300 cursor-not-allowed"
+                            : "text-gray-600 hover:bg-gray-100"
+                          }`}
+                      >
+                        ← Trước
+                      </button>
+                      <span className="text-xs font-semibold text-gray-500">
+                        {extendPage} / {totalExtendPages}
+                      </span>
+                      <button
+                        disabled={extendPage >= totalExtendPages}
+                        onClick={() => setExtendPage((p) => Math.min(totalExtendPages, p + 1))}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold ${extendPage >= totalExtendPages
+                            ? "text-gray-300 cursor-not-allowed"
+                            : "text-gray-600 hover:bg-gray-100"
+                          }`}
+                      >
+                        Sau →
+                      </button>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -1039,11 +1024,10 @@ export default function MyRentals() {
             <button
               disabled={currentPage <= 1}
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className={`px-5 py-3 rounded-2xl text-sm font-bold border ${
-                currentPage <= 1
+              className={`px-5 py-3 rounded-2xl text-sm font-bold border ${currentPage <= 1
                   ? "bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed"
                   : "bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
-              }`}
+                }`}
             >
               Trước
             </button>
@@ -1053,11 +1037,10 @@ export default function MyRentals() {
             <button
               disabled={currentPage >= totalPages}
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              className={`px-5 py-3 rounded-2xl text-sm font-bold border ${
-                currentPage >= totalPages
+              className={`px-5 py-3 rounded-2xl text-sm font-bold border ${currentPage >= totalPages
                   ? "bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed"
                   : "bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
-              }`}
+                }`}
             >
               Sau
             </button>

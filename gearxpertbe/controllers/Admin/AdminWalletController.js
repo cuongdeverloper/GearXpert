@@ -34,7 +34,6 @@ exports.adjustWalletBalance = async (req, res) => {
     const { amount, reason, type } = req.body;
     const adminId = req.user.id;
 
-    console.log("[DEBUG] Adjust wallet balance request:", { amount, reason, type, adminId });
 
     // Validate input
     if (!amount || isNaN(amount) || amount === 0) {
@@ -49,7 +48,6 @@ exports.adjustWalletBalance = async (req, res) => {
 
     // Find system wallet
     let adminWallet = await Wallet.findOne({ isSystem: true }).session(session);
-    console.log("[DEBUG] Found system wallet:", adminWallet ? adminWallet._id : "Not found");
     
     if (!adminWallet) {
       await session.abortTransaction();
@@ -59,7 +57,6 @@ exports.adjustWalletBalance = async (req, res) => {
     const balanceBefore = adminWallet.balance;
     const balanceAfter = balanceBefore + parseFloat(amount);
 
-    console.log("[DEBUG] Balance change:", { before: balanceBefore, amount, after: balanceAfter });
 
     // Update wallet balance
     adminWallet.balance = balanceAfter;
@@ -82,7 +79,6 @@ exports.adjustWalletBalance = async (req, res) => {
       }
     }], { session });
 
-    console.log("[DEBUG] Transaction created:", transaction[0]._id);
 
     await session.commitTransaction();
 
@@ -120,10 +116,6 @@ exports.createManualTransaction = async (req, res) => {
       updateBalance = true // Default: update wallet balance
     } = req.body;
     const adminId = req.user.id;
-
-    console.log("[DEBUG] Create manual transaction:", {
-      type, amount, description, referenceType, referenceId, targetWalletId, updateBalance, adminId
-    });
 
     // Validate required fields
     if (!type || !amount || !description) {
@@ -183,15 +175,6 @@ exports.createManualTransaction = async (req, res) => {
 
     const balanceBefore = wallet.balance;
     const balanceAfter = balanceBefore + parsedAmount;
-
-    console.log("[DEBUG] Wallet balance change:", {
-      walletId: wallet._id,
-      before: balanceBefore,
-      change: parsedAmount,
-      after: balanceAfter,
-      updateBalance
-    });
-
     // Validate balance for negative amounts
     if (parsedAmount < 0 && Math.abs(parsedAmount) > balanceBefore) {
       await session.abortTransaction();
@@ -206,7 +189,6 @@ exports.createManualTransaction = async (req, res) => {
     if (updateBalance) {
       wallet.balance = balanceAfter;
       await wallet.save({ session });
-      console.log("[DEBUG] Wallet balance updated");
     }
 
     // Validate reference ID if reference type provided
@@ -243,7 +225,6 @@ exports.createManualTransaction = async (req, res) => {
       }
     }], { session });
 
-    console.log("[DEBUG] Transaction created:", transaction[0]._id);
 
     await session.commitTransaction();
 
@@ -513,7 +494,6 @@ exports.getAdminWallet = async (req, res) => {
  */
 exports.getAdminWalletTransactions = async (req, res) => {
   try {
-    console.log("=== GET ADMIN WALLET TRANSACTIONS CALLED ===");
     const { type, dateRange, page = 1, limit = 50, search } = req.query;
     
     // Build base filter
@@ -563,9 +543,6 @@ exports.getAdminWalletTransactions = async (req, res) => {
         { 'metadata.adjustmentReason': { $regex: search, $options: 'i' } }
       ];
     }
-
-    console.log("Transaction filter:", filter);
-
     // Get transactions with pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
@@ -753,12 +730,8 @@ exports.approveWithdrawal = async (req, res) => {
   
   try {
     const { id } = req.params;
-    console.log("[WITHDRAWAL APPROVE] Starting approval for ID:", id);
-    
     // Find the withdrawal request (not WalletTransaction)
-    const withdrawal = await WithdrawRequest.findById(id).session(session);
-    console.log("[WITHDRAWAL APPROVE] Found withdrawal:", withdrawal?._id);
-    
+    const withdrawal = await WithdrawRequest.findById(id).session(session);    
     if (!withdrawal) {
       await session.abortTransaction();
       return res.status(404).json({ message: "Withdrawal request not found" });
@@ -771,7 +744,6 @@ exports.approveWithdrawal = async (req, res) => {
     
     // Find the supplier wallet
     const supplierWallet = await Wallet.findById(withdrawal.wallet).session(session);
-    console.log("[WITHDRAWAL APPROVE] Found supplier wallet:", supplierWallet?._id);
     
     if (!supplierWallet) {
       await session.abortTransaction();
@@ -780,11 +752,9 @@ exports.approveWithdrawal = async (req, res) => {
     
     // Find supplier user to get bank info
     const supplier = await User.findById(withdrawal.user).session(session);
-    console.log("[WITHDRAWAL APPROVE] Found supplier user:", supplier?._id);
     
     // Use bank info from withdrawal request, not user
     const bankInfo = withdrawal.bankInfo;
-    console.log("[WITHDRAWAL APPROVE] Bank info from withdrawal request:", bankInfo);
     
     if (!supplier || !bankInfo) {
       await session.abortTransaction();
@@ -804,20 +774,13 @@ exports.approveWithdrawal = async (req, res) => {
       accountNumber: bankInfo.accountNumber,
       accountName: bankInfo.accountName,
       bankCode: bankInfo.bankCode || bankInfo.bankName, // Use bankName if bankCode not available
-    };
-    
-    console.log("[WITHDRAWAL] Processing PayOS transfer:", transferData);
-    
+    };       
     // Execute PayOS transfer
     let transferResult;
     try {
       transferResult = await transferMoney(transferData);
-      console.log("[WITHDRAWAL] PayOS transfer successful:", transferResult);
-      
       // Check if manual transfer is required
-      if (transferResult.requiresManualTransfer) {
-        console.log("[WITHDRAWAL] Manual transfer required");
-        
+      if (transferResult.requiresManualTransfer) {        
         // Update withdrawal status but mark for manual transfer
         withdrawal.status = "APPROVED";
         withdrawal.processedAt = new Date();
@@ -847,10 +810,7 @@ exports.approveWithdrawal = async (req, res) => {
           }
         }], { session });
         
-        await session.commitTransaction();
-        
-        console.log("[WITHDRAWAL APPROVE] Manual transfer approval completed");
-        
+        await session.commitTransaction();               
         return res.json({
           success: true,
           message: "Duyệt rút tiền thành công - Cần chuyển tiền thủ công",
@@ -913,10 +873,7 @@ exports.approveWithdrawal = async (req, res) => {
       payosTransferId: transferResult.transferId || transferResult.id
     }], { session });
     
-    await session.commitTransaction();
-    
-    console.log("[WITHDRAWAL APPROVE] Approval completed successfully");
-    
+    await session.commitTransaction();    
     res.json({
       success: true,
       message: "Duyệt rút tiền và chuyển tiền thành công",
@@ -957,7 +914,6 @@ exports.rejectWithdrawal = async (req, res) => {
     const { id } = req.params;
     const { reason } = req.body;
     
-    console.log("[WITHDRAWAL REJECT] Starting rejection for ID:", id);
     
     if (!reason) {
       await session.abortTransaction();
@@ -966,7 +922,6 @@ exports.rejectWithdrawal = async (req, res) => {
     
     // Find the withdrawal request (not WalletTransaction)
     const withdrawal = await WithdrawRequest.findById(id).session(session);
-    console.log("[WITHDRAWAL REJECT] Found withdrawal:", withdrawal?._id);
     
     if (!withdrawal) {
       await session.abortTransaction();
@@ -985,9 +940,7 @@ exports.rejectWithdrawal = async (req, res) => {
     await withdrawal.save({ session });
     
     await session.commitTransaction();
-    
-    console.log("[WITHDRAWAL REJECT] Rejection completed successfully");
-    
+        
     res.json({
       success: true,
       message: "Withdrawal request rejected successfully",

@@ -12,9 +12,6 @@ const payos = new PayOS(
   process.env.PAYOS_CHECKSUM_KEY
 );
 
-// Debug để chắc chắn SDK v2
-console.log('PayOS v2 - paymentRequests tồn tại:', !!payos.paymentRequests);
-
 /**
  * 🔵 NẠP TIỀN – TẠO LINK THANH TOÁN
  * POST /api/wallet/topup
@@ -25,7 +22,7 @@ exports.topUpWallet = async (req, res) => {
   try {
     const userId = req.user.id;
     const { amount } = req.body;
-    const cleanAmount = parseInt(amount, 10); 
+    const cleanAmount = parseInt(amount, 10);
     if (isNaN(cleanAmount) || cleanAmount < 10000) {
       return res.status(400).json({ message: 'Số tiền tối thiểu 10.000đ' });
     }
@@ -144,7 +141,7 @@ exports.verifyTopUp = async (req, res) => {
 
   try {
     const { orderCode } = req.body;
-    
+
     // 1. Kiểm tra bản ghi Payment
     const payment = await Payment.findOne({ orderCode: Number(orderCode) }).session(session);
     if (!payment) {
@@ -158,8 +155,8 @@ exports.verifyTopUp = async (req, res) => {
     }
 
     // 2. Kiểm tra trạng thái thực tế từ PayOS
-    const info = await payos.getPaymentLinkInformation(orderCode);
-    
+    const info = await payos.paymentRequests.create(orderCode);
+
     if (info.status === 'PAID') {
       // A. Cập nhật trạng thái Payment
       payment.status = 'PAID';
@@ -174,12 +171,12 @@ exports.verifyTopUp = async (req, res) => {
 
       // C. Cập nhật WalletTransaction từ PENDING -> SUCCESS
       await WalletTransaction.findOneAndUpdate(
-        { 
-          wallet: wallet._id, 
-          referenceId: payment._id, 
-          type: 'TOP_UP' 
+        {
+          wallet: wallet._id,
+          referenceId: payment._id,
+          type: 'TOP_UP'
         },
-        { 
+        {
           status: 'SUCCESS',
           balanceBefore: before,
           balanceAfter: wallet.balance,
@@ -192,17 +189,17 @@ exports.verifyTopUp = async (req, res) => {
       session.endSession();
       return res.json({ success: true });
     } else if (info.status === 'CANCELLED' || info.status === 'EXPIRED') {
-        // Xử lý nếu giao dịch thất bại/hết hạn
-        payment.status = 'FAILED';
-        await payment.save({ session });
-        
-        await WalletTransaction.findOneAndUpdate(
-            { wallet: payment.user, referenceId: payment._id },
-            { status: 'FAILED' },
-            { session }
-        );
-        await session.commitTransaction();
-        return res.json({ success: false, status: info.status });
+      // Xử lý nếu giao dịch thất bại/hết hạn
+      payment.status = 'FAILED';
+      await payment.save({ session });
+
+      await WalletTransaction.findOneAndUpdate(
+        { wallet: payment.user, referenceId: payment._id },
+        { status: 'FAILED' },
+        { session }
+      );
+      await session.commitTransaction();
+      return res.json({ success: false, status: info.status });
     }
 
     await session.abortTransaction();
@@ -223,7 +220,7 @@ exports.requestWithdraw = async (req, res) => {
   session.startTransaction();
 
   try {
-    const { amount, bankInfo } = req.body; 
+    const { amount, bankInfo } = req.body;
     // bankInfo: { bankName, accountNumber, accountName }
 
     const wallet = await Wallet.findOne({ user: req.user.id }).session(session);
