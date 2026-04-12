@@ -241,6 +241,23 @@ export default function SupplierPublicProfile() {
     await handleFollow();
   };
 
+  const handleOpenSupplierChat = useCallback(async () => {
+    if (!isAuthenticated) {
+      toast.info("Vui lòng đăng nhập để nhắn tin");
+      navigate("/signin");
+      return;
+    }
+    if (!supplier) return;
+    try {
+      const suppUserId = supplier.userId?._id || supplier.userId;
+      const conversation = await ApiCreateConversation(suppUserId);
+      const friendInfo = await ApiGetUserByUserId(suppUserId);
+      dispatch(openChatWindow({ ...conversation, friendInfo }));
+    } catch {
+      toast.error("Không thể mở cuộc trò chuyện");
+    }
+  }, [isAuthenticated, navigate, supplier, dispatch]);
+
   useEffect(() => {
     const init = async () => {
       setLoading(true);
@@ -515,10 +532,14 @@ export default function SupplierPublicProfile() {
                   )}
 
                   <div className="flex gap-2">
-                    <a href={`tel:${supplier.contactPhone}`} className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-4 bg-indigo-50 text-indigo-700 rounded-[20px] font-black text-xs uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm active:scale-95">
+                    <button
+                      type="button"
+                      onClick={handleOpenSupplierChat}
+                      className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-4 bg-indigo-50 text-indigo-700 rounded-[20px] font-black text-xs uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm active:scale-95"
+                    >
                       <MessageCircle size={18} />
                       Liên hệ
-                    </a>
+                    </button>
                     <button onClick={() => setShowMapModal(true)} className="flex-shrink-0 p-4 bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 hover:border-indigo-100 rounded-[20px] transition-all shadow-sm active:scale-95">
                       <MapPin size={22} />
                     </button>
@@ -542,35 +563,13 @@ export default function SupplierPublicProfile() {
                   {[1, 2, 3].map(i => (
                     <div key={i} className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-slate-200" />
                   ))}
-                                    <div className="flex items-center justify-center h-8 w-8 rounded-full ring-2 ring-white bg-indigo-600 text-[10px] font-black text-white">
+                  <div className="flex items-center justify-center h-8 w-8 rounded-full ring-2 ring-white bg-indigo-600 text-[10px] font-black text-white">
                     +{followerCount}
                   </div>
                 </div>
                 <span className="text-xs font-black text-slate-400 uppercase tracking-widest">
                   đang theo dõi
                 </span>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!isAuthenticated) {
-                      toast.info("Vui lòng đăng nhập để nhắn tin");
-                      navigate("/signin");
-                      return;
-                    }
-                    try {
-                      const suppUserId = supplier.userId?._id || supplier.userId;
-                      const conversation = await ApiCreateConversation(suppUserId);
-                      const friendInfo = await ApiGetUserByUserId(suppUserId);
-                      dispatch(openChatWindow({ ...conversation, friendInfo }));
-                    } catch (err) {
-                      toast.error("Không thể mở cuộc trò chuyện");
-                    }
-                  }}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 transition-all shadow-sm"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  Nhắn tin
-                </button>
               </div>
             </div>
           </div>
