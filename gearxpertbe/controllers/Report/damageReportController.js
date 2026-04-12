@@ -1,7 +1,8 @@
 const DamageReport = require("../../models/DamageReport");
 const Rental = require("../../models/Rental");
 const RentalItem = require("../../models/RentalItem");
-const NotificationConfig = require("../../configs/NotificationConfig");  // ← THÊM DÒNG NÀY (điều chỉnh path nếu cần)
+const DeviceItem = require("../../models/DeviceItem");
+const NotificationConfig = require("../../configs/NotificationConfig");
 
 exports.createDamageReport = async (req, res) => {
   try {
@@ -180,6 +181,22 @@ exports.createDamageReport = async (req, res) => {
     } catch (notifyErr) {
       console.error("Lỗi gửi notification khi tạo damage report:", notifyErr);
       // Không throw lỗi → vẫn trả success cho client
+    }
+
+    // 7.5 Set DeviceItem liên quan → PENDING_RESOLUTION (không thể thuê tiếp)
+    if (hasSerials && normalizedDeviceItemIds.length > 0) {
+      try {
+        await DeviceItem.updateMany(
+          { _id: { $in: normalizedDeviceItemIds } },
+          { status: "PENDING_RESOLUTION", activeIssueId: report._id }
+        );
+        console.log(
+          `[DamageReport] Set ${normalizedDeviceItemIds.length} DeviceItem(s) → PENDING_RESOLUTION`
+        );
+      } catch (diErr) {
+        console.error("[DamageReport] Lỗi cập nhật DeviceItem status:", diErr);
+        // Không throw — vẫn trả success cho client
+      }
     }
 
     // 8. Trả về kết quả

@@ -95,7 +95,7 @@ exports.createDeliveryIssue = async (req, res) => {
     } else if (!Array.isArray(deviceItemIds)) {
       normalizedDeviceItemIds = [];
     }
-    
+
     if (normalizedDeviceItemIds.length > 0) {
       const itemMap = {};
       selectedItems.forEach((item) => {
@@ -503,7 +503,7 @@ exports.getStaffReturnIssues = async (req, res) => {
             : record?.prefetchedSnapshot?.items || [];
 
         const syntheticDeviceIds = snapshotItems.slice(0, 3).map((item, idx) => ({
-          _id: `${record._id}-device-${idx}`,
+          _id: item?.deviceId || `${record._id}-device-${idx}`,
           name: item?.deviceName || "Thiết bị",
         }));
 
@@ -602,7 +602,7 @@ exports.getSupplierIssues = async (req, res) => {
             : record?.prefetchedSnapshot?.items || [];
 
         const syntheticDeviceIds = snapshotItems.slice(0, 3).map((item, idx) => ({
-          _id: `${record._id}-device-${idx}`,
+          _id: item?.deviceId || `${record._id}-device-${idx}`,
           name: item?.deviceName || "Thiết bị",
         }));
 

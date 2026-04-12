@@ -45,6 +45,8 @@ const extensionRequestRouter = require("./Routes/ExtensionRequestRoutes");
 const { startAutoConfirmJob } = require("./jobs/autoConfirmDelivery");
 const { startAutoReturnJob } = require("./jobs/autoReturnRentals");
 const routerReview = require("./Routes/ReviewRoutes");
+const maintenanceRouter = require("./Routes/MaintenanceRoutes");
+const { startPreventiveMaintenanceJob } = require("./jobs/preventiveMaintenanceJob");
 const io = socketIo(server, {
   cors: {
     origin: "*",
@@ -104,6 +106,7 @@ app.use("/api/operation-logs", operationLogRouter);
 app.use("/api/handovers", handoverRouter);
 app.use("/api/returns", returnRouter);
 app.use("/api/reviews", routerReview);
+app.use("/api/maintenance", maintenanceRouter);
 app.use("/", googleAuthRouter);
 
 app.post("/api/ai-chat", handleAIChat);
@@ -123,6 +126,7 @@ startRentalDueReminders();
 socketHandler(io);
 startAutoConfirmJob();
 startAutoReturnJob();
+startPreventiveMaintenanceJob();
 (async () => {
   try {
     await connection();
