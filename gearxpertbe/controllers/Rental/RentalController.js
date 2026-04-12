@@ -2570,17 +2570,59 @@ const endOfDay = (date) =>
 
 
 
-const sumAmount = async (match) => {
+/** Cộng dòng doanh thu phía NCC: ưu tiên paymentBreakdown.supplierReceive, fallback totalAmount (đơn cũ). */
+const sumSupplierRevenueLine = async (match) => {
 
   const result = await Rental.aggregate([
 
     { $match: match },
 
-    { $group: { _id: null, total: { $sum: "$totalAmount" } } },
+    {
+
+      $group: {
+
+        _id: null,
+
+        total: {
+
+          $sum: {
+
+            $ifNull: [
+
+              "$paymentBreakdown.supplierReceive",
+
+              { $ifNull: ["$totalAmount", 0] },
+
+            ],
+
+          },
+
+        },
+
+      },
+
+    },
 
   ]);
 
-  return result[0]?.total || 0;
+  const raw = result[0]?.total;
+
+  if (raw == null) return 0;
+
+  const n = typeof raw === "number" ? raw : parseFloat(String(raw));
+
+  return Number.isFinite(n) ? n : 0;
+
+};
+
+/** Doanh thu thuần hiển thị cho supplier: đã thanh toán − đã hoàn; không âm (tránh ảo khi tổng hoàn > tổng còn PAID). */
+const netSupplierDisplayRevenue = (paidSum, refundedSum) => {
+
+  const p = Number(paidSum) || 0;
+
+  const r = Number(refundedSum) || 0;
+
+  return Math.max(0, p - r);
 
 };
 
@@ -2612,7 +2654,7 @@ exports.getSupplierRevenue = async (req, res) => {
 
 
 
-    const totalPaid = await sumAmount({
+    const totalPaid = await sumSupplierRevenueLine({
 
       supplierId: supplierObjectId,
 
@@ -2620,7 +2662,7 @@ exports.getSupplierRevenue = async (req, res) => {
 
     });
 
-    const totalRefunded = await sumAmount({
+    const totalRefunded = await sumSupplierRevenueLine({
 
       supplierId: supplierObjectId,
 
@@ -2628,7 +2670,7 @@ exports.getSupplierRevenue = async (req, res) => {
 
     });
 
-    const monthlyPaid = await sumAmount({
+    const monthlyPaid = await sumSupplierRevenueLine({
 
       supplierId: supplierObjectId,
 
@@ -2638,7 +2680,7 @@ exports.getSupplierRevenue = async (req, res) => {
 
     });
 
-    const monthlyRefunded = await sumAmount({
+    const monthlyRefunded = await sumSupplierRevenueLine({
 
       supplierId: supplierObjectId,
 
@@ -2744,7 +2786,7 @@ exports.getSupplierRevenue = async (req, res) => {
 
       createdAt: { $gte: yearStart, $lte: now },
 
-    }).select("createdAt totalAmount paymentStatus");
+    }).select("createdAt totalAmount paymentStatus paymentBreakdown");
 
 
 
@@ -2844,15 +2886,23 @@ exports.getSupplierRevenue = async (req, res) => {
 
           ) {
 
+            const line =
+
+              rental.paymentBreakdown?.supplierReceive != null
+
+                ? Number(rental.paymentBreakdown.supplierReceive)
+
+                : Number(rental.totalAmount) || 0;
+
             if (rental.paymentStatus === "PAID") {
 
-              totalIn += rental.totalAmount;
+              totalIn += line;
 
               rentalsCount += 1;
 
             } else if (rental.paymentStatus === "REFUNDED") {
 
-              totalOut += rental.totalAmount;
+              totalOut += line;
 
             }
 
@@ -2870,7 +2920,7 @@ exports.getSupplierRevenue = async (req, res) => {
 
           out: totalOut,
 
-          revenue: totalIn - totalOut,
+          revenue: Math.max(0, totalIn - totalOut),
 
           rentals: rentalsCount,
 
@@ -3052,9 +3102,9 @@ exports.getSupplierRevenue = async (req, res) => {
 
       summary: {
 
-        totalRevenue: totalPaid - totalRefunded,
+        totalRevenue: netSupplierDisplayRevenue(totalPaid, totalRefunded),
 
-        monthlyRevenue: monthlyPaid - monthlyRefunded,
+        monthlyRevenue: netSupplierDisplayRevenue(monthlyPaid, monthlyRefunded),
 
         activeRentals,
 

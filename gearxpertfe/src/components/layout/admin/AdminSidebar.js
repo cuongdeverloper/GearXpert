@@ -16,7 +16,8 @@ import {
   FiMessageSquare,
   FiBell,
   FiCreditCard,
-  FiDollarSign
+  FiDollarSign,
+  FiClipboard
 } from "react-icons/fi";
 import { HiOutlineSpeakerphone } from "react-icons/hi";
 
@@ -34,6 +35,7 @@ const navGroups = [
         ]
       },
       { to: "/admin/suppliers", label: "Nhà cung cấp", icon: FiUserCheck },
+      { to: "/admin/supplier-onboarding", label: "Duyệt đăng ký NCC", icon: FiClipboard },
       { to: "/admin/rentals", label: "Đơn thuê", icon: FiFileText },
       { to: "/admin/devices", label: "Thiết bị", icon: FiBox },
       { to: "/admin/vouchers", label: "Mã giảm giá", icon: FiTag },

@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 import { getConversationApi, ApiGetUserByUserId } from '../ApiMessage'; 
 import { openChatWindow } from '../../../redux/reducer/chatWindowReducer';
 
 const MessengerPopup = ({ setIsDropdownOpen }) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const user = useSelector((state) => state.user);
@@ -58,7 +60,7 @@ const MessengerPopup = ({ setIsDropdownOpen }) => {
   return (
     <div className="w-[360px] bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50 flex flex-col">
       <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white">
-        <h3 className="font-bold text-lg text-slate-800">Đoạn chat</h3>
+        <h3 className="font-bold text-lg text-slate-800">{t('messenger.title')}</h3>
         <div className="flex gap-2">
            <span className="material-symbols-outlined text-slate-500 cursor-pointer hover:text-primary text-[20px]" onClick={() => navigate('/messenger')}>open_in_full</span>
         </div>
@@ -69,7 +71,7 @@ const MessengerPopup = ({ setIsDropdownOpen }) => {
              <span className="material-symbols-outlined absolute left-3 top-2 text-slate-400 text-[18px]">search</span>
             <input 
                 type="text" 
-                placeholder="Tìm kiếm trên Messenger" 
+                placeholder={t('messenger.search_placeholder')} 
                 // 3. Bind giá trị và sự kiện onChange
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -83,14 +85,14 @@ const MessengerPopup = ({ setIsDropdownOpen }) => {
             <div className="flex justify-center items-center h-32">
                  <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
             </div>
-        ) : conversations.length === 0 ? (
+         ) : conversations.length === 0 ? (
             <div className="p-6 text-center text-slate-500 text-sm">
-                Chưa có cuộc trò chuyện nào.
+                {t('messenger.no_conversations')}
             </div>
         ) : filteredConversations.length === 0 ? (
             // Thêm trường hợp không tìm thấy kết quả khi search
             <div className="p-6 text-center text-slate-500 text-sm">
-                Không tìm thấy kết quả phù hợp.
+                {t('messenger.no_results')}
             </div>
         ) : (
             <div className="flex flex-col">
@@ -118,10 +120,10 @@ const MessengerPopup = ({ setIsDropdownOpen }) => {
                         <div className="flex-1 min-w-0">
                             <h4 className="font-semibold text-slate-900 text-sm truncate">
                                 {/* Highlight từ khóa tìm kiếm (nếu muốn nâng cao), hiện tại hiển thị bình thường */}
-                                {c.friendInfo?.fullName || c.friendInfo?.username || "Người dùng"}
+                                {c.friendInfo?.fullName || c.friendInfo?.username || t('messenger.user')}
                             </h4>
                             <p className="text-xs text-slate-500 truncate mt-0.5">
-                                Nhấn để xem tin nhắn
+                                {t('messenger.click_to_view')}
                             </p>
                         </div>
                     </div>
@@ -137,7 +139,7 @@ const MessengerPopup = ({ setIsDropdownOpen }) => {
             setIsDropdownOpen(false);
         }}
       >
-        Xem tất cả
+        {t('messenger.view_all')}
       </div>
     </div>
   );

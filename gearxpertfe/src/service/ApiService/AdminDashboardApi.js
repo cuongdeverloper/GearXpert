@@ -23,3 +23,16 @@ export const getAdminSuppliers = () => {
 export const getAdminDevices = (params = {}) => {
   return axios.get("/api/admin/devices", { params });
 };
+
+/** Supplier onboarding (contract PENDING → approve / reject) */
+export const getSupplierOnboardingRequests = (params = {}) => {
+  return axios.get("/api/admin/supplier-onboarding", { params });
+};
+
+export const approveSupplierOnboardingRequest = (contractId) => {
+  return axios.post(`/api/admin/supplier-onboarding/${contractId}/approve`);
+};
+
+export const rejectSupplierOnboardingRequest = (contractId, data) => {
+  return axios.post(`/api/admin/supplier-onboarding/${contractId}/reject`, data);
+};

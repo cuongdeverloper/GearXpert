@@ -33,8 +33,11 @@ const EMPTY_DATA = {
   transactions: []
 };
 
-const formatVnd = (value) =>
-  `${Number(value ?? 0).toLocaleString("vi-VN")} đ`;
+const formatVnd = (value) => {
+  const n = Number(value ?? 0);
+  const safe = Number.isFinite(n) ? n : 0;
+  return `${Math.max(0, safe).toLocaleString("vi-VN")} đ`;
+};
 
 const formatVndAbs = (value) =>
   `${Number(value ?? 0).toLocaleString("vi-VN")}`;

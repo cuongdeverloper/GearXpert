@@ -500,7 +500,7 @@ exports.getStaffReturnIssues = async (req, res) => {
             : record?.prefetchedSnapshot?.items || [];
 
         const syntheticDeviceIds = snapshotItems.slice(0, 3).map((item, idx) => ({
-          _id: `${record._id}-device-${idx}`,
+          _id: item?.deviceId || `${record._id}-device-${idx}`,
           name: item?.deviceName || "Thiết bị",
         }));
 
@@ -599,7 +599,7 @@ exports.getSupplierIssues = async (req, res) => {
             : record?.prefetchedSnapshot?.items || [];
 
         const syntheticDeviceIds = snapshotItems.slice(0, 3).map((item, idx) => ({
-          _id: `${record._id}-device-${idx}`,
+          _id: item?.deviceId || `${record._id}-device-${idx}`,
           name: item?.deviceName || "Thiết bị",
         }));
 
@@ -642,6 +642,119 @@ exports.getSupplierIssues = async (req, res) => {
   }
 };
 
+/**
+ * PATCH supplier issue status (delivery or damage report).
+ * - PROCESSING: from OPEN — "Đánh dấu đang xử lý"
+ * - RESOLVED: when rental is REJECTED — "Xác nhận" (supplier acknowledges; no further evidence needed)
+ */
+exports.supplierUpdateIssueStatus = async (req, res) => {
+  try {
+    const supplierId = req.user.id;
+    const { issueId } = req.params;
+    const { status: targetStatus } = req.body;
+
+    if (String(issueId).startsWith("return-failed-")) {
+      return res.status(400).json({
+        message:
+          "Không thể cập nhật bản ghi tổng hợp từ hệ thống. Liên hệ vận hành nếu cần.",
+      });
+    }
+
+    if (!["PROCESSING", "RESOLVED"].includes(targetStatus)) {
+      return res.status(400).json({
+        message: "status phải là PROCESSING hoặc RESOLVED",
+      });
+    }
+
+    let doc = await DeliveryIssueReport.findById(issueId);
+    let modelName = "DeliveryIssueReport";
+    if (!doc) {
+      doc = await DamageReport.findById(issueId);
+      modelName = "DamageReport";
+    }
+    if (!doc) {
+      return res.status(404).json({ message: "Không tìm thấy báo cáo" });
+    }
+
+    const rental = await Rental.findById(doc.rentalId).select("supplierId status");
+    if (!rental || rental.supplierId.toString() !== supplierId.toString()) {
+      return res.status(403).json({ message: "Không có quyền cập nhật báo cáo này" });
+    }
+
+    const prev = doc.status;
+
+    if (targetStatus === "PROCESSING") {
+      if (doc.status !== "OPEN") {
+        return res.status(400).json({
+          message: "Chỉ có thể đánh dấu đang xử lý khi báo cáo đang ở trạng thái Mở (OPEN)",
+        });
+      }
+      doc.status = "PROCESSING";
+    } else if (targetStatus === "RESOLVED") {
+      if (rental.status !== "REJECTED") {
+        return res.status(400).json({
+          message:
+            "Chỉ dùng xác nhận kết thúc khi đơn thuê đã bị từ chối (REJECTED)",
+        });
+      }
+      if (!["OPEN", "PROCESSING"].includes(doc.status)) {
+        return res.status(400).json({
+          message: "Không thể xác nhận với trạng thái báo cáo hiện tại",
+        });
+      }
+      doc.status = "RESOLVED";
+      if (!doc.resolutionNote && req.body.resolutionNote) {
+        doc.resolutionNote = req.body.resolutionNote;
+      }
+      if (!doc.resolutionNote) {
+        doc.resolutionNote = "NCC xác nhận đã nắm thông tin (đơn từ chối).";
+      }
+    }
+
+    if (!doc.statusHistory) doc.statusHistory = [];
+    doc.statusHistory.push({
+      status: doc.status,
+      changedBy: supplierId,
+      note:
+        targetStatus === "PROCESSING"
+          ? "Supplier: đánh dấu đang xử lý"
+          : "Supplier: xác nhận (đơn từ chối)",
+      createdAt: new Date(),
+    });
+
+    await doc.save();
+
+    const populated =
+      modelName === "DeliveryIssueReport"
+        ? await DeliveryIssueReport.findById(doc._id)
+            .populate({
+              path: "rentalId",
+              select: "customerId phoneNumber status inspectedContext",
+              populate: { path: "customerId", select: "fullName email phone image" },
+            })
+            .populate({ path: "staffId", select: "fullName" })
+            .populate({ path: "deviceIds", select: "name images" })
+            .lean()
+        : await DamageReport.findById(doc._id)
+            .populate({
+              path: "rentalId",
+              select: "customerId phoneNumber status",
+              populate: { path: "customerId", select: "fullName email phone image" },
+            })
+            .populate({ path: "deviceId", select: "name images" })
+            .lean();
+
+    res.json({
+      success: true,
+      previousStatus: prev,
+      issue: populated,
+    });
+  } catch (err) {
+    console.error("supplierUpdateIssueStatus:", err);
+    res.status(500).json({ message: err.message || "Lỗi server" });
+  }
+};
+
 module.exports = {
   createDeliveryIssue: exports.createDeliveryIssue,
   getDeliveryIssueByRental: exports.getDeliveryIssueByRental,
@@ -650,4 +763,5 @@ module.exports = {
   createStaffReturnIssue: exports.createStaffReturnIssue,
   getStaffReturnIssues: exports.getStaffReturnIssues,
   getSupplierIssues: exports.getSupplierIssues,
+  supplierUpdateIssueStatus: exports.supplierUpdateIssueStatus,
 };

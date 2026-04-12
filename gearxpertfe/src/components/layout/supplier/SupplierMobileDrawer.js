@@ -10,6 +10,7 @@ import {
   FiShield,
   FiChevronDown,
   FiAlertTriangle,
+  FiTool,
 } from "react-icons/fi";
 import { NavLink } from "react-router-dom";
 import logo from "../../../assets/logoGearXpert.png";
@@ -72,6 +73,15 @@ const sections = [
     items: [{ to: "/supplier/issues", label: "Tất cả sự cố" }],
   },
   {
+    id: "maintenance",
+    title: "Bảo trì",
+    icon: FiTool,
+    items: [
+      { to: "/supplier/maintenance?tab=reminders", label: "Nhắc nhở bảo trì" },
+      { to: "/supplier/maintenance?tab=workorders", label: "Lệnh bảo trì" },
+    ],
+  },
+  {
     id: "delivery",
     title: "Giao hàng",
     icon: FiTruck,
@@ -119,6 +129,7 @@ export default function SupplierMobileDrawer({ open, onClose }) {
     calendar: true,
     bookings: true,
     issues: true,
+    maintenance: true,
     delivery: false,
     finance: true,
     verification: true,

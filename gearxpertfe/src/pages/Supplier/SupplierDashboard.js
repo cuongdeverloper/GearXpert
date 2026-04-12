@@ -51,9 +51,12 @@ const EMPTY_FOLLOWER_STATS = {
   monthlyNewFollows: [],
 };
 
-/** Số tiền đầy đủ (không viết tắt tr/M) */
-const formatVnd = (value) =>
-  `${Number(value ?? 0).toLocaleString("vi-VN")} đ`;
+/** Số tiền đầy đủ; doanh thu hiển thị không âm (đồng bộ với backend netSupplierDisplayRevenue). */
+const formatVnd = (value) => {
+  const n = Number(value ?? 0);
+  const safe = Number.isFinite(n) ? n : 0;
+  return `${Math.max(0, safe).toLocaleString("vi-VN")} đ`;
+};
 
 /** So sánh % cur so với prev; null nếu không tính được */
 function pctVersusPrevious(prev, cur) {

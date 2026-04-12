@@ -55,6 +55,11 @@ const deviceItemSchema = new mongoose.Schema(
 
     nextMaintenanceDue: Date,
 
+    // Đếm số lần thuê kể từ lần bảo trì cuối → dùng cho preventive maintenance cron
+    rentalCountSinceLastMaintenance: { type: Number, default: 0 },
+    // Khoảng cách thuê để nhắc bảo trì (mặc định 5 lần)
+    maintenanceInterval: { type: Number, default: 5 },
+
     images: [String],
 
     activeIssueId: {

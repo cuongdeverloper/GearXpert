@@ -65,4 +65,12 @@ ReportRouter.get(
   deliveryCtrl.getSupplierIssues
 );
 
+// SUPPLIER — Cập nhật trạng thái báo cáo (OPEN → PROCESSING, hoặc xác nhận RESOLVED khi đơn REJECTED)
+ReportRouter.patch(
+  "/supplier-issues/:issueId",
+  checkAccessToken,
+  checkSupplier,
+  deliveryCtrl.supplierUpdateIssueStatus
+);
+
 module.exports = ReportRouter;
