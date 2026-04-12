@@ -86,7 +86,7 @@ const createAdvertisement = async (req, res) => {
             status: 'SUCCESS',
             referenceType: 'SYSTEM',
             description: `Thanh toán 1/4 chi phí quảng cáo: ${title}`
-        }], { session });
+        }], { session, ordered: true });
 
         // 4. Create Advertisement
         const newAds = new Advertisement({
@@ -203,7 +203,7 @@ const updateAdvertisementStatus = async (req, res) => {
                     status: 'SUCCESS',
                     referenceType: 'SYSTEM',
                     description: `Hoàn tiền quảng cáo bị từ chối: ${advertisement.title}`
-                }], { session });
+                }], { session, ordered: true });
 
                 // Mark as refunded in the advertisement record if you have a field for it, 
                 // but here we just update status to REJECTED.
@@ -338,7 +338,7 @@ const deleteAdvertisement = async (req, res) => {
                     status: 'SUCCESS',
                     referenceType: 'SYSTEM',
                     description: `Hoàn tiền xóa quảng cáo sớm: ${advertisement.title}`
-                }], { session });
+                }], { session, ordered: true });
             }
         }
 

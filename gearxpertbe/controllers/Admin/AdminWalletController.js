@@ -77,7 +77,7 @@ exports.adjustWalletBalance = async (req, res) => {
         adjustmentReason: reason,
         adjustmentType: type || "MANUAL"
       }
-    }], { session });
+    }], { session, ordered: true });
 
 
     await session.commitTransaction();
@@ -223,7 +223,7 @@ exports.createManualTransaction = async (req, res) => {
         ...(type.includes('FEE') && { feeType: type }),
         ...(referenceType && { originalReferenceId: referenceId })
       }
-    }], { session });
+    }], { session, ordered: true });
 
 
     await session.commitTransaction();
@@ -808,7 +808,7 @@ exports.approveWithdrawal = async (req, res) => {
             requiresManualTransfer: true,
             transferData: transferResult.transferData
           }
-        }], { session });
+        }], { session, ordered: true });
         
         await session.commitTransaction();               
         return res.json({
@@ -871,7 +871,7 @@ exports.approveWithdrawal = async (req, res) => {
       description: `Withdrawal completed via PayOS - ${withdrawal.adminNote || 'Rút tiền'}`,
       status: "SUCCESS",
       payosTransferId: transferResult.transferId || transferResult.id
-    }], { session });
+    }], { session, ordered: true });
     
     await session.commitTransaction();    
     res.json({
