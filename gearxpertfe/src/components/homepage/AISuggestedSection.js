@@ -1,6 +1,8 @@
 import ProductCard from '../common/ProductCard';
+import { useTranslation } from 'react-i18next';
 
 export default function AISuggestedSection({ devices = [] }) {
+  const { t } = useTranslation();
   const suggestedDevices = devices.slice(0, 3);
   if (suggestedDevices.length === 0) return null;
 
@@ -8,11 +10,11 @@ export default function AISuggestedSection({ devices = [] }) {
     <section className="px-6 lg:px-10 mb-16">
       <div className="flex items-end justify-between mb-8">
         <div>
-          <h2 className="text-3xl font-bold text-slate-900 font-display">Đề xuất cho bạn</h2>
-          <p className="text-slate-500 mt-2 font-medium">Các lựa chọn hàng đầu dựa trên hoạt động gần đây và sở thích của bạn.</p>
+          <h2 className="text-3xl font-bold text-slate-900 font-display">{t('homepage.ai_suggested')}</h2>
+          <p className="text-slate-500 mt-2 font-medium">{t('homepage.ai_suggested_subtitle', { defaultValue: "Các lựa chọn hàng đầu dựa trên hoạt động gần đây và sở thích của bạn." })}</p>
         </div>
         <button className="text-primary font-bold flex items-center gap-2 hover:underline">
-          Xem đề xuất <span className="material-symbols-outlined">chevron_right</span>
+          {t('common.view_more')} <span className="material-symbols-outlined">chevron_right</span>
         </button>
       </div>
 
@@ -26,7 +28,6 @@ export default function AISuggestedSection({ devices = [] }) {
               device={device}
               variant="detailed"
               match={match}
-              buttonText="Thuê thiết bị"
             />
           );
         })}

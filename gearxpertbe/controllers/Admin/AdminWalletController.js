@@ -3,6 +3,361 @@ const WalletTransaction = require("../../models/WalletTransaction");
 const User = require("../../models/User");
 const WithdrawRequest = require("../../models/WithdrawRequest");
 const mongoose = require("mongoose");
+const { Parser } = require("json2csv");
+const { transferMoney } = require("../Wallet/PayOsController");
+
+// Helper function to get transaction type label
+function getTransactionTypeLabel(type) {
+  const labels = {
+    'TOP_UP': 'Nạp tiền',
+    'PAYMENT': 'Thanh toán',
+    'REFUND': 'Hoàn tiền',
+    'WITHDRAW': 'Rút tiền',
+    'ADJUSTMENT': 'Điều chỉnh',
+    'PLATFORM_FEE': 'Phí nền tảng',
+    'PLATFORM_FEE_REFUND': 'Hoàn phí nền tảng',
+    'PAYOUT': 'Chi trả',
+    'DEPOSIT_REFUND': 'Hoàn tiền cọc'
+  };
+  return labels[type] || type;
+}
+
+/**
+ * POST /api/admin/wallet/adjust-balance
+ * Manually adjust admin wallet balance (for corrections)
+ */
+exports.adjustWalletBalance = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { amount, reason, type } = req.body;
+    const adminId = req.user.id;
+
+
+    // Validate input
+    if (!amount || isNaN(amount) || amount === 0) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: "Số tiền không hợp lệ" });
+    }
+
+    if (!reason || reason.trim().length < 5) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: "Lý do điều chỉnh phải có ít nhất 5 ký tự" });
+    }
+
+    // Find system wallet
+    let adminWallet = await Wallet.findOne({ isSystem: true }).session(session);
+    
+    if (!adminWallet) {
+      await session.abortTransaction();
+      return res.status(404).json({ message: "Không tìm thấy ví hệ thống" });
+    }
+
+    const balanceBefore = adminWallet.balance;
+    const balanceAfter = balanceBefore + parseFloat(amount);
+
+
+    // Update wallet balance
+    adminWallet.balance = balanceAfter;
+    await adminWallet.save({ session });
+
+    // Create adjustment transaction
+    const transaction = await WalletTransaction.create([{
+      wallet: adminWallet._id,
+      type: "ADJUSTMENT", // Use existing enum value
+      amount: parseFloat(amount),
+      balanceBefore,
+      balanceAfter,
+      referenceType: "SYSTEM",
+      description: `Điều chỉnh số dư: ${reason}`,
+      status: "SUCCESS",
+      metadata: {
+        adminId,
+        adjustmentReason: reason,
+        adjustmentType: type || "MANUAL"
+      }
+    }], { session });
+
+
+    await session.commitTransaction();
+
+    res.json({
+      success: true,
+      message: "Điều chỉnh số dư thành công",
+      transaction: transaction[0],
+      newBalance: balanceAfter
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    console.error("Adjust wallet balance error:", error);
+    res.status(500).json({ message: "Lỗi khi điều chỉnh số dư", error: error.message });
+  } finally {
+    session.endSession();
+  }
+};
+
+/**
+ * POST /api/admin/wallet/manual-transaction
+ * Create a manual transaction entry
+ */
+exports.createManualTransaction = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { 
+      type, 
+      amount, 
+      description, 
+      referenceType, 
+      referenceId,
+      targetWalletId,
+      updateBalance = true // Default: update wallet balance
+    } = req.body;
+    const adminId = req.user.id;
+
+    // Validate required fields
+    if (!type || !amount || !description) {
+      await session.abortTransaction();
+      return res.status(400).json({ 
+        message: "Thiếu thông tin bắt buộc",
+        required: ["type", "amount", "description"]
+      });
+    }
+
+    // Validate amount
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount === 0) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: "Số tiền không hợp lệ" });
+    }
+
+    // Validate transaction type against model enum
+    const validTypes = [
+      "TOP_UP", "PAYMENT", "REFUND", "WITHDRAW", "ADJUSTMENT",
+      "PLATFORM_FEE", "PLATFORM_FEE_REFUND", "PAYOUT", "DEPOSIT_REFUND"
+    ];
+    if (!validTypes.includes(type)) {
+      await session.abortTransaction();
+      return res.status(400).json({ 
+        message: "Loại giao dịch không hợp lệ",
+        validTypes
+      });
+    }
+
+    // Validate reference type if provided
+    const validReferenceTypes = ["ORDER", "RENTAL", "MAINTENANCE", "SYSTEM"];
+    if (referenceType && !validReferenceTypes.includes(referenceType)) {
+      await session.abortTransaction();
+      return res.status(400).json({ 
+        message: "Loại tham chiếu không hợp lệ",
+        validReferenceTypes
+      });
+    }
+
+    // Find target wallet
+    let wallet;
+    if (targetWalletId) {
+      wallet = await Wallet.findById(targetWalletId).session(session);
+      if (!wallet) {
+        await session.abortTransaction();
+        return res.status(404).json({ message: "Không tìm thấy ví đích" });
+      }
+    } else {
+      // Default to system wallet
+      wallet = await Wallet.findOne({ isSystem: true }).session(session);
+      if (!wallet) {
+        await session.abortTransaction();
+        return res.status(404).json({ message: "Không tìm thấy ví hệ thống" });
+      }
+    }
+
+    const balanceBefore = wallet.balance;
+    const balanceAfter = balanceBefore + parsedAmount;
+    // Validate balance for negative amounts
+    if (parsedAmount < 0 && Math.abs(parsedAmount) > balanceBefore) {
+      await session.abortTransaction();
+      return res.status(400).json({ 
+        message: "Số dư không đủ cho giao dịch này",
+        currentBalance: balanceBefore,
+        attemptedAmount: Math.abs(parsedAmount)
+      });
+    }
+
+    // Update wallet balance if requested
+    if (updateBalance) {
+      wallet.balance = balanceAfter;
+      await wallet.save({ session });
+    }
+
+    // Validate reference ID if reference type provided
+    let validReferenceId = null;
+    if (referenceType && referenceId) {
+      // Basic ObjectId validation
+      if (mongoose.Types.ObjectId.isValid(referenceId)) {
+        validReferenceId = referenceId;
+      } else {
+        console.warn("[DEBUG] Invalid referenceId format:", referenceId);
+      }
+    }
+
+    // Create transaction
+    const transaction = await WalletTransaction.create([{
+      wallet: wallet._id,
+      type,
+      amount: parsedAmount,
+      balanceBefore,
+      balanceAfter,
+      referenceType: referenceType || "SYSTEM",
+      referenceId: validReferenceId,
+      description: description.trim(),
+      status: "SUCCESS",
+      metadata: {
+        createdBy: adminId,
+        isManual: true,
+        updateBalance,
+        createdAt: new Date(),
+        // Additional metadata for different transaction types
+        ...(type === 'ADJUSTMENT' && { adjustmentType: 'MANUAL' }),
+        ...(type.includes('FEE') && { feeType: type }),
+        ...(referenceType && { originalReferenceId: referenceId })
+      }
+    }], { session });
+
+
+    await session.commitTransaction();
+
+    res.json({
+      success: true,
+      message: "Tạo giao dịch thành công",
+      transaction: transaction[0],
+      wallet: {
+        id: wallet._id,
+        balanceBefore,
+        balanceAfter,
+        balanceUpdated: updateBalance
+      }
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    console.error("Create manual transaction error:", error);
+    res.status(500).json({ 
+      message: "Lỗi khi tạo giao dịch", 
+      error: error.message 
+    });
+  } finally {
+    session.endSession();
+  }
+};
+
+/**
+ * GET /api/admin/wallet/export-transactions
+ * Export transactions to CSV
+ */
+exports.exportTransactions = async (req, res) => {
+  try {
+    const { type, dateRange, format = "csv" } = req.query;
+
+    // Find system wallet
+    const adminWallet = await Wallet.findOne({ isSystem: true });
+    if (!adminWallet) {
+      return res.status(404).json({ message: "Admin wallet not found" });
+    }
+
+    // Build filter
+    let filter = { wallet: adminWallet._id };
+
+    // Date range filtering
+    if (dateRange) {
+      const now = new Date();
+      let startDate;
+
+      switch (dateRange) {
+        case "7days":
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case "30days":
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case "90days":
+          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          startDate = null;
+      }
+
+      if (startDate) {
+        filter.createdAt = { $gte: startDate };
+      }
+    }
+
+    if (type && type !== "ALL") {
+      filter.type = type;
+    }
+
+    // Get transactions
+    const transactions = await WalletTransaction.find(filter)
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Format data for export
+    const formattedData = transactions.map(t => ({
+      "ID": t._id.toString(),
+      "Loại giao dịch": getTransactionTypeLabel(t.type),
+      "Số tiền": t.amount,
+      "Số dư trước": t.balanceBefore,
+      "Số dư sau": t.balanceAfter,
+      "Mô tả": t.description,
+      "Trạng thái": t.status === "SUCCESS" ? "Thành công" : "Đang xử lý",
+      "Ngày tạo": new Date(t.createdAt).toLocaleString("vi-VN"),
+      "Reference Type": t.referenceType || "",
+      "Reference ID": t.referenceId ? t.referenceId.toString() : ""
+    }));
+
+    if (format === "csv") {
+      const fields = [
+        "ID", "Loại giao dịch", "Số tiền", "Số dư trước", "Số dư sau",
+        "Mô tả", "Trạng thái", "Ngày tạo", "Reference Type", "Reference ID"
+      ];
+      const json2csvParser = new Parser({ fields });
+      const csv = json2csvParser.parse(formattedData);
+
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename=wallet-transactions-${Date.now()}.csv`);
+      res.send("\uFEFF" + csv); // Add BOM for UTF-8
+    } else {
+      res.json({
+        success: true,
+        total: formattedData.length,
+        data: formattedData
+      });
+    }
+  } catch (error) {
+    console.error("Export transactions error:", error);
+    res.status(500).json({ message: "Lỗi khi xuất dữ liệu" });
+  }
+};
+
+// Helper function to translate transaction types
+function getTransactionTypeLabel(type) {
+  const labels = {
+    "PLATFORM_FEE": "Phí nền tảng",
+    "ESCROW_HOLD": "Tiền thuê tạm giữ",
+    "DEPOSIT_HOLD": "Tiền đặt cọc",
+    "SUPPLIER_PAYOUT": "Trả tiền nhà cung cấp",
+    "CUSTOMER_REFUND": "Hoàn tiền khách hàng",
+    "SERVICE_FEE": "Phí dịch vụ",
+    "PENALTY_FEE": "Phí phạt",
+    "TOP_UP": "Nạp tiền",
+    "WITHDRAW": "Rút tiền",
+    "PAYMENT": "Thanh toán",
+    "REFUND": "Hoàn tiền",
+    "ADJUSTMENT_IN": "Điều chỉnh tăng",
+    "ADJUSTMENT_OUT": "Điều chỉnh giảm"
+  };
+  return labels[type] || type;
+}
 
 /**
  * GET /api/admin/wallet
@@ -139,28 +494,20 @@ exports.getAdminWallet = async (req, res) => {
  */
 exports.getAdminWalletTransactions = async (req, res) => {
   try {
-    console.log("=== GET ADMIN WALLET TRANSACTIONS CALLED ===");
-    console.log("Request user:", req.user);
-    console.log("Request params:", req.query);
-    const { type, dateRange } = req.query;
+    const { type, dateRange, page = 1, limit = 50, search } = req.query;
     
-    // Find system wallet first
-    const adminWallet = await Wallet.findOne({ isSystem: true });
-    if (!adminWallet) {
-      return res.status(404).json({ message: "Admin wallet not found" });
-    }
-    
-    console.log("Found system wallet for transactions:", adminWallet._id);
-    
-    // Build filter for system wallet transactions
-    let filter = { wallet: adminWallet._id };
+    // Build base filter
+    let filter = {};
     
     // Date range filtering
-    if (dateRange) {
+    if (dateRange && dateRange !== "ALL") {
       const now = new Date();
       let startDate;
       
       switch (dateRange) {
+        case "today":
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          break;
         case "7days":
           startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           break;
@@ -179,38 +526,121 @@ exports.getAdminWalletTransactions = async (req, res) => {
       }
     }
 
-    // Include all transaction types from the system
-    const allTransactionTypes = [
-      "PLATFORM_FEE", "ESCROW_HOLD", "DEPOSIT_HOLD", 
-      "SUPPLIER_PAYOUT", "CUSTOMER_REFUND", "SERVICE_FEE", "PENALTY_FEE",
-      "TOP_UP", "WITHDRAW", "PAYMENT", "REFUND"
+    // Type filtering - include all valid types from model
+    const validTypes = [
+      'TOP_UP', 'PAYMENT', 'REFUND', 'WITHDRAW', 'ADJUSTMENT',
+      'PLATFORM_FEE', 'PLATFORM_FEE_REFUND', 'PAYOUT', 'DEPOSIT_REFUND'
     ];
 
     if (type && type !== "ALL") {
       filter.type = type;
-    } else {
-      // If no specific type, include all financial transaction types
-      if (!filter.type) {
-        filter.type = { $in: allTransactionTypes };
-      }
     }
 
-    console.log("Transaction filter:", filter);
-
+    // Search by description or reference
+    if (search) {
+      filter.$or = [
+        { description: { $regex: search, $options: 'i' } },
+        { 'metadata.adjustmentReason': { $regex: search, $options: 'i' } }
+      ];
+    }
+    // Get transactions with pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
     const transactions = await WalletTransaction.find(filter)
-      .populate('referenceType', 'name')
+      .populate({
+        path: 'wallet',
+        populate: {
+          path: 'user',
+          select: 'fullName email phone username'
+        }
+      })
       .sort({ createdAt: -1 })
-      .limit(100);
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
 
-    console.log("Found transactions:", transactions.length);
+    // Get total count for pagination
+    const total = await WalletTransaction.countDocuments(filter);
+
+    // Format transactions with additional info
+    const formattedTransactions = transactions.map(t => {
+      const walletInfo = t.wallet || {};
+      const userInfo = walletInfo.user || {};
+      
+      return {
+        _id: t._id,
+        type: t.type,
+        amount: t.amount,
+        balanceBefore: t.balanceBefore,
+        balanceAfter: t.balanceAfter,
+        description: t.description,
+        status: t.status,
+        createdAt: t.createdAt,
+        updatedAt: t.updatedAt,
+        referenceType: t.referenceType,
+        referenceId: t.referenceId,
+        metadata: t.metadata || {},
+        
+        // Additional formatted fields
+        amountFormatted: Math.abs(t.amount).toLocaleString('vi-VN') + ' VNĐ',
+        isPositive: t.amount > 0,
+        typeLabel: getTransactionTypeLabel(t.type),
+        statusLabel: t.status === 'SUCCESS' ? 'Thành công' : 
+                    t.status === 'PENDING' ? 'Đang xử lý' : 
+                    t.status === 'FAILED' ? 'Thất bại' : 'Đã hủy',
+        
+        // Wallet and user info
+        wallet: {
+          _id: walletInfo._id,
+          balance: walletInfo.balance,
+          isSystem: walletInfo.isSystem || false
+        },
+        user: userInfo ? {
+          _id: userInfo._id,
+          fullName: userInfo.fullName,
+          email: userInfo.email,
+          phone: userInfo.phone,
+          username: userInfo.username
+        } : null
+      };
+    });
+
+    // Calculate statistics
+    const stats = {
+      totalTransactions: total,
+      totalIncome: formattedTransactions
+        .filter(t => t.amount > 0)
+        .reduce((sum, t) => sum + t.amount, 0),
+      totalExpense: Math.abs(formattedTransactions
+        .filter(t => t.amount < 0)
+        .reduce((sum, t) => sum + t.amount, 0)),
+      netBalance: formattedTransactions
+        .reduce((sum, t) => sum + t.amount, 0)
+    };
 
     res.json({
-      transactions,
-      total: transactions.length,
+      success: true,
+      transactions: formattedTransactions,
+      pagination: {
+        current: parseInt(page),
+        limit: parseInt(limit),
+        total: total,
+        pages: Math.ceil(total / parseInt(limit))
+      },
+      stats,
+      filters: {
+        type,
+        dateRange,
+        search
+      }
     });
   } catch (error) {
     console.error("Get admin wallet transactions error:", error);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ 
+      success: false, 
+      message: "Internal server error",
+      error: error.message 
+    });
   }
 };
 
@@ -300,9 +730,8 @@ exports.approveWithdrawal = async (req, res) => {
   
   try {
     const { id } = req.params;
-    
-    // Find the withdrawal transaction
-    const withdrawal = await WalletTransaction.findById(id).session(session);
+    // Find the withdrawal request (not WalletTransaction)
+    const withdrawal = await WithdrawRequest.findById(id).session(session);    
     if (!withdrawal) {
       await session.abortTransaction();
       return res.status(404).json({ message: "Withdrawal request not found" });
@@ -315,9 +744,21 @@ exports.approveWithdrawal = async (req, res) => {
     
     // Find the supplier wallet
     const supplierWallet = await Wallet.findById(withdrawal.wallet).session(session);
+    
     if (!supplierWallet) {
       await session.abortTransaction();
       return res.status(404).json({ message: "Supplier wallet not found" });
+    }
+    
+    // Find supplier user to get bank info
+    const supplier = await User.findById(withdrawal.user).session(session);
+    
+    // Use bank info from withdrawal request, not user
+    const bankInfo = withdrawal.bankInfo;
+    
+    if (!supplier || !bankInfo) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: "Supplier or bank information not found" });
     }
     
     // Check if supplier has sufficient balance
@@ -326,34 +767,136 @@ exports.approveWithdrawal = async (req, res) => {
       return res.status(400).json({ message: "Insufficient balance" });
     }
     
+    // Prepare PayOS transfer data
+    const transferData = {
+      amount: Math.abs(withdrawal.amount), // Convert negative to positive for transfer
+      description: `Rút tiền GearXpert - Yêu cầu #${withdrawal._id.toString().slice(-6)}`,
+      accountNumber: bankInfo.accountNumber,
+      accountName: bankInfo.accountName,
+      bankCode: bankInfo.bankCode || bankInfo.bankName, // Use bankName if bankCode not available
+    };       
+    // Execute PayOS transfer
+    let transferResult;
+    try {
+      transferResult = await transferMoney(transferData);
+      // Check if manual transfer is required
+      if (transferResult.requiresManualTransfer) {        
+        // Update withdrawal status but mark for manual transfer
+        withdrawal.status = "APPROVED";
+        withdrawal.processedAt = new Date();
+        withdrawal.adminNote = "Đã duyệt - Chờ chuyển tiền thủ công";
+        withdrawal.payosTransferId = "MANUAL_TRANSFER_REQUIRED";
+        await withdrawal.save({ session });
+        
+        // Update wallet balance (deduct amount)
+        supplierWallet.balance += withdrawal.amount; // withdrawal.amount is negative
+        await supplierWallet.save({ session });
+        
+        // Create withdrawal completion transaction with manual flag
+        await WalletTransaction.create([{
+          wallet: supplierWallet._id,
+          type: "WITHDRAW", // Use correct enum value
+          amount: withdrawal.amount,
+          balanceBefore: supplierWallet.balance - withdrawal.amount,
+          balanceAfter: supplierWallet.balance,
+          referenceType: "SYSTEM", // Use correct enum value
+          referenceId: withdrawal._id,
+          description: `Withdrawal approved - Manual transfer required - ${withdrawal.adminNote || 'Rút tiền'}`,
+          status: "SUCCESS",
+          payosTransferId: "MANUAL_TRANSFER_REQUIRED",
+          metadata: {
+            requiresManualTransfer: true,
+            transferData: transferResult.transferData
+          }
+        }], { session });
+        
+        await session.commitTransaction();               
+        return res.json({
+          success: true,
+          message: "Duyệt rút tiền thành công - Cần chuyển tiền thủ công",
+          data: {
+            withdrawalId: withdrawal._id,
+            transferId: "MANUAL_TRANSFER_REQUIRED",
+            amount: Math.abs(withdrawal.amount),
+            processedAt: withdrawal.processedAt,
+            supplierInfo: {
+              name: supplier.fullName || supplier.username,
+              bankAccount: bankInfo.accountNumber,
+              bankName: bankInfo.bankName
+            },
+            requiresManualTransfer: true,
+            transferData: transferResult.transferData
+          }
+        });
+      }
+      
+    } catch (transferError) {
+      console.error("[WITHDRAWAL] PayOS transfer failed:", transferError);
+      await session.abortTransaction();
+      return res.status(500).json({ 
+        success: false,
+        message: "Chuyển tiền PayOS thất bại", 
+        error: transferError.message,
+        details: {
+          withdrawalId: withdrawal._id,
+          amount: Math.abs(withdrawal.amount),
+          supplierBank: {
+            accountNumber: bankInfo.accountNumber,
+            accountName: bankInfo.accountName,
+            bankName: bankInfo.bankName
+          }
+        }
+      });
+    }
+    
     // Update withdrawal status
     withdrawal.status = "APPROVED";
     withdrawal.processedAt = new Date();
+    withdrawal.payosTransferId = transferResult.transferId || transferResult.id;
     await withdrawal.save({ session });
+    
+    // Update wallet balance
+    supplierWallet.balance += withdrawal.amount; // withdrawal.amount is negative
+    await supplierWallet.save({ session });
     
     // Create withdrawal completion transaction
     await WalletTransaction.create([{
       wallet: supplierWallet._id,
-      type: "WITHDRAWAL_COMPLETED",
+      type: "WITHDRAW", // Use correct enum value
       amount: withdrawal.amount, // Negative amount for money out
-      balanceBefore: supplierWallet.balance,
-      balanceAfter: supplierWallet.balance + withdrawal.amount,
-      referenceType: "WITHDRAWAL",
+      balanceBefore: supplierWallet.balance - withdrawal.amount,
+      balanceAfter: supplierWallet.balance,
+      referenceType: "SYSTEM", // Use correct enum value
       referenceId: withdrawal._id,
-      description: `Withdrawal completed - ${withdrawal.description}`,
-      status: "SUCCESS"
+      description: `Withdrawal completed via PayOS - ${withdrawal.adminNote || 'Rút tiền'}`,
+      status: "SUCCESS",
+      payosTransferId: transferResult.transferId || transferResult.id
     }], { session });
     
-    await session.commitTransaction();
-    
+    await session.commitTransaction();    
     res.json({
-      message: "Withdrawal request approved successfully",
-      withdrawalId: withdrawal._id
+      success: true,
+      message: "Duyệt rút tiền và chuyển tiền thành công",
+      data: {
+        withdrawalId: withdrawal._id,
+        transferId: transferResult.id || transferResult.orderCode,
+        amount: Math.abs(withdrawal.amount),
+        processedAt: withdrawal.processedAt,
+        supplierInfo: {
+          name: supplier.fullName || supplier.username,
+          bankAccount: bankInfo.accountNumber,
+          bankName: bankInfo.bankName
+        }
+      }
     });
   } catch (error) {
     await session.abortTransaction();
-    console.error("Approve withdrawal error:", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("[WITHDRAWAL APPROVE] Error:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Internal server error",
+      error: error.message 
+    });
   } finally {
     session.endSession();
   }
@@ -371,13 +914,15 @@ exports.rejectWithdrawal = async (req, res) => {
     const { id } = req.params;
     const { reason } = req.body;
     
+    
     if (!reason) {
       await session.abortTransaction();
       return res.status(400).json({ message: "Rejection reason is required" });
     }
     
-    // Find the withdrawal transaction
-    const withdrawal = await WalletTransaction.findById(id).session(session);
+    // Find the withdrawal request (not WalletTransaction)
+    const withdrawal = await WithdrawRequest.findById(id).session(session);
+    
     if (!withdrawal) {
       await session.abortTransaction();
       return res.status(404).json({ message: "Withdrawal request not found" });
@@ -388,47 +933,27 @@ exports.rejectWithdrawal = async (req, res) => {
       return res.status(400).json({ message: "Withdrawal request already processed" });
     }
     
-    // Find the supplier wallet
-    const supplierWallet = await Wallet.findById(withdrawal.wallet).session(session);
-    if (!supplierWallet) {
-      await session.abortTransaction();
-      return res.status(404).json({ message: "Supplier wallet not found" });
-    }
-    
     // Update withdrawal status
     withdrawal.status = "REJECTED";
     withdrawal.processedAt = new Date();
-    withdrawal.description = `Rejected: ${reason} - ${withdrawal.description}`;
+    withdrawal.adminNote = reason;
     await withdrawal.save({ session });
     
-    // Since withdrawal was rejected, money goes back to supplier wallet
-    // The withdrawal request was already deducted from available balance, so we need to restore it
-    supplierWallet.balance += Math.abs(withdrawal.amount);
-    await supplierWallet.save({ session });
-    
-    // Create rejection transaction
-    await WalletTransaction.create([{
-      wallet: supplierWallet._id,
-      type: "WITHDRAWAL_REJECTED",
-      amount: Math.abs(withdrawal.amount), // Positive amount for money back
-      balanceBefore: supplierWallet.balance - Math.abs(withdrawal.amount),
-      balanceAfter: supplierWallet.balance,
-      referenceType: "WITHDRAWAL",
-      referenceId: withdrawal._id,
-      description: `Withdrawal rejected: ${reason}`,
-      status: "SUCCESS"
-    }], { session });
-    
     await session.commitTransaction();
-    
+        
     res.json({
+      success: true,
       message: "Withdrawal request rejected successfully",
       withdrawalId: withdrawal._id
     });
   } catch (error) {
     await session.abortTransaction();
-    console.error("Reject withdrawal error:", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("[WITHDRAWAL REJECT] Error:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Internal server error",
+      error: error.message 
+    });
   } finally {
     session.endSession();
   }

@@ -18,7 +18,6 @@ async function runAutoConfirm() {
 
   if (rentals.length === 0) return;
 
-  console.log(`[AutoConfirm] Processing ${rentals.length} overdue rental(s)...`);
 
   for (const rental of rentals) {
     const session = await mongoose.startSession();
@@ -86,7 +85,6 @@ async function runAutoConfirm() {
         console.error('[AutoConfirm] Notification error:', notifErr.message);
       }
 
-      console.log(`[AutoConfirm] Auto-confirmed rental ${freshRental._id}`);
     } catch (err) {
       await session.abortTransaction();
       console.error(`[AutoConfirm] Failed for rental ${rental._id}:`, err.message);
@@ -99,14 +97,12 @@ async function runAutoConfirm() {
 function startAutoConfirmJob() {
   // Run every hour at minute 0
   cron.schedule('0 * * * *', async () => {
-    console.log('[AutoConfirm] Running auto-confirm delivery check...');
     try {
       await runAutoConfirm();
     } catch (err) {
       console.error('[AutoConfirm] Unexpected error:', err.message);
     }
   });
-  console.log('[AutoConfirm] Job scheduled (every hour).');
 }
 
 module.exports = { startAutoConfirmJob };

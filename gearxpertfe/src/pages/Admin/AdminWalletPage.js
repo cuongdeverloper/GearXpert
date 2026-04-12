@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { FiCreditCard, FiTrendingUp, FiTrendingDown, FiArrowUpRight, FiArrowDownLeft, FiPieChart, FiActivity } from "react-icons/fi";
-import { getAdminWallet, getAdminWalletTransactions } from "../../service/ApiService/AdminApi";
+import { FiCreditCard, FiTrendingUp, FiTrendingDown, FiArrowUpRight, FiArrowDownLeft, FiPieChart, FiActivity, FiSettings, FiPlus, FiDownload, FiX, FiAlertCircle } from "react-icons/fi";
+import { getAdminWallet, getAdminWalletTransactions, adjustWalletBalance, createManualTransaction, exportWalletTransactions } from "../../service/ApiService/AdminApi";
 import { useSelector } from "react-redux";
+import { toast } from "react-toastify";
 
 export default function AdminWalletPage() {
   const [wallet, setWallet] = useState(null);
@@ -11,16 +12,25 @@ export default function AdminWalletPage() {
   const [dateRange, setDateRange] = useState("7days");
   
   // Debug Redux state
+  const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  
+  // Form states
+  const [adjustForm, setAdjustForm] = useState({ amount: "", reason: "", type: "MANUAL" });
+  const [transactionForm, setTransactionForm] = useState({
+    type: "PLATFORM_FEE",
+    amount: "",
+    description: "",
+    referenceType: "SYSTEM",
+    referenceId: ""
+  });
+  
   const userAccount = useSelector(state => state.user.account);
-  console.log("AdminWalletPage - Redux userAccount:", userAccount);
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      console.log("AdminWalletPage - Fetching data...");
-      console.log("AdminWalletPage - User access_token:", userAccount?.access_token ? "exists" : "not found");
-      console.log("AdminWalletPage - User role:", userAccount?.role);
-
       const [walletRes, transactionsRes] = await Promise.all([
         getAdminWallet(),
         getAdminWalletTransactions({ type: filterType, dateRange }),
@@ -30,11 +40,11 @@ export default function AdminWalletPage() {
       setTransactions(transactionsRes.transactions || []);
     } catch (error) {
       console.error("Error fetching admin wallet data:", error);
-      console.error("Error response:", error.response);
+      toast.error("Không thể tải dữ liệu ví");
     } finally {
       setLoading(false);
     }
-  }, [filterType, dateRange, userAccount]);
+  }, [filterType, dateRange]);
 
   useEffect(() => {
     fetchData();
@@ -64,6 +74,9 @@ export default function AdminWalletPage() {
         return <FiCreditCard className="text-blue-600" />;
       case "REFUND":
         return <FiArrowUpRight className="text-orange-600" />;
+      case "ADJUSTMENT_IN":
+      case "ADJUSTMENT_OUT":
+        return <FiSettings className="text-gray-600" />;
       default:
         return <FiCreditCard className="text-gray-600" />;
     }
@@ -91,42 +104,32 @@ export default function AdminWalletPage() {
         return "text-red-600 bg-red-50 border-red-200";
       case "PAYMENT":
         return "text-blue-600 bg-blue-50 border-blue-200";
-      case "REFUND":
-        return "text-orange-600 bg-orange-50 border-orange-200";
+      case "ADJUSTMENT_IN":
+        return "text-emerald-600 bg-emerald-50 border-emerald-200";
+      case "ADJUSTMENT_OUT":
+        return "text-rose-600 bg-rose-50 border-rose-200";
       default:
         return "text-gray-600 bg-gray-50 border-gray-200";
     }
   };
 
   const getTransactionLabel = (type) => {
-    switch (type) {
-      case "PLATFORM_FEE":
-        return "Phí nền tảng";
-      case "ESCROW_HOLD":
-        return "Tiền thuê tạm giữ";
-      case "DEPOSIT_HOLD":
-        return "Tiền đặt cọc";
-      case "SUPPLIER_PAYOUT":
-        return "Trả tiền nhà cung cấp";
-      case "CUSTOMER_REFUND":
-        return "Hoàn tiền khách hàng";
-      case "SERVICE_FEE":
-        return "Phí dịch vụ";
-      case "PENALTY_FEE":
-        return "Phí phạt";
-      case "TOP_UP":
-        return "Nạp tiền";
-      case "WITHDRAW":
-        return "Rút tiền";
-      case "WITHDRAWAL_REQUEST":
-        return "Yêu cầu rút tiền";
-      case "PAYMENT":
-        return "Thanh toán";
-      case "REFUND":
-        return "Hoàn tiền";
-      default:
-        return type;
-    }
+    const labels = {
+      "PLATFORM_FEE": "Phí nền tảng",
+      "ESCROW_HOLD": "Tiền thuê tạm giữ",
+      "DEPOSIT_HOLD": "Tiền đặt cọc",
+      "SUPPLIER_PAYOUT": "Trả tiền nhà cung cấp",
+      "CUSTOMER_REFUND": "Hoàn tiền khách hàng",
+      "SERVICE_FEE": "Phí dịch vụ",
+      "PENALTY_FEE": "Phí phạt",
+      "TOP_UP": "Nạp tiền",
+      "WITHDRAW": "Rút tiền",
+      "PAYMENT": "Thanh toán",
+      "REFUND": "Hoàn tiền",
+      "ADJUSTMENT_IN": "Điều chỉnh tăng",
+      "ADJUSTMENT_OUT": "Điều chỉnh giảm"
+    };
+    return labels[type] || type;
   };
 
   const formatCurrency = (amount) => {
@@ -134,6 +137,84 @@ export default function AdminWalletPage() {
       style: "currency",
       currency: "VND",
     }).format(amount || 0);
+  };
+
+  const handleExport = async () => {
+    try {
+      const response = await exportWalletTransactions({ type: filterType, dateRange });
+      const blob = new Blob([response], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `wallet-transactions-${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success("Xuất dữ liệu thành công!");
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("Lỗi khi xuất dữ liệu");
+    }
+  };
+
+  const handleAdjustBalance = async (e) => {
+    e.preventDefault();
+    if (!adjustForm.amount || !adjustForm.reason) {
+      toast.error("Vui lòng điền đầy đủ thông tin");
+      return;
+    }
+    
+    setSubmitting(true);
+    try {
+      await adjustWalletBalance({
+        amount: parseFloat(adjustForm.amount),
+        reason: adjustForm.reason,
+        type: adjustForm.type
+      });
+      toast.success("Điều chỉnh số dư thành công!");
+      setShowAdjustModal(false);
+      setAdjustForm({ amount: "", reason: "", type: "MANUAL" });
+      fetchData();
+    } catch (error) {
+      console.error("Adjust balance error:", error);
+      toast.error(error?.response?.data?.message || "Lỗi khi điều chỉnh số dư");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCreateTransaction = async (e) => {
+    e.preventDefault();
+    if (!transactionForm.amount || !transactionForm.description) {
+      toast.error("Vui lòng điền đầy đủ thông tin");
+      return;
+    }
+    
+    setSubmitting(true);
+    try {
+      await createManualTransaction({
+        type: transactionForm.type,
+        amount: parseFloat(transactionForm.amount),
+        description: transactionForm.description,
+        referenceType: transactionForm.referenceType,
+        referenceId: transactionForm.referenceId || undefined
+      });
+      toast.success("Tạo giao dịch thành công!");
+      setShowTransactionModal(false);
+      setTransactionForm({
+        type: "PLATFORM_FEE",
+        amount: "",
+        description: "",
+        referenceType: "SYSTEM",
+        referenceId: ""
+      });
+      fetchData();
+    } catch (error) {
+      console.error("Create transaction error:", error);
+      toast.error(error?.response?.data?.message || "Lỗi khi tạo giao dịch");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (loading) {
@@ -151,6 +232,31 @@ export default function AdminWalletPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Tài Chính Hệ Thống</h1>
           <p className="text-gray-500">Tổng quan tài chính và các dòng tiền của nền tảng</p>
+        </div>
+        
+        {/* Action Buttons */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowAdjustModal(true)}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+          >
+            <FiSettings size={18} />
+            Điều chỉnh số dư
+          </button>
+          <button
+            onClick={() => setShowTransactionModal(true)}
+            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2"
+          >
+            <FiPlus size={18} />
+            Tạo giao dịch
+          </button>
+          <button
+            onClick={handleExport}
+            className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+          >
+            <FiDownload size={18} />
+            Xuất CSV
+          </button>
         </div>
       </div>
 
@@ -334,6 +440,8 @@ export default function AdminWalletPage() {
                 <option value="WITHDRAW">Rút tiền</option>
                 <option value="PAYMENT">Thanh toán</option>
                 <option value="REFUND">Hoàn tiền</option>
+                <option value="ADJUSTMENT_IN">Điều chỉnh tăng</option>
+                <option value="ADJUSTMENT_OUT">Điều chỉnh giảm</option>
               </select>
 
               <select
@@ -397,6 +505,9 @@ export default function AdminWalletPage() {
                       {transaction.amount > 0 ? "+" : ""}
                       {formatCurrency(transaction.amount)}
                     </div>
+                    <div className="text-xs text-gray-400">
+                      Số dư: {formatCurrency(transaction.balanceAfter)}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {new Date(transaction.createdAt).toLocaleString("vi-VN")}
@@ -423,6 +534,179 @@ export default function AdminWalletPage() {
           </div>
         )}
       </div>
+
+      {/* Adjust Balance Modal */}
+      {showAdjustModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Điều chỉnh số dư</h2>
+              <button onClick={() => setShowAdjustModal(false)} className="text-gray-400 hover:text-gray-600">
+                <FiX size={24} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleAdjustBalance}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Số tiền điều chỉnh (âm để giảm, dương để tăng)
+                  </label>
+                  <input
+                    type="number"
+                    value={adjustForm.amount}
+                    onChange={(e) => setAdjustForm({...adjustForm, amount: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Ví dụ: 1000000 hoặc -500000"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Lý do điều chỉnh</label>
+                  <textarea
+                    value={adjustForm.reason}
+                    onChange={(e) => setAdjustForm({...adjustForm, reason: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    rows="3"
+                    placeholder="Nhập lý do điều chỉnh..."
+                    required
+                  />
+                </div>
+                
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start gap-2">
+                  <FiAlertCircle className="text-yellow-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-yellow-700">
+                    Lưu ý: Thao tác này sẽ ảnh hưởng trực tiếp đến số dư ví hệ thống. Hãy đảm bảo lý do hợp lệ.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowAdjustModal(false)}
+                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {submitting ? "Đang xử lý..." : "Xác nhận điều chỉnh"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Transaction Modal */}
+      {showTransactionModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Tạo giao dịch thủ công</h2>
+              <button onClick={() => setShowTransactionModal(false)} className="text-gray-400 hover:text-gray-600">
+                <FiX size={24} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleCreateTransaction}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Loại giao dịch</label>
+                  <select
+                    value={transactionForm.type}
+                    onChange={(e) => setTransactionForm({...transactionForm, type: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="PLATFORM_FEE">Phí nền tảng</option>
+                    <option value="SERVICE_FEE">Phí dịch vụ</option>
+                    <option value="PENALTY_FEE">Phí phạt</option>
+                    <option value="TOP_UP">Nạp tiền</option>
+                    <option value="REFUND">Hoàn tiền</option>
+                    <option value="ESCROW_HOLD">Tiền thuê tạm giữ</option>
+                    <option value="DEPOSIT_HOLD">Tiền đặt cọc</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Số tiền (dương để tăng, âm để giảm)</label>
+                  <input
+                    type="number"
+                    value={transactionForm.amount}
+                    onChange={(e) => setTransactionForm({...transactionForm, amount: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Ví dụ: 1000000"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
+                  <textarea
+                    value={transactionForm.description}
+                    onChange={(e) => setTransactionForm({...transactionForm, description: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    rows="3"
+                    placeholder="Nhập mô tả giao dịch..."
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Reference Type (tùy chọn)</label>
+                  <input
+                    type="text"
+                    value={transactionForm.referenceType}
+                    onChange={(e) => setTransactionForm({...transactionForm, referenceType: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Ví dụ: RENTAL, USER..."
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Reference ID (tùy chọn)</label>
+                  <input
+                    type="text"
+                    value={transactionForm.referenceId}
+                    onChange={(e) => setTransactionForm({...transactionForm, referenceId: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="ID tham chiếu..."
+                  />
+                </div>
+                
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
+                  <FiAlertCircle className="text-blue-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-blue-700">
+                    Giao dịch thủ công sẽ được ghi nhận vào hệ thống và ảnh hưởng đến số dư ví.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowTransactionModal(false)}
+                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {submitting ? "Đang xử lý..." : "Tạo giao dịch"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

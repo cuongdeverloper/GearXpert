@@ -1,7 +1,9 @@
 import { useNavigate, Link } from "react-router-dom";
 import logo from "../../assets/logoGearXpert.png";
+import { useTranslation } from "react-i18next";
 
 export default function Footer() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const FooterLink = ({ to, children }) => (
@@ -47,28 +49,27 @@ export default function Footer() {
             </div>
 
             <p className="mt-3 text-sm text-slate-500 leading-relaxed max-w-md">
-              Giải pháp cho thuê thiết bị công nghệ chuyên nghiệp. Quản lý việc thuê,
-              theo dõi đơn hàng và giữ cho các hoạt động luôn minh bạch cho đội ngũ của bạn.
+              {t('footer.description')}
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
                 <span className="material-symbols-outlined text-[16px]">
-                  verified
+                   verified
                 </span>
-                Bảo mật
+                {t('footer.security')}
               </span>
               <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
                 <span className="material-symbols-outlined text-[16px]">
                   bolt
                 </span>
-                Thanh toán nhanh
+                {t('footer.fast_payment')}
               </span>
               <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
                 <span className="material-symbols-outlined text-[16px]">
                   support_agent
                 </span>
-                Hỗ trợ
+                {t('footer.support')}
               </span>
             </div>
           </div>
@@ -76,29 +77,29 @@ export default function Footer() {
           {/* Links */}
           <div className="md:col-span-4 grid grid-cols-2 gap-8">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Nền tảng</h3>
+              <h3 className="text-sm font-bold text-slate-900">{t('footer.platform')}</h3>
               <div className="mt-3 flex flex-col gap-2">
-                <FooterLink to="/products">Duyệt thiết bị</FooterLink>
-                <FooterLink to="/pricing">Gói thuê</FooterLink>
-                <FooterLink to="/vouchers">Mã giảm giá</FooterLink>
-                <FooterLink to="/tracking">Theo dõi đơn hàng</FooterLink>
+                <FooterLink to="/products">{t('footer.browse_devices')}</FooterLink>
+                <FooterLink to="/pricing">{t('footer.pricing')}</FooterLink>
+                <FooterLink to="/vouchers">{t('footer.vouchers')}</FooterLink>
+                <FooterLink to="/tracking">{t('footer.order_tracking')}</FooterLink>
               </div>
             </div>
 
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Công ty</h3>
+              <h3 className="text-sm font-bold text-slate-900">{t('footer.company')}</h3>
               <div className="mt-3 flex flex-col gap-2">
-                <FooterLink to="/about">Giới thiệu</FooterLink>
-                <FooterLink to="/blog">Blog</FooterLink>
-                <FooterLink to="/contact">Liên hệ</FooterLink>
-                <FooterLink to="/faq">Hỏi đáp</FooterLink>
+                <FooterLink to="/about">{t('footer.about')}</FooterLink>
+                <FooterLink to="/blog">{t('footer.blog')}</FooterLink>
+                <FooterLink to="/contact">{t('footer.contact')}</FooterLink>
+                <FooterLink to="/faq">{t('footer.faq')}</FooterLink>
               </div>
             </div>
           </div>
 
           {/* Contact */}
           <div className="md:col-span-3">
-            <h3 className="text-sm font-bold text-slate-900">Liên hệ với chúng tôi</h3>
+            <h3 className="text-sm font-bold text-slate-900">{t('footer.contact_us')}</h3>
 
             <div className="mt-3 space-y-2">
               <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -111,7 +112,7 @@ export default function Footer() {
                 <span className="material-symbols-outlined text-[18px] text-slate-400">
                   schedule
                 </span>
-                <span>Thứ 2–Thứ 7 · 08:00–18:00</span>
+                <span>{t('footer.working_hours')}</span>
               </div>
             </div>
 
@@ -146,18 +147,17 @@ export default function Footer() {
         {/* Bottom */}
         <div className="mt-10 border-t border-slate-200 pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-slate-400 text-sm font-medium text-center md:text-left">
-            © {new Date().getFullYear()} GearXpert Platforms Inc. Giải pháp
-            cho thuê thiết bị chuyên nghiệp.
+            {t('footer.copyright', { year: new Date().getFullYear() })}
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-            <FooterLink to="/privacy">Bảo mật</FooterLink>
-            <FooterLink to="/terms">Điều khoản</FooterLink>
-            <FooterLink to="/support">Hỗ trợ</FooterLink>
+            <FooterLink to="/privacy">{t('footer.privacy')}</FooterLink>
+            <FooterLink to="/terms">{t('footer.terms')}</FooterLink>
+            <FooterLink to="/support">{t('footer.support')}</FooterLink>
 
             <span className="hidden sm:inline-flex items-center gap-2 text-xs font-semibold text-slate-500">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              Hệ thống hoạt động bình thường
+              {t('footer.system_status')}
             </span>
           </div>
         </div>

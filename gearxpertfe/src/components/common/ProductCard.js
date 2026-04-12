@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import ImageWithFallback from './ImageWithFallback';
 import { toggleFavorite, checkIsFavorite } from '../../service/ApiService/FavoriteApi';
 import { toast } from 'react-toastify';
@@ -22,7 +23,7 @@ export default function ProductCard({
   device,
   variant = 'detailed',
   match = null,
-  buttonText = 'Rent Gear',
+  buttonText,
   onClick,
   onFavoriteChange,
   className = '',
@@ -30,6 +31,7 @@ export default function ProductCard({
   onToggleCompare,                     // ← Thêm prop này
 }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const isAuthenticated = useSelector(state => state.user?.isAuthenticated || false);
 
   // Local state for favorite
@@ -41,17 +43,7 @@ export default function ProductCard({
   const deviceId = device?._id || device?.id;
   const name = device?.name || '';
   const getCategoryDisplay = (cat) => {
-    const map = {
-      'CAMERA': 'Camera',
-      'LIGHTING': 'Lighting',
-      'AUDIO': 'Audio',
-      'OFFICE': 'Office',
-      'GAMING': 'Gaming',
-      'ACCESSORY': 'Accessories',
-      'DRONE': 'Drone',
-      'OTHER': 'Other'
-    };
-    return map[cat] || 'Other';
+    return t(`categories.${cat}`, { defaultValue: cat });
   };
   const category = getCategoryDisplay(device?.category);
   const description = device?.description || '';
@@ -64,6 +56,10 @@ export default function ProductCard({
 
   const image = device?.image || device?.images?.[0] || '';
   const rating = device?.ratingAvg || device?.rating || null;
+
+  // Check stock availability - use availableQuantity from Device model (synced from DeviceItem)
+  const availableQty = device?.availableQuantity ?? 0;
+  const isOutOfStock = availableQty <= 0;
 
   // Load initial favorite status
   useEffect(() => {
@@ -158,6 +154,14 @@ export default function ProductCard({
             </div>
           )}
 
+          {/* Out of Stock Badge */}
+          {isOutOfStock && (
+            <div className="absolute top-3 left-3 z-20 bg-red-500 text-white px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-bold shadow-lg">
+              <span className="material-symbols-outlined text-[14px]">block</span>
+              Hết hàng
+            </div>
+          )}
+
           {/* Favorite + Compare Buttons - Stack vertically */}
           <div className="absolute top-3 right-3 z-10 flex flex-col gap-2">
             {isAuthenticated && (
@@ -191,13 +195,25 @@ export default function ProductCard({
             )}
           </div>
 
-          <div className="w-full h-full bg-cover bg-center transition-transform duration-500 group-hover:scale-110">
+          <div className={`w-full h-full bg-cover bg-center transition-transform duration-500 ${isOutOfStock ? 'grayscale' : 'group-hover:scale-110'}`}>
             <ImageWithFallback
               src={image}
               alt={name}
               className="w-full h-full object-cover"
             />
           </div>
+
+          {/* Out of Stock Overlay */}
+          {isOutOfStock && (
+            <div className="absolute inset-0 bg-slate-900/40 flex items-center justify-center z-10">
+              <div className="bg-white/95 backdrop-blur-sm px-4 py-2 rounded-xl shadow-xl transform rotate-[-5deg] border-2 border-red-200">
+                <p className="text-red-600 font-bold text-sm flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[18px]">inventory_2</span>
+                  Tạm hết hàng
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col flex-1">
@@ -211,15 +227,10 @@ export default function ProductCard({
                   {originalPrice.toLocaleString('vi-VN')}đ
                 </span>
               )}
-              <div className="overflow-hidden">
-                <p 
-                  className={`${hasDiscount ? 'text-red-500' : 'text-primary'} font-bold text-sm block whitespace-nowrap transition-transform duration-[3000ms] ease-linear group-hover/price:-translate-x-[30%]`}
-                  title={`${price.toLocaleString('vi-VN')}đ/day`}
-                >
-                  {price.toLocaleString('vi-VN')}đ
-                  <span className="text-[10px] text-slate-400 font-normal ml-0.5">/day</span>
-                </p>
-              </div>
+              <p className={`${hasDiscount ? 'text-red-500' : 'text-primary'} font-bold text-sm`}>
+                {price.toLocaleString('vi-VN')}đ
+                <span className="text-[10px] text-slate-400 font-normal ml-0.5">{t('common.per_day')}</span>
+              </p>
             </div>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">{category}</span>
           </div>
@@ -231,16 +242,24 @@ export default function ProductCard({
   // Detailed variant
   return (
     <div
-      className={`group relative bg-white rounded-3xl p-0 shadow-lg hover:shadow-2xl transition-all duration-300 border border-slate-100 cursor-pointer ${match ? `ring-1 ring-slate-900` : ''} ${className}`}
+      className={`group relative bg-white rounded-2xl p-0 shadow-md hover:shadow-xl transition-all duration-300 border border-slate-100 cursor-pointer ${match ? `ring-1 ring-slate-900` : ''} ${className}`}
       onClick={handleClick}
     >
-      <div className="bg-white rounded-3xl overflow-hidden isolate flex flex-col h-full">
+      <div className="bg-white rounded-2xl overflow-hidden isolate flex flex-col h-full">
         {/* Image Section */}
-        <div className="relative h-64 overflow-hidden rounded-t-[22px]">
+        <div className="relative h-44 overflow-hidden rounded-t-[16px]">
+          {/* Out of Stock Badge */}
+          {isOutOfStock && (
+            <div className="absolute top-3 left-3 z-20 bg-red-500 text-white px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-bold shadow-lg">
+              <span className="material-symbols-outlined text-[14px]">block</span>
+              Hết hàng
+            </div>
+          )}
+
           {/* Rating Badge */}
-          {rating !== null && (
-            <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full flex items-center gap-1 text-sm font-semibold text-gray-900">
-              <span className="material-symbols-outlined text-[16px] fill-yellow-400 text-yellow-400">star</span>
+          {rating !== null && !isOutOfStock && (
+            <div className={`absolute top-3 ${isOutOfStock ? 'left-24' : 'left-3'} z-10 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full flex items-center gap-1 text-xs font-semibold text-gray-900`}>
+              <span className="material-symbols-outlined text-[14px] fill-yellow-400 text-yellow-400">star</span>
               {rating.toFixed(1)}
             </div>
           )}
@@ -254,14 +273,14 @@ export default function ProductCard({
           )}
 
           {/* Favorite + Compare - Stack vertically */}
-          <div className="absolute top-4 right-4 z-10 flex flex-col gap-3">
+          <div className="absolute top-3 right-3 z-10 flex flex-col gap-2">
             {isAuthenticated && (
               <button
                 onClick={handleToggleFavorite}
-                className="bg-white/30 backdrop-blur-md border border-white/40 shadow-lg w-11 h-11 flex items-center justify-center rounded-full hover:bg-white/50 transition-all hover:shadow-glow-indigo"
+                className="bg-white/30 backdrop-blur-md border border-white/40 shadow-md w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/50 transition-all"
                 disabled={isTogglingFavorite}
               >
-                <span className={`material-symbols-outlined text-[24px] transition-all ${isFavorited ? 'material-symbols-filled bg-gradient-to-r from-accent-cyan to-indigo-500 bg-clip-text text-transparent scale-110' : 'text-slate-600'}`}>
+                <span className={`material-symbols-outlined text-[18px] transition-all ${isFavorited ? 'material-symbols-filled bg-gradient-to-r from-accent-cyan to-indigo-500 bg-clip-text text-transparent scale-110' : 'text-slate-600'}`}>
                   {isFavorited ? 'favorite' : 'favorite_border'}
                 </span>
               </button>
@@ -274,64 +293,76 @@ export default function ProductCard({
                   e.stopPropagation();
                   onToggleCompare();
                 }}
-                className={`w-11 h-11 flex items-center justify-center rounded-full shadow-lg transition-all backdrop-blur-md border ${
+                className={`w-8 h-8 flex items-center justify-center rounded-full shadow-md transition-all backdrop-blur-md border ${
                   isSelectedForCompare
                     ? 'bg-indigo-600 border-indigo-700 text-white scale-110'
                     : 'bg-white/40 border-white/50 text-slate-700 hover:bg-indigo-500/80 hover:text-white hover:border-indigo-600'
                 }`}
                 title={isSelectedForCompare ? 'Remove from comparison' : 'Add to compare'}
               >
-                <span className="material-symbols-outlined text-[24px]">balance</span>
+                <span className="material-symbols-outlined text-[18px]">balance</span>
               </button>
             )}
           </div>
 
           {/* Image */}
-          <div className="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700">
+          <div className={`w-full h-full bg-cover bg-center transition-transform duration-700 ${isOutOfStock ? 'grayscale' : 'group-hover:scale-110'}`}>
             <ImageWithFallback
               src={image}
               alt={name}
               className="w-full h-full object-cover"
             />
           </div>
+
+          {/* Out of Stock Overlay */}
+          {isOutOfStock && (
+            <div className="absolute inset-0 bg-slate-900/40 flex items-center justify-center z-10">
+              <div className="bg-white/95 backdrop-blur-sm px-4 py-2 rounded-xl shadow-xl transform rotate-[-5deg] border-2 border-red-200">
+                <p className="text-red-600 font-bold text-sm flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[18px]">inventory_2</span>
+                  Tạm hết hàng
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Content Section */}
-        <div className="p-6 flex flex-col flex-1">
-          <span className="text-[10px] font-bold text-primary uppercase tracking-[0.2em]">
+        <div className="p-4 flex flex-col flex-1">
+          <span className="text-[9px] font-bold text-primary uppercase tracking-[0.15em]">
             {category}
           </span>
-          <h3 className="text-xl font-bold text-slate-900 mt-1 font-display line-clamp-1 min-h-[1.75rem]" title={name}>
+          <h3 className="text-base font-bold text-slate-900 mt-0.5 font-display line-clamp-1 min-h-[1.25rem]" title={name}>
             {name}
           </h3>
           {description && (
-            <p className="text-sm text-slate-500 mt-2 line-clamp-2 min-h-[2.5rem]">{description}</p>
+            <p className="text-xs text-slate-500 mt-1 line-clamp-2 flex-1">{description}</p>
           )}
-          <div className="mt-auto pt-6 flex items-center justify-between gap-4 overflow-hidden">
-            <div className="flex flex-col min-w-0 flex-1">
+          <div className="mt-auto pt-4 flex items-center justify-between">
+            <div className="flex flex-col">
               {hasDiscount && (
-                <span className="text-xs text-slate-400 line-through leading-none mb-1 truncate">
+                <span className="text-xs text-slate-400 line-through leading-none mb-0.5">
                   {originalPrice.toLocaleString('vi-VN')}đ
                 </span>
               )}
-              <div className="relative overflow-hidden group/price">
-                <span 
-                  className={`text-2xl font-bold block whitespace-nowrap transition-transform duration-[3000ms] ease-linear group-hover/price:-translate-x-[20%] ${hasDiscount ? 'text-red-500' : 'text-slate-900'}`}
-                  title={`${price.toLocaleString('vi-VN')}đ/day`}
-                >
-                  {price.toLocaleString('vi-VN')}đ
-                  <span className="text-sm text-slate-400 font-normal ml-1">/day</span>
-                </span>
-              </div>
+              <span className={`text-lg font-bold ${hasDiscount ? 'text-red-500' : 'text-slate-900'}`}>
+                {price.toLocaleString('vi-VN')}đ
+                <span className="text-xs text-slate-400 font-normal ml-1">{t('common.per_day')}</span>
+              </span>
             </div>
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                handleClick();
+                if (!isOutOfStock) handleClick();
               }}
-              className="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors shadow-md shrink-0"
+              disabled={isOutOfStock}
+              className={`px-4 py-2 rounded-lg font-bold text-xs transition-colors shadow-sm ${
+                isOutOfStock
+                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  : 'bg-slate-900 text-white hover:bg-slate-800'
+              }`}
             >
-              {buttonText}
+              {isOutOfStock ? 'Hết hàng' : (buttonText || t('productDetail.rent_now'))}
             </button>
           </div>
         </div>

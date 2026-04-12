@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import {
   ArrowLeft,
+  ArrowRight,
   Star,
   MapPin,
   Shield,
@@ -18,7 +19,18 @@ import {
   User,
   Edit,
   Trash2,
+  FileText,
+  MessageSquare,
+  X,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  ChevronLeft,
+  ChevronRight,
+  Maximize2,
+  Heart,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { toast, Toaster } from "sonner";
 import { useParams, useNavigate } from "react-router-dom";
 import Header from "../../components/navigation/Header";
@@ -35,8 +47,10 @@ import {
   updateReview,
   deleteReview,
 } from "../../service/ApiService/ReviewApi";
+import { toggleFavorite, checkIsFavorite } from "../../service/ApiService/FavoriteApi";
 
 export default function ProductDetailPage() {
+  const { t } = useTranslation();
   const { slug } = useParams();
   const navigate = useNavigate();
 
@@ -67,6 +81,16 @@ export default function ProductDetailPage() {
   const [editComment, setEditComment] = useState("");
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
+  const [isSpecsModalOpen, setIsSpecsModalOpen] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [imageOffset, setImageOffset] = useState({ x: 0, y: 0 });
+  const [thumbnailOffset, setThumbnailOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   const { socket } = useSocket();
 
@@ -97,7 +121,7 @@ export default function ProductDetailPage() {
       setRealAvailableCount(available?.availableCount || 0);
     } catch (err) {
       console.error("Fetch device detail error:", err);
-      toast.error("Không thể tải dữ liệu thiết bị");
+      toast.error(t('productDetail.loading_device'));
     } finally {
       setLoading(false);
     }
@@ -119,6 +143,37 @@ export default function ProductDetailPage() {
     }
   }, [device?._id, isAuthenticated]);
 
+  // Check favorite status
+  const checkFavoriteStatus = useCallback(async () => {
+    if (!isAuthenticated || !device?._id) return;
+    try {
+      const res = await checkIsFavorite(device._id);
+      setIsFavorite(res.data?.isFavorite || false);
+    } catch (err) {
+      console.log("Không thể kiểm tra trạng thái yêu thích:", err);
+    }
+  }, [device?._id, isAuthenticated]);
+
+  // Handle toggle favorite
+  const handleToggleFavorite = async () => {
+    if (!isAuthenticated) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+    if (!device?._id || isTogglingFavorite) return;
+
+    setIsTogglingFavorite(true);
+    try {
+      const res = await toggleFavorite(device._id);
+      setIsFavorite(res.data?.isFavorite || false);
+      toast.success(res.data?.isFavorite ? "Đã thêm vào danh sách yêu thích" : "Đã xóa khỏi danh sách yêu thích");
+    } catch (err) {
+      toast.error("Có lỗi khi thực hiện");
+    } finally {
+      setIsTogglingFavorite(false);
+    }
+  };
+
   useEffect(() => {
     fetchData();
     window.scrollTo(0, 0);
@@ -138,18 +193,19 @@ export default function ProductDetailPage() {
   }, [fetchMyReview]);
 
   useEffect(() => {
+    checkFavoriteStatus();
+  }, [checkFavoriteStatus]);
+
+  useEffect(() => {
     if (!socket || !device?._id) return;
 
-    console.log(`[SOCKET] Joining device room: device_${device._id}`);
     socket.emit("joinRoom", `device_${device._id}`);
 
     socket.on("deviceReviewUpdate", (data) => {
-      console.log("[SOCKET] Received deviceReviewUpdate:", data);
       fetchData();
     });
 
     return () => {
-      console.log(`[SOCKET] Leaving device room: device_${device._id}`);
       socket.emit("leaveRoom", `device_${device._id}`);
       socket.off("deviceReviewUpdate");
     };
@@ -157,16 +213,16 @@ export default function ProductDetailPage() {
 
   const validateRental = () => {
     if (!startDate || !endDate) {
-      toast.warning("Vui lòng chọn ngày bắt đầu và ngày kết thúc thuê!");
+      toast.warning(t('productDetail.warn_select_dates', { defaultValue: "Vui lòng chọn ngày bắt đầu và ngày kết thúc thuê!" }));
       return false;
     }
     if (new Date(startDate) > new Date(endDate)) {
-      toast.error("Ngày kết thúc không được nhỏ hơn ngày bắt đầu!");
+      toast.error(t('productDetail.error_end_date_before_start', { defaultValue: "Ngày kết thúc không được nhỏ hơn ngày bắt đầu!" }));
       return false;
     }
 
     if (quantity > realAvailableCount) {
-      toast.error(`Chỉ còn ${realAvailableCount} thiết bị khả dụng!`);
+      toast.error(t('productDetail.error_not_enough_stock', { count: realAvailableCount, defaultValue: `Chỉ còn ${realAvailableCount} thiết bị khả dụng!` }));
       return false;
     }
 
@@ -180,7 +236,7 @@ export default function ProductDetailPage() {
     );
 
     if (!isSelected) {
-      toast.info(`Đã thêm phụ kiện: ${addon.name}`);
+      toast.info(t('productDetail.addon_added', { name: addon.name }));
     }
   };
 
@@ -198,15 +254,15 @@ export default function ProductDetailPage() {
         rentalEndDate: endDate,
         addons: addons.map((a) => a._id),
       });
-      toast.success("Đã thêm vào giỏ hàng thành công!", {
-        description: `${device.name} đã sẵn sàng trong giỏ của bạn.`,
+      toast.success(t('productDetail.success_add_cart'), {
+        description: t('productDetail.success_add_cart_desc', { name: device.name }),
         action: {
-          label: "Đến giỏ hàng",
+          label: t('productDetail.go_to_cart'),
           onClick: () => navigate("/user/cart"),
         },
       });
     } catch {
-      toast.error("Thêm vào giỏ thất bại. Vui lòng thử lại!");
+      toast.error(t('productDetail.error_add_cart'));
     }
   };
 
@@ -217,7 +273,7 @@ export default function ProductDetailPage() {
     }
     if (!validateRental()) return;
 
-    const toastId = toast.loading("Đang xử lý yêu cầu thuê ngay...");
+    const toastId = toast.loading(t('productDetail.processing_instant'));
     try {
       const response = await addInstantToCart({
         deviceId: device._id,
@@ -226,19 +282,16 @@ export default function ProductDetailPage() {
         rentalEndDate: endDate,
         addons: addons.map((a) => a._id),
       });
-
-      console.log("[handleBuyNow] Response:", response.data);
-
-      toast.success("Đã thêm vào giỏ INSTANT!", { id: toastId });
+      toast.success(t('productDetail.success_add_cart'), { id: toastId });
       navigate("/rental/checkout", {
         state: { cartType: "INSTANT" },
       });
     } catch (err) {
       console.error("[handleBuyNow] Error:", err);
-      
+
       // Detailed error handling
       const errorMessage = err.response?.data?.message || err.message || "Thuê ngay thất bại";
-      
+
       // Specific error messages
       if (errorMessage.includes("không tồn tại")) {
         toast.error("Thiết bị không tồn tại hoặc đã bị xóa", { id: toastId });
@@ -254,12 +307,12 @@ export default function ProductDetailPage() {
 
   const handleUpdateReview = async () => {
     if (!editComment.trim()) {
-      toast.error("Vui lòng nhập nội dung nhận xét");
+      toast.error(t('productDetail.error_empty_comment', { defaultValue: "Vui lòng nhập nội dung nhận xét" }));
       return;
     }
 
     setIsSubmittingReview(true);
-    const toastId = toast.loading("Đang cập nhật review...");
+    const toastId = toast.loading(t('productDetail.updating_review'));
 
     try {
       await updateReview(myReview._id, {
@@ -289,7 +342,7 @@ export default function ProductDetailPage() {
 
   const confirmDeleteReview = async () => {
     setShowDeleteConfirm(false);
-    const toastId = toast.loading("Đang xóa review...");
+    const toastId = toast.loading(t('productDetail.deleting_review'));
 
     try {
       await deleteReview(myReview._id);
@@ -340,89 +393,284 @@ export default function ProductDetailPage() {
       <Header />
       <Toaster richColors closeButton expand={true} />
 
-      <main className="flex-1">
-        {/* HEADER NAV STICKY */}
-        <div className="sticky top-[112px] z-40 mx-4 sm:mx-6 bg-white/80 backdrop-blur-md border border-slate-200 rounded-2xl shadow-lg mt-28" data-theme="light">
-          <div className="max-w-7xl mx-auto px-5 sm:px-6 py-3 flex items-center justify-between">
-            <button
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-slate-600 hover:text-indigo-600 transition-colors font-semibold text-sm"
-            >
-              <ArrowLeft className="w-5 h-5" />
-              Quay lại danh mục
-            </button>
-            <div className="hidden md:flex items-center gap-4">
-              <span className="text-sm font-medium text-slate-400">
-                Trang chủ / Thiết bị / {device?.category}
-              </span>
-            </div>
-          </div>
-        </div>
-
+      <main className="flex-1 pt-28">
         {/* MAIN CONTENT */}
-        <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 py-8 lg:py-10">
-          <div className="grid lg:grid-cols-12 gap-8 lg:gap-10">
-            {/* LEFT: IMAGES & DETAILS */}
-            <div className="lg:col-span-7 space-y-8">
-              {/* IMAGES */}
-              <div className="space-y-5">
-                <div className="relative rounded-3xl overflow-hidden bg-white shadow-xl shadow-indigo-100/40 border border-slate-100 group">
-                  <img
-                    src={device.images?.[selectedImage]}
-                    className="w-full h-[420px] sm:h-[480px] lg:h-[520px] object-cover transition-transform duration-700 group-hover:scale-105"
-                    alt={device.name}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="grid lg:grid-cols-12 gap-6">
+            {/* LEFT: Title, Actions, Image, Description/Specs */}
+            <div className="lg:col-span-8 space-y-4">
+              {/* Product Name - First */}
+              <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 leading-tight">{device.name}</h1>
+
+              {/* Action Buttons Row */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleToggleFavorite}
+                  disabled={isTogglingFavorite}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all ${isFavorite
+                      ? 'border-rose-200 bg-rose-50 text-rose-600'
+                      : 'border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-rose-600 hover:border-rose-200'
+                    }`}
+                >
+                  <Heart
+                    className="w-4 h-4"
+                    fill={isFavorite ? "currentColor" : "none"}
+                    strokeWidth={isFavorite ? 0 : 2}
                   />
-                  <div className="absolute top-5 left-5">
-                    <span
-                      className={`text-white text-xs font-black px-3 py-1 rounded-lg uppercase tracking-widest shadow-md ${device.stockQuantity > 0
-                        ? "bg-indigo-600"
-                        : "bg-rose-500"
-                        }`}
-                    >
-                      {device.stockQuantity > 0
-                        ? device.status
-                        : "Hết hàng"}
-                    </span>
+                  <span className="text-xs font-medium">{isFavorite ? 'Đã yêu thích' : 'Yêu thích'}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    const reviewsSection = document.getElementById('reviews-section');
+                    reviewsSection?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 transition-all"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span className="text-xs font-medium">Xem đánh giá</span>
+                </button>
+                <button
+                  onClick={() => setIsSpecsModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 transition-all"
+                >
+                  <Cpu className="w-4 h-4" />
+                  <span className="text-xs font-medium">Xem thông số</span>
+                </button>
+              </div>
+
+              {/* Image Gallery - Redesigned: Main image full height, thumbnails on right */}
+              <div className="flex gap-3 h-[400px]">
+                {/* Main Image */}
+                <div className="flex-1 bg-white rounded-xl border border-slate-200 overflow-hidden">
+                  <div
+                    className="relative h-full group cursor-zoom-in"
+                    onClick={() => {
+                      setIsImageModalOpen(true);
+                      setZoomLevel(1);
+                      setImageOffset({ x: 0, y: 0 });
+                    }}
+                  >
+                    <img
+                      src={device.images?.[selectedImage]}
+                      className="w-full h-full object-cover"
+                      alt={device.name}
+                    />
+                    <div className="absolute top-4 left-4 flex flex-wrap gap-2">
+                      {realAvailableCount === 0 ? (
+                        <span className="bg-red-500/95 backdrop-blur-sm text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">Hết hàng</span>
+                      ) : (
+                        <span className="bg-emerald-500/95 backdrop-blur-sm text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">Còn {realAvailableCount}</span>
+                      )}
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-sm text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <Zap className="w-4 h-4" />
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex gap-3 overflow-x-auto pb-2 hide-scroll">
-                  {device.images?.map((img, i) => (
+                {/* Thumbnails - Vertical on right matching main image height */}
+                {device.images?.length > 1 && (
+                  <div className="w-20 flex flex-col gap-2 h-full">
+                    {/* Up Arrow */}
                     <button
-                      key={i}
-                      onClick={() => setSelectedImage(i)}
-                      className={`relative min-w-[90px] sm:min-w-[100px] h-20 sm:h-24 rounded-2xl overflow-hidden border-2 transition-all ${selectedImage === i
-                        ? "border-indigo-600 scale-95 shadow-md"
-                        : "border-transparent opacity-70 hover:opacity-100"
-                        }`}
+                      onClick={() => setThumbnailOffset(Math.max(0, thumbnailOffset - 1))}
+                      disabled={thumbnailOffset === 0}
+                      className="w-20 h-8 flex-shrink-0 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                     >
-                      <img
-                        src={img}
-                        className="w-full h-full object-cover"
-                        alt="thumb"
-                      />
+                      <ChevronLeft className="w-4 h-4 text-slate-600 rotate-90" />
                     </button>
-                  ))}
+
+                    {/* Thumbnail Container - Fixed height for 4 images */}
+                    <div className="w-20 h-[344px] overflow-hidden relative">
+                      <div 
+                        className="flex flex-col gap-2 transition-transform duration-300 ease-out"
+                        style={{ transform: `translateY(-${thumbnailOffset * 88}px)` }}
+                      >
+                        {device.images.map((img, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setSelectedImage(i)}
+                            className={`relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 transition-all ${selectedImage === i
+                                ? "ring-2 ring-indigo-600"
+                                : "opacity-70 hover:opacity-100"
+                              }`}
+                          >
+                            <img src={img} className="w-full h-full object-cover" alt="" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Down Arrow */}
+                    <button
+                      onClick={() => {
+                        const maxOffset = Math.max(0, device.images.length - 4);
+                        setThumbnailOffset(Math.min(maxOffset, thumbnailOffset + 1));
+                      }}
+                      disabled={thumbnailOffset >= device.images.length - 4}
+                      className="w-20 h-8 flex-shrink-0 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                    >
+                      <ChevronRight className="w-4 h-4 text-slate-600 rotate-90" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* TABS */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-2 mb-6 shadow-sm">
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setActiveTab('overview')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 text-sm font-medium rounded-xl transition-all duration-200 ${activeTab === 'overview'
+                        ? 'bg-indigo-600 text-white shadow-md'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      }`}
+                  >
+                    <FileText className="w-4 h-4" />
+                    Mô tả
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('specs')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 text-sm font-medium rounded-xl transition-all duration-200 ${activeTab === 'specs'
+                        ? 'bg-indigo-600 text-white shadow-md'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      }`}
+                  >
+                    <Cpu className="w-4 h-4" />
+                    Thông số
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('reviews')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 text-sm font-medium rounded-xl transition-all duration-200 ${activeTab === 'reviews'
+                        ? 'bg-indigo-600 text-white shadow-md'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      }`}
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    Đánh giá
+                    {device.reviewCount > 0 && (
+                      <span className={`ml-1 px-2 py-0.5 text-xs rounded-full ${activeTab === 'reviews' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                        {device.reviewCount}
+                      </span>
+                    )}
+                  </button>
                 </div>
               </div>
 
-              {/* OVERVIEW */}
-              <div className="space-y-5">
-                <h2 className="text-2xl font-bold text-slate-900 font-display flex items-center gap-3">
-                  Tổng quan
-                  <div className="h-1 flex-1 bg-slate-100 rounded-full"></div>
-                </h2>
-                <p className="text-[15px] text-slate-600 leading-relaxed whitespace-pre-line font-medium">
-                  {device.description}
-                </p>
-              </div>
+              {/* TAB CONTENT */}
+              {activeTab === 'overview' && (
+                <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                  <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-indigo-600" />
+                    Mô tả sản phẩm
+                  </h3>
+                  <div className="prose prose-slate max-w-none">
+                    <p className="text-slate-600 leading-relaxed whitespace-pre-line">
+                      {device.description || "Chưa có mô tả cho sản phẩm này."}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'specs' && (
+                <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                  <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                    <Cpu className="w-5 h-5 text-indigo-600" />
+                    Thông số kỹ thuật
+                  </h3>
+                  {device.specs && Object.keys(device.specs).length > 0 ? (
+                    <div className="grid gap-3">
+                      {Object.entries(device.specs).map(([k, v]) => (
+                        <div
+                          key={k}
+                          className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-indigo-200 hover:shadow-sm transition-all"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
+                              <Cpu className="w-5 h-5 text-indigo-600" />
+                            </div>
+                            <span className="font-medium text-slate-600">{k}</span>
+                          </div>
+                          <span className="font-bold text-slate-900 text-right">{v}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 bg-slate-50 rounded-xl">
+                      <Cpu className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                      <p className="text-slate-500 font-medium">Chưa có thông số kỹ thuật</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'reviews' && (
+                <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                  <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-indigo-600" />
+                    Đánh giá từ khách hàng
+                    {reviews.length > 0 && (
+                      <span className="ml-2 px-2.5 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full">
+                        {reviews.length}
+                      </span>
+                    )}
+                  </h3>
+
+                  {/* Reviews List */}
+                  <div className="space-y-4">
+                    {reviews.length > 0 ? (
+                      reviews.map((r) => (
+                        <div
+                          key={r._id}
+                          className="p-5 bg-slate-50 rounded-xl border border-slate-100 hover:border-indigo-200 hover:shadow-sm transition-all"
+                        >
+                          <div className="flex gap-4">
+                            <img
+                              src={r.userId?.avatar}
+                              className="w-12 h-12 rounded-full object-cover ring-2 ring-white shadow-sm flex-shrink-0"
+                              alt="avatar"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between items-start mb-2">
+                                <div>
+                                  <h4 className="font-bold text-slate-900 text-sm">{r.userId?.fullName}</h4>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <div className="flex gap-0.5">
+                                      {Array.from({ length: 5 }).map((_, i) => (
+                                        <Star
+                                          key={i}
+                                          className={`w-3.5 h-3.5 ${i < r.rating ? "fill-amber-400 text-amber-400" : "text-slate-200"}`}
+                                        />
+                                      ))}
+                                    </div>
+                                    <span className="text-xs text-slate-400">• {new Date(r.createdAt).toLocaleDateString('vi-VN')}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <p className="text-slate-600 text-sm leading-relaxed">{r.comment}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-12 bg-slate-50 rounded-xl">
+                        <MessageSquare className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                        <p className="text-slate-500 font-medium">Chưa có đánh giá nào</p>
+                        <p className="text-slate-400 text-sm mt-1">Hãy là người đầu tiên đánh giá sản phẩm này</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* MY REVIEW SECTION */}
               {isAuthenticated && (
                 <div className="mt-10 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
                   <h3 className="text-xl font-bold text-slate-900 mb-5 flex items-center gap-3">
                     <User className="w-5 h-5 text-indigo-600" />
-                    Đánh giá của tôi
+                    {t('productDetail.my_review')}
                   </h3>
 
                   {hasMyReview ? (
@@ -463,19 +711,19 @@ export default function ProductDetailPage() {
                                     className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 hover:border-indigo-300 rounded-xl transition-all"
                                   >
                                     <Edit className="w-4 h-4" />
-                                    Chỉnh sửa
+                                    {t('common.edit')}
                                   </button>
                                   <button
                                     onClick={handleDeleteReview}
                                     className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 hover:border-rose-300 rounded-xl transition-all"
                                   >
                                     <Trash2 className="w-4 h-4" />
-                                    Xóa
+                                    {t('common.delete')}
                                   </button>
                                 </div>
                               ) : (
                                 <span className="text-xs italic px-3 py-1.5 bg-slate-100 text-slate-500 rounded-full">
-                                  Đã quá 48 giờ
+                                  {t('productDetail.days_too_long')}
                                 </span>
                               );
                             })()}
@@ -502,7 +750,7 @@ export default function ProductDetailPage() {
                         <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-5">
                           <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-2">
-                              Đánh giá của bạn
+                              {t('productDetail.my_review')}
                             </label>
                             <div className="flex gap-1">
                               {[1, 2, 3, 4, 5].map((star) => (
@@ -531,7 +779,7 @@ export default function ProductDetailPage() {
                               value={editComment}
                               onChange={(e) => setEditComment(e.target.value)}
                               className="w-full h-36 p-3.5 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none text-slate-700 placeholder-slate-400 text-[15px]"
-                              placeholder="Chia sẻ trải nghiệm của bạn..."
+                              placeholder={t('productDetail.share_experience')}
                             />
                           </div>
 
@@ -541,7 +789,7 @@ export default function ProductDetailPage() {
                               disabled={isSubmittingReview}
                               className="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors"
                             >
-                              Hủy
+                              {t('common.cancel')}
                             </button>
                             <button
                               onClick={handleUpdateReview}
@@ -556,10 +804,10 @@ export default function ProductDetailPage() {
                               {isSubmittingReview ? (
                                 <>
                                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                  Đang lưu...
+                                  {t('common.loading')}
                                 </>
                               ) : (
-                                "Lưu thay đổi"
+                                t('common.save')
                               )}
                             </button>
                           </div>
@@ -569,11 +817,11 @@ export default function ProductDetailPage() {
                   ) : (
                     <div className="text-center py-10 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
                       <p className="text-slate-600 font-medium">
-                        Bạn chưa đánh giá sản phẩm này
+                        {t('productDetail.not_reviewed')}
                       </p>
                       {hasRented && (
                         <p className="mt-2 text-sm text-indigo-600">
-                          (Bạn có thể đánh giá vì đã từng thuê thiết bị này)
+                          {t('productDetail.review_hint')}
                         </p>
                       )}
                     </div>
@@ -581,544 +829,582 @@ export default function ProductDetailPage() {
                 </div>
               )}
 
-              {/* REVIEWS */}
-              <div className="space-y-7">
-                <h2 className="text-2xl font-bold text-slate-900 font-display flex items-center gap-3">
-                  Đánh giá thiết bị
-                  <div className="h-1 flex-1 bg-slate-100 rounded-full"></div>
-                </h2>
-
-                <div className="space-y-5">
-                  {reviews.length > 0 ? (
-                    reviews.map((r) => (
-                      <div
-                        key={r._id}
-                        className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex gap-5"
-                      >
-                        <img
-                          src={r.userId?.avatar}
-                          className="w-12 h-12 rounded-2xl object-cover ring-4 ring-slate-50 flex-shrink-0"
-                          alt="avatar"
-                        />
-                        <div className="flex-1 min-w-0 space-y-2">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h4 className="font-bold text-slate-900">
-                                {r.userId?.fullName}
-                              </h4>
-                              <div className="flex gap-0.5 mt-1">
-                                {Array.from({ length: 5 }).map((_, i) => (
-                                  <Star
-                                    key={i}
-                                    className={`w-3.5 h-3.5 ${i < r.rating
-                                      ? "fill-amber-400 text-amber-400"
-                                      : "text-slate-200"
-                                      }`}
-                                  />
-                                ))}
-                              </div>
-                            </div>
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter">
-                              {new Date(r.createdAt).toLocaleDateString()}
-                            </span>
-                          </div>
-                          <p className="text-slate-600 font-medium leading-relaxed italic text-[15px] whitespace-pre-wrap break-all">
-                            "{r.comment}"
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-10 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
-                      <AlertCircle className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                      <p className="text-slate-400 font-bold uppercase text-xs tracking-widest">
-                        Chưa có đánh giá nào
-                      </p>
-                    </div>
-                  )}
-
-                  {!hasRented && (
-                    <div className="flex items-center justify-center gap-3 p-4 bg-indigo-50 rounded-2xl text-indigo-600 text-sm font-bold">
-                      <AlertCircle className="w-5 h-5" />
-                      Chỉ những người đã thuê mới có thể để lại đánh giá
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
 
-            {/* RIGHT: CONFIG & RENTAL */}
-            <div className="lg:col-span-5 space-y-7">
-              {/* TITLE & RATING */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-indigo-600 font-bold text-sm uppercase tracking-wider">
-                  <div className="w-7 h-[2px] bg-indigo-600"></div>
-                  {device.category}
-                </div>
-                <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 font-display leading-tight italic">
-                  {device.name}
-                </h1>
-
-                <div className="flex items-center gap-5">
-                  <div className="flex items-center gap-1.5">
-                    <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
-                    <span className="font-bold text-slate-900">
-                      {device.ratingAvg}
-                    </span>
-                    <span className="text-slate-400 text-sm">
-                      ({device.reviewCount} đánh giá)
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-slate-500">
-                    <MapPin className="w-4 h-4" />
-                    <span className="text-sm font-medium">
-                      {device.location?.city}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* SUPPLIER INFO */}
-              {(supplier.businessName || supplier.fullName) && (
-                <div
-                  onClick={() => navigate(`/supplier/${supplier._id}`)}
-                  className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm cursor-pointer hover:border-indigo-200 hover:shadow transition-all group"
-                >
-                  <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-3">
-                    <User size={20} className="text-indigo-600" />
-                    Nhà cung cấp
-                  </h3>
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-indigo-100 group-hover:border-indigo-300 transition-colors flex-shrink-0">
+            {/* RIGHT: Store, Pricing, Commitments */}
+            <div className="lg:col-span-4">
+              <div className="lg:sticky lg:top-28 space-y-4">
+                {/* Supplier Card - First */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="relative">
                       <img
-                        src={
-                          supplier.businessAvatar ||
-                          supplier.avatar ||
-                          "/default-shop.jpg"
-                        }
+                        src={supplier.businessAvatar || supplier.avatar || '/default-avatar.png'}
                         alt={supplier.businessName || supplier.fullName}
-                        className="w-full h-full object-cover"
+                        className="w-14 h-14 rounded-full object-cover border-2 border-slate-100"
                       />
+                      <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center">
+                        <CheckCircle className="w-3 h-3 text-white" />
+                      </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-slate-900 text-base group-hover:text-indigo-600 transition-colors truncate">
+                      <h4 className="font-bold text-base text-slate-900 truncate">
                         {supplier.businessName || supplier.fullName}
-                      </p>
-                      <p className="text-sm text-slate-500 truncate">
-                        Đã đăng {device.name} trên GearXpert
-                      </p>
-                    </div>
-                    <ArrowLeft className="w-5 h-5 text-slate-300 rotate-180 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all flex-shrink-0" />
-                  </div>
-                </div>
-              )}
-
-              {/* PRICING CARD */}
-              <div className="bg-indigo-600 rounded-3xl p-6 text-white shadow-xl shadow-indigo-200/50" data-theme="dark">
-                <div className="flex justify-between items-end">
-                  <div>
-                    <p className="text-indigo-100 text-xs font-bold uppercase tracking-widest mb-1">
-                      Giá thuê
-                    </p>
-                    <div className="flex flex-col gap-1">
-                      {device.discountPrice > 0 && !isExpired && (
-                        <span className="text-sm text-indigo-300/80 line-through font-bold">
-                          {device.rentPrice?.perDay.toLocaleString()}đ
-                        </span>
-                      )}
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-3xl font-bold">
-                          {effectivePrice.toLocaleString()}đ
-                        </span>
-                        <span className="text-indigo-200 text-sm">/ ngày</span>
+                      </h4>
+                      <div className="flex items-center gap-1.5 text-sm text-slate-500 mt-0.5">
+                        <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                        <span className="font-semibold text-slate-700">{supplier.ratingAvg?.toFixed(1) || '0.0'}</span>
+                        <span className="text-slate-300">•</span>
+                        <span>{supplier.deviceCount || 0} thiết bị</span>
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest mb-1">
-                      Tiền đặt cọc
-                    </p>
-                    <p className="font-bold text-lg">
-                      {device.depositAmount?.toLocaleString()}đ
-                    </p>
-                  </div>
+                  <button
+                    onClick={() => navigate(`/supplier/${supplier._id}`)}
+                    className="w-full py-2.5 text-sm font-semibold text-indigo-700 bg-indigo-50 rounded-xl hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2 group"
+                  >
+                    Xem trang cửa hàng
+                    <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                  </button>
                 </div>
-              </div>
 
-              {/* RENTAL FORM */}
-              <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-6">
-                {/* RENTAL PERIOD */}
-                <div className="space-y-4">
-                  <label className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wider">
-                    <CalendarIcon className="w-4 h-4 text-indigo-600" />
-                    Chọn thời gian thuê
-                  </label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase ml-1.5">
-                        Ngày bắt đầu
-                      </p>
-                      <input
-                        type="date"
-                        min={today}
-                        value={startDate}
-                        onChange={(e) => {
-                          setStartDate(e.target.value);
-                          if (endDate && e.target.value > endDate)
-                            setEndDate("");
-                        }}
-                        className="w-full bg-slate-50 border-none rounded-2xl p-3.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase ml-1.5">
-                        Ngày kết thúc
-                      </p>
-                      <input
-                        type="date"
-                        min={startDate || today}
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="w-full bg-slate-50 border-none rounded-2xl p-3.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                      />
+                {/* Pricing & Actions - Second */}
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-lg shadow-slate-200/50 overflow-hidden">
+                  {/* Price Header */}
+                  <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-5">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-slate-400 text-xs mb-1 flex items-center gap-1">
+                          <CalendarIcon className="w-3 h-3" />
+                          Giá thuê/ngày
+                        </p>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-3xl font-bold">{effectivePrice.toLocaleString()}đ</span>
+                          {device.discountPrice > 0 && !isExpired && (
+                            <span className="text-sm text-slate-400 line-through bg-slate-700/50 px-2 py-0.5 rounded">
+                              {device.rentPrice?.perDay.toLocaleString()}đ
+                            </span>
+                          )}
+                        </div>
+                        {device.discountPrice > 0 && !isExpired && (
+                          <p className="text-emerald-400 text-xs mt-1 flex items-center gap-1">
+                            <Zap className="w-3 h-3" />
+                            Tiết kiệm {(device.rentPrice?.perDay - device.discountPrice).toLocaleString()}đ
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-slate-400 text-xs mb-1">Đặt cọc</p>
+                        <p className="font-semibold text-lg">{device.depositAmount?.toLocaleString()}đ</p>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* QUANTITY */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wider">
-                      <Package className="w-4 h-4 text-indigo-600" />
-                      Số lượng thuê
-                    </label>
-                    <span className="text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-widest border text-indigo-600 bg-indigo-50 border-indigo-100">
-                      Có sẵn: {realAvailableCount}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-2xl border border-slate-100 w-fit">
-                    <button
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:text-indigo-600 hover:border-indigo-600 transition-all active:scale-95 disabled:opacity-50"
-                      disabled={quantity <= 1}
-                    >
-                      <Minus size={16} strokeWidth={3} />
-                    </button>
-                    <input
-                      type="number"
-                      value={quantity}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        if (!isNaN(val)) {
-                          setQuantity(
-                            Math.min(
-                              Math.max(1, val),
-                              realAvailableCount || 1
-                            )
-                          );
-                        }
-                      }}
-                      className="w-10 text-center bg-transparent border-none text-lg font-black text-slate-900 outline-none select-none"
-                    />
-                    <button
-                      onClick={() =>
-                        setQuantity(
-                          Math.min(realAvailableCount || 1, quantity + 1)
-                        )
-                      }
-                      className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-900 flex items-center justify-center text-white hover:bg-indigo-600 hover:border-indigo-600 transition-all active:scale-95 disabled:opacity-50"
-                      disabled={quantity >= (realAvailableCount || 1)}
-                    >
-                      <Plus size={16} strokeWidth={3} />
-                    </button>
-                  </div>
-                </div>
+                  {/* Form */}
+                  <div className="p-5 space-y-4">
+                    {/* Dates */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="group">
+                        <label className="text-xs font-medium text-slate-500 mb-1.5 block flex items-center gap-1">
+                          <CalendarIcon className="w-3 h-3" />
+                          Nhận hàng
+                        </label>
+                        <input
+                          type="date"
+                          min={today}
+                          value={startDate}
+                          onChange={(e) => {
+                            setStartDate(e.target.value);
+                            if (endDate && e.target.value > endDate) setEndDate("");
+                          }}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all"
+                        />
+                      </div>
+                      <div className="group">
+                        <label className="text-xs font-medium text-slate-500 mb-1.5 block flex items-center gap-1">
+                          <CalendarIcon className="w-3 h-3" />
+                          Trả hàng
+                        </label>
+                        <input
+                          type="date"
+                          min={startDate || today}
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all"
+                        />
+                      </div>
+                    </div>
 
-                {/* ADDONS */}
-                <div className="space-y-4">
-                  <label className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wider">
-                    <PlusCircle className="w-4 h-4 text-indigo-600" />
-                    Phụ kiện đi kèm
-                  </label>
-                  <div className="space-y-3">
-                    {addonsList.map((a) => {
-                      const isSelected = addons.find(
-                        (item) => item._id === a._id
-                      );
-                      return (
+                    {/* Quantity */}
+                    <div className="flex items-center justify-between bg-slate-50 rounded-xl p-3 border border-slate-100">
+                      <span className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                        <Package className="w-4 h-4 text-slate-400" />
+                        Số lượng
+                      </span>
+                      <div className="flex items-center gap-2">
                         <button
-                          key={a._id}
-                          onClick={() => toggleAddon(a)}
-                          className={`w-full flex justify-between items-center p-4 rounded-2xl border-2 transition-all text-left ${isSelected
-                            ? "border-indigo-600 bg-indigo-50 shadow-sm"
-                            : "border-slate-100 hover:border-slate-200 bg-white"
-                            }`}
+                          onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                          disabled={quantity <= 1}
+                          className="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:border-indigo-300 hover:text-indigo-600 disabled:opacity-40 transition-all active:scale-95"
                         >
-                          <div>
-                            <p
-                              className={`font-bold text-sm ${isSelected
-                                ? "text-indigo-700"
-                                : "text-slate-700"
-                                }`}
-                            >
-                              {a.name}
-                            </p>
-                            <p className="text-[10px] text-slate-400 uppercase font-bold mt-0.5">
-                              Thiết bị tương thích
-                            </p>
-                          </div>
-                          <span className="font-bold text-indigo-600 whitespace-nowrap">
-                            +{a.rentPrice?.perDay.toLocaleString()}đ
-                          </span>
+                          <Minus size={16} strokeWidth={2.5} />
                         </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* TOTAL */}
-                {days > 0 && (
-                  <div className="pt-4 border-t border-dashed border-slate-200">
-                    <div className="flex justify-between items-center">
-                      <div className="text-sm font-bold text-slate-500 uppercase tracking-widest">
-                        Tổng cộng dự kiến ({days} ngày)
-                      </div>
-                      <div className="text-xl sm:text-2xl font-black text-indigo-600">
-                        {totalPrice.toLocaleString()}đ
+                        <span className="w-10 text-center font-bold text-slate-900">{quantity}</span>
+                        <button
+                          onClick={() => setQuantity(Math.min(realAvailableCount || 1, quantity + 1))}
+                          disabled={quantity >= (realAvailableCount || 1)}
+                          className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700 disabled:opacity-40 transition-all active:scale-95 shadow-sm"
+                        >
+                          <Plus size={16} strokeWidth={2.5} />
+                        </button>
                       </div>
                     </div>
+
+                    {/* Stock Status */}
+                    <div className="flex items-center justify-center gap-2 text-xs">
+                      <span className={`w-2 h-2 rounded-full ${realAvailableCount > 0 ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                      <span className={realAvailableCount > 0 ? 'text-emerald-600 font-medium' : 'text-red-600 font-medium'}>
+                        {realAvailableCount > 0 ? `Còn ${realAvailableCount} sản phẩm` : 'Hết hàng'}
+                      </span>
+                    </div>
+
+                    {/* Total */}
+                    {days > 0 && (
+                      <div className="pt-4 border-t border-slate-100">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm text-slate-500 flex items-center gap-1">
+                            <CalendarIcon className="w-4 h-4" />
+                            Tổng {days} ngày
+                          </span>
+                          <span className="text-xs text-slate-400">{effectivePrice.toLocaleString()}đ × {quantity} × {days}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-base font-semibold text-slate-700">Thành tiền</span>
+                          <span className="text-2xl font-bold text-indigo-600">{totalPrice.toLocaleString()}đ</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                      <button
+                        onClick={handleAddToCart}
+                        disabled={realAvailableCount === 0}
+                        className="py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 flex items-center justify-center gap-2"
+                      >
+                        <ShoppingCart className="w-4 h-4" />
+                        Giỏ hàng
+                      </button>
+                      <button
+                        onClick={handleBuyNow}
+                        disabled={realAvailableCount === 0}
+                        className="py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-semibold text-sm hover:from-indigo-700 hover:to-indigo-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-lg shadow-indigo-200 flex items-center justify-center gap-2"
+                      >
+                        <Zap className="w-4 h-4" />
+                        Thuê ngay
+                      </button>
+                    </div>
                   </div>
-                )}
-
-                {/* ACTIONS */}
-                <div className="grid grid-cols-2 gap-4 mt-2">
-                  <button
-                    onClick={handleAddToCart}
-                    disabled={realAvailableCount === 0}
-                    className="flex items-center justify-center gap-2 py-3.5 rounded-2xl border-2 border-slate-200 text-slate-700 font-bold hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                  >
-                    <ShoppingCart className="w-5 h-5" />
-                    Thêm vào giỏ
-                  </button>
-                  <button
-                    onClick={handleBuyNow}
-                    disabled={realAvailableCount === 0}
-                    className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-slate-900 text-white font-bold hover:bg-black shadow-lg shadow-slate-200/50 transition-all active:scale-95 disabled:bg-slate-400 disabled:shadow-none disabled:cursor-not-allowed text-sm"
-                  >
-                    <Zap className="w-5 h-5 fill-current" />
-                    Thuê ngay
-                  </button>
                 </div>
-              </div>
 
-              {/* TRUST CRITERIA */}
-              <div className="grid grid-cols-3 gap-4">
-                <Criteria
-                  icon={<Shield className="w-5 h-5" />}
-                  text="Bảo hiểm Pro"
-                />
-                <Criteria
-                  icon={<Package className="w-5 h-5" />}
-                  text="Giao trong ngày"
-                />
-                <Criteria
-                  icon={<CheckCircle className="w-5 h-5" />}
-                  text="Kiểm định kỹ thuật"
-                />
+                {/* Commitments with Descriptions - Third */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+                  <h3 className="text-sm font-bold text-slate-900 mb-3">Cam kết dịch vụ</h3>
+
+                  <div className="flex gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
+                      <Shield className="w-5 h-5 text-indigo-600" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-semibold text-slate-900">Bảo hiểm thiết bị</h4>
+                      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">Tất cả thiết bị đều được bảo hiểm trong suốt thời gian thuê. Bạn không phải lo lắng về hư hỏng ngoài ý muốn.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                      <CheckCircle className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-semibold text-slate-900">Kiểm tra chất lượng</h4>
+                      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">Thiết bị được kiểm tra kỹ lưỡng trước khi giao. Đảm bảo hoạt động tốt khi đến tay bạn.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
+                      <Package className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-semibold text-slate-900">Giao hàng tận nơi</h4>
+                      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">Giao thiết bị đến địa chỉ bạn yêu cầu. Tiết kiệm thời gian di chuyển.</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Thiết bị tương tự (trái) + thông số / phụ kiện (phải) */}
-          <div className="mt-16 grid lg:grid-cols-12 gap-8 lg:gap-10">
-            {/* RELATED DEVICES */}
-            <div className="lg:col-span-7 space-y-8">
-              <div className="flex items-end justify-between">
-                <div>
-                  <h2 className="text-3xl font-bold text-slate-900 font-display">
-                    Thiết bị tương tự
-                  </h2>
-                  <p className="text-slate-500 font-medium mt-1.5 text-[15px]">
-                    Gợi ý thiết bị dựa trên bộ quay phim này.
-                  </p>
-                </div>
-                <button className="text-indigo-600 font-bold hover:underline flex items-center gap-2 text-sm">
-                  Xem tất cả <ArrowLeft className="w-4 h-4 rotate-180" />
-                </button>
+          {/* RELATED DEVICES */}
+          <div className="mt-16">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">Sản phẩm tương tự</h2>
+                <p className="text-slate-500 text-sm mt-1">Các thiết bị cùng danh mục bạn có thể quan tâm</p>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {relatedDevices.slice(0, 6).map((d) => (
-                  <div
-                    key={d._id}
-                    className="group bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden"
-                    onClick={() => navigate(`/device/${d._id}`)}
-                  >
-                    <div className="relative h-52 sm:h-56 overflow-hidden">
-                      <img
-                        src={d.images?.[0] || d.image}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                        alt={d.name}
-                      />
-                      <div className="absolute bottom-3 left-3">
-                        <div className="bg-black/60 text-white text-xs font-bold px-2.5 py-1 rounded-xl backdrop-blur-sm">
-                          {d.location?.city}
-                        </div>
+              <button
+                onClick={() => navigate(`/products?category=${device.category}`)}
+                className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 group"
+              >
+                Xem tất cả
+                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+              {relatedDevices.slice(0, 4).map((d) => (
+                <div
+                  key={d._id}
+                  onClick={() => navigate(`/device/${d._id}`)}
+                  className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer group"
+                >
+                  <div className="aspect-[4/3] overflow-hidden relative">
+                    <img
+                      src={d.images?.[0] || d.image}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      alt={d.name}
+                    />
+                    {d.discountPrice > 0 && (
+                      <div className="absolute top-3 left-3 bg-rose-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                        -{Math.round((1 - d.discountPrice / d.rentPrice?.perDay) * 100)}%
                       </div>
-                    </div>
-                    <div className="p-5 space-y-3">
-                      <div className="flex justify-between items-start gap-2">
-                        <h4 className="font-bold text-slate-900 line-clamp-2 group-hover:text-indigo-600 transition-colors text-base">
-                          {d.name}
-                        </h4>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                          <span className="text-xs font-bold">
-                            {d.ratingAvg}
-                          </span>
-                        </div>
+                    )}
+                  </div>
+                  <div className="p-4">
+                    <h4 className="font-semibold text-slate-900 text-sm line-clamp-1 mb-2 group-hover:text-indigo-600 transition-colors">{d.name}</h4>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-indigo-600 font-bold">
+                          {(d.discountPrice || d.rentPrice?.perDay).toLocaleString()}đ
+                          <span className="text-xs text-slate-400 font-normal">/ngày</span>
+                        </p>
+                        {d.discountPrice > 0 && (
+                          <p className="text-xs text-slate-400 line-through">
+                            {d.rentPrice?.perDay.toLocaleString()}đ
+                          </p>
+                        )}
                       </div>
-                      <div className="flex justify-between items-center pt-3 border-t border-slate-50">
-                        <div className="text-indigo-600 font-black text-base">
-                          {d.rentPrice?.perDay.toLocaleString()}đ
-                          <span className="text-[10px] text-slate-400 font-bold uppercase ml-1">
-                            / ngày
-                          </span>
-                        </div>
-                        <div className="w-9 h-9 rounded-full bg-slate-900 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Zap className="w-4 h-4 fill-current" />
-                        </div>
+                      <div className="flex items-center gap-1 text-xs text-slate-500">
+                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                        <span>{d.ratingAvg?.toFixed(1) || '0.0'}</span>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Thông số & phụ kiện */}
-            <div className="lg:col-span-5">
-              <div className="lg:sticky lg:top-24 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-5">
-                <h3 className="text-xl font-bold text-slate-900 font-display">
-                  Thông số kỹ thuật
-                </h3>
-                <div className="space-y-3">
-                  {device.specs &&
-                    Object.entries(device.specs).map(([k, v]) => (
-                      <div
-                        key={k}
-                        className="flex items-center justify-between p-3.5 bg-slate-50 rounded-2xl text-sm gap-2"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="p-2 bg-white rounded-xl shadow-sm shrink-0">
-                            <Cpu className="w-4 h-4 text-indigo-600" />
-                          </div>
-                          <span className="text-sm font-bold text-slate-500 uppercase tracking-tighter truncate">
-                            {k}
-                          </span>
-                        </div>
-                        <span className="text-sm font-black text-slate-900 shrink-0 text-right">
-                          {v}
-                        </span>
-                      </div>
-                    ))}
                 </div>
-                {Array.isArray(device.includedAccessories) &&
-                  device.includedAccessories.length > 0 && (
-                    <div className="pt-4 border-t border-slate-100 space-y-3">
-                      <h4 className="text-sm font-bold text-slate-900 uppercase tracking-tight">
-                        Phụ kiện đi kèm
-                      </h4>
-                      <ul className="space-y-2">
-                        {device.includedAccessories
-                          .filter((x) => x && String(x.name || "").trim())
-                          .map((item, i) => (
-                            <li
-                              key={`${item.name}-${i}`}
-                              className="flex gap-3 p-3 bg-indigo-50/60 rounded-2xl text-sm border border-indigo-100/80"
-                            >
-                              {item.image ? (
-                                <img
-                                  src={item.image}
-                                  alt=""
-                                  className="h-16 w-16 shrink-0 rounded-xl object-cover border border-indigo-100 bg-white"
-                                />
-                              ) : null}
-                              <div className="flex flex-col gap-0.5 min-w-0">
-                                <span className="font-bold text-slate-900">
-                                  {item.name}
-                                  {item.qty > 1 ? (
-                                    <span className="text-slate-500 font-semibold">
-                                      {" "}
-                                      × {item.qty}
-                                    </span>
-                                  ) : null}
-                                </span>
-                                {item.note ? (
-                                  <span className="text-slate-600 text-xs font-medium">
-                                    {item.note}
-                                  </span>
-                                ) : null}
-                              </div>
-                            </li>
-                          ))}
-                      </ul>
-                    </div>
-                  )}
-              </div>
+              ))}
             </div>
           </div>
         </div>
       </main>
 
-      <Footer />
-
-      <AuthRequirementModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-      />
-
-      {/* MODAL XÁC NHẬN XÓA */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white rounded-3xl p-7 max-w-md w-[90%] mx-4 shadow-2xl border border-slate-100 transform transition-all scale-100">
-            <div className="flex items-center gap-3 mb-4">
-              <AlertCircle className="w-7 h-7 text-rose-500" />
-              <h3 className="text-xl font-bold text-slate-900">
-                Xác nhận xóa review
-              </h3>
+      {/* Image Preview Modal */}
+      {isImageModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/95 flex flex-col"
+          onClick={() => {
+            if (!isDragging) {
+              setIsImageModalOpen(false);
+              setZoomLevel(1);
+              setImageOffset({ x: 0, y: 0 });
+            }
+          }}
+        >
+          {/* Modal Header */}
+          <div className="flex items-center justify-between p-4 text-white">
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-slate-400">
+                {selectedImage + 1} / {device.images?.length}
+              </span>
+              <span className="text-sm text-slate-300">{device.name}</span>
             </div>
-            <p className="text-slate-600 mb-7 leading-relaxed text-[15px]">
-              Bạn có chắc chắn muốn xóa đánh giá này? Hành động này không thể
-              hoàn tác.
-            </p>
-            <div className="flex gap-4 justify-end">
+            <div className="flex items-center gap-2">
+              {/* Zoom Controls */}
               <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="px-6 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setZoomLevel(prev => Math.min(prev + 0.5, 4));
+                }}
+                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+                title="Zoom in"
               >
-                Hủy
+                <ZoomIn className="w-5 h-5" />
               </button>
               <button
-                onClick={confirmDeleteReview}
-                className="px-6 py-2.5 bg-rose-600 text-white font-medium rounded-xl hover:bg-rose-700 transition-colors active:scale-95 shadow-sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setZoomLevel(prev => Math.max(prev - 0.5, 0.5));
+                }}
+                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+                title="Zoom out"
+                disabled={zoomLevel <= 0.5}
               >
-                Xóa review
+                <ZoomOut className="w-5 h-5" />
               </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setZoomLevel(1);
+                  setImageOffset({ x: 0, y: 0 });
+                }}
+                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+                title="Reset zoom"
+              >
+                <RotateCcw className="w-5 h-5" />
+              </button>
+              {/* Close Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsImageModalOpen(false);
+                  setZoomLevel(1);
+                  setImageOffset({ x: 0, y: 0 });
+                }}
+                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors ml-4"
+                title="Close"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+          </div>
+
+          {/* Modal Body - Image Container */}
+          <div
+            className="flex-1 flex items-center justify-center overflow-hidden relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Navigation - Previous */}
+            {device.images?.length > 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedImage(prev => prev === 0 ? device.images.length - 1 : prev - 1);
+                  setZoomLevel(1);
+                  setImageOffset({ x: 0, y: 0 });
+                }}
+                className="absolute left-4 z-10 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+            )}
+
+            {/* Image with Zoom and Pan */}
+            <div
+              className="relative cursor-move"
+              onMouseDown={(e) => {
+                if (zoomLevel > 1) {
+                  setIsDragging(true);
+                  setDragStart({ x: e.clientX - imageOffset.x, y: e.clientY - imageOffset.y });
+                }
+              }}
+              onMouseMove={(e) => {
+                if (isDragging && zoomLevel > 1) {
+                  setImageOffset({
+                    x: e.clientX - dragStart.x,
+                    y: e.clientY - dragStart.y
+                  });
+                }
+              }}
+              onMouseUp={() => setIsDragging(false)}
+              onMouseLeave={() => setIsDragging(false)}
+            >
+              <img
+                src={device.images?.[selectedImage]}
+                alt={device.name}
+                className="max-w-full max-h-[80vh] object-contain transition-transform duration-200"
+                style={{
+                  transform: `scale(${zoomLevel}) translate(${imageOffset.x / zoomLevel}px, ${imageOffset.y / zoomLevel}px)`,
+                  cursor: zoomLevel > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'
+                }}
+                draggable={false}
+              />
+            </div>
+
+            {/* Navigation - Next */}
+            {device.images?.length > 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedImage(prev => prev === device.images.length - 1 ? 0 : prev + 1);
+                  setZoomLevel(1);
+                  setImageOffset({ x: 0, y: 0 });
+                }}
+                className="absolute right-4 z-10 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            )}
+          </div>
+
+          {/* Modal Footer - Thumbnails */}
+          {device.images?.length > 1 && (
+            <div className="p-4 flex justify-center gap-2 overflow-x-auto">
+              {device.images.map((img, i) => (
+                <button
+                  key={i}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedImage(i);
+                    setZoomLevel(1);
+                    setImageOffset({ x: 0, y: 0 });
+                  }}
+                  className={`relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 transition-all ${selectedImage === i
+                      ? 'ring-2 ring-white'
+                      : 'opacity-50 hover:opacity-80'
+                    }`}
+                >
+                  <img src={img} className="w-full h-full object-cover" alt="" />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Zoom Level Indicator */}
+          <div className="absolute bottom-24 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-full text-white text-sm">
+            {Math.round(zoomLevel * 100)}%
+          </div>
+        </div>
+      )}
+
+      {/* Specs Modal - Slide from right */}
+      {isSpecsModalOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+            onClick={() => setIsSpecsModalOpen(false)}
+          />
+
+          {/* Modal Panel */}
+          <div className="relative w-full max-w-lg h-full bg-white shadow-2xl transform transition-transform duration-300 ease-out animate-[slideInRight_0.3s_ease-out]">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-200 bg-gradient-to-r from-indigo-600 to-indigo-700">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                  <Cpu className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Thông số kỹ thuật</h2>
+                  <p className="text-indigo-100 text-sm mt-0.5">{device.name}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsSpecsModalOpen(false)}
+                className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 transition-all"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 overflow-y-auto h-[calc(100vh-100px)] bg-slate-50/50">
+              {device.specs && Object.keys(device.specs).length > 0 ? (
+                <div className="space-y-4">
+                  {/* Summary Card */}
+                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-5 border border-indigo-100">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center">
+                        <Package className="w-4 h-4 text-white" />
+                      </div>
+                      <span className="font-semibold text-slate-800">Tổng quan thiết bị</span>
+                    </div>
+                    <p className="text-sm text-slate-600 leading-relaxed">
+                      Thiết bị có {Object.keys(device.specs).length} thông số kỹ thuật chính được liệt kê chi tiết bên dưới.
+                    </p>
+                  </div>
+
+                  {/* Specs Grid */}
+                  <div className="grid gap-3">
+                    {Object.entries(device.specs).map(([k, v], index) => (
+                      <div
+                        key={k}
+                        className="group flex items-center p-5 bg-white rounded-2xl border border-slate-200 hover:border-indigo-300 hover:shadow-lg transition-all duration-300 animate-[slideInRight_0.4s_ease-out]"
+                        style={{ animationDelay: `${index * 0.08}s` }}
+                      >
+                        <div className="flex items-center gap-4 flex-1">
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center flex-shrink-0 group-hover:from-indigo-500 group-hover:to-purple-500 transition-all duration-300">
+                            <Cpu className="w-6 h-6 text-indigo-600 group-hover:text-white transition-colors" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">{k}</p>
+                            <p className="text-base font-bold text-slate-900 truncate">{v}</p>
+                          </div>
+                        </div>
+                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                          <CheckCircle className="w-4 h-4 text-emerald-500" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-slate-200">
+                  <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mb-4">
+                    <Cpu className="w-10 h-10 text-slate-300" />
+                  </div>
+                  <p className="text-slate-500 font-medium text-lg">Chưa có thông số kỹ thuật</p>
+                  <p className="text-slate-400 text-sm mt-2">Thông tin sẽ được cập nhật sớm</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
+
+      <AuthRequirementModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      <Footer />
     </div>
   );
 }
 
 const Criteria = ({ icon, text }) => (
-  <div className="bg-white rounded-3xl p-4 border border-slate-100 shadow-sm text-center flex flex-col items-center gap-2">
-    <div className="w-9 h-9 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
-      {icon}
-    </div>
-    <p className="text-[10px] font-black uppercase tracking-tight text-slate-500 leading-tight">
-      {text}
-    </p>
+  <div className="bg-white rounded-xl p-3 border border-slate-200 text-center">
+    <div className="text-indigo-600 mx-auto mb-1">{icon}</div>
+    <p className="text-[10px] text-slate-600">{text}</p>
   </div>
 );
+
+// Add custom styles for animations
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes slideInRight {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes fadeInUp {
+    from {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  
+  .animate-slideInRight {
+    animation: slideInRight 0.3s ease-out forwards;
+  }
+  
+  .animate-fadeInUp {
+    animation: fadeInUp 0.3s ease-out forwards;
+  }
+`;
+if (typeof document !== 'undefined') {
+  document.head.appendChild(style);
+}

@@ -95,7 +95,7 @@ exports.createDeliveryIssue = async (req, res) => {
     } else if (!Array.isArray(deviceItemIds)) {
       normalizedDeviceItemIds = [];
     }
-    
+
     if (normalizedDeviceItemIds.length > 0) {
       const itemMap = {};
       selectedItems.forEach((item) => {
@@ -158,9 +158,6 @@ exports.createDeliveryIssue = async (req, res) => {
           link: "/delivery-issues",
           type: "DELIVERY_ISSUE",
         });
-        console.log(
-          `[Notification] Đã gửi thông báo giao hàng đến supplier ${supplierId}`
-        );
       } else {
         console.warn(
           `[Notification] Không tìm thấy supplierId cho rental ${rental._id}`

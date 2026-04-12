@@ -2,6 +2,7 @@ const routerReview = require('express').Router();
 const { checkAccessToken, checkSupplier } = require('../middleware/JWTAction');
 const {
   getMyReview,
+  getMyAllReviews,
   updateReview,
   deleteReview,
   uploadReviewImages,
@@ -9,6 +10,7 @@ const {
 } = require('../controllers/Review/ReviewController');
 const uploadCloud = require('../configs/cloudinaryConfig');
 routerReview.get('/supplier/me', checkAccessToken, checkSupplier, getSupplierReviews);
+routerReview.get('/my-reviews', checkAccessToken, getMyAllReviews);
 routerReview.get('/devices/:deviceId/my-review', checkAccessToken, getMyReview);
 routerReview.put('/:reviewId', checkAccessToken, uploadReviewImages, updateReview);
 routerReview.delete('/:reviewId', checkAccessToken, deleteReview);

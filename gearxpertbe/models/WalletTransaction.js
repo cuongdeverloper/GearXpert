@@ -40,8 +40,8 @@ const walletTransactionSchema = new mongoose.Schema({
     },
     referenceId: mongoose.Schema.Types.ObjectId,
   
-    description: String
+    description: String,
+    metadata: Object // For additional data like admin info, adjustment type, etc.
   }, { timestamps: true });
   
   module.exports = mongoose.model('WalletTransaction', walletTransactionSchema);
-  

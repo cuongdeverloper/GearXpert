@@ -26,6 +26,7 @@ const CartPage = () => {
   const [groupedBySupplier, setGroupedBySupplier] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingBooking, setEditingBooking] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
   const navigate = useNavigate();
 
   const DAY = 1000 * 60 * 60 * 24;
@@ -119,14 +120,25 @@ const CartPage = () => {
     fetchCartData();
   }, [fetchCartData]);
 
-  const handleRemove = async (itemId, deviceName) => {
+  const handleRemove = (itemId, deviceName) => {
+    setDeleteConfirm({ itemId, deviceName });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm) return;
     try {
-      await removeCartItem(itemId);
-      toast.success(`Đã xóa lịch thuê của ${deviceName}!`);
+      await removeCartItem(deleteConfirm.itemId);
+      toast.success(`Đã xóa lịch thuê của ${deleteConfirm.deviceName}!`);
       fetchCartData();
     } catch (err) {
       toast.error("Không thể xóa. Vui lòng thử lại!");
+    } finally {
+      setDeleteConfirm(null);
     }
+  };
+
+  const cancelDelete = () => {
+    setDeleteConfirm(null);
   };
 
   const handleEditBooking = (booking) => {
@@ -134,7 +146,7 @@ const CartPage = () => {
       id: booking.id,
       startDate: booking.startDate,
       endDate: booking.endDate,
-      // quantity: booking.quantity, // nếu sau này muốn sửa cả số lượng
+      quantity: booking.quantity,
     });
   };
 
@@ -145,6 +157,7 @@ const CartPage = () => {
       const payload = {
         rentalStartDate: editingBooking.startDate.toISOString(),
         rentalEndDate: editingBooking.endDate.toISOString(),
+        quantity: editingBooking.quantity,
       };
 
       await updateCartItem(editingBooking.id, payload);
@@ -487,6 +500,49 @@ const CartPage = () => {
                   className="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Số lượng
+                </label>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() =>
+                      setEditingBooking({
+                        ...editingBooking,
+                        quantity: Math.max(1, editingBooking.quantity - 1),
+                      })
+                    }
+                    className="w-10 h-10 rounded-lg border border-slate-300 flex items-center justify-center hover:bg-slate-50 transition"
+                  >
+                    -
+                  </button>
+                  <input
+                    type="number"
+                    min="1"
+                    max="99"
+                    value={editingBooking.quantity}
+                    onChange={(e) =>
+                      setEditingBooking({
+                        ...editingBooking,
+                        quantity: Math.max(1, parseInt(e.target.value) || 1),
+                      })
+                    }
+                    className="w-20 text-center border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <button
+                    onClick={() =>
+                      setEditingBooking({
+                        ...editingBooking,
+                        quantity: Math.min(99, editingBooking.quantity + 1),
+                      })
+                    }
+                    className="w-10 h-10 rounded-lg border border-slate-300 flex items-center justify-center hover:bg-slate-50 transition"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div className="mt-8 flex gap-3 justify-end">
@@ -501,6 +557,44 @@ const CartPage = () => {
                 className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium"
               >
                 Lưu thay đổi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="text-red-600" size={24} />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">
+                Xác nhận xóa
+              </h3>
+              <p className="text-slate-500">
+                Bạn có chắc muốn xóa lịch thuê của{" "}
+                <span className="font-semibold text-slate-700">
+                  {deleteConfirm.deviceName}
+                </span>
+                ?
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={cancelDelete}
+                className="flex-1 px-6 py-2.5 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 px-6 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium"
+              >
+                Xóa
               </button>
             </div>
           </div>

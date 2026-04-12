@@ -48,10 +48,10 @@ const STATUS_GROUPS = {
   RENTING: [
     "DELIVERING",
     "RENTING",
-    "RETURNING",
     "INSPECTING",
     "PENDING_RESOLUTION",
   ],
+  RETURNING: ["RETURNING"],
   RETURNED: ["COMPLETED"],
   CANCELLED: ["CANCELLED", "REJECTED"],
 };
@@ -60,6 +60,7 @@ const TABS = [
   { key: "ALL", label: "Tất cả", statuses: [] },
   { key: "PENDING", label: "Chờ xử lý", statuses: STATUS_GROUPS.PENDING },
   { key: "RENTING", label: "Đang thuê", statuses: STATUS_GROUPS.RENTING },
+  { key: "RETURNING", label: "Đang trả", statuses: STATUS_GROUPS.RETURNING },
   { key: "RETURNED", label: "Đã trả", statuses: STATUS_GROUPS.RETURNED },
   {
     key: "CANCELLED",
@@ -306,12 +307,14 @@ export default function SupplierRentalRequests() {
       ALL: requests.length,
       PENDING: 0,
       RENTING: 0,
+      RETURNING: 0,
       RETURNED: 0,
       CANCELLED: 0,
     };
     requests.forEach((r) => {
       if (STATUS_GROUPS.PENDING.includes(r.status)) base.PENDING += 1;
       if (STATUS_GROUPS.RENTING.includes(r.status)) base.RENTING += 1;
+      if (STATUS_GROUPS.RETURNING.includes(r.status)) base.RETURNING += 1;
       if (STATUS_GROUPS.RETURNED.includes(r.status)) base.RETURNED += 1;
       if (STATUS_GROUPS.CANCELLED.includes(r.status)) base.CANCELLED += 1;
     });
@@ -386,7 +389,7 @@ export default function SupplierRentalRequests() {
         </p>
       </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center gap-3">
           <span className="h-10 w-10 rounded-xl bg-amber-50 text-amber-600 inline-flex items-center justify-center">
             <FiClock size={18} />
@@ -403,6 +406,15 @@ export default function SupplierRentalRequests() {
           <div>
             <p className="text-xs text-slate-500">Đang thuê</p>
             <p className="text-lg font-bold text-slate-900">{counts.RENTING}</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center gap-3">
+          <span className="h-10 w-10 rounded-xl bg-orange-50 text-orange-600 inline-flex items-center justify-center">
+            <FiTruck size={18} />
+          </span>
+          <div>
+            <p className="text-xs text-slate-500">Đang trả</p>
+            <p className="text-lg font-bold text-slate-900">{counts.RETURNING}</p>
           </div>
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center gap-3">
@@ -425,74 +437,36 @@ export default function SupplierRentalRequests() {
         </div>
       </div>
 
-      {/* Extension Requests Section */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-        <div className="p-4 border-b border-slate-100">
-          <h3 className="text-lg font-semibold text-slate-900">Yêu cầu gia hạn</h3>
-          <p className="text-sm text-slate-500">Xử lý yêu cầu gia hạn từ khách hàng</p>
-        </div>
-        
-        <div className="p-4">
-          {extensionRequests.length === 0 ? (
-            <div className="text-center py-8 text-slate-500">
-              <FiClock size={48} className="mx-auto mb-4 text-slate-300" />
-              <p>Không có yêu cầu gia hạn nào</p>
+      {/* Extension Requests Quick Link */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl border border-indigo-100 p-4 shadow-sm"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="h-10 w-10 rounded-xl bg-indigo-100 text-indigo-600 inline-flex items-center justify-center">
+              <FiClock size={20} />
+            </span>
+            <div>
+              <p className="font-semibold text-slate-900">Yêu cầu gia hạn</p>
+              <p className="text-sm text-slate-600">
+                {extensionRequests.length > 0 
+                  ? `Có ${extensionRequests.length} yêu cầu đang chờ xử lý` 
+                  : "Không có yêu cầu nào"}
+              </p>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {extensionRequests.map((request) => (
-                <div key={request._id} className="border border-slate-200 rounded-xl p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="font-semibold text-slate-900">
-                          {request.rentalId?.items?.[0]?.deviceId?.name || "Thiết bị"}
-                        </span>
-                        <span className="px-2 py-1 bg-amber-50 text-amber-700 text-xs font-semibold rounded-lg">
-                          PENDING
-                        </span>
-                      </div>
-                      
-                      <div className="text-sm text-slate-600 space-y-1">
-                        <p>Khách hàng: {request.customerId?.fullName || "—"}</p>
-                        <p>Ngày kết thúc hiện tại: {formatDate(request.rentalId?.items?.[0]?.rentalEndDate)}</p>
-                        <p className="font-semibold text-indigo-600">
-                          Yêu cầu gia hạn tới: {formatDate(request.requestedEndDate)} (+{request.requestedDays} ngày)
-                        </p>
-                        {request.proposedExtraAmount > 0 && (
-                          <p className="text-emerald-600">
-                            Phí đề xuất: {formatMoney(request.proposedExtraAmount)} ₫
-                          </p>
-                        )}
-                        {request.note && (
-                          <p className="text-slate-500 italic">Ghi chú: {request.note}</p>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="flex flex-col gap-2">
-                      <button
-                        onClick={() => handleApproveExtension(request)}
-                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition"
-                      >
-                        <FiCheckCircle size={16} className="inline mr-2" />
-                        Chấp nhận
-                      </button>
-                      <button
-                        onClick={() => handleRejectExtension(request)}
-                        className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-lg transition"
-                      >
-                        <FiX size={16} className="inline mr-2" />
-                        Từ chối
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          </div>
+          <button
+            onClick={() => navigate("/supplier/extension-requests")}
+            className="px-4 py-2 bg-white text-indigo-600 font-semibold rounded-xl border border-indigo-200 hover:bg-indigo-50 transition-all shadow-sm flex items-center gap-2"
+          >
+            Quản lý gia hạn
+            <FiChevronRight size={16} />
+          </button>
         </div>
-      </div>
+      </motion.div>
 
       <motion.div
         className="bg-white rounded-2xl border border-slate-200/90 shadow-sm shadow-slate-200/40 overflow-hidden transition-shadow duration-300 hover:shadow-md"

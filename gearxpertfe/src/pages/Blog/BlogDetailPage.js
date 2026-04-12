@@ -160,11 +160,9 @@ export default function BlogDetailPage() {
     useEffect(() => {
         if (!socket || !id) return;
 
-        console.log(`[SOCKET] Joining room: blog_${id}`);
         socket.emit("joinRoom", `blog_${id}`);
 
         socket.on("blogUpdate", (data) => {
-            console.log("[SOCKET] Received blogUpdate:", data);
             const { type, blog: updatedBlog } = data;
 
             // Update components based on what changed
@@ -182,7 +180,6 @@ export default function BlogDetailPage() {
         });
 
         return () => {
-            console.log(`[SOCKET] Leaving room: blog_${id}`);
             socket.emit("leaveRoom", `blog_${id}`);
             socket.off("blogUpdate");
         };

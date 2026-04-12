@@ -36,11 +36,8 @@ async function migrate() {
   }
 
   await mongoose.connect(process.env.DB_HOST);
-  console.log("Connected to DB");
-  console.log(DRY_RUN ? "DRY RUN — không ghi database\n" : "");
 
   const devices = await Device.find({}).select("_id name stockQuantity rentedQuantity").lean();
-  console.log(`Tổng Device: ${devices.length}\n`);
 
   const runTimestamp = Date.now();
   let totalToCreate = 0;
@@ -64,19 +61,8 @@ async function migrate() {
       });
     }
   }
-
-  console.log(`Thiết bị cần bổ sung DeviceItem: ${devicesNeedingInsert}`);
-  console.log(`Tổng DeviceItem sẽ tạo: ${totalToCreate}\n`);
-
   if (DRY_RUN) {
-    for (const row of lines.slice(0, 80)) {
-      console.log(
-        `  ${(row.name || "").slice(0, 42).padEnd(42)} | có: ${row.current} → mục tiêu: ${row.target} | thêm: ${row.need}`
-      );
-    }
-    if (lines.length > 80) console.log(`  ... và ${lines.length - 80} dòng khác`);
     await mongoose.disconnect();
-    console.log("\nDRY RUN xong.");
     return;
   }
 
@@ -108,11 +94,8 @@ async function migrate() {
     await DeviceItem.collection.insertMany(batch);
     inserted += need;
     await DeviceItem.updateDeviceCounts(d._id);
-    console.log(`  ✓ ${(d.name || idStr).slice(0, 50)}: +${need} DeviceItem (mục tiêu ${target})`);
   }
-
   // Các Device không thiếu item vẫn được sync ở trên khi need <= 0
-  console.log(`\nHoàn tất. Đã chèn ${inserted} DeviceItem; cache stock/rented trên Device đã cập nhật.`);
   await mongoose.disconnect();
 }
 

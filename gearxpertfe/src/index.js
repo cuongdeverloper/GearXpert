@@ -1,4 +1,5 @@
 import './polyfill';
+import './i18n';
 import ReactDOM from 'react-dom/client';
 import './tailwind.css';
 import './index.css';
@@ -14,7 +15,7 @@ import { SocketProvider } from './SocketContext';
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <Provider store={store}>
-    <PersistGate loading={<div>Loading...</div>} persistor={persistor}>
+    <PersistGate loading={<div>Loading....</div>} persistor={persistor}>
       <SocketProvider>
         <Layout />
       </SocketProvider>

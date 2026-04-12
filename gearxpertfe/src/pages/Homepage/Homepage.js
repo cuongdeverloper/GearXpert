@@ -13,11 +13,13 @@ import PopupAds from "../../components/homepage/PopupAds";
 import Footer from "../../components/homepage/Footer";
 import SmartGearPromoSection from "../../components/homepage/SmartGearPromoSection";
 import TestimonialsSection from "../../components/homepage/TestimonialsSection";
+import { useTranslation } from "react-i18next";
 import WhyChooseUsSection from "../../components/homepage/WhyChooseUsSection";
 import { RentalInstructionsSection, PaymentMethodsSection } from "../../components/homepage/InstructionSections";
 import { testimonials as mockTestimonials } from "../../mocks/reviews.mock";
 
 export default function Homepage() {
+  const { t } = useTranslation();
   const [devices, setDevices] = useState([]);
   const [suggestedDevices, setSuggestedDevices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -154,7 +156,7 @@ export default function Homepage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background-light">
-        <div className="text-xl font-semibold text-gray-600 animate-pulse">Đang tải thiết bị...</div>
+        <div className="text-xl font-semibold text-gray-600 animate-pulse">{t('common.loading')}</div>
       </div>
     );
   }

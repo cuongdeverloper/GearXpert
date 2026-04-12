@@ -24,6 +24,7 @@ import SupplierEditDevicePage from "./pages/Supplier/SupplierEditDevicePage";
 import SupplierAddDevicePage from "./pages/Supplier/SupplierAddDevicePage";
 import SupplierRentalRequests from "./pages/Supplier/SupplierRentalRequests";
 import SupplierRentalDetailPage from "./pages/Supplier/SupplierRentalDetailPage";
+import SupplierExtensionRequests from "./pages/Supplier/SupplierExtensionRequests";
 import SupplierMaintenance from "./pages/Supplier/SupplierMaintenance";
 import SupplierRevenue from "./pages/Supplier/SupplierRevenue";
 import SupplierInventoryPage from "./pages/Supplier/SupplierInventoryPage";
@@ -74,6 +75,7 @@ import WalletCancel from "./pages/User/Wallet/WalletCancel";
 import EkycVerification from "./components/EkycVerification";
 
 import MyRentals from "./pages/User/MyRentals";
+import MyReviews from "./pages/User/MyReviews";
 import Messenger from "./components/Message Socket/Page/Messenger";
 import Chatbot from "./components/chatbot/Chatbot";
 import PrivacyPolicyPage from "./pages/Policy/PrivacyPolicyPage";
@@ -185,6 +187,7 @@ export default function Layout() {
             element={<Navigate to="/user/myrental" replace />}
           />
           <Route path="/user/myrental" element={<MyRentals />} />
+          <Route path="/user/my-reviews" element={<MyReviews />} />
           <Route path="/user/cart" element={<CartPage />} />
           <Route path="/user/followed-stores" element={<FollowedStoresPage />} />
           <Route path="/payment/success" element={<PaymentSuccess />} />
@@ -215,6 +218,7 @@ export default function Layout() {
               path="rental-requests"
               element={<SupplierRentalRequests />}
             />
+          <Route path="extension-requests" element={<SupplierExtensionRequests />} />
             <Route path="maintenance" element={<SupplierMaintenance />} />
             <Route path="revenue" element={<SupplierRevenue />} />
             <Route

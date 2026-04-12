@@ -88,10 +88,6 @@ exports.getCart = async (req, res) => {
           populate: { path: "supplierId", select: "fullName avatar cccd address phone email username" },
         },
       });
-
-      console.log(
-        `Đã tự động xóa ${invalidItemIds.length} cartItem không hợp lệ cho user ${customerId}`
-      );
     }
 
     // Trả về response
@@ -228,7 +224,6 @@ exports.addInstantToCart = async (req, res) => {
       status: "AVAILABLE",
     });
 
-    console.log(`[addInstantToCart] Device: ${deviceId}, Requested: ${quantity}, Available: ${availableCount}`);
 
     if (availableCount < quantity) {
       return res.status(400).json({
