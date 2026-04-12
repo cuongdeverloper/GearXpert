@@ -958,11 +958,7 @@ exports.checkoutRental = async (req, res) => {
 
           },
 
-        ],
-
-        { session }
-
-      );
+        ], { session, ordered: true });
 
 
 
@@ -1014,11 +1010,7 @@ exports.checkoutRental = async (req, res) => {
 
           },
 
-        ],
-
-        { session }
-
-      );
+        ], { session, ordered: true });
 
 
 
@@ -1142,7 +1134,7 @@ exports.checkoutRental = async (req, res) => {
 
 
 
-      const [rental] = await Rental.create([rentalData], { session });
+      const [rental] = await Rental.create([rentalData], { session, ordered: true });
 
 
 
@@ -2462,11 +2454,7 @@ exports.rejectRental = async (req, res) => {
 
             },
 
-          ],
-
-          { session }
-
-        );
+          ], { session, ordered: true });
 
       }
 
@@ -3180,11 +3168,7 @@ exports.cancelRental = async (req, res) => {
 
             },
 
-          ],
-
-          { session }
-
-        );
+          ], { session, ordered: true });
 
       }
 
@@ -3240,11 +3224,7 @@ exports.cancelRental = async (req, res) => {
 
               },
 
-            ],
-
-            { session }
-
-          );
+            ], { session, ordered: true });
 
         }
 
@@ -3659,11 +3639,7 @@ exports.extendRental = async (req, res) => {
 
         },
 
-      ],
-
-      { session }
-
-    );
+      ], { session, ordered: true });
 
 
 
@@ -4280,7 +4256,7 @@ exports.confirmReturn = async (req, res) => {
 
       ],
 
-      { session }
+      { session, ordered: true }
 
     );
 
@@ -4332,11 +4308,7 @@ exports.confirmReturn = async (req, res) => {
 
             },
 
-          ],
-
-          { session }
-
-        );
+          ], { session, ordered: true });
 
       }
 
@@ -4422,11 +4394,7 @@ exports.confirmReturn = async (req, res) => {
 
         },
 
-      ],
-
-      { session }
-
-    );
+      ], { session, ordered: true });
 
 
 
