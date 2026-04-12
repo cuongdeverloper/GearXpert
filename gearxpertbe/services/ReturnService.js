@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Rental = require("../models/Rental");
 const RentalItem = require("../models/RentalItem");
+const DeviceItem = require("../models/DeviceItem");
 const DeliveryIssueReport = require("../models/DeliveryIssueReport");
 const { HandoverRecord } = require("../models/HandoverRecord");
 const {
@@ -493,6 +494,26 @@ const completeReturn = async ({ returnRecordId, inspection, settlement, staffId,
       throw new DomainError("Biên bản bị thay đổi đồng thời, vui lòng tải lại", 409, "STATE_RACE_CONFLICT");
     }
 
+    // Tăng rentalCountSinceLastMaintenance cho tất cả DeviceItem trong đơn
+    try {
+      const rentalItemsForCount = await RentalItem.find({ rentalId: current.rentalId })
+        .select("deviceItemIds")
+        .session(dbSession)
+        .lean();
+      const allDeviceItemIds = rentalItemsForCount.flatMap((ri) => ri.deviceItemIds || []);
+      if (allDeviceItemIds.length > 0) {
+        await DeviceItem.updateMany(
+          { _id: { $in: allDeviceItemIds } },
+          { $inc: { rentalCountSinceLastMaintenance: 1 } },
+          { session: dbSession }
+        );
+        console.log(`[ReturnService] Tăng rentalCount cho ${allDeviceItemIds.length} DeviceItem(s)`);
+      }
+    } catch (countErr) {
+      console.error("[ReturnService] Lỗi tăng rentalCount:", countErr.message);
+      // Không throw — không block luồng chính
+    }
+
     if (ownSession) await dbSession.commitTransaction();
     return { idempotent: false, record: updated };
   } catch (error) {
@@ -502,6 +523,7 @@ const completeReturn = async ({ returnRecordId, inspection, settlement, staffId,
     if (ownSession) dbSession.endSession();
   }
 };
+
 
 const reportIssue = async ({ returnRecordId, issue, inspection, staffId, actorId, session }) => {
   ensureObjectId(returnRecordId, "returnRecordId");

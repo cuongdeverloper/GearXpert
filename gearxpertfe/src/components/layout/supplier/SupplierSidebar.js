@@ -15,6 +15,7 @@ import {
   FiAlertTriangle,
   FiBell,
   FiStar,
+  FiTool,
 } from "react-icons/fi";
 
 const sections = [
@@ -78,6 +79,15 @@ const sections = [
     items: [{ to: "/supplier/issues", label: "Tất cả sự cố & báo cáo" }],
   },
   {
+    id: "maintenance",
+    title: "Bảo trì",
+    icon: FiTool,
+    items: [
+      { to: "/supplier/maintenance?tab=reminders", label: "Nhắc nhở bảo trì" },
+      { to: "/supplier/maintenance?tab=workorders", label: "Lệnh bảo trì" },
+    ],
+  },
+  {
     id: "delivery",
     title: "Giao hàng",
     icon: FiTruck,
@@ -121,6 +131,7 @@ export default function SupplierSidebar({ collapsed, onCollapse, me }) {
     bookings: true,
     feedback: true,
     issues: true,
+    maintenance: true,
     delivery: true,
     finance: true,
     verification: true,

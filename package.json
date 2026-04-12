@@ -1,0 +1,7 @@
+{
+  "devDependencies": {
+    "csv-writer": "^1.6.0",
+    "jest": "^30.3.0",
+    "supertest": "^7.2.2"
+  }
+}
