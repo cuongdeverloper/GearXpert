@@ -213,8 +213,18 @@ exports.getDevices = async (req, res) => {
       rentalEndDate,
     } = req.query;
 
+    const now = new Date();
+    const suspendedSupplierIds = await SupplierProfile.find({
+      $or: [
+        { status: 'SUSPENDED' },
+        { isPermanentlyHidden: true },
+        { suspendedUntil: { $gt: now } }
+      ]
+    }).distinct('userId');
+
     const query = {
       isAddon: false,
+      supplierId: { $nin: suspendedSupplierIds }
     };
 
     if (category) {
@@ -578,6 +588,22 @@ exports.getDeviceDetail = async (req, res) => {
 
     if (!device) {
       return res.status(404).json({ message: "Device not found" });
+    }
+
+    // CHECK IF SUPPLIER IS SUSPENDED
+    const now = new Date();
+    const supProfile = await SupplierProfile.findOne({ userId: device.supplierId._id });
+    if (supProfile && (supProfile.status === 'SUSPENDED' || supProfile.isPermanentlyHidden)) {
+       // Check if suspended period expired
+       if (!supProfile.isPermanentlyHidden && supProfile.suspendedUntil && supProfile.suspendedUntil < now) {
+          supProfile.status = 'ACTIVE';
+          await supProfile.save();
+       } else {
+          return res.status(403).json({ 
+            success: false,
+            message: supProfile.isPermanentlyHidden ? "Sản phẩm này thuộc nhà cung cấp đã bị ngừng hoạt động vĩnh viễn" : "Sản phẩm này hiện đang bị tạm ẩn do nhà cung cấp đang bị xử phạt" 
+          });
+       }
     }
 
     // 2. Lấy danh sách đánh giá (Reviews) của thiết bị này

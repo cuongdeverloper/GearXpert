@@ -18,6 +18,7 @@ export default function BlogManagement() {
     const [reasonModal, setReasonModal] = useState({ open: false, type: '', id: '', title: '' });
     const [reasonText, setReasonText] = useState("");
     const [openMenuId, setOpenMenuId] = useState(null);
+    const [previewModal, setPreviewModal] = useState({ open: false, blog: null });
 
     // Close menu on click outside
     useEffect(() => {
@@ -248,13 +249,35 @@ export default function BlogManagement() {
                                 <tr key={blog._id} className="hover:bg-slate-50/30 transition-colors group">
                                     <td className="px-4 py-6">
                                         <div className="flex items-center gap-4">
-                                            <div className="h-14 w-14 rounded-2xl bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-200">
-                                                <img 
-                                                    src={blog.images?.[0] || blog.coverImage || blog.image || blog.thumb || "/placeholder-blog.jpg"} 
-                                                    alt="" 
-                                                    className="h-full w-full object-cover" 
-                                                    onError={(e) => { e.target.src = "/placeholder-blog.jpg"; }}
-                                                />
+                                            <div className="h-14 w-14 rounded-2xl bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-200 relative flex items-center justify-center">
+                                                {(() => {
+                                                    const mediaUrl = blog.images?.[0] || blog.coverImage || blog.image || blog.thumb;
+                                                    const isVideo = /\.(mp4|mov|avi|webm)$/i.test(mediaUrl);
+                                                    
+                                                    if (isVideo) {
+                                                        return (
+                                                            <>
+                                                                <video 
+                                                                    src={mediaUrl} 
+                                                                    className="h-full w-full object-cover" 
+                                                                    muted 
+                                                                />
+                                                                <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+                                                                    <span className="material-symbols-outlined text-white text-lg fill-current">play_arrow</span>
+                                                                </div>
+                                                            </>
+                                                        );
+                                                    }
+                                                    
+                                                    return (
+                                                        <img 
+                                                            src={mediaUrl || "/placeholder-blog.jpg"} 
+                                                            alt="" 
+                                                            className="h-full w-full object-cover" 
+                                                            onError={(e) => { e.target.src = "/placeholder-blog.jpg"; }}
+                                                        />
+                                                    );
+                                                })()}
                                             </div>
                                             <div className="min-w-0 max-w-[150px] sm:max-w-[200px] lg:max-w-[300px]">
                                                 <p className="font-black text-slate-900 line-clamp-1 truncate">{blog.title}</p>
@@ -304,15 +327,17 @@ export default function BlogManagement() {
                                                     
                                                     {openMenuId === blog._id && (
                                                         <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 py-2 animate-in fade-in zoom-in duration-200">
-                                                            <a 
-                                                                href={`/blog/${blog._id}`} 
-                                                                target="_blank" 
-                                                                rel="noreferrer"
-                                                                className="flex items-center gap-3 px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors"
+                                                            <button 
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setPreviewModal({ open: true, blog });
+                                                                    setOpenMenuId(null);
+                                                                }}
+                                                                className="flex items-center gap-3 w-full px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors"
                                                             >
                                                                 <FiEye size={16} />
                                                                 <span>Xem bài viết</span>
-                                                            </a>
+                                                            </button>
                                                             <button
                                                                 onClick={() => handleToggleFeatured(blog._id)}
                                                                 className={`flex items-center gap-3 w-full px-4 py-3 text-sm transition-colors ${
@@ -337,15 +362,16 @@ export default function BlogManagement() {
                                                 </div>
                                             ) : (
                                                 <>
-                                                    <a 
-                                                        href={`/blog/${blog._id}`} 
-                                                        target="_blank" 
-                                                        rel="noreferrer"
+                                                    <button 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setPreviewModal({ open: true, blog });
+                                                        }}
                                                         className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-primary hover:border-primary transition-all shadow-sm"
                                                         title="Xem trước"
                                                     >
                                                         <FiEye size={16} />
-                                                    </a>
+                                                    </button>
                                                     {blog.status === 'pending' && (
                                                         <>
                                                             <button
@@ -388,38 +414,144 @@ export default function BlogManagement() {
                 )}
             </div>
 
-            {/* Reason Modal */}
-            {reasonModal.open && (
+            {/* Blog Preview Modal */}
+            {previewModal.open && previewModal.blog && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setReasonModal({ ...reasonModal, open: false })}></div>
-                    <div className="bg-white rounded-[2.5rem] w-full max-w-md p-8 shadow-2xl relative z-10 animate-in fade-in zoom-in duration-200">
-                        <h3 className="text-xl font-black text-slate-900 mb-2">{reasonModal.title}</h3>
-                        <p className="text-sm text-slate-500 mb-6">Lý do này sẽ được gửi trực tiếp đến tác giả qua email.</p>
-                        
-                        <textarea
-                            className="w-full h-32 p-5 rounded-[1.5rem] border border-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none text-sm resize-none"
-                            placeholder="Nhập lý do chi tiết..."
-                            value={reasonText}
-                            onChange={(e) => setReasonText(e.target.value)}
-                        />
+                    <div 
+                        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" 
+                        onClick={() => setPreviewModal({ open: false, blog: null })}
+                    ></div>
+                    <div className="bg-white rounded-[2.5rem] w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl relative z-10 flex flex-col animate-in fade-in zoom-in duration-200">
+                        {/* Header */}
+                        <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-white sticky top-0 z-10">
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                                    <FiEye size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="font-black text-slate-900">Preview Bài Viết</h3>
+                                    <p className="text-xs text-slate-400 font-medium lowercase">Chế độ xem trước của quản trị viên</p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => setPreviewModal({ open: false, blog: null })}
+                                className="h-10 w-10 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 transition-colors"
+                            >
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
 
-                        <div className="flex items-center gap-3 mt-8">
-                            <button
-                                onClick={() => setReasonModal({ ...reasonModal, open: false })}
-                                className="flex-1 py-4 rounded-2xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all"
+                        {/* Content Body */}
+                        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                            <div className="max-w-3xl mx-auto">
+                                {/* Metadata */}
+                                <div className="mb-8">
+                                    <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-white mb-4 inline-block ${CATEGORY_MAP[previewModal.blog.category]?.color || 'bg-primary'}`}>
+                                        {CATEGORY_MAP[previewModal.blog.category]?.label || previewModal.blog.category}
+                                    </span>
+                                    <h2 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight mb-4">{previewModal.blog.title}</h2>
+                                    <p className="text-lg text-slate-500 font-medium mb-6 leading-relaxed italic border-l-4 border-slate-100 pl-4">{previewModal.blog.description}</p>
+                                    
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-10 w-10 rounded-full bg-slate-100 overflow-hidden border border-slate-200">
+                                                {previewModal.blog.author?.avatar ? (
+                                                    <img src={previewModal.blog.author.avatar} alt="" className="h-full w-full object-cover" />
+                                                ) : (
+                                                    <div className="h-full w-full flex items-center justify-center text-slate-400 font-bold">
+                                                        {previewModal.blog.author?.name?.charAt(0) || 'U'}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-slate-900">{previewModal.blog.author?.name}</p>
+                                                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{formatDate(previewModal.blog.createdAt)}</p>
+                                            </div>
+                                        </div>
+                                        <div className="h-4 w-px bg-slate-200" />
+                                        <div className="flex items-center gap-1.5 text-slate-400 text-xs font-bold uppercase tracking-widest">
+                                            <FiClock />
+                                            <span>{previewModal.blog.readTime} phút đọc</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Media */}
+                                <div className="rounded-3xl overflow-hidden mb-10 bg-slate-100 border border-slate-100 shadow-sm">
+                                    {/\.(mp4|mov|avi|webm)$/i.test(previewModal.blog.coverImage) ? (
+                                        <video 
+                                            src={previewModal.blog.coverImage} 
+                                            className="w-full aspect-video object-cover" 
+                                            controls 
+                                        />
+                                    ) : (
+                                        <img 
+                                            src={previewModal.blog.coverImage} 
+                                            alt="Cover" 
+                                            className="w-full object-cover" 
+                                        />
+                                    )}
+                                </div>
+
+                                {/* Main Content */}
+                                <div 
+                                    className="prose prose-slate max-w-none prose-img:rounded-3xl prose-headings:font-black prose-p:text-slate-600 prose-p:leading-relaxed prose-p:text-lg"
+                                    dangerouslySetInnerHTML={{ __html: previewModal.blog.content }}
+                                />
+                                
+                                {previewModal.blog.images && previewModal.blog.images.length > 0 && (
+                                    <div className="grid grid-cols-2 gap-4 mt-12">
+                                        {previewModal.blog.images.map((img, idx) => (
+                                            <div key={idx} className="rounded-[2rem] overflow-hidden border border-slate-100 bg-slate-50 aspect-video flex items-center justify-center relative">
+                                                {/\.(mp4|mov|avi|webm)$/i.test(img) ? (
+                                                    <video src={img} className="h-full w-full object-cover" muted />
+                                                ) : (
+                                                    <img src={img} alt="" className="h-full w-full object-cover" />
+                                                )}
+                                                {/\.(mp4|mov|avi|webm)$/i.test(img) && (
+                                                    <div className="absolute inset-0 flex items-center justify-center bg-black/5">
+                                                        <div className="h-10 w-10 rounded-full bg-white/80 flex items-center justify-center text-primary shadow-lg">
+                                                            <FiEye />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Footer Actions */}
+                        <div className="p-6 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-3 rounded-b-[2.5rem]">
+                            <button 
+                                onClick={() => setPreviewModal({ open: false, blog: null })}
+                                className="px-6 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-white transition-all text-sm"
                             >
-                                Hủy bỏ
+                                Đóng
                             </button>
-                            <button
-                                onClick={submitReasonAction}
-                                className={`flex-1 py-4 rounded-2xl font-bold transition-all ${
-                                    reasonModal.type === 'delete' 
-                                    ? 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-200' 
-                                    : 'bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20'
-                                }`}
-                            >
-                                Xác nhận
-                            </button>
+                            {previewModal.blog.status === 'pending' && (
+                                <>
+                                    <button 
+                                        onClick={() => {
+                                            handleUpdateStatus(previewModal.blog._id, 'rejected');
+                                            setPreviewModal({ open: false, blog: null });
+                                        }}
+                                        className="px-6 py-3 rounded-xl bg-red-50 text-red-600 font-bold hover:bg-red-600 hover:text-white transition-all text-sm"
+                                    >
+                                        Từ chối
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            handleUpdateStatus(previewModal.blog._id, 'approved');
+                                            setPreviewModal({ open: false, blog: null });
+                                        }}
+                                        className="px-6 py-3 rounded-xl bg-primary text-white font-bold hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all text-sm"
+                                    >
+                                        Duyệt bài này
+                                    </button>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>

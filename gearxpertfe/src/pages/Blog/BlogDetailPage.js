@@ -15,29 +15,34 @@ import {
     toggleSaveBlog
 } from "../../service/ApiService/BlogApi";
 import { useSocket } from "../../SocketContext";
+import ImageWithFallback from "../../components/common/ImageWithFallback";
+import blogFallback from "../../assets/bai-viet.png";
+import { useTranslation } from "react-i18next";
+import { CATEGORY_MAP, formatDate } from "./BlogConstants";
 
-const CATEGORY_MAP = {
-    CAMERA: { label: "Máy ảnh", color: "bg-primary" },
-    DRONE: { label: "Drone", color: "bg-primary" },
-    LIGHTING: { label: "Ánh sáng", color: "bg-amber-500" },
-    AI_TECH: { label: "Công nghệ AI", color: "bg-accent-cyan" },
-    AUDIO: { label: "Thiết bị âm thanh", color: "bg-primary" },
-    CINEMATOGRAPHY: { label: "Quay phim điện ảnh", color: "bg-violet-500" },
-    ACCESSORIES: { label: "Phụ kiện", color: "bg-primary" },
-    INDUSTRY_NEWS: { label: "Tin tức ngành", color: "bg-slate-800" },
-};
-
-const formatDate = (dateStr) => {
+const formatTimeAgo = (dateStr) => {
     if (!dateStr) return "";
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("vi-VN", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-    });
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+
+    if (diffInSeconds < 0) return "vừa xong";
+    if (diffInSeconds < 60) return `${diffInSeconds} giây trước`;
+
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    if (diffInMinutes < 60) return `${diffInMinutes} phút trước`;
+
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours} giờ trước`;
+
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays <= 3) return `${diffInDays} ngày trước`;
+
+    return formatDate(dateStr);
 };
 
 export default function BlogDetailPage() {
+    const { t } = useTranslation();
     const { id } = useParams();
     const navigate = useNavigate();
     const [blog, setBlog] = useState(null);
@@ -311,7 +316,11 @@ export default function BlogDetailPage() {
         <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#f6f6f8", fontFamily: "'Inter', sans-serif" }} data-theme="light">
             <Header />
 
-            <main className="mx-auto w-full max-w-4xl px-6 pt-32 pb-10 md:px-20 lg:pt-40">
+            <main className="mx-auto w-full max-w-7xl px-6 pt-32 pb-20 lg:pt-44">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+                    
+                    {/* Left Side: Main Content */}
+                    <div className="lg:col-span-8">
                 {/* Back button */}
                 <button
                     onClick={() => navigate("/blog")}
@@ -328,7 +337,7 @@ export default function BlogDetailPage() {
                     {/* Category Badge */}
                     <div className="mb-6">
                         <span className={`inline-block rounded-lg ${catInfo.color} px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white mb-4`}>
-                            {catInfo.label}
+                            {t(`blog.categories.${blog.category}`, { defaultValue: blog.category })}
                         </span>
 
                         {/* Title */}
@@ -361,7 +370,7 @@ export default function BlogDetailPage() {
                                     <span className="text-sm font-bold" style={{ color: "#0d0e1b" }}>
                                         {blog.author?.name}
                                     </span>
-                                    <p className="text-xs" style={{ color: "#4c4d9a" }}>{formatDate(blog.createdAt)}</p>
+                                    <p className="text-xs" style={{ color: "#4c4d9a" }}>{formatDate(blog.approvedAt || blog.createdAt)}</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-4 text-xs font-medium" style={{ color: "#4c4d9a" }}>
@@ -377,59 +386,136 @@ export default function BlogDetailPage() {
                         </div>
                     </div>
 
-                    {/* Facebook-style Image Grid */}
+                    {/* Facebook-style Media Grid */}
                     <div className="rounded-xl overflow-hidden mb-10 shadow-sm border border-slate-200 bg-white">
                         {(!blog.images || blog.images.length <= 1) ? (
                             <div
-                                className="w-full h-[300px] md:h-[500px] bg-cover bg-center cursor-pointer hover:opacity-95 transition-opacity"
-                                style={{ backgroundImage: `url('${blog.coverImage}')` }}
+                                className="w-full h-[300px] md:h-[500px] cursor-pointer hover:opacity-95 transition-opacity bg-slate-100 flex items-center justify-center relative group"
                                 onClick={() => openViewer(0)}
-                            />
+                            >
+                                {/\.(mp4|mov|avi|webm)$/i.test(blog.coverImage) ? (
+                                    <>
+                                        <video
+                                            src={blog.coverImage}
+                                            className="w-full h-full object-cover"
+                                            muted
+                                            onMouseOver={(e) => e.target.play()}
+                                            onMouseOut={(e) => { e.target.pause(); e.target.currentTime = 0; }}
+                                        />
+                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:scale-110 transition-transform">
+                                            <div className="h-16 w-16 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 text-white shadow-2xl">
+                                                <span className="material-symbols-outlined text-4xl fill-current">play_arrow</span>
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <ImageWithFallback 
+                                        src={blog.coverImage} 
+                                        className="w-full h-full object-cover" 
+                                        fallback={blogFallback}
+                                        alt={blog.title}
+                                    />
+                                )}
+                            </div>
                         ) : (
                             <div
-                                className={`grid gap-1 bg-slate-200 transition-all duration-300 ${blog.images.length === 2 ? "grid-cols-2 h-[300px] md:h-[400px]" :
-                                    "grid-cols-4 h-[400px] md:h-[550px]"
+                                className={`grid gap-1 bg-slate-200 transition-all duration-300 ${blog.images.length === 2 ? "grid-cols-2 h-[350px] md:h-[450px]" :
+                                        "grid-cols-2 h-[500px] md:h-[650px]"
                                     }`}
                             >
-                                {blog.images.length === 2 && blog.images.map((img, idx) => (
-                                    <div
-                                        key={idx}
-                                        className="h-full bg-cover bg-center hover:brightness-90 transition-all cursor-pointer"
-                                        style={{ backgroundImage: `url('${img}')` }}
-                                        onClick={() => openViewer(idx)}
-                                    />
-                                ))}
+                                {blog.images.length === 2 && blog.images.map((img, idx) => {
+                                    const isVideo = /\.(mp4|mov|avi|webm)$/i.test(img);
+                                    return (
+                                        <div
+                                            key={idx}
+                                            className="h-full bg-slate-100 hover:brightness-90 transition-all cursor-pointer relative group"
+                                            onClick={() => openViewer(idx)}
+                                        >
+                                            {isVideo ? (
+                                                <video src={img} className="w-full h-full object-cover" muted />
+                                            ) : (
+                                                <ImageWithFallback 
+                                                    src={img} 
+                                                    className="w-full h-full object-cover" 
+                                                    fallback={blogFallback}
+                                                    alt={`Media ${idx + 1}`} 
+                                                />
+                                            )}
+                                            {isVideo && (
+                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:bg-black/10 transition-colors">
+                                                    <div className="h-10 w-10 rounded-full bg-white/80 flex items-center justify-center text-primary shadow-lg border border-white/50">
+                                                        <span className="material-symbols-outlined text-2xl fill-current">play_arrow</span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
 
                                 {blog.images.length >= 3 && (
                                     <>
-                                        {/* Left Side: Large Image */}
+                                        {/* Left Side: Large Media */}
                                         <div
-                                            className="col-span-3 h-full bg-cover bg-center hover:brightness-90 transition-all cursor-pointer"
-                                            style={{ backgroundImage: `url('${blog.images[0]}')` }}
+                                            className="col-span-1 h-full bg-slate-100 hover:brightness-90 transition-all cursor-pointer relative group"
                                             onClick={() => openViewer(0)}
-                                        />
+                                        >
+                                            {/\.(mp4|mov|avi|webm)$/i.test(blog.images[0]) ? (
+                                                <video src={blog.images[0]} className="w-full h-full object-cover" muted />
+                                            ) : (
+                                                <ImageWithFallback 
+                                                    src={blog.images[0]} 
+                                                    className="w-full h-full object-cover" 
+                                                    fallback={blogFallback}
+                                                    alt="Main Media" 
+                                                />
+                                            )}
+                                            {/\.(mp4|mov|avi|webm)$/i.test(blog.images[0]) && (
+                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                    <div className="h-16 w-16 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 text-white shadow-2xl group-hover:scale-110 transition-transform">
+                                                        <span className="material-symbols-outlined text-4xl fill-current">play_arrow</span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
 
-                                        {/* Right Side: Stacked Images */}
-                                        <div className={`col-span-1 grid gap-1 h-full ${blog.images.length === 3 ? "grid-rows-2" : "grid-rows-3"
-                                            }`}>
-                                            {[1, 2, 3].map((idx) => (
-                                                blog.images[idx] && (
+                                        {/* Right Side: Stacked Media */}
+                                        <div className="col-span-1 grid grid-rows-2 gap-1 h-full overflow-hidden">
+                                            {[1, 2].map((idx) => {
+                                                const img = blog.images[idx];
+                                                const isVideo = /\.(mp4|mov|avi|webm)$/i.test(img);
+                                                return img && (
                                                     <div
                                                         key={idx}
-                                                        className="relative h-full bg-cover bg-center hover:brightness-90 transition-all cursor-pointer overflow-hidden"
-                                                        style={{ backgroundImage: `url('${blog.images[idx]}')` }}
+                                                        className="relative h-full w-full bg-slate-100 hover:brightness-90 transition-all cursor-pointer overflow-hidden group"
                                                         onClick={() => openViewer(idx)}
                                                     >
-                                                        {idx === 3 && blog.images.length > 4 && (
-                                                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center backdrop-blur-[2px]">
-                                                                <span className="text-white text-3xl font-black">
-                                                                    +{blog.images.length - 4}
-                                                                </span>
+                                                        {isVideo ? (
+                                                            <video src={img} className="h-full w-full object-cover" muted />
+                                                        ) : (
+                                                        <ImageWithFallback 
+                                                            src={img} 
+                                                            className="w-full h-full object-cover" 
+                                                            fallback={blogFallback}
+                                                            alt={`Media ${idx + 1}`} 
+                                                        />
+                                                        )}
+                                                        {isVideo && (
+                                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                                <div className="h-10 w-10 rounded-full bg-white/80 flex items-center justify-center text-primary shadow-md border border-white/50">
+                                                                    <span className="material-symbols-outlined text-xl fill-current">play_arrow</span>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        {idx === 2 && blog.images.length > 3 && (
+                                                            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-20" style={{ height: '100%', width: '100%' }}>
+                                                                <div className="text-white text-5xl font-black tracking-tighter text-center leading-none -translate-y-6">
+                                                                    +{blog.images.length - 3}
+                                                                </div>
                                                             </div>
                                                         )}
                                                     </div>
-                                                )
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     </>
                                 )}
@@ -529,7 +615,7 @@ export default function BlogDetailPage() {
                                             </div>
                                         )}
                                     </div>
-                                    <div className="flex-grow">
+                                    <div className="flex-grow min-w-0">
                                         <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100 relative group/comment">
                                             <div className="flex items-center justify-between mb-1">
                                                 <div className="flex items-center gap-2">
@@ -539,7 +625,7 @@ export default function BlogDetailPage() {
                                                     )}
                                                 </div>
                                                 <span className="text-[10px] font-medium text-slate-400">
-                                                    {formatDate(comment.createdAt)}
+                                                    {formatTimeAgo(comment.createdAt)}
                                                 </span>
                                             </div>
 
@@ -569,7 +655,7 @@ export default function BlogDetailPage() {
                                                 </div>
                                             ) : (
                                                 <>
-                                                    <p className="text-sm text-slate-700 leading-relaxed">
+                                                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap break-all">
                                                         {comment.text}
                                                     </p>
                                                     {(comment.user === (currentUser?.username || currentUser?.email) || currentUser?.role === "ADMIN") && (
@@ -623,45 +709,93 @@ export default function BlogDetailPage() {
                         </div>
                     )}
                 </article>
+            </div>
 
-                {/* Related Articles */}
+            {/* Right Side: Sidebar */}
+            <aside className="hidden lg:block lg:col-span-4 sticky top-40 space-y-10">
+                {/* Sticky Related Articles */}
                 {relatedBlogs.length > 0 && (
-                    <section className="mt-16">
+                    <div className="space-y-6">
+                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest px-2">Xem tiếp tiếp theo</h3>
+                        <div className="space-y-4">
+                            {relatedBlogs.map((rb) => {
+                                const rbCat = CATEGORY_MAP[rb.category] || { label: rb.category, color: "bg-primary" };
+                                return (
+                                <div 
+                                        key={rb._id}
+                                        onClick={() => navigate(`/blog/${rb._id}`)}
+                                        className="group cursor-pointer flex gap-4 p-3 rounded-2xl hover:bg-white hover:shadow-xl hover:shadow-primary/5 transition-all border border-transparent hover:border-slate-100"
+                                    >
+                                        <div className="h-20 w-20 rounded-xl overflow-hidden flex-shrink-0 relative">
+                                            <div 
+                                                className="absolute inset-0 bg-cover bg-center transition-transform group-hover:scale-110"
+                                                style={{ backgroundImage: `url('${rb.coverImage}')` }}
+                                            />
+                                        </div>
+                                        <div className="flex flex-col justify-center gap-1">
+                                            <span className={`text-[8px] font-black uppercase tracking-tighter w-fit px-1.5 py-0.5 rounded ${rbCat.color} text-white`}>
+                                                {t(`blog.categories.${rb.category}`, { defaultValue: rb.category })}
+                                            </span>
+                                            <h4 className="text-sm font-bold text-slate-900 leading-tight group-hover:text-primary transition-colors line-clamp-2">
+                                                {rb.title}
+                                            </h4>
+                                            <span className="text-[10px] text-slate-400 font-medium">{rb.readTime} phút đọc</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {/* Newsletter Box */}
+                <div className="bg-slate-900 rounded-[2.5rem] p-10 text-white relative overflow-hidden group shadow-2xl">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-150 transition-transform" />
+                    <div className="relative z-10 text-center">
+                        <span className="material-symbols-outlined text-4xl mb-4 text-primary">mark_email_read</span>
+                        <h3 className="font-display font-bold text-xl mb-3">Tham gia bản tin</h3>
+                        <p className="text-sm text-slate-400 mb-6 leading-relaxed">Nhận những cập nhật mới nhất về công nghệ thiết bị hàng tuần.</p>
+                        <input 
+                            type="text" 
+                            placeholder="Email của bạn"
+                            className="w-full bg-white/10 border border-white/10 rounded-xl py-3 px-4 text-sm text-white mb-3 outline-none focus:border-primary transition-all"
+                        />
+                        <button className="w-full bg-primary py-4 rounded-xl text-xs font-bold uppercase tracking-widest hover:shadow-lg hover:shadow-primary/30 transition-all">
+                            Đăng ký ngay
+                        </button>
+                    </div>
+                </div>
+            </aside>
+
+            {/* Mobile Related Content (At bottom for mobile) */}
+            <div className="lg:hidden col-span-1 border-t border-slate-100 mt-20">
+                {relatedBlogs.length > 0 && (
+                    <section className="pt-16">
                         <h2 className="font-display text-2xl font-bold mb-8" style={{ color: "#0d0e1b" }}>
                             Bài viết liên quan
                         </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-10">
                             {relatedBlogs.map((rb) => {
                                 const rbCat = CATEGORY_MAP[rb.category] || { label: rb.category, color: "bg-primary" };
                                 return (
                                     <article
                                         key={rb._id}
                                         onClick={() => navigate(`/blog/${rb._id}`)}
-                                        className="group flex flex-col rounded-xl bg-white overflow-hidden shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 cursor-pointer"
-                                        style={{ border: "1px solid rgba(99,102,241,0.05)" }}
+                                        className="group flex flex-col rounded-xl bg-white overflow-hidden shadow-sm border border-slate-100"
                                     >
-                                        <div className="aspect-[16/10] overflow-hidden relative">
+                                        <div className="aspect-video overflow-hidden relative">
                                             <div
                                                 className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
                                                 style={{ backgroundImage: `url('${rb.coverImage}')` }}
                                             />
-                                            <div className="absolute top-3 left-3">
-                                                <span className={`rounded-lg ${rbCat.color} px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white`}>
-                                                    {rbCat.label}
-                                                </span>
-                                            </div>
                                         </div>
                                         <div className="p-5">
-                                            <h3 className="font-display text-sm font-bold leading-snug group-hover:text-primary transition-colors line-clamp-2 mb-2" style={{ color: "#0d0e1b" }}>
+                                            <h3 className="font-display text-sm font-bold leading-snug group-hover:text-primary transition-colors line-clamp-2 mb-2">
                                                 {rb.title}
                                             </h3>
                                             <div className="flex items-center justify-between">
-                                                <span className="text-xs font-medium" style={{ color: "#4c4d9a" }}>
-                                                    {rb.author?.name}
-                                                </span>
-                                                <span className="text-[10px] font-bold uppercase" style={{ color: "rgba(76,77,154,0.6)" }}>
-                                                    {rb.readTime} phút
-                                                </span>
+                                                <span className="text-xs font-medium text-slate-500">{rb.author?.name}</span>
+                                                <span className="text-[10px] font-bold uppercase text-slate-400">{rb.readTime} phút</span>
                                             </div>
                                         </div>
                                     </article>
@@ -670,7 +804,9 @@ export default function BlogDetailPage() {
                         </div>
                     </section>
                 )}
-            </main>
+            </div>
+        </div>
+    </main>
 
             <Footer />
 
@@ -712,7 +848,7 @@ export default function BlogDetailPage() {
                             </button>
                         )}
 
-                        {/* Image Container */}
+                        {/* Media Container */}
                         <motion.div
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
@@ -720,11 +856,20 @@ export default function BlogDetailPage() {
                             className="relative max-w-[90vw] max-h-[85vh] flex flex-col items-center"
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <img
-                                src={allImages[currentImgIdx]}
-                                alt={`View ${currentImgIdx + 1}`}
-                                className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl select-none"
-                            />
+                            {/\.(mp4|mov|avi|webm)$/i.test(allImages[currentImgIdx]) ? (
+                                <video
+                                    src={allImages[currentImgIdx]}
+                                    controls
+                                    autoPlay
+                                    className="max-w-full max-h-[80vh] rounded-lg shadow-2xl"
+                                />
+                            ) : (
+                                <img
+                                    src={allImages[currentImgIdx]}
+                                    alt={`View ${currentImgIdx + 1}`}
+                                    className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl select-none"
+                                />
+                            )}
 
                             {/* Counter & Info */}
                             <div className="mt-6 flex flex-col items-center gap-2">
@@ -741,16 +886,28 @@ export default function BlogDetailPage() {
                                 className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3 px-4 py-3 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10"
                                 onClick={(e) => e.stopPropagation()}
                             >
-                                {allImages.map((img, idx) => (
-                                    <div
-                                        key={idx}
-                                        onClick={() => setCurrentImgIdx(idx)}
-                                        className={`h-14 w-14 rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${currentImgIdx === idx ? "border-primary scale-110 shadow-lg shadow-primary/20" : "border-transparent opacity-40 hover:opacity-100"
-                                            }`}
-                                    >
-                                        <img src={img} className="h-full w-full object-cover" alt="thumb" />
-                                    </div>
-                                ))}
+                                {allImages.map((img, idx) => {
+                                    const isVideo = /\.(mp4|mov|avi|webm)$/i.test(img);
+                                    return (
+                                        <div
+                                            key={idx}
+                                            onClick={() => setCurrentImgIdx(idx)}
+                                            className={`h-14 w-14 rounded-lg overflow-hidden cursor-pointer border-2 transition-all relative group ${currentImgIdx === idx ? "border-primary scale-110 shadow-lg shadow-primary/20" : "border-transparent opacity-40 hover:opacity-100"
+                                                }`}
+                                        >
+                                            {isVideo ? (
+                                                <video src={img} className="h-full w-full object-cover" muted />
+                                            ) : (
+                                                <img src={img} className="h-full w-full object-cover" alt="thumb" />
+                                            )}
+                                            {isVideo && (
+                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                    <span className="material-symbols-outlined text-[10px] text-white bg-black/40 rounded-full p-0.5">play_arrow</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
                     </motion.div>

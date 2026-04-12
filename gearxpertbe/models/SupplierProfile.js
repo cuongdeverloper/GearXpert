@@ -72,6 +72,26 @@ const supplierProfileSchema = new mongoose.Schema({
     default: 'PENDING',
   },
 
+  // Hệ thống xử phạt theo số lượng report (RESOLVED)
+  penaltyStage: {
+    type: Number,
+    default: 0, // 0: Bình thường, 1: Stage 1 (3 ngày), 2: Stage 2 (1 tháng), 3: Vĩnh viễn
+  },
+  resolvedReportCount: {
+    type: Number,
+    default: 0, // Đếm số report "RESOLVED" trong window 30 ngày
+  },
+  lastResolvedReportAt: {
+    type: Date,
+  },
+  suspendedUntil: {
+    type: Date, // Thời điểm hết hạn tạm ẩn
+  },
+  isPermanentlyHidden: {
+    type: Boolean,
+    default: false,
+  },
+
   // Thời gian xác minh (nếu cần admin duyệt)
   verifiedAt: Date,
 }, { timestamps: true });

@@ -867,7 +867,7 @@ export default function ProductDetailPage() {
                             })()}
                           </div>
 
-                          <p className="text-slate-700 leading-relaxed text-[15px] font-medium">
+                          <p className="text-slate-700 leading-relaxed text-[15px] font-medium whitespace-pre-wrap break-all">
                             {myReview.comment}
                           </p>
 

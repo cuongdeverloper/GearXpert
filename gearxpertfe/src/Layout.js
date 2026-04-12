@@ -50,6 +50,7 @@ import AdminAdsPage from "./pages/Admin/AdminAdsPage";
 import BlogManagement from "./pages/Admin/BlogManagement";
 import CommentManagement from "./pages/Admin/CommentManagement";
 import AdminBroadcastPage from "./pages/Admin/AdminBroadcastPage";
+import AdminShopReports from "./pages/Admin/AdminShopReports";
 import AdminWalletPage from "./pages/Admin/AdminWalletPage";
 import AdminWithdrawalsPage from "./pages/Admin/AdminWithdrawalsPage";
 
@@ -242,6 +243,7 @@ export default function Layout() {
             <Route index element={<DashboardPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="suppliers" element={<SuppliersPage />} />
+            <Route path="shop-reports" element={<AdminShopReports />} />
             <Route path="supplier-onboarding" element={<SupplierOnboardingPage />} />
             <Route path="devices" element={<DevicesModerationPage />} />
             <Route path="rentals" element={<RentalsPage />} />

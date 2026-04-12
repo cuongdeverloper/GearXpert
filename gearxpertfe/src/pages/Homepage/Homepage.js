@@ -16,6 +16,7 @@ import TestimonialsSection from "../../components/homepage/TestimonialsSection";
 import { useTranslation } from "react-i18next";
 import WhyChooseUsSection from "../../components/homepage/WhyChooseUsSection";
 import { RentalInstructionsSection, PaymentMethodsSection } from "../../components/homepage/InstructionSections";
+import { testimonials as mockTestimonials } from "../../mocks/reviews.mock";
 
 export default function Homepage() {
   const { t } = useTranslation();
@@ -125,7 +126,7 @@ export default function Homepage() {
           console.error("Home testimonials:", err);
         }
       }
-      setHomeTestimonials(collected);
+      setHomeTestimonials(collected.length > 0 ? collected : mockTestimonials);
     } catch (error) {
       console.error("Error fetching devices:", error);
     } finally {
