@@ -44,10 +44,20 @@ const base64DataURLToArrayBuffer = (dataURL) => {
 };
 
 const buildSupplierContractDocx = async (data) => {
-  const templatePath = path.join(
-    __dirname,
-    "../../../gearxpertfe/public/contracts/GearXpert_Contact_Supplier.docx"
-  );
+  const possiblePaths = [
+    path.join(__dirname, "../../templatesContract/GearXpert_Contact_Supplier.docx"),
+    path.join(__dirname, "../../../gearxpertfe/public/contracts/GearXpert_Contact_Supplier.docx"),
+    path.join(process.cwd(), "templatesContract/GearXpert_Contact_Supplier.docx"),
+    "/app/gearxpertbe/templatesContract/GearXpert_Contact_Supplier.docx", // Potential Docker path
+    "/app/templatesContract/GearXpert_Contact_Supplier.docx" // Another Docker variant
+  ];
+
+  const templatePath = await loadFirstExistingFile(possiblePaths);
+
+  if (!templatePath) {
+    console.error("[Contract Error] Template not found in paths:", possiblePaths);
+    throw new Error("Mẫu hợp đồng (DOCX) không tồn tại. Vui lòng kiểm tra lại cấu hình server.");
+  }
   
   const content = await fs.readFile(templatePath, "binary");
   const zip = new PizZip(content);
