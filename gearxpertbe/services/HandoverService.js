@@ -181,9 +181,9 @@ const assertRentalCanStartHandover = (rental) => {
     throw new DomainError("Không tìm thấy rental", 404, "RENTAL_NOT_FOUND");
   }
 
-  if (rental.status !== "DELIVERING") {
+  if (!["DELIVERING", "PENDING_RESOLUTION"].includes(rental.status)) {
     throw new DomainError(
-      "Rental chưa ở trạng thái DELIVERING để tạo/khởi động biên bản",
+      "Rental chưa ở trạng thái DELIVERING hoặc PENDING_RESOLUTION để tạo/khởi động biên bản",
       409,
       "INVALID_RENTAL_STATUS"
     );
@@ -529,7 +529,7 @@ const confirmSuccess = async ({
     await ensureDeliverySerialsExist(inspectionData.items, session);
 
     const rentalUpdate = await Rental.updateOne(
-      { _id: current.rentalId, status: "DELIVERING" },
+      { _id: current.rentalId, status: { $in: ["DELIVERING", "PENDING_RESOLUTION"] } },
       {
         $set: {
           status: "RENTING",
@@ -554,7 +554,7 @@ const confirmSuccess = async ({
         throw new DomainError("Rental đã bị cancel trong lúc xác nhận bàn giao", 409, "RENTAL_CANCELED");
       }
 
-      throw new DomainError("Rental không còn ở trạng thái DELIVERING", 409, "INVALID_RENTAL_STATUS");
+      throw new DomainError("Rental không còn ở trạng thái DELIVERING hoặc PENDING_RESOLUTION", 409, "INVALID_RENTAL_STATUS");
     }
 
     const updated = await HandoverRecord.findOneAndUpdate(

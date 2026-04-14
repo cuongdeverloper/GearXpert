@@ -37,7 +37,7 @@ export default function useRecordActions({
       if (!rentalId) return null;
 
       if (flowContext === "DELIVERY") {
-        await createHandoverDraft(rentalId, {});
+        await createHandoverDraft(rentalId, { deliveryTaskId: selectedRental?.raw?.deliveryTask?._id });
       } else {
         await createReturnDraft(rentalId, {});
       }

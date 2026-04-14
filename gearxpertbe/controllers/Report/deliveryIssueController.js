@@ -2,8 +2,12 @@ const DeliveryIssueReport = require("../../models/DeliveryIssueReport");
 const DamageReport = require("../../models/DamageReport");
 const Rental = require("../../models/Rental");
 const RentalItem = require("../../models/RentalItem");
+const DeliveryTask = require("../../models/DeliveryTask");
+const Wallet = require("../../models/Wallet");
+const WalletTransaction = require("../../models/WalletTransaction");
+const mongoose = require("mongoose");
 const { ReturnRecord, RETURN_FAILURE_REASON } = require("../../models/ReturnRecord");
-const NotificationConfig = require("../../configs/NotificationConfig"); // ← THÊM DÒNG NÀY (điều chỉnh path nếu cần)
+const NotificationConfig = require("../../configs/NotificationConfig");
 const { ensureDraftForReturn, reportIssue } = require("../../services/ReturnService");
 const { emitOperationStaffUpdate } = require("../../utils/operationStaffSocket");
 
@@ -755,6 +759,164 @@ exports.supplierUpdateIssueStatus = async (req, res) => {
   }
 };
 
+exports.supplierCancelAndRefund = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const supplierId = req.user.id;
+    const { issueId } = req.params;
+
+    const doc = await DeliveryIssueReport.findById(issueId).session(session);
+    if (!doc || doc.reportedBy !== "STAFF") {
+      throw new Error("Chỉ xử lý cho sự cố giao hàng do nhân viên báo cáo");
+    }
+
+    const rental = await Rental.findById(doc.rentalId).session(session);
+    if (!rental || rental.supplierId.toString() !== supplierId.toString()) {
+      throw new Error("Không có quyền cập nhật báo cáo này");
+    }
+
+    if (!["OPEN", "PROCESSING", "PENDING_RESOLUTION"].includes(doc.status)) {
+      throw new Error("Không thể hủy đơn với trạng thái báo cáo hiện tại");
+    }
+
+    // Process refund
+    const refundAmount = rental.totalAmount || 0;
+    if (rental.paymentStatus === "PAID" && refundAmount > 0) {
+      const customerWallet = await Wallet.findOne({ user: rental.customerId }).session(session);
+      if (customerWallet) {
+        const balanceBefore = customerWallet.balance;
+        customerWallet.balance += refundAmount;
+        await customerWallet.save({ session });
+
+        await WalletTransaction.create([{
+          wallet: customerWallet._id,
+          amount: refundAmount,
+          type: "REFUND",
+          status: "SUCCESS",
+          balanceBefore,
+          balanceAfter: customerWallet.balance,
+          description: `Hoàn tiền do sự cố giao hàng thất bại (Đơn ${doc.rentalId.toString().slice(-6)})`
+        }], { session });
+      }
+    }
+
+    // Update Rental Status
+    rental.status = "CANCELLED";
+    rental.cancelReason = "Sự cố giao hàng thất bại - NCC hủy đơn";
+    await rental.save({ session });
+
+    // Prevent duplicate tasks
+    await DeliveryTask.updateMany(
+      { rentalId: rental._id, status: { $in: ["PENDING", "ASSIGNED", "IN_TRANSIT"] } },
+      { status: "FAILED" },
+      { session }
+    );
+
+    // Update Issue
+    doc.status = "RESOLVED";
+    doc.resolutionNote = "NCC đã hủy đơn và hoàn tiền cho khách hàng";
+    if (!doc.statusHistory) doc.statusHistory = [];
+    doc.statusHistory.push({
+      status: "RESOLVED",
+      changedBy: supplierId,
+      note: doc.resolutionNote,
+      createdAt: new Date(),
+    });
+    await doc.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.json({ success: true, message: "Đã hủy đơn và lên lệnh hoàn tiền", issue: doc });
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error("supplierCancelAndRefund error:", err);
+    res.status(500).json({ message: err.message || "Lỗi khi hủy đơn" });
+  }
+};
+
+exports.supplierAdditionalDelivery = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const supplierId = req.user.id;
+    const { issueId } = req.params;
+    const { notes } = req.body;
+
+    let images = [];
+    if (req.files && req.files.length > 0) {
+      images = req.files.map((file) => file.path);
+    }
+
+    const doc = await DeliveryIssueReport.findById(issueId).session(session);
+    if (!doc || doc.reportedBy !== "STAFF") {
+      throw new Error("Chỉ xử lý cho sự cố giao hàng do nhân viên báo cáo");
+    }
+
+    const rental = await Rental.findById(doc.rentalId).session(session);
+    if (!rental || rental.supplierId.toString() !== supplierId.toString()) {
+      throw new Error("Không có quyền cập nhật báo cáo này");
+    }
+
+    if (!["OPEN", "PROCESSING", "PENDING_RESOLUTION"].includes(doc.status)) {
+      throw new Error("Không thể tạo giao bổ sung với trạng thái báo cáo hiện tại");
+    }
+
+    // Fetch existing recent Delivery Tasks to assign missing devices
+    // Or just create a new DELIVERY task for all missing items (if tracked) or all devices.
+    // For simplicity, create a generic Delivery task for the same rental
+    const existingStaffId = rental.assignedOperationStaffId;
+    
+    // Đảm bảo update trạng thái Rental về PENDING_RESOLUTION thay vì DELIVERING 
+    // vì đơn đang gặp "sự cố" phải để PENDING_RESOLUTION để getDeliveringRentals() load
+    if (rental.status !== "PENDING_RESOLUTION") {
+      rental.status = "PENDING_RESOLUTION";
+      await rental.save({ session });
+    }
+
+    const newTask = await DeliveryTask.create([{
+      rentalId: rental._id,
+      type: "DELIVERY",
+      status: "PENDING",
+      deliveryStaffId: existingStaffId || null,
+      isAdditional: true,
+      issueNotes: notes || "",
+      issueImages: images || [],
+    }], { session });
+
+    // Update Issue
+    doc.status = "RESOLVED";
+    doc.resolutionNote = "NCC xác nhận giao bổ sung cho khách hàng: " + (notes || "");
+    if (!doc.statusHistory) doc.statusHistory = [];
+    doc.statusHistory.push({
+      status: "RESOLVED",
+      changedBy: supplierId,
+      note: doc.resolutionNote,
+      createdAt: new Date(),
+    });
+    await doc.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    if (existingStaffId) {
+      emitOperationStaffUpdate({
+        actorId: supplierId,
+        message: `Đơn ${rental._id.toString().slice(-6)} có cập nhật giao bổ sung!`,
+      });
+    }
+
+    res.json({ success: true, message: "Đã tạo chuyến giao hàng bổ sung", issue: doc, task: newTask });
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error("supplierAdditionalDelivery error:", err);
+    res.status(500).json({ message: err.message || "Lỗi tạo giao bổ sung" });
+  }
+};
+
 module.exports = {
   createDeliveryIssue: exports.createDeliveryIssue,
   getDeliveryIssueByRental: exports.getDeliveryIssueByRental,
@@ -764,4 +926,6 @@ module.exports = {
   getStaffReturnIssues: exports.getStaffReturnIssues,
   getSupplierIssues: exports.getSupplierIssues,
   supplierUpdateIssueStatus: exports.supplierUpdateIssueStatus,
+  supplierCancelAndRefund: exports.supplierCancelAndRefund,
+  supplierAdditionalDelivery: exports.supplierAdditionalDelivery,
 };
