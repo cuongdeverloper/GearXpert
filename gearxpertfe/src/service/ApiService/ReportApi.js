@@ -41,3 +41,14 @@ export const getSupplierIssues = () =>
 /** Supplier: cập nhật trạng thái báo cáo — PROCESSING (đang xử lý) hoặc RESOLVED (xác nhận khi đơn REJECTED) */
 export const patchSupplierIssueStatus = (issueId, data) =>
   axios.patch(`/api/reports/supplier-issues/${issueId}`, data);
+
+/** Supplier: Xử lý giao thiếu - Hủy đơn (Hoàn tiền) */
+export const supplierIssueCancelRefund = (issueId) =>
+  axios.post(`/api/reports/supplier-issues/${issueId}/cancel-refund`);
+
+/** Supplier: Xử lý giao thiếu - Xác nhận giao bổ sung */
+export const supplierIssueAdditionalDelivery = (issueId, formData) =>
+  axios.post(`/api/reports/supplier-issues/${issueId}/additional-delivery`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+
