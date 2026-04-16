@@ -65,6 +65,7 @@ import AuthCallback from "./components/Auth/AuthCallback";
 import ResetPassword from "./components/Auth/reset password/ResetPassword";
 import RentalReviewPage from "./pages/Rental/RentalReviewPage";
 import ProfilePage from "./pages/User/ProfilePage";
+import RankPage from "./pages/User/RankPage";
 import CartPage from "./pages/Rental/CartPage";
 import FavoritesPage from "./pages/Favorites/FavoritesPage";
 import ProductsPage from "./pages/Products/ProductsPage";
@@ -279,6 +280,7 @@ export default function Layout() {
           <Route path="/vouchers" element={<VouchersPage />} />
 
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/user/rank" element={<RankPage />} />
           <Route path="/ekyc" element={<EkycVerification />} />
 
           <Route path="/messenger" element={<Messenger />} />

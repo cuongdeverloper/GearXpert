@@ -451,7 +451,7 @@ const CartPage = () => {
                   Hãy chọn cho mình những thiết bị Gear đỉnh nhất.
                 </p>
                 <button
-                  onClick={() => navigate("/")}
+                  onClick={() => navigate("/products")}
                   className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold hover:bg-indigo-600 transition-all active:scale-95"
                 >
                   Khám phá ngay

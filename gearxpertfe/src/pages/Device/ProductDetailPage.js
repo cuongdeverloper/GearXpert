@@ -37,6 +37,8 @@ import { toast, Toaster } from "sonner";
 import { useParams, useNavigate } from "react-router-dom";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
+import BackButton from "../../components/common/BackButton";
+import ProductCard from "../../components/common/ProductCard";
 import { useSocket } from "../../SocketContext";
 import AuthRequirementModal from "../../components/common/AuthRequirementModal";
 
@@ -411,6 +413,9 @@ export default function ProductDetailPage() {
       <main className="flex-1 pt-28">
         {/* MAIN CONTENT */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="mb-6">
+            <BackButton fallbackPath="/products" />
+          </div>
           <div className="grid lg:grid-cols-12 gap-6">
             {/* LEFT: Title, Actions, Image, Description/Specs */}
             <div className="lg:col-span-8 space-y-4">
@@ -1200,44 +1205,7 @@ export default function ProductDetailPage() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
               {relatedDevices.slice(0, 4).map((d) => (
-                <div
-                  key={d._id}
-                  onClick={() => navigate(`/device/${d._id}`)}
-                  className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer group"
-                >
-                  <div className="aspect-[4/3] overflow-hidden relative">
-                    <img
-                      src={d.images?.[0] || d.image}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                      alt={d.name}
-                    />
-                    {d.discountPrice > 0 && (
-                      <div className="absolute top-3 left-3 bg-rose-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                        -{Math.round((1 - d.discountPrice / d.rentPrice?.perDay) * 100)}%
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <h4 className="font-semibold text-slate-900 text-sm line-clamp-1 mb-2 group-hover:text-indigo-600 transition-colors">{d.name}</h4>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-indigo-600 font-bold">
-                          {(d.discountPrice || d.rentPrice?.perDay).toLocaleString()}đ
-                          <span className="text-xs text-slate-400 font-normal">/ngày</span>
-                        </p>
-                        {d.discountPrice > 0 && (
-                          <p className="text-xs text-slate-400 line-through">
-                            {d.rentPrice?.perDay.toLocaleString()}đ
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 text-xs text-slate-500">
-                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                        <span>{d.ratingAvg?.toFixed(1) || '0.0'}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <ProductCard key={d._id} device={d} variant="detailed" />
               ))}
             </div>
           </div>
