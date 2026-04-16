@@ -44,6 +44,7 @@ import Map, { Marker } from "react-map-gl/mapbox";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import gearXpertLogo from "../../assets/logoGearXpert.png";
+import BackButton from "../../components/common/BackButton";
 
 const SORT_OPTIONS = [
   { value: "newest", label: "Hàng mới nhất" },
@@ -387,13 +388,7 @@ export default function SupplierPublicProfile() {
 
       <main className="flex-grow">
         <div className="max-w-[1440px] mx-auto px-6 pt-40 lg:pt-38">
-          <button
-            onClick={() => navigate(-1)}
-            className="group inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm active:scale-95"
-          >
-            <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
-            <span>Quay lại</span>
-          </button>
+          <BackButton fallbackPath="/products" />
         </div>
 
         {/* ===== SHOP HEADER ===== */}

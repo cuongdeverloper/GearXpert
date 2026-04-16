@@ -360,16 +360,20 @@ export default function ProfilePage() {
     const getRankCardClass = (rank) => {
         if (!rank) return 'rank-card-bronze';
         const rankUpper = rank.toUpperCase();
-        if (rankUpper === 'GOLD') return 'rank-card-gold';
-        if (rankUpper === 'BRONZE') return 'rank-card-bronze';
-        if (rankUpper === 'SILVER') return 'rank-card-silver';
-        return 'rank-card-bronze'; // Default to bronze
+        if (rankUpper === 'DIAMOND') return 'rank-card-diamond shadow-fuchsia-500/30';
+        if (rankUpper === 'PLATINUM') return 'rank-card-platinum shadow-blue-500/30';
+        if (rankUpper === 'GOLD') return 'rank-card-gold shadow-yellow-500/30';
+        if (rankUpper === 'BRONZE') return 'rank-card-bronze shadow-orange-500/30';
+        if (rankUpper === 'SILVER') return 'rank-card-silver shadow-slate-400/30';
+        return 'rank-card-bronze shadow-orange-500/30'; // Default to bronze
     };
 
     // Get rank inner background class based on rank
     const getRankInnerClass = (rank) => {
         if (!rank) return 'bg-gradient-to-br from-amber-800 via-amber-700 to-orange-600';
         const rankUpper = rank.toUpperCase();
+        if (rankUpper === 'DIAMOND') return 'bg-gradient-to-br from-purple-600 via-fuchsia-500 to-pink-500';
+        if (rankUpper === 'PLATINUM') return 'bg-gradient-to-br from-cyan-600 via-blue-500 to-indigo-400';
         if (rankUpper === 'GOLD') return 'bg-gradient-to-br from-amber-400 via-amber-300 to-yellow-200';
         if (rankUpper === 'BRONZE') return 'bg-gradient-to-br from-amber-800 via-amber-700 to-orange-600';
         if (rankUpper === 'SILVER') return 'bg-gradient-to-br from-slate-300 via-slate-200 to-gray-100';
@@ -380,10 +384,21 @@ export default function ProfilePage() {
     const getRankTextClass = (rank) => {
         if (!rank) return 'text-white';
         const rankUpper = rank.toUpperCase();
+        if (rankUpper === 'DIAMOND') return 'text-white';
+        if (rankUpper === 'PLATINUM') return 'text-white';
         if (rankUpper === 'GOLD') return 'text-amber-900';
         if (rankUpper === 'BRONZE') return 'text-white';
         if (rankUpper === 'SILVER') return 'text-slate-800';
         return 'text-white'; // Default to bronze
+    };
+
+    const getRankIcon = (rank) => {
+        const r = (rank || 'BRONZE').toUpperCase();
+        if (r === 'DIAMOND') return 'diamond';
+        if (r === 'PLATINUM') return 'loyalty';
+        if (r === 'GOLD') return 'star';
+        if (r === 'SILVER') return 'military_tech';
+        return 'workspace_premium';
     };
 
     if (!isAuthenticated) {
@@ -468,7 +483,7 @@ export default function ProfilePage() {
                                     className={`${getRankCardClass(userAccount.rank || 'BRONZE')} mb-4`}
                                 >
                                     <div className={`${getRankInnerClass(userAccount.rank || 'BRONZE')} relative rounded-[calc(0.75rem-3px)] w-full h-full flex items-center gap-3 p-4 z-[1]`}>
-                                        <span className={`material-symbols-outlined text-2xl fill-current ${getRankTextClass(userAccount.rank || 'BRONZE')}`}>military_tech</span>
+                                        <span className={`material-symbols-outlined text-2xl fill-current ${getRankTextClass(userAccount.rank || 'BRONZE')}`}>{getRankIcon(userAccount.rank || 'BRONZE')}</span>
                                         <div className="flex-1">
                                             <p className={`text-xs mb-1 ${getRankTextClass(userAccount.rank || 'BRONZE')}/80`}>{t('profile.member_rank')}</p>
                                             <p className={`font-bold text-lg ${getRankTextClass(userAccount.rank || 'BRONZE')}`}>
