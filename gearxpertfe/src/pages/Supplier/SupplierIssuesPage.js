@@ -20,12 +20,16 @@ import {
   FiCheckCircle,
   FiUpload,
   FiShield,
+  FiXCircle,
+  FiPlusCircle,
 } from "react-icons/fi";
 import { HiOutlineChatAlt2 } from "react-icons/hi";
-import { getSupplierIssues, patchSupplierIssueStatus } from "../../service/ApiService/ReportApi";
+import { getSupplierIssues, patchSupplierIssueStatus, supplierIssueCancelRefund, supplierIssueAdditionalDelivery } from "../../service/ApiService/ReportApi";
 import { createWorkOrderFromIssue, getDeviceItemsByDeviceIds } from "../../service/ApiService/MaintenanceApi";
 import { toast } from "react-toastify";
 import ReturnFailureDetailDialog from "../OperationStaff/tabs/handover/components/ReturnFailureDetailDialog";
+
+import AdditionalDeliveryDialog from "../../components/supplier/AdditionalDeliveryDialog";
 
 /* ─── Constants ───────────────────────────────────────────────────────────── */
 
@@ -180,6 +184,31 @@ const supplierIssueActions = [
 function getSupplierActionsForIssue(issue) {
   const rentalStatus = issue.rentalId?.status;
   const isRejectedRental = rentalStatus === "REJECTED";
+  const isStaffDeliveryIssue = issue._type === "DELIVERY" && issue.reportedBy === "STAFF";
+
+  if (isStaffDeliveryIssue) {
+    return [
+      {
+        key: "processing",
+        label: "Đánh dấu đang xử lý",
+        hint: "Cập nhật trạng thái phía nhà cung cấp",
+        icon: FiCheckCircle,
+      },
+      {
+        key: "cancel_refund",
+        label: "Hủy đơn (Hoàn tiền)",
+        hint: "Hủy đơn và hoàn tiền cho khách hàng",
+        icon: FiXCircle,
+      },
+      {
+        key: "additional_delivery",
+        label: "Giao bổ sung",
+        hint: "Xác nhận tạo đơn giao hàng mới cho Staff",
+        icon: FiPlusCircle,
+      }
+    ];
+  }
+
   return supplierIssueActions
     .filter((a) => !(isRejectedRental && a.key === "evidence"))
     .map((a) => {
@@ -216,6 +245,8 @@ export default function SupplierIssuesPage() {
   // DeviceItems từ rental để hiển thị dropdown
   const [woRentalDeviceItems, setWoRentalDeviceItems] = useState([]);
   const [woDeviceItemsLoading, setWoDeviceItemsLoading] = useState(false);
+
+  const [additionalDeliveryDialog, setAdditionalDeliveryDialog] = useState(null);
 
   const todayStr = () => new Date().toISOString().split("T")[0];
 
@@ -511,6 +542,7 @@ export default function SupplierIssuesPage() {
               onOperationalDetail={openOperationalDetail}
               onIssueUpdated={loadIssues}
               onCreateWorkOrder={openWoIssueModal}
+              onOpenAdditionalDelivery={setAdditionalDeliveryDialog}
             />
           ))}
         </div>
@@ -581,6 +613,16 @@ export default function SupplierIssuesPage() {
       />
 
       {/* Modal: Tạo lệnh sửa chữa từ issue */}
+      {additionalDeliveryDialog && (
+        <AdditionalDeliveryDialog
+          issue={additionalDeliveryDialog}
+          onClose={() => setAdditionalDeliveryDialog(null)}
+          onSuccess={() => {
+            loadIssues();
+          }}
+        />
+      )}
+
       {woIssueModal && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
@@ -729,7 +771,7 @@ function StatCard({ label, value, color }) {
   );
 }
 
-function IssueCard({ issue, onImageClick, onOperationalDetail, onIssueUpdated, onCreateWorkOrder  }) {
+function IssueCard({ issue, onImageClick, onOperationalDetail, onIssueUpdated, onCreateWorkOrder, onOpenAdditionalDelivery }) {
   const [expanded, setExpanded] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -939,26 +981,51 @@ function IssueCard({ issue, onImageClick, onOperationalDetail, onIssueUpdated, o
               {supplierActions.map(({ key, label, hint, icon: Icon }) => {
                 const rentalSt = issue.rentalId?.status;
                 const isRejectedRental = rentalSt === "REJECTED";
+                const isCustomAction = ["cancel_refund", "additional_delivery"].includes(key);
                 const processingDisabled =
                   key === "processing" &&
                   (!isRejectedRental
                     ? issue.status !== "OPEN"
-                    : !["OPEN", "PROCESSING"].includes(issue.status));
+                    : !["OPEN", "PROCESSING"].includes(issue.status)) ||
+                  (isCustomAction && !["OPEN", "PROCESSING", "PENDING_RESOLUTION"].includes(issue.status));
                 return (
                 <button
                   key={key}
                   type="button"
                   title={hint}
                   disabled={processingDisabled}
-                  onClick={(e) => {
+                  onClick={async (e) => {
                     e.stopPropagation();
                     if (key === "processing") {
                       handleSupplierAction(e);
                       return;
                     }
+                    if (key === "cancel_refund") {
+                      if (!window.confirm("Bạn có chắc muốn hủy đơn và hoàn tiền cho khách?")) return;
+                      try {
+                        await supplierIssueCancelRefund(issue._id);
+                        toast.success("Đã hủy đơn và lên lệnh hoàn tiền.");
+                        onIssueUpdated?.();
+                      } catch (err) {
+                        toast.error(err.response?.data?.message || err.message || "Lỗi khi hủy đơn");
+                      }
+                      return;
+                    }
+                    if (key === "additional_delivery") {
+                      onOpenAdditionalDelivery && onOpenAdditionalDelivery(issue);
+                      return;
+                    }
                     toast.info(label);
                   }}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-indigo-200 bg-white text-indigo-800 hover:bg-indigo-50 hover:border-indigo-300 transition-colors shadow-sm disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:bg-white"
+                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border bg-white shadow-sm transition-colors disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:bg-white
+                    ${
+                      key === "cancel_refund" 
+                        ? "border-rose-200 text-rose-700 hover:bg-rose-50 hover:border-rose-300"
+                        : key === "additional_delivery"
+                        ? "border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300"
+                        : "border-indigo-200 text-indigo-800 hover:bg-indigo-50 hover:border-indigo-300"
+                    }
+                  `}
                 >
                   <Icon size={14} className="shrink-0 opacity-80" />
                   {label}

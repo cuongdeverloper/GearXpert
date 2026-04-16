@@ -48,104 +48,56 @@ const {
 
 } = require("../../services/ReturnService");
 
-
-
 const { PayOS } = require("@payos/node");
 
-
-
 const payos = new PayOS(
-
   process.env.PAYOS_CLIENT_ID,
-
   process.env.PAYOS_API_KEY,
-
   process.env.PAYOS_CHECKSUM_KEY
-
 );
 
 // Đầu file RentalController.js (hoặc nơi bạn định nghĩa các hàm)
-
 const NotificationConfig = require("../../configs/NotificationConfig"); // điều chỉnh path cho đúng
-
 const { emitOperationStaffUpdate } = require("../../utils/operationStaffSocket");
-
-
 
 // Helper function to get client IP
 
 const getClientIp = (req) => {
-
   const forwardedFor = req.headers["x-forwarded-for"];
-
   if (typeof forwardedFor === "string" && forwardedFor.length > 0) {
-
     return forwardedFor.split(",")[0].trim();
-
   }
-
   return req.ip;
-
 };
 
-
-
 // Helper gửi noti cho supplier hoặc customer
-
 const sendRentalNotification = async (
-
   rental,
-
   receiverRole,
-
   title,
-
   message,
-
   linkSuffix = ""
-
 ) => {
-
   const receiverId =
-
     receiverRole === "SUPPLIER" ? rental.supplierId : rental.customerId;
-
   const senderId =
-
     receiverRole === "SUPPLIER" ? rental.customerId : rental.supplierId;
 
-
-
   const rid = rental._id?.toString?.() || rental._id;
-
   const link =
-
     receiverRole === "SUPPLIER"
-
       ? `/supplier/rental-requests?rental=${rid}`
-
       : linkSuffix
-
         ? `/my-rentals/${rid}${linkSuffix}`
-
         : `/my-rentals/${rid}`;
 
-
-
   await NotificationConfig.sendNotification({
-
     senderId,
-
     receiverId,
-
     title,
-
     message,
-
     link,
-
     type: "ORDER",
-
   });
 
 };
@@ -698,7 +650,7 @@ exports.checkoutRental = async (req, res) => {
       const now = new Date();
       const discountExpiry = device.discountExpiry ? new Date(device.discountExpiry) : null;
       const isDiscountValid = device.discountPrice && discountExpiry && discountExpiry > now;
-      
+
       const effectivePrice = isDiscountValid ? device.discountPrice : device.rentPrice.perDay;
       const rent = effectivePrice * item.totalDays * item.quantity;
 
@@ -1664,23 +1616,14 @@ exports.getSupplierRentals = async (req, res) => {
 
 
 exports.getDeliveringRentals = async (req, res) => {
-
   try {
-
-    const query = { status: "DELIVERING" };
-
-
+    const query = { status: { $in: ["DELIVERING", "PENDING_RESOLUTION"] } };
 
     if (req.user?.role === "OPERATION_STAFF") {
-
       query.$or = [
-
         { assignedOperationStaffId: null },
-
         { assignedOperationStaffId: req.user.id },
-
       ];
-
     }
 
 
@@ -1708,27 +1651,26 @@ exports.getDeliveringRentals = async (req, res) => {
 
 
         // Ensure DeliveryTask exists
-
         let deliveryTask = await DeliveryTask.findOne({
-
           rentalId: rental._id,
-
           type: "DELIVERY",
-
           status: { $in: ["PENDING", "ASSIGNED", "IN_TRANSIT"] },
-
         })
-
           .sort({ createdAt: -1 })
-
           .lean();
 
-
+        // Check if rental is in DELIVERING or has a valid task in PENDING_RESOLUTION
+        if (rental.status === "PENDING_RESOLUTION") {
+          // Chỉ show ở tab Giao Hàng nếu đó là đơn "Giao bổ sung"
+          if (!deliveryTask || !deliveryTask.isAdditional) {
+            return null;
+          }
+        } else if (rental.status !== "DELIVERING") {
+          return null; // Không trả về nếu không phải DELIVERING hoặc PENDING_RESOLUTION hợp lệ
+        }
 
         // Auto-create task if it doesn't exist for DELIVERING rentals
-
-        if (!deliveryTask) {
-
+        if (!deliveryTask && rental.status === "DELIVERING") {
           const newTask = await DeliveryTask.create({
 
             rentalId: rental._id,
@@ -1752,23 +1694,15 @@ exports.getDeliveringRentals = async (req, res) => {
 
 
         return {
-
           ...rental.toObject(),
-
           rentalItems,
-
           deliveryTask,
-
         };
-
       })
-
     );
 
-
-
-    res.json({ rentals: rentalsWithItems });
-
+    // Filter out nulls
+    res.json({ rentals: rentalsWithItems.filter(Boolean) });
   } catch (error) {
 
     console.error("Error getDeliveringRentals:", error);
@@ -4461,14 +4395,27 @@ exports.confirmReturn = async (req, res) => {
 
 
     // Cập nhật trạng thái cuối
-
     rental.status = "COMPLETED";
-
     rental.depositStatus = "REFUNDED";
-
     rental.supplierPayoutStatus = "PAID";
-
     rental.escrowStatus = "RELEASED";
+
+    // Cộng điểm thưởng rank cho khách hàng (10.000đ = 100 điểm)
+    const User = require("../../models/User");
+    const customer = await User.findById(rental.customerId).session(session);
+    if (customer) {
+      const earnedPoints = Math.floor(rental.rentPriceTotal / 10000) * 100;
+      customer.rewardPoints = (customer.rewardPoints || 0) + earnedPoints;
+      
+      const pts = customer.rewardPoints;
+      if (pts >= 20000) customer.rank = "DIAMOND";
+      else if (pts >= 10000) customer.rank = "PLATINUM";
+      else if (pts >= 5000) customer.rank = "GOLD";
+      else if (pts >= 1000) customer.rank = "SILVER";
+      else customer.rank = "BRONZE";
+
+      await customer.save({ session });
+    }
 
 
 

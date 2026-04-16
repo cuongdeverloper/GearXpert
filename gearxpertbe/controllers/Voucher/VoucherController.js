@@ -8,10 +8,38 @@ exports.validateVoucher = async (req, res) => {
   const customerId = req.user.id;
 
   // 1. Tìm voucher
-  const voucher = await Voucher.findOne({
+  let voucher = await Voucher.findOne({
     code: code.toUpperCase(),
     status: "ACTIVE"
   });
+
+  if (!voucher && code.toUpperCase().startsWith('RANK_')) {
+    const User = require('../../models/User');
+    const user = await User.findById(customerId);
+    const userRank = (user?.rank || 'BRONZE').toUpperCase();
+    
+    const rankDiscounts = {
+      SILVER: 5,
+      GOLD: 10,
+      PLATINUM: 15,
+      DIAMOND: 20
+    };
+
+    const requestedRank = code.toUpperCase().replace('RANK_', '');
+    if (requestedRank === userRank && rankDiscounts[userRank]) {
+      voucher = {
+        code: code.toUpperCase(),
+        type: "GLOBAL",
+        discountType: "PERCENT",
+        discountValue: rankDiscounts[userRank],
+        minOrderValue: 0,
+        expiredAt: new Date(2099, 11, 31),
+        usageLimit: null,
+        usedCount: 0,
+        status: "ACTIVE"
+      };
+    }
+  }
 
   if (!voucher) {
     return res.status(400).json({ message: "Voucher không hợp lệ hoặc không tồn tại" });

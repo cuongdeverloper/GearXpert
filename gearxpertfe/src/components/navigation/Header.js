@@ -275,27 +275,39 @@ export default function Header({ onMenuOpen }) {
   };
 
   const getRankCardClass = (rank) => {
-    const r = (rank || 'GOLD').toUpperCase();
-    if (r === 'GOLD') return 'rank-card-gold';
-    if (r === 'BRONZE') return 'rank-card-bronze';
-    if (r === 'SILVER') return 'rank-card-silver';
-    return 'rank-card-gold';
+    const r = (rank || 'BRONZE').toUpperCase();
+    if (r === 'DIAMOND') return 'rank-card-diamond shadow-fuchsia-500/30';
+    if (r === 'PLATINUM') return 'rank-card-platinum shadow-blue-500/30';
+    if (r === 'GOLD') return 'rank-card-gold shadow-yellow-500/30';
+    if (r === 'SILVER') return 'rank-card-silver shadow-slate-400/30';
+    return 'rank-card-bronze shadow-orange-500/30';
   };
 
   const getRankInnerClass = (rank) => {
-    const r = (rank || 'GOLD').toUpperCase();
+    const r = (rank || 'BRONZE').toUpperCase();
+    if (r === 'DIAMOND') return 'bg-gradient-to-br from-purple-600 via-fuchsia-500 to-pink-500';
+    if (r === 'PLATINUM') return 'bg-gradient-to-br from-cyan-600 via-blue-500 to-indigo-400';
     if (r === 'GOLD') return 'bg-gradient-to-br from-amber-400 via-amber-300 to-yellow-200';
-    if (r === 'BRONZE') return 'bg-gradient-to-br from-amber-800 via-amber-700 to-orange-600';
     if (r === 'SILVER') return 'bg-gradient-to-br from-slate-300 via-slate-200 to-gray-100';
-    return 'bg-gradient-to-br from-amber-400 via-amber-300 to-yellow-200';
+    return 'bg-gradient-to-br from-amber-800 via-amber-700 to-orange-600';
   };
 
   const getRankTextClass = (rank) => {
-    const r = (rank || 'GOLD').toUpperCase();
+    const r = (rank || 'BRONZE').toUpperCase();
+    if (r === 'DIAMOND') return 'text-white';
+    if (r === 'PLATINUM') return 'text-white';
     if (r === 'GOLD') return 'text-amber-900';
-    if (r === 'BRONZE') return 'text-white';
     if (r === 'SILVER') return 'text-slate-800';
-    return 'text-amber-900';
+    return 'text-white';
+  };
+
+  const getRankIcon = (rank) => {
+    const r = (rank || 'BRONZE').toUpperCase();
+    if (r === 'DIAMOND') return 'diamond';
+    if (r === 'PLATINUM') return 'loyalty';
+    if (r === 'GOLD') return 'star';
+    if (r === 'SILVER') return 'military_tech';
+    return 'workspace_premium';
   };
 
   // Mark as read using api
@@ -664,11 +676,17 @@ export default function Header({ onMenuOpen }) {
                         {/* Rank & Wallet */}
                         <div className={`p-4 space-y-3 border-b ${isDark ? 'border-white/10' : 'border-slate-100'}`}>
                         {/* Rank */}
-                        <div className={`${getRankCardClass(userAccount.rank)} cursor-pointer hover:opacity-90 transition-opacity`}>
+                        <div 
+                          className={`${getRankCardClass(userAccount.rank)} cursor-pointer hover:opacity-90 transition-opacity`}
+                          onClick={() => {
+                            handleRestrictedNavigation('/user/rank');
+                            setIsDropdownOpen(false);
+                          }}
+                        >
                           <div className={`${getRankInnerClass(userAccount.rank)} relative rounded-[calc(0.75rem-3px)] w-full h-full flex items-center gap-3 p-3 z-[1]`}>
                             <div className="flex-shrink-0">
                               <span className={`material-symbols-outlined text-[24px] fill-current ${getRankTextClass(userAccount.rank)}`}>
-                                military_tech
+                                {getRankIcon(userAccount.rank)}
                               </span>
                             </div>
                             <div className="flex-1 min-w-0">

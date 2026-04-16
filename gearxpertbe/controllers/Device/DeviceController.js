@@ -745,22 +745,54 @@ exports.getDeviceAddons = async (req, res) => {
  * Supports both slug and ObjectId
  */
 exports.getRelatedDevices = async (req, res) => {
-  const param = req.params.slug;
-  const isObjectId = /^[0-9a-fA-F]{24}$/.test(param);
-  const device = await Device.findOne(
-    isObjectId ? { _id: param } : { slug: param }
-  );
-  if (!device) return res.status(404).json({ message: "Device not found" });
+  try {
+    const param = req.params.slug;
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(param);
+    const device = await Device.findOne(
+      isObjectId ? { _id: param } : { slug: param }
+    );
+    if (!device) return res.status(404).json({ message: "Device not found" });
 
-  const related = await Device.find({
-    _id: { $ne: device._id },
-    category: device.category,
-    status: "AVAILABLE",
-  })
-    .limit(4)
-    .select("name slug rentPrice ratingAvg location images discountPrice discountReason discountExpiry");
+    const related = await Device.find({
+      _id: { $ne: device._id },
+      category: device.category,
+      status: "AVAILABLE",
+    })
+      .limit(4)
+      .select("name slug description category rentPrice ratingAvg location images discountPrice discountReason discountExpiry")
+      .lean();
 
-  res.json(related);
+    // Count available DeviceItems for each related device
+    const relatedIds = related.map((d) => d._id);
+    const availability = await DeviceItem.aggregate([
+      {
+        $match: {
+          deviceId: { $in: relatedIds },
+          status: "AVAILABLE",
+        },
+      },
+      {
+        $group: {
+          _id: "$deviceId",
+          availableCount: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const availMap = {};
+    availability.forEach((a) => {
+      availMap[a._id.toString()] = a.availableCount;
+    });
+
+    const result = related.map((d) => ({
+      ...d,
+      availableQuantity: availMap[d._id.toString()] || 0,
+    }));
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
 /**
