@@ -1616,23 +1616,14 @@ exports.getSupplierRentals = async (req, res) => {
 
 
 exports.getDeliveringRentals = async (req, res) => {
-
   try {
-
-    const query = { status: "DELIVERING" };
-
-
+    const query = { status: { $in: ["DELIVERING", "PENDING_RESOLUTION"] } };
 
     if (req.user?.role === "OPERATION_STAFF") {
-
       query.$or = [
-
         { assignedOperationStaffId: null },
-
         { assignedOperationStaffId: req.user.id },
-
       ];
-
     }
 
 
@@ -1660,27 +1651,26 @@ exports.getDeliveringRentals = async (req, res) => {
 
 
         // Ensure DeliveryTask exists
-
         let deliveryTask = await DeliveryTask.findOne({
-
           rentalId: rental._id,
-
           type: "DELIVERY",
-
           status: { $in: ["PENDING", "ASSIGNED", "IN_TRANSIT"] },
-
         })
-
           .sort({ createdAt: -1 })
-
           .lean();
 
-
+        // Check if rental is in DELIVERING or has a valid task in PENDING_RESOLUTION
+        if (rental.status === "PENDING_RESOLUTION") {
+          // Chỉ show ở tab Giao Hàng nếu đó là đơn "Giao bổ sung"
+          if (!deliveryTask || !deliveryTask.isAdditional) {
+            return null;
+          }
+        } else if (rental.status !== "DELIVERING") {
+          return null; // Không trả về nếu không phải DELIVERING hoặc PENDING_RESOLUTION hợp lệ
+        }
 
         // Auto-create task if it doesn't exist for DELIVERING rentals
-
-        if (!deliveryTask) {
-
+        if (!deliveryTask && rental.status === "DELIVERING") {
           const newTask = await DeliveryTask.create({
 
             rentalId: rental._id,
@@ -1704,23 +1694,15 @@ exports.getDeliveringRentals = async (req, res) => {
 
 
         return {
-
           ...rental.toObject(),
-
           rentalItems,
-
           deliveryTask,
-
         };
-
       })
-
     );
 
-
-
-    res.json({ rentals: rentalsWithItems });
-
+    // Filter out nulls
+    res.json({ rentals: rentalsWithItems.filter(Boolean) });
   } catch (error) {
 
     console.error("Error getDeliveringRentals:", error);

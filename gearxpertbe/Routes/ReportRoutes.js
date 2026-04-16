@@ -99,4 +99,19 @@ ReportRouter.patch(
   deliveryCtrl.supplierUpdateIssueStatus
 );
 
+ReportRouter.post(
+  "/supplier-issues/:issueId/cancel-refund",
+  checkAccessToken,
+  checkSupplier,
+  deliveryCtrl.supplierCancelAndRefund
+);
+
+ReportRouter.post(
+  "/supplier-issues/:issueId/additional-delivery",
+  checkAccessToken,
+  checkSupplier,
+  uploadCloud.array("images", 5),
+  deliveryCtrl.supplierAdditionalDelivery
+);
+
 module.exports = ReportRouter;
