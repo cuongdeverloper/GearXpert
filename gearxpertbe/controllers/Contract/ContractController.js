@@ -794,21 +794,18 @@ const generateDocxBufferFromData = async (data) => {
       fileType: "docx",
 
       getImage: function (tagValue, tagName) {
-
+        console.log("[DEBUG] getImage called - tagName:", tagName, "hasValue:", !!tagValue);
         if (tagValue && tagValue.startsWith("data:image")) {
-
+          console.log("[DEBUG] getImage: Returning image buffer");
           return base64DataURLToArrayBuffer(tagValue);
-
         }
-
+        console.log("[DEBUG] getImage: Returning empty buffer");
         return Buffer.from("");
-
       },
 
       getSize: function (img, tagValue, tagName) {
-
+        console.log("[DEBUG] getSize called - tagName:", tagName);
         return [180, 70]; // Same as supplier contract
-
       },
 
     };
@@ -822,6 +819,42 @@ const generateDocxBufferFromData = async (data) => {
     const zip = new PizZip(templateBuffer);
 
 
+
+    // DEBUG: Check template content before rendering
+    try {
+      const content = zip.file("word/document.xml")?.asText();
+      if (content) {
+        console.log("[DEBUG] ========== TEMPLATE CHECK ==========");
+        // Find all placeholders with both syntaxes
+        const allMatches = content.match(/\{%[^%]*%\}|\{\{[^}]*\}\}/g) || [];
+        console.log("[DEBUG] All placeholders found:", allMatches.slice(0, 10));
+        
+        // Check for signatureImage variations
+        const hasImagePlaceholder = content.includes('{%signatureImage%}');
+        const hasVarPlaceholder = content.includes('{{signatureImage}}');
+        const hasAnySig = content.toLowerCase().includes('signatureimage');
+        console.log("[DEBUG] Has {%signatureImage%}:", hasImagePlaceholder);
+        console.log("[DEBUG] Has {{signatureImage}}:", hasVarPlaceholder);
+        console.log("[DEBUG] Contains 'signatureImage' (any case):", hasAnySig);
+        
+        // Log raw content around potential signature area
+        const sigIndex = content.toLowerCase().indexOf('signature');
+        if (sigIndex !== -1) {
+          console.log("[DEBUG] Raw content around 'signature':", content.substring(sigIndex - 20, sigIndex + 40));
+        }
+        
+        if (!hasImagePlaceholder && !hasVarPlaceholder) {
+          console.warn("[DEBUG] WARNING: No signatureImage placeholder found in template!");
+        }
+      }
+    } catch (e) {
+      console.warn("[DEBUG] Could not read template:", e.message);
+    }
+
+    // DEBUG: Check data
+    console.log("[DEBUG] ========== DATA CHECK ==========");
+    console.log("[DEBUG] signatureDataUrl:", data.signatureDataUrl ? "PRESENT" : "MISSING");
+    console.log("[DEBUG] signatureDataUrl length:", data.signatureDataUrl?.length || 0);
 
     const doc = new Docxtemplater(zip, {
 
@@ -839,11 +872,14 @@ const generateDocxBufferFromData = async (data) => {
 
     // Render data - exactly like supplier contract
 
+    console.log("[DEBUG] ========== RENDERING ==========");
+    console.log("[DEBUG] signatureImage value:", data.signatureDataUrl ? "SET" : "EMPTY");
+
     doc.render({
 
       ...data,
 
-      signatureImage: data.signatureDataUrl, // Chuy qua {%signatureImage}
+      image: data.signatureDataUrl, // Chuy qua {%image}
 
     });
 
@@ -961,21 +997,18 @@ const generateDocxBuffer = async (rental, items = null) => {
       fileType: "docx",
 
       getImage: function (tagValue, tagName) {
-
+        console.log("[DEBUG] getImage called - tagName:", tagName, "hasValue:", !!tagValue);
         if (tagValue && tagValue.startsWith("data:image")) {
-
+          console.log("[DEBUG] getImage: Returning image buffer");
           return base64DataURLToArrayBuffer(tagValue);
-
         }
-
+        console.log("[DEBUG] getImage: Returning empty buffer");
         return Buffer.from("");
-
       },
 
       getSize: function (img, tagValue, tagName) {
-
+        console.log("[DEBUG] getSize called - tagName:", tagName);
         return [180, 70]; // Same as supplier contract
-
       },
 
     };
@@ -1069,7 +1102,7 @@ const generateDocxBuffer = async (rental, items = null) => {
 
       ...data,
 
-      signatureImage: data.signatureDataUrl, // Chuy qua {%signatureImage}
+      image: data.signatureDataUrl, // Chuy qua {%image}
 
     });
 

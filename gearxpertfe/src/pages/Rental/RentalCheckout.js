@@ -48,6 +48,7 @@ import { getCart, removeCartItem } from "../../service/ApiService/CartApi";
 import {
   validateVoucher,
   getAllVouchers,
+  getBestVoucherForCart,
 } from "../../service/ApiService/VoucherApi.js";
 import { checkout, previewContractWithData } from "../../service/ApiService/RentalApi";
 import { getMyWallet } from "../../service/ApiService/WalletApi";
@@ -116,6 +117,8 @@ export default function CheckoutPage() {
   const [voucherCode, setVoucherCode] = useState("");
   const [appliedVoucher, setAppliedVoucher] = useState(null);
   const [isApplyingVoucher, setIsApplyingVoucher] = useState(false);
+  const [suggestedVoucher, setSuggestedVoucher] = useState(null);
+  const [isLoadingBestVoucher, setIsLoadingBestVoucher] = useState(false);
   const [showMapModal, setShowMapModal] = useState(false);
   const [availableVouchers, setAvailableVouchers] = useState([]);
   const [isLoadingVouchers, setIsLoadingVouchers] = useState(false);
@@ -127,7 +130,7 @@ export default function CheckoutPage() {
   const [distance, setDistance] = useState(0);
   const [deliveryFee, setDeliveryFee] = useState(0);
 
-  // Fetch cart data
+  // Fetch cart data and auto-apply best voucher
   useEffect(() => {
     const fetchCart = async () => {
       try {
@@ -143,6 +146,26 @@ export default function CheckoutPage() {
 
     fetchCart();
   }, [CART_TYPE]);
+
+  // Auto-fetch best voucher when cart loaded
+  useEffect(() => {
+    const fetchBestVoucher = async () => {
+      if (!cart.length) return;
+      setIsLoadingBestVoucher(true);
+      try {
+        const res = await getBestVoucherForCart(CART_TYPE);
+        if (res.data?.bestVoucher) {
+          setSuggestedVoucher(res.data.bestVoucher);
+        }
+      } catch (err) {
+        console.error("Failed to fetch best voucher:", err);
+      } finally {
+        setIsLoadingBestVoucher(false);
+      }
+    };
+
+    fetchBestVoucher();
+  }, [cart.length, CART_TYPE]);
 
   // Fetch wallet
   useEffect(() => {
@@ -182,7 +205,7 @@ export default function CheckoutPage() {
     const groups = {};
     cart.forEach((item) => {
       const supplierId = item.deviceId?.supplierId?._id || "unknown";
-      const supplierName = item.deviceId?.supplierId?.fullName || "Unknown Supplier";
+      const supplierName = item.deviceId?.supplierId?.businessName || item.deviceId?.supplierId?.fullName || "Unknown Supplier";
 
       if (!groups[supplierId]) {
         groups[supplierId] = {
@@ -221,23 +244,30 @@ export default function CheckoutPage() {
   }, [groupedBySupplier, cart, deliveryFee, appliedVoucher]);
 
   // Apply voucher
-  const handleApplyVoucher = useCallback(async () => {
-    if (!voucherCode) return;
+  const handleApplyVoucher = useCallback(async (code = voucherCode) => {
+    if (!code) return;
 
     setIsApplyingVoucher(true);
     try {
-      const res = await validateVoucher(voucherCode, subtotal);
+      const res = await validateVoucher({ code, cartType: CART_TYPE });
       setAppliedVoucher({
-        code: voucherCode,
-        discount: res.discount,
+        code: code,
+        discount: res.data.discount,
       });
-      toast.success(`Áp dụng voucher thành công! Giảm ${res.discount.toLocaleString()}đ`);
+      toast.success(`Áp dụng voucher thành công! Giảm ${res.data.discount.toLocaleString()}đ`);
     } catch (err) {
       toast.error(err.response?.data?.message || "Voucher không hợp lệ");
     } finally {
       setIsApplyingVoucher(false);
     }
-  }, [voucherCode, subtotal]);
+  }, [voucherCode, CART_TYPE]);
+
+  // Apply suggested voucher
+  const handleApplySuggestedVoucher = useCallback(() => {
+    if (!suggestedVoucher) return;
+    setVoucherCode(suggestedVoucher.code);
+    handleApplyVoucher(suggestedVoucher.code);
+  }, [suggestedVoucher, handleApplyVoucher]);
 
   // Remove item
   const handleRemoveItem = useCallback(async (itemId) => {
@@ -994,6 +1024,34 @@ export default function CheckoutPage() {
                     </h3>
                   </div>
                   <div className="p-6">
+                    {/* Suggested Best Voucher */}
+                    {suggestedVoucher && !appliedVoucher && (
+                      <div className="mb-4 p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl flex items-center justify-center">
+                              <Ticket size={20} className="text-white" />
+                            </div>
+                            <div>
+                              <p className="text-sm text-amber-700 font-medium">Voucher phù hợp nhất</p>
+                              <p className="font-bold text-amber-800">{suggestedVoucher.code}</p>
+                              <p className="text-xs text-amber-600">
+                                Giảm {suggestedVoucher.discount.toLocaleString()}đ
+                                {suggestedVoucher.type === 'SUPPLIER' && ' - Voucher shop'}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={handleApplySuggestedVoucher}
+                            disabled={isApplyingVoucher}
+                            className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg font-semibold hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 transition-all text-sm"
+                          >
+                            {isApplyingVoucher ? "..." : "Dùng ngay"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex gap-3">
                       <div className="relative flex-1">
                         <Ticket className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
@@ -1006,7 +1064,7 @@ export default function CheckoutPage() {
                         />
                       </div>
                       <button
-                        onClick={handleApplyVoucher}
+                        onClick={() => handleApplyVoucher()}
                         disabled={isApplyingVoucher || !voucherCode}
                         className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-indigo-800 disabled:opacity-50 transition-all shadow-lg"
                       >
@@ -1278,7 +1336,14 @@ export default function CheckoutPage() {
                       <button
                         onClick={() => {
                           if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
-                            const dataUrl = sigCanvas.current.getCanvas().toDataURL("image/png");
+                            let canvasToUse;
+                            try {
+                              canvasToUse = sigCanvas.current.getTrimmedCanvas();
+                            } catch (err) {
+                              console.warn("getTrimmedCanvas failed, fallback to full canvas:", err);
+                              canvasToUse = sigCanvas.current.getCanvas();
+                            }
+                            const dataUrl = canvasToUse.toDataURL("image/png");
                             setSignatureDataUrl(dataUrl);
                             toast.success("Đã lưu chữ ký thành công!");
                           } else {
@@ -1352,44 +1417,42 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                {/* Terms */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                  <div className="p-6">
-                    <label className="flex items-start gap-4 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="mt-0.5 w-6 h-6 rounded-lg border-2 border-gray-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                        checked={agreeTerms}
-                        onChange={(e) => setAgreeTerms(e.target.checked)}
-                      />
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-gray-900 mb-2">Điều khoản và điều kiện</p>
-                        <p className="text-sm text-gray-600">
-                          Tôi đã đọc và đồng ý với{" "}
-                          <button
-                            onClick={() => window.open('/terms', '_blank')}
-                            className="text-indigo-600 underline hover:text-indigo-800 font-medium mx-1"
-                          >
-                            Điều khoản sử dụng
-                          </button>
-                          {" và "}
-                          <button
-                            onClick={() => window.open('/privacy', '_blank')}
-                            className="text-indigo-600 underline hover:text-indigo-800 font-medium mx-1"
-                          >
-                            Chính sách bảo mật
-                          </button>
-                          {" của GearXpert"}
-                        </p>
-                      </div>
-                    </label>
-                  </div>
-                </div>
               </div>
 
               {/* Order Summary Sidebar */}
               <div className="lg:col-span-1">
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 sticky top-24">
+                  {/* Terms - Moved above total payment */}
+                  <div className="p-6 border-b border-gray-200 bg-indigo-50/50">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 w-5 h-5 rounded border-2 border-gray-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                        checked={agreeTerms}
+                        onChange={(e) => setAgreeTerms(e.target.checked)}
+                      />
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-gray-900 mb-1">Điều khoản và điều kiện</p>
+                        <p className="text-xs text-gray-600">
+                          Tôi đồng ý với{" "}
+                          <button
+                            onClick={() => window.open('/terms', '_blank')}
+                            className="text-indigo-600 underline hover:text-indigo-800 font-medium"
+                          >
+                            Điều khoản
+                          </button>
+                          {" và "}
+                          <button
+                            onClick={() => window.open('/privacy', '_blank')}
+                            className="text-indigo-600 underline hover:text-indigo-800 font-medium"
+                          >
+                            Chính sách
+                          </button>
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+
                   <div className="p-6 border-b border-gray-200">
                     <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                       <Receipt size={20} className="text-indigo-600" />

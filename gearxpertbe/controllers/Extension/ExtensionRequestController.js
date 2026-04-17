@@ -1,6 +1,8 @@
 const ExtensionRequest = require("../../models/ExtensionRequest");
 const Rental = require("../../models/Rental");
 const RentalItem = require("../../models/RentalItem");
+const Wallet = require("../../models/Wallet");
+const WalletTransaction = require("../../models/WalletTransaction");
 const mongoose = require("mongoose");
 
 // Middleware to check if user is the supplier of the rental
@@ -17,7 +19,9 @@ const checkSupplierPermission = async (req, res, next) => {
     }
 
     // Check if current user is the supplier
-    if (extensionRequest.supplierId._id.toString() !== req.user.id) {
+    // supplierId could be populated or just an ObjectId
+    const supplierId = extensionRequest.supplierId?._id?.toString() || extensionRequest.supplierId?.toString();
+    if (supplierId !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: "Bạn không có quyền thực hiện hành động này"
@@ -114,6 +118,7 @@ const approveExtension = async (req, res) => {
     // Update extension request status
     extensionRequest.status = "APPROVED";
     extensionRequest.approvedAt = new Date();
+    extensionRequest.approvedExtraAmount = extensionRequest.proposedExtraAmount;
     await extensionRequest.save({ session });
 
     // Update rental with extension info
@@ -130,13 +135,28 @@ const approveExtension = async (req, res) => {
     rental.isExtended = true;
     rental.extendedEndDate = extensionRequest.requestedEndDate;
     
+    // Update payment amounts
+    const extraAmount = extensionRequest.proposedExtraAmount;
+    const PLATFORM_FEE_RATE = 0.1; // 10%
+    
+    rental.rentPriceTotal += extraAmount;
+    rental.totalAmount += extraAmount;
+    
+    // Update payment breakdown
+    rental.paymentBreakdown.rentAmount += extraAmount;
+    const platformFee = Math.round(rental.paymentBreakdown.rentAmount * PLATFORM_FEE_RATE);
+    rental.paymentBreakdown.platformFee = platformFee;
+    rental.paymentBreakdown.supplierReceive = rental.paymentBreakdown.rentAmount - platformFee;
+    
     // Update rental items end dates
-    const RentalItem = require("../../models/RentalItem");
+    const startDate = rental.rentalStartDate || rental.items?.[0]?.rentalStartDate || rental.createdAt;
+    const totalDays = Math.ceil((new Date(extensionRequest.requestedEndDate) - new Date(startDate)) / (1000 * 60 * 60 * 24));
     await RentalItem.updateMany(
       { rentalId: rental._id },
       { 
         rentalEndDate: extensionRequest.requestedEndDate,
-        totalDays: Math.ceil((new Date(extensionRequest.requestedEndDate) - new Date(rental.rentalStartDate)) / (1000 * 60 * 60 * 24))
+        totalDays: totalDays > 0 ? totalDays : extensionRequest.requestedDays,
+        isExtended: true
       },
       { session }
     );
@@ -156,43 +176,118 @@ const approveExtension = async (req, res) => {
     console.error("Error approving extension:", error);
     res.status(500).json({
       success: false,
-      message: "Lỗi khi chấp nhận gia hạn"
+      message: error.message
     });
   }
 };
 
 // Reject extension request
 const rejectExtension = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { requestId } = req.params;
     const { reason } = req.body;
-    
-    const extensionRequest = await ExtensionRequest.findByIdAndUpdate(
-      requestId,
-      {
-        status: "REJECTED",
-        rejectedReason: reason || "Không được chấp nhận",
-        rejectedAt: new Date()
-      },
-      { new: true }
-    );
 
+    const extensionRequest = await ExtensionRequest.findById(requestId).session(session);
+    
     if (!extensionRequest) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(404).json({
         success: false,
         message: "Không tìm thấy yêu cầu gia hạn"
       });
     }
 
+    if (extensionRequest.status !== "PENDING") {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        success: false,
+        message: "Yêu cầu đã được xử lý"
+      });
+    }
+
+    // Nếu đã thanh toán, hoàn tiền cho khách và trừ tiền từ ví admin
+    if (extensionRequest.paymentStatus === "PAID" && extensionRequest.proposedExtraAmount > 0) {
+      const refundAmount = extensionRequest.proposedExtraAmount;
+
+      // Hoàn tiền cho khách
+      const customerWallet = await Wallet.findOne({ user: extensionRequest.customerId }).session(session);
+      if (customerWallet) {
+        const custBalanceBefore = customerWallet.balance;
+        customerWallet.balance += refundAmount;
+        await customerWallet.save({ session });
+
+        await WalletTransaction.create(
+          [
+            {
+              wallet: customerWallet._id,
+              type: "REFUND",
+              amount: refundAmount,
+              balanceBefore: custBalanceBefore,
+              balanceAfter: customerWallet.balance,
+              referenceType: "RENTAL",
+              referenceId: extensionRequest.rentalId,
+              description: `Hoàn tiền gia hạn bị từ chối - đơn thuê #${extensionRequest.rentalId.toString().slice(-6)}`,
+              status: "SUCCESS",
+            },
+          ],
+          { session }
+        );
+      }
+
+      // Trừ tiền từ ví admin
+      const adminWallet = await Wallet.findOne({ isSystem: true }).session(session);
+      if (adminWallet) {
+        const adminBalanceBefore = adminWallet.balance;
+        adminWallet.balance -= refundAmount;
+        await adminWallet.save({ session });
+
+        await WalletTransaction.create(
+          [
+            {
+              wallet: adminWallet._id,
+              type: "PLATFORM_FEE_REFUND",
+              amount: -refundAmount,
+              balanceBefore: adminBalanceBefore,
+              balanceAfter: adminWallet.balance,
+              referenceType: "RENTAL",
+              referenceId: extensionRequest.rentalId,
+              description: `Hoàn tiền gia hạn bị từ chối - đơn thuê #${extensionRequest.rentalId.toString().slice(-6)}`,
+              status: "SUCCESS",
+            },
+          ],
+          { session }
+        );
+      }
+
+      // Cập nhật trạng thái thanh toán
+      extensionRequest.paymentStatus = "REFUNDED";
+    }
+
+    // Cập nhật trạng thái yêu cầu
+    extensionRequest.status = "REJECTED";
+    extensionRequest.rejectedReason = reason || "Không được chấp nhận";
+    extensionRequest.rejectedAt = new Date();
+    await extensionRequest.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
     res.status(200).json({
       success: true,
-      message: "Đã từ chối gia hạn thành công"
+      message: "Đã từ chối gia hạn và hoàn tiền thành công"
     });
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
     console.error("Error rejecting extension:", error);
     res.status(500).json({
       success: false,
-      message: "Lỗi khi từ chối gia hạn"
+      message: error.message || "Lỗi khi từ chối gia hạn"
     });
   }
 };

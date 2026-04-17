@@ -6,7 +6,8 @@ const reviewSchema = new mongoose.Schema({
   rentalId: { type: mongoose.Schema.Types.ObjectId, ref: 'Rental', required: true }, 
   
   rating: { type: Number, required: true, min: 1, max: 5 },
-  comment: { type: String, required: true }
+  comment: { type: String, required: true },
+  images: [{ type: String }]  // Array of Cloudinary URLs
 }, { timestamps: true });
 
 reviewSchema.index({ rentalId: 1 }, { unique: true });
