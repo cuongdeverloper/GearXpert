@@ -5,6 +5,8 @@ const { checkAccessToken, checkAdmin, checkSupplier } = require('../middleware/J
 
 voucherRouter.post('/apply', checkAccessToken, voucherController.validateVoucher);
 voucherRouter.get('/best-for-cart', checkAccessToken, voucherController.getBestVoucherForCart);
+voucherRouter.get('/available-for-cart', checkAccessToken, voucherController.getAvailableVouchersForCart);
+voucherRouter.post('/auto-apply', checkAccessToken, voucherController.autoApplyBestVoucher);
 voucherRouter.get('/', voucherController.getAllVouchers);
 
 // Supplier Routes

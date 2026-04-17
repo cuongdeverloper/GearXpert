@@ -49,6 +49,8 @@ import {
   validateVoucher,
   getAllVouchers,
   getBestVoucherForCart,
+  getAvailableVouchersForCart,
+  autoApplyBestVoucher,
 } from "../../service/ApiService/VoucherApi.js";
 import { checkout, previewContractWithData } from "../../service/ApiService/RentalApi";
 import { getMyWallet } from "../../service/ApiService/WalletApi";
@@ -117,11 +119,13 @@ export default function CheckoutPage() {
   const [voucherCode, setVoucherCode] = useState("");
   const [appliedVoucher, setAppliedVoucher] = useState(null);
   const [isApplyingVoucher, setIsApplyingVoucher] = useState(false);
+  const [availableVouchers, setAvailableVouchers] = useState([]);
+  const [isLoadingVouchers, setIsLoadingVouchers] = useState(false);
+  const [showVoucherDropdown, setShowVoucherDropdown] = useState(false);
+  const voucherInputRef = useRef(null);
   const [suggestedVoucher, setSuggestedVoucher] = useState(null);
   const [isLoadingBestVoucher, setIsLoadingBestVoucher] = useState(false);
   const [showMapModal, setShowMapModal] = useState(false);
-  const [availableVouchers, setAvailableVouchers] = useState([]);
-  const [isLoadingVouchers, setIsLoadingVouchers] = useState(false);
   const [wallet, setWallet] = useState(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [signatureDataUrl, setSignatureDataUrl] = useState(null);
@@ -147,25 +151,56 @@ export default function CheckoutPage() {
     fetchCart();
   }, [CART_TYPE]);
 
-  // Auto-fetch best voucher when cart loaded
+  // Auto-apply best voucher when cart loads
   useEffect(() => {
-    const fetchBestVoucher = async () => {
-      if (!cart.length) return;
-      setIsLoadingBestVoucher(true);
+    const autoApplyVoucher = async () => {
+      if (!cart || cart.length === 0) return;
       try {
-        const res = await getBestVoucherForCart(CART_TYPE);
-        if (res.data?.bestVoucher) {
-          setSuggestedVoucher(res.data.bestVoucher);
+        const res = await autoApplyBestVoucher(CART_TYPE);
+        if (res?.voucher) {
+          setAppliedVoucher({
+            code: res.voucher.code,
+            discount: res.voucher.discount,
+          });
+          toast.success(`Đã tự động áp dụng voucher ${res.voucher.code}: Giảm ${res.voucher.discount.toLocaleString()}đ`);
         }
       } catch (err) {
-        console.error("Failed to fetch best voucher:", err);
-      } finally {
-        setIsLoadingBestVoucher(false);
+        console.log("No suitable voucher found or error:", err);
       }
     };
 
-    fetchBestVoucher();
-  }, [cart.length, CART_TYPE]);
+    autoApplyVoucher();
+  }, [cart]);
+
+  // Fetch available vouchers for cart when focusing input
+  const fetchAvailableVouchers = async () => {
+    setIsLoadingVouchers(true);
+    try {
+      const res = await getAvailableVouchersForCart(CART_TYPE);
+      setAvailableVouchers(res?.vouchers || []);
+    } catch (err) {
+      console.error("Failed to fetch available vouchers:", err);
+    } finally {
+      setIsLoadingVouchers(false);
+    }
+  };
+
+  const handleVoucherInputFocus = () => {
+    setShowVoucherDropdown(true);
+    if (availableVouchers.length === 0) {
+      fetchAvailableVouchers();
+    }
+  };
+
+  const handleSelectVoucher = (voucher) => {
+    setVoucherCode(voucher.code);
+    setAppliedVoucher({
+      code: voucher.code,
+      discount: voucher.potentialDiscount,
+    });
+    setShowVoucherDropdown(false);
+    toast.success(`Đã chọn voucher ${voucher.code}: Giảm ${(voucher.potentialDiscount || 0).toLocaleString()}đ`);
+  };
 
   // Fetch wallet
   useEffect(() => {
@@ -188,8 +223,8 @@ export default function CheckoutPage() {
     const fetchVouchers = async () => {
       setIsLoadingVouchers(true);
       try {
-        const res = await getAllVouchers();
-        setAvailableVouchers(res.data || []);
+        const res = await getAvailableVouchersForCart(CART_TYPE);
+        setAvailableVouchers(res?.vouchers || []);
       } catch (err) {
         console.error("Failed to fetch vouchers:", err);
       } finally {
@@ -245,18 +280,19 @@ export default function CheckoutPage() {
 
   // Apply voucher
   const handleApplyVoucher = useCallback(async (code = voucherCode) => {
-    if (!code) return;
+    const trimmedCode = code?.trim();
+    if (!trimmedCode) return;
 
     setIsApplyingVoucher(true);
     try {
-      const res = await validateVoucher({ code, cartType: CART_TYPE });
+      const res = await validateVoucher({ code: trimmedCode, cartType: CART_TYPE });
       setAppliedVoucher({
-        code: code,
-        discount: res.data.discount,
+        code: trimmedCode,
+        discount: res.discount,
       });
-      toast.success(`Áp dụng voucher thành công! Giảm ${res.data.discount.toLocaleString()}đ`);
+      toast.success(`Áp dụng voucher thành công! Giảm ${res.discount.toLocaleString()}đ`);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Voucher không hợp lệ");
+      toast.error(err.response?.data?.message || err.message || "Voucher không hợp lệ");
     } finally {
       setIsApplyingVoucher(false);
     }
@@ -306,6 +342,11 @@ export default function CheckoutPage() {
     }
     if (!address.street || !address.district) {
       toast.error("Vui lòng nhập đầy đủ địa chỉ");
+      return false;
+    }
+    // Check if shipping fee has been calculated (unless pickup at warehouse)
+    if (address.street !== "Kho GearXpert" && distance === 0) {
+      toast.error("Vui lòng kiểm tra địa chỉ và tính phí vận chuyển trước khi tiếp tục");
       return false;
     }
     return true;
@@ -396,7 +437,7 @@ export default function CheckoutPage() {
       }
     } catch (err) {
       console.error("[FRONTEND DEBUG] Preview error:", err);
-      toast.error(err.response?.data?.message || "Không thể tạo hợp đồng xem trước");
+      toast.error(err.response?.message || "Không thể tạo hợp đồng xem trước");
     } finally {
       setIsPreviewLoading(false);
     }
@@ -466,20 +507,66 @@ export default function CheckoutPage() {
         toast.success("Dat thuê thành công!");
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || "Thanh toán that bai");
+      toast.error(err.response?.message || "Thanh toán that bai");
     } finally {
       setIsProcessing(false);
     }
   };
 
+  // Calculate driving distance using OSRM routing API
+  const calculateDrivingDistance = async (lat1, lon1, lat2, lon2) => {
+    try {
+      const url = `https://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=false&alternatives=false`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.code === "Ok" && data.routes && data.routes.length > 0) {
+        // Distance in meters, convert to km
+        return data.routes[0].distance / 1000;
+      }
+    } catch (err) {
+      console.error("Routing error:", err);
+    }
+    // Fallback to straight-line distance if routing fails
+    return calculateDistance(lat1, lon1, lat2, lon2);
+  };
+
+  // Calculate delivery fee for a given address using geocoding and driving distance
+  const calculateDeliveryFeeForAddress = async (street, district, city = "Đà Nẵng") => {
+    try {
+      const query = encodeURIComponent(`${street}, ${district}, ${city}`);
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&accept-language=vi&limit=1`);
+      const data = await res.json();
+
+      if (data && data.length > 0) {
+        const { lat, lon } = data[0];
+        const destLat = parseFloat(lat);
+        const destLon = parseFloat(lon);
+
+        // Use driving distance from OSRM
+        const dist = await calculateDrivingDistance(FPT_COORDS.lat, FPT_COORDS.lng, destLat, destLon);
+        const fee = Math.max(MIN_DELIVERY_FEE, Math.round(dist * FEE_PER_KM));
+
+        setMapPosition([destLat, destLon]);
+        setDistance(dist);
+        setDeliveryFee(fee);
+
+        return { distance: dist, fee, lat: destLat, lng: destLon };
+      }
+    } catch (err) {
+      console.error("Geocoding error:", err);
+    }
+    return null;
+  };
+
   // Map events handler
   const MapEventsHandler = () => {
     useMapEvents({
-      click: (e) => {
+      click: async (e) => {
         const { lat, lng } = e.latlng;
         setMapPosition([lat, lng]);
 
-        const dist = calculateDistance(FPT_COORDS.lat, FPT_COORDS.lng, lat, lng);
+        // Use driving distance instead of straight-line
+        const dist = await calculateDrivingDistance(FPT_COORDS.lat, FPT_COORDS.lng, lat, lng);
         const fee = Math.max(MIN_DELIVERY_FEE, Math.round(dist * FEE_PER_KM));
 
         setDistance(dist);
@@ -874,7 +961,12 @@ export default function CheckoutPage() {
                         Chi tiết người nhận
                       </h3>
                       <button
-                        onClick={fillDefaultUserInfo}
+                        onClick={async () => {
+                          fillDefaultUserInfo();
+                          if (account?.address?.street && account?.address?.district) {
+                            await calculateDeliveryFeeForAddress(account.address.street, account.address.district, account.address.city || "Đà Nẵng");
+                          }
+                        }}
                         disabled={!account?.username}
                         className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-xl hover:bg-indigo-100 disabled:opacity-50 transition-colors"
                       >
@@ -893,7 +985,7 @@ export default function CheckoutPage() {
                           Địa chỉ đã lưu
                         </label>
                         <button
-                          onClick={() => {
+                          onClick={async () => {
                             setAddress({
                               receiverName: account.fullName || account.username,
                               street: account.address.street,
@@ -902,7 +994,12 @@ export default function CheckoutPage() {
                               fullAddress: account.address.fullAddress || `${account.address.street}, ${account.address.district}, ${account.address.city || "Đà Nẵng"}`,
                             });
                             setPhoneNumber(account.phone || "");
-                            toast.success("Đã chọn địa chỉ mặc định");
+                            const result = await calculateDeliveryFeeForAddress(account.address.street, account.address.district, account.address.city || "Đà Nẵng");
+                            if (result) {
+                              toast.success(`Đã chọn địa chỉ mặc định: ${result.distance.toFixed(1)}km - Phí ship: ${result.fee.toLocaleString()}đ`);
+                            } else {
+                              toast.success("Đã chọn địa chỉ mặc định (không tính được phí ship)");
+                            }
                           }}
                           className={`w-full p-4 rounded-xl border-2 text-left transition-all ${address.street === account.address.street
                             ? "border-indigo-600 bg-indigo-50"
@@ -926,6 +1023,27 @@ export default function CheckoutPage() {
                             )}
                           </div>
                         </button>
+                        {address.street === account.address.street && (
+                          <button
+                            onClick={() => {
+                              setAddress({
+                                receiverName: "",
+                                street: "",
+                                district: "",
+                                city: "Đà Nẵng",
+                                fullAddress: "",
+                              });
+                              setPhoneNumber("");
+                              setDistance(0);
+                              setDeliveryFee(0);
+                              toast.info("Đã hủy chọn địa chỉ mặc định");
+                            }}
+                            className="mt-3 w-full py-2 text-sm text-red-600 border border-red-200 rounded-xl hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
+                          >
+                            <X size={16} />
+                            Hủy chọn địa chỉ này
+                          </button>
+                        )}
                       </div>
                     )}
 
@@ -944,14 +1062,15 @@ export default function CheckoutPage() {
                       </div>
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Quận/Huyện <span className="text-red-500">*</span>
+                          Phường/Xã <span className="text-red-500">*</span>
+                          <span className="text-xs font-normal text-gray-500 ml-1">(VD: Phường Hòa Minh)</span>
                         </label>
                         <input
                           type="text"
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                           value={address.district}
                           onChange={(e) => setAddress({ ...address, district: e.target.value })}
-                          placeholder="Nhập quận/huyện"
+                          placeholder="Nhập tên phường/xã, ví dụ: Phường Hòa Minh"
                         />
                       </div>
                     </div>
@@ -959,15 +1078,56 @@ export default function CheckoutPage() {
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Địa chỉ chi tiết <span className="text-red-500">*</span>
+                        <span className="text-xs font-normal text-gray-500 ml-1">(VD: 123 Nguyễn Văn Linh)</span>
                       </label>
                       <input
                         type="text"
                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        placeholder="Số nhà, tên đường, phường/xã..."
+                        placeholder="Số nhà + tên đường, ví dụ: 123 Nguyễn Văn Linh"
                         value={address.street}
                         onChange={(e) => setAddress({ ...address, street: e.target.value })}
                       />
+                      <p className="text-xs text-gray-500 mt-1">Nhập số nhà và tên đường để tính phí ship chính xác</p>
                     </div>
+
+                    {/* Calculate shipping fee button for manual address */}
+                    {address.street && address.district && (
+                      <div className="flex items-center gap-3 p-4 bg-indigo-50 rounded-xl border border-indigo-200">
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-600">
+                            {distance > 0 ? (
+                              <span className="text-indigo-700">
+                                Khoảng cách: {distance.toFixed(1)}km - Phí ship: {deliveryFee.toLocaleString()}đ
+                              </span>
+                            ) : (
+                              "Kiểm tra địa chỉ và tính phí vận chuyển"
+                            )}
+                          </p>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            if (!address.street || !address.district) {
+                              toast.error("Vui lòng nhập đầy đủ địa chỉ");
+                              return;
+                            }
+                            const result = await calculateDeliveryFeeForAddress(address.street, address.district, address.city || "Đà Nẵng");
+                            if (result) {
+                              setAddress(prev => ({
+                                ...prev,
+                                fullAddress: `${address.street}, ${address.district}, ${address.city || "Đà Nẵng"}`
+                              }));
+                              toast.success(`Địa chỉ hợp lệ: ${result.distance.toFixed(1)}km - Phí ship: ${result.fee.toLocaleString()}đ`);
+                            } else {
+                              toast.error("Không tìm thấy địa chỉ. Vui lòng kiểm tra lại hoặc chọn trên bản đồ");
+                            }
+                          }}
+                          className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                        >
+                          <Map size={16} />
+                          {distance > 0 ? "Tính lại" : "Kiểm tra & Tính phí"}
+                        </button>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
@@ -1016,7 +1176,7 @@ export default function CheckoutPage() {
                 </div>
 
                 {/* Voucher Section */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
                   <div className="px-6 py-4 border-b border-gray-200">
                     <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                       <Ticket size={20} className="text-indigo-600" />
@@ -1053,15 +1213,69 @@ export default function CheckoutPage() {
                     )}
 
                     <div className="flex gap-3">
-                      <div className="relative flex-1">
+                      <div className="relative flex-1 z-[60]">
                         <Ticket className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                         <input
+                          ref={voucherInputRef}
                           type="text"
                           className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                          placeholder="Nhập mã giảm giá"
+                          placeholder="Nhập mã giảm giá hoặc chọn từ danh sách"
                           value={voucherCode}
-                          onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                          onChange={(e) => setVoucherCode(e.target.value.toUpperCase().trim())}
+                          onFocus={handleVoucherInputFocus}
+                          onBlur={() => setTimeout(() => setShowVoucherDropdown(false), 200)}
                         />
+                        {/* Voucher Dropdown */}
+                        {showVoucherDropdown && (
+                          <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 z-[100] max-h-80 overflow-y-auto">
+                            <div className="p-3 border-b border-gray-100">
+                              <p className="text-sm font-semibold text-gray-700">Voucher khả dụng cho đơn hàng này</p>
+                            </div>
+                            {isLoadingVouchers ? (
+                              <div className="p-4 text-center text-gray-500">
+                                <div className="animate-spin inline-block w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full mr-2"></div>
+                                Đang tải...
+                              </div>
+                            ) : availableVouchers.length === 0 ? (
+                              <div className="p-4 text-center text-gray-500 text-sm">
+                                Không có voucher khả dụng
+                              </div>
+                            ) : (
+                              <div className="p-2">
+                                {availableVouchers.map((voucher) => (
+                                  <button
+                                    key={voucher._id}
+                                    type="button"
+                                    onClick={() => handleSelectVoucher(voucher)}
+                                    className="w-full p-3 mb-2 rounded-lg border border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 transition-all text-left"
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+                                          <Ticket size={16} className="text-indigo-600" />
+                                        </div>
+                                        <div>
+                                          <p className="font-bold text-gray-900">{voucher.code}</p>
+                                          <p className="text-xs text-gray-500">
+                                            {voucher.type === "GLOBAL" ? "Tất cả shop" : voucher.shopInfo?.businessName || "Shop voucher"}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="font-bold text-indigo-600">
+                                          -{(voucher.potentialDiscount || 0).toLocaleString()}đ
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                          {voucher.discountType === "PERCENT" ? `Giảm ${voucher.discountValue}%` : `Giảm ${voucher.discountValue.toLocaleString()}đ`}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                       <button
                         onClick={() => handleApplyVoucher()}
@@ -1078,9 +1292,25 @@ export default function CheckoutPage() {
                             <div className="w-8 h-8 bg-emerald-600 rounded-xl flex items-center justify-center">
                               <CheckCircle2 size={16} className="text-white" />
                             </div>
-                            <span className="font-bold text-emerald-700">{appliedVoucher.code}</span>
+                            <div>
+                              <span className="font-bold text-emerald-700">{appliedVoucher.code}</span>
+                              <p className="text-xs text-emerald-600">Đã áp dụng</p>
+                            </div>
                           </div>
-                          <span className="font-bold text-emerald-700 text-lg">-{appliedVoucher.discount.toLocaleString()}đ</span>
+                          <div className="flex items-center gap-3">
+                            <span className="font-bold text-emerald-700 text-lg">-{appliedVoucher.discount.toLocaleString()}đ</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAppliedVoucher(null);
+                                setVoucherCode("");
+                              }}
+                              className="p-2 hover:bg-emerald-100 rounded-lg transition-colors text-emerald-600"
+                              title="Xóa voucher"
+                            >
+                              <X size={18} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     )}
