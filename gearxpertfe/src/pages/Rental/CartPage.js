@@ -135,6 +135,8 @@ const CartPage = () => {
       await removeCartItem(deleteConfirm.itemId);
       toast.success(`Đã xóa lịch thuê của ${deleteConfirm.deviceName}!`);
       fetchCartData();
+   
+      window.dispatchEvent(new Event('cartUpdated'));
     } catch (err) {
       toast.error("Không thể xóa. Vui lòng thử lại!");
     } finally {
@@ -282,21 +284,28 @@ const CartPage = () => {
                           <div className="relative flex items-center gap-5 p-6 border-b border-slate-100/60">
                             <div className="relative">
                               <div className="w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl overflow-hidden border-2 border-white shadow-lg flex-shrink-0 group-hover:scale-105 transition-transform duration-300">
-                                <img
-                                  src={
-                                    deviceGroup.device?.images?.[0] ||
-                                    "https://via.placeholder.com/150"
-                                  }
-                                  alt={deviceGroup.device?.name}
-                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                />
+                                <div className="relative group">
+                                  <div 
+                                    onClick={() => navigate(`/device/${deviceGroup.device?._id}`)}
+                                    className="cursor-pointer"
+                                  >
+                                    <img
+                                      src={deviceGroup.device?.images?.[0]}
+                                      alt={deviceGroup.device?.name}
+                                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                    />
+                                  </div>
+                                </div>
                               </div>
                               <div className="absolute -top-2 -right-2 w-6 h-6 bg-emerald-500 rounded-full border-2 border-white shadow-md flex items-center justify-center">
                                 <span className="text-white text-xs font-bold">{deviceGroup.bookings.length}</span>
                               </div>
                             </div>
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-bold text-slate-900 text-lg mb-2 leading-tight group-hover:text-indigo-600 transition-colors">
+                              <h3 
+                                onClick={() => navigate(`/device/${deviceGroup.device?._id}`)}
+                                className="font-bold text-slate-900 text-lg mb-2 leading-tight group-hover:text-indigo-600 transition-colors cursor-pointer hover:underline"
+                              >
                                 {deviceGroup.device?.name}
                               </h3>
                               <div className="flex items-center gap-3">

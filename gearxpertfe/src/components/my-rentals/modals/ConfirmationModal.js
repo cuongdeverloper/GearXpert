@@ -2,7 +2,7 @@
 import React from "react";
 
 export default function ConfirmationModal({ modalConfig, onClose, onConfirm }) {
-  if (!modalConfig.isOpen) return null;
+  if (!modalConfig?.isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">

@@ -475,3 +475,118 @@ exports.updateVoucherStatusBySupplier = async (req, res) => {
   }
 };
 
+// API để tìm voucher phù hợp nhất cho cart (auto-apply)
+exports.getBestVoucherForCart = async (req, res) => {
+  try {
+    const { cartType } = req.query;
+    const customerId = req.user.id;
+
+    // 1. Lấy giỏ hàng
+    const cart = await Cart.findOne({
+      customerId,
+      cartType: cartType || 'RENT'
+    }).populate({
+      path: "items",
+      populate: {
+        path: "deviceId",
+        select: "rentPrice supplierId"
+      }
+    });
+
+    if (!cart || !cart.items.length) {
+      return res.status(200).json({
+        success: true,
+        bestVoucher: null,
+        message: "Giỏ hàng trống"
+      });
+    }
+
+    // 2. Lấy tất cả voucher đang active và chưa hết hạn
+    const currentDate = new Date();
+    const vouchers = await Voucher.find({
+      status: "ACTIVE",
+      expiredAt: { $gt: currentDate }
+    });
+
+    // 3. Tính tổng giá trị cart và tìm voucher tốt nhất
+    let bestVoucher = null;
+    let maxDiscount = 0;
+
+    for (const voucher of vouchers) {
+      // Kiểm tra giới hạn sử dụng
+      if (voucher.usageLimit !== undefined && voucher.usageLimit !== null) {
+        if (voucher.usageLimit <= 0 || voucher.usedCount >= voucher.usageLimit) {
+          continue;
+        }
+      }
+
+      // Tính tổng giá trị áp dụng voucher
+      let applicableTotal = 0;
+
+      cart.items.forEach(item => {
+        const device = item.deviceId;
+        if (!device) return;
+
+        const itemTotal = device.rentPrice.perDay * item.totalDays * item.quantity;
+
+        // GLOBAL: áp dụng cho tất cả
+        if (voucher.type === "GLOBAL") {
+          applicableTotal += itemTotal;
+        }
+        // SUPPLIER: chỉ áp dụng cho supplier của voucher
+        else if (voucher.type === "SUPPLIER") {
+          if (device.supplierId.equals(voucher.supplierId)) {
+            applicableTotal += itemTotal;
+          }
+        }
+      });
+
+      // Kiểm tra minOrderValue
+      if (applicableTotal < voucher.minOrderValue) {
+        continue;
+      }
+
+      // Tính discount
+      let discount = 0;
+      if (voucher.discountType === "PERCENT") {
+        discount = Math.round((applicableTotal * voucher.discountValue) / 100);
+        if (voucher.maxDiscount) {
+          discount = Math.min(discount, voucher.maxDiscount);
+        }
+      } else if (voucher.discountType === "FIXED") {
+        discount = Math.min(voucher.discountValue, applicableTotal);
+      }
+
+      // Cập nhật voucher tốt nhất nếu discount cao hơn
+      if (discount > maxDiscount) {
+        maxDiscount = discount;
+        bestVoucher = {
+          code: voucher.code,
+          type: voucher.type,
+          supplierId: voucher.supplierId ? voucher.supplierId.toString() : null,
+          discount,
+          discountType: voucher.discountType,
+          discountValue: voucher.discountValue,
+          applicableTotal,
+          description: voucher.description
+        };
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      bestVoucher,
+      maxDiscount,
+      message: bestVoucher 
+        ? `Tìm thấy voucher tốt nhất: Giảm ${maxDiscount.toLocaleString()}đ`
+        : "Không tìm thấy voucher phù hợp"
+    });
+  } catch (error) {
+    console.error("Get best voucher error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi tìm voucher phù hợp nhất"
+    });
+  }
+};
+

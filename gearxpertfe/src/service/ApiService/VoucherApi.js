@@ -4,6 +4,10 @@ export const validateVoucher = (data) => {
   return axios.post("/api/vouchers/apply", data);
 };
 
+export const getBestVoucherForCart = (cartType = 'RENT') => {
+  return axios.get(`/api/vouchers/best-for-cart?cartType=${cartType}`);
+};
+
 export const getAllVouchers = () => {
   return axios.get("/api/vouchers");
 };

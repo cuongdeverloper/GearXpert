@@ -17,6 +17,7 @@ import {
   markAllNotificationsAsRead,
 } from '../../service/ApiService/notificationApi';
 import { getMyWallet } from '../../service/ApiService/WalletApi';
+import { getCart } from '../../service/ApiService/CartApi';
 import { doLogin } from '../../redux/action/userAction';
 
 // Magnetic Island Component for iOS-style hover tracking
@@ -41,7 +42,7 @@ const MagneticIsland = ({ children, className, spotlightColor = "rgba(99, 102, 2
 
   return (
     <motion.div
-      onMouseMove={handleMouseMove}
+      onMouseMove={handleMouseMove}   
       onMouseLeave={handleMouseLeave}
       className={`relative group/island ${className}`}
       initial={{ y: -20, opacity: 0 }}
@@ -134,6 +135,7 @@ export default function Header({ onMenuOpen }) {
   const [notifications, setNotifications] = useState([]);
   const unreadCount = notifications.filter((n) => !n.isRead).length;
   const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
 
   const messengerRef = useRef(null);
   const dropdownRef = useRef(null);
@@ -159,6 +161,18 @@ export default function Header({ onMenuOpen }) {
     }
   }, [isAuthenticated]);
 
+  // Fetch cart count
+  const fetchCartCount = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const res = await getCart();
+      const cartItems = res?.items || res || [];
+      setCartCount(cartItems.length);
+    } catch (err) {
+      console.error('Fetch cart count error:', err);
+    }
+  }, [isAuthenticated]);
+
   // Refresh wallet balance when dropdown opens
   const refreshWalletBalance = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -181,8 +195,18 @@ export default function Header({ onMenuOpen }) {
   useEffect(() => {
     if (isAuthenticated) {
       fetchNotifications();
+      fetchCartCount();
     }
-  }, [isAuthenticated, fetchNotifications]);
+  }, [isAuthenticated, fetchNotifications, fetchCartCount]);
+
+  // Real-time: listen for cart updates
+  useEffect(() => {
+    const handleCartUpdate = () => {
+      fetchCartCount();
+    };
+    window.addEventListener('cartUpdated', handleCartUpdate);
+    return () => window.removeEventListener('cartUpdated', handleCartUpdate);
+  }, [fetchCartCount]);
 
   // Socket realtime notification
   useEffect(() => {
@@ -585,10 +609,14 @@ export default function Header({ onMenuOpen }) {
                 {/* Cart */}
                 <MagneticItem distance={0.3}>
                   <button
+                    data-cart-icon
                     onClick={() => handleRestrictedNavigation('/user/cart')}
-                    className={iconBtnClass(location.pathname === '/user/cart')}
+                    className={`${iconBtnClass(location.pathname === '/user/cart')} relative`}
                   >
                     <span className="material-symbols-outlined text-[24px]">shopping_bag</span>
+                    <span className={`absolute -top-1 -right-1 min-w-[18px] h-[18px] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 ${cartCount > 0 ? 'bg-red-500' : 'bg-slate-400'}`}>
+                      {cartCount > 99 ? '99+' : cartCount}
+                    </span>
                   </button>
                 </MagneticItem>
               </>
