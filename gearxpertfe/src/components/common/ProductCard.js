@@ -220,10 +220,10 @@ export default function ProductCard({
           <h4 className="font-bold text-slate-900 font-display text-base mb-2 line-clamp-1 h-6 leading-tight" title={name}>
             {name}
           </h4>
-          <div className="mt-auto pt-2 flex items-center justify-between border-t border-slate-50">
-            <div className="flex flex-col">
+          <div className="mt-auto pt-2 flex items-center justify-between border-t border-slate-50 gap-2 overflow-hidden">
+            <div className="flex flex-col min-w-0 flex-1 group/price">
               {hasDiscount && (
-                <span className="text-[10px] text-slate-400 line-through leading-none mb-0.5">
+                <span className="text-[10px] text-slate-400 line-through leading-none mb-0.5 truncate">
                   {originalPrice.toLocaleString('vi-VN')}đ
                 </span>
               )}
@@ -232,7 +232,7 @@ export default function ProductCard({
                 <span className="text-[10px] text-slate-400 font-normal ml-0.5">{t('common.per_day')}</span>
               </p>
             </div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{category}</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">{category}</span>
           </div>
         </div>
       </div>

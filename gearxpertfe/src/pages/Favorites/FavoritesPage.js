@@ -122,7 +122,7 @@ export default function FavoritesPage() {
                                 <p className="text-slate-500 max-w-md mx-auto mb-8">
                                     Start building your dream kit. Explore our catalog and save the gear that inspires your next project.
                                 </p>
-                                <a href="/" className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-primary transition-all shadow-lg hover:shadow-indigo-200 flex items-center gap-2 group">
+                                <a href="/products" className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-primary transition-all shadow-lg hover:shadow-indigo-200 flex items-center gap-2 group">
                                     Explore Gear
                                     <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
                                 </a>

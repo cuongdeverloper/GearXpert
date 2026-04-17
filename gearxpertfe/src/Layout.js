@@ -50,6 +50,7 @@ import AdminAdsPage from "./pages/Admin/AdminAdsPage";
 import BlogManagement from "./pages/Admin/BlogManagement";
 import CommentManagement from "./pages/Admin/CommentManagement";
 import AdminBroadcastPage from "./pages/Admin/AdminBroadcastPage";
+import AdminShopReports from "./pages/Admin/AdminShopReports";
 import AdminWalletPage from "./pages/Admin/AdminWalletPage";
 import AdminWithdrawalsPage from "./pages/Admin/AdminWithdrawalsPage";
 
@@ -64,6 +65,7 @@ import AuthCallback from "./components/Auth/AuthCallback";
 import ResetPassword from "./components/Auth/reset password/ResetPassword";
 import RentalReviewPage from "./pages/Rental/RentalReviewPage";
 import ProfilePage from "./pages/User/ProfilePage";
+import RankPage from "./pages/User/RankPage";
 import CartPage from "./pages/Rental/CartPage";
 import FavoritesPage from "./pages/Favorites/FavoritesPage";
 import ProductsPage from "./pages/Products/ProductsPage";
@@ -242,6 +244,7 @@ export default function Layout() {
             <Route index element={<DashboardPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="suppliers" element={<SuppliersPage />} />
+            <Route path="shop-reports" element={<AdminShopReports />} />
             <Route path="supplier-onboarding" element={<SupplierOnboardingPage />} />
             <Route path="devices" element={<DevicesModerationPage />} />
             <Route path="rentals" element={<RentalsPage />} />
@@ -277,6 +280,7 @@ export default function Layout() {
           <Route path="/vouchers" element={<VouchersPage />} />
 
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/user/rank" element={<RankPage />} />
           <Route path="/ekyc" element={<EkycVerification />} />
 
           <Route path="/messenger" element={<Messenger />} />

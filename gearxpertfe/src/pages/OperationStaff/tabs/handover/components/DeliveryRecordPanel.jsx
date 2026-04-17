@@ -105,17 +105,20 @@ export default function DeliveryRecordPanel({
                   ))}
                 </div>
 
-        <DeviceChecklist
-          items={
-            selectedRental?.raw?.rentalItems?.map((item) => ({
-              rentalItemId: item._id,
-              deviceName: item.deviceId?.name || "Thiết bị",
-              expectedQuantity: item.quantity || 1,
-              expectedSerialNumbers:
-                item.deviceItemIds?.map((di) => di?.serialNumber).filter(Boolean) || [],
-            })) || []
-          }
-        />
+        {/* Chặn danh sách thiết bị khi là giao bổ sung */}
+        {!selectedRental?.raw?.deliveryTask?.isAdditional && (
+          <DeviceChecklist
+            items={
+              selectedRental?.raw?.rentalItems?.map((item) => ({
+                rentalItemId: item._id,
+                deviceName: item.deviceId?.name || "Thiết bị",
+                expectedQuantity: item.quantity || 1,
+                expectedSerialNumbers:
+                  item.deviceItemIds?.map((di) => di?.serialNumber).filter(Boolean) || [],
+              })) || []
+            }
+          />
+        )}
       </div>
 
       <div className="space-y-3">

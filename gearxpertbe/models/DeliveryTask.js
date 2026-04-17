@@ -32,7 +32,12 @@ const deliveryTaskSchema = new mongoose.Schema({
 
   claimedAt: Date,
   scheduledAt: Date,
-  completedAt: Date
+  completedAt: Date,
+
+  // Add notes and image fields to handle 'Additional Delivery' concept or regular delivery logs
+  isAdditional: { type: Boolean, default: false },
+  issueNotes: { type: String },
+  issueImages: [{ type: String }]
 
 }, { timestamps: true });
 

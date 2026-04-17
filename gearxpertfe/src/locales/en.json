@@ -73,7 +73,7 @@
     "pay_3_title": "Bank Transfer / QR Code",
     "pay_3_desc": "Automatic payment verification via QR. Fast, accurate, and zero transaction fees.",
     "payment_methods": "Payment Methods",
-    "ai_suggested": "AI Suggestions Just for You",
+    "ai_suggested": "Suggested for You",
     "ai_suggested_subtitle": "Top picks based on your recent activity and preferences."
   },
   "footer": {
@@ -228,7 +228,9 @@
     "benefit_2_title": "AI Logic for Each Device",
     "benefit_2_desc": "Clearly see why AI chose each camera, mic, or light.",
     "benefit_3_title": "One-Touch Combo to Cart",
-    "benefit_3_desc": "No need to select individual items, saving massive time."
+    "benefit_3_desc": "No need to select individual items, saving massive time.",
+    "benefit_4_title": "AI Smart Swap & Check",
+    "benefit_4_desc": "Freedom of customization"
   },
   "messenger": {
     "title": "Chats",
@@ -257,7 +259,7 @@
     "collapse": "Collapse",
     "popular_categories": "Popular Categories",
     "submit_post": "Submit New Post",
-    "my_posts": "My Drafts",
+    "my_posts": "My Posts",
     "saved_posts": "Saved Articles",
     "trending_now": "Trending Now",
     "newsletter_title": "Subscribe to Newsletter",

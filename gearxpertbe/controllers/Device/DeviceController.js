@@ -213,8 +213,18 @@ exports.getDevices = async (req, res) => {
       rentalEndDate,
     } = req.query;
 
+    const now = new Date();
+    const suspendedSupplierIds = await SupplierProfile.find({
+      $or: [
+        { status: 'SUSPENDED' },
+        { isPermanentlyHidden: true },
+        { suspendedUntil: { $gt: now } }
+      ]
+    }).distinct('userId');
+
     const query = {
       isAddon: false,
+      supplierId: { $nin: suspendedSupplierIds }
     };
 
     if (category) {
@@ -580,6 +590,22 @@ exports.getDeviceDetail = async (req, res) => {
       return res.status(404).json({ message: "Device not found" });
     }
 
+    // CHECK IF SUPPLIER IS SUSPENDED
+    const now = new Date();
+    const supProfile = await SupplierProfile.findOne({ userId: device.supplierId._id });
+    if (supProfile && (supProfile.status === 'SUSPENDED' || supProfile.isPermanentlyHidden)) {
+       // Check if suspended period expired
+       if (!supProfile.isPermanentlyHidden && supProfile.suspendedUntil && supProfile.suspendedUntil < now) {
+          supProfile.status = 'ACTIVE';
+          await supProfile.save();
+       } else {
+          return res.status(403).json({ 
+            success: false,
+            message: supProfile.isPermanentlyHidden ? "Sản phẩm này thuộc nhà cung cấp đã bị ngừng hoạt động vĩnh viễn" : "Sản phẩm này hiện đang bị tạm ẩn do nhà cung cấp đang bị xử phạt" 
+          });
+       }
+    }
+
     // 2. Lấy danh sách đánh giá (Reviews) của thiết bị này
     // Giả sử Model Review có field deviceId
     const reviews = await Review.find({ deviceId: device._id })
@@ -719,22 +745,54 @@ exports.getDeviceAddons = async (req, res) => {
  * Supports both slug and ObjectId
  */
 exports.getRelatedDevices = async (req, res) => {
-  const param = req.params.slug;
-  const isObjectId = /^[0-9a-fA-F]{24}$/.test(param);
-  const device = await Device.findOne(
-    isObjectId ? { _id: param } : { slug: param }
-  );
-  if (!device) return res.status(404).json({ message: "Device not found" });
+  try {
+    const param = req.params.slug;
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(param);
+    const device = await Device.findOne(
+      isObjectId ? { _id: param } : { slug: param }
+    );
+    if (!device) return res.status(404).json({ message: "Device not found" });
 
-  const related = await Device.find({
-    _id: { $ne: device._id },
-    category: device.category,
-    status: "AVAILABLE",
-  })
-    .limit(4)
-    .select("name slug rentPrice ratingAvg location images discountPrice discountReason discountExpiry");
+    const related = await Device.find({
+      _id: { $ne: device._id },
+      category: device.category,
+      status: "AVAILABLE",
+    })
+      .limit(4)
+      .select("name slug description category rentPrice ratingAvg location images discountPrice discountReason discountExpiry")
+      .lean();
 
-  res.json(related);
+    // Count available DeviceItems for each related device
+    const relatedIds = related.map((d) => d._id);
+    const availability = await DeviceItem.aggregate([
+      {
+        $match: {
+          deviceId: { $in: relatedIds },
+          status: "AVAILABLE",
+        },
+      },
+      {
+        $group: {
+          _id: "$deviceId",
+          availableCount: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const availMap = {};
+    availability.forEach((a) => {
+      availMap[a._id.toString()] = a.availableCount;
+    });
+
+    const result = related.map((d) => ({
+      ...d,
+      availableQuantity: availMap[d._id.toString()] || 0,
+    }));
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
 /**

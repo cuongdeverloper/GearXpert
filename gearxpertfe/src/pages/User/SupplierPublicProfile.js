@@ -23,7 +23,10 @@ import {
   BellOff,
   ChevronDown,
   UserMinus,
+  AlertCircle,
+  Edit,
 } from "lucide-react";
+import ShopReportModal from "../../components/public/ShopReportModal";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   getSupplierStorefront,
@@ -41,6 +44,7 @@ import Map, { Marker } from "react-map-gl/mapbox";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import gearXpertLogo from "../../assets/logoGearXpert.png";
+import BackButton from "../../components/common/BackButton";
 
 const SORT_OPTIONS = [
   { value: "newest", label: "Hàng mới nhất" },
@@ -74,6 +78,7 @@ export default function SupplierPublicProfile() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const isAuthenticated = useSelector((state) => state.user?.isAuthenticated || false);
+  const userAccount = useSelector((state) => state.user?.account);
   const [supplier, setSupplier] = useState(null);
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -105,6 +110,7 @@ export default function SupplierPublicProfile() {
     longitude: 108.2022,
     zoom: 15
   });
+  const [showReportModal, setShowReportModal] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -241,6 +247,23 @@ export default function SupplierPublicProfile() {
     await handleFollow();
   };
 
+  const handleOpenSupplierChat = useCallback(async () => {
+    if (!isAuthenticated) {
+      toast.info("Vui lòng đăng nhập để nhắn tin");
+      navigate("/signin");
+      return;
+    }
+    if (!supplier) return;
+    try {
+      const suppUserId = supplier.userId?._id || supplier.userId;
+      const conversation = await ApiCreateConversation(suppUserId);
+      const friendInfo = await ApiGetUserByUserId(suppUserId);
+      dispatch(openChatWindow({ ...conversation, friendInfo }));
+    } catch {
+      toast.error("Không thể mở cuộc trò chuyện");
+    }
+  }, [isAuthenticated, navigate, supplier, dispatch]);
+
   useEffect(() => {
     const init = async () => {
       setLoading(true);
@@ -365,13 +388,7 @@ export default function SupplierPublicProfile() {
 
       <main className="flex-grow">
         <div className="max-w-[1440px] mx-auto px-6 pt-40 lg:pt-38">
-          <button
-            onClick={() => navigate(-1)}
-            className="group inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm active:scale-95"
-          >
-            <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
-            <span>Quay lại</span>
-          </button>
+          <BackButton fallbackPath="/products" />
         </div>
 
         {/* ===== SHOP HEADER ===== */}
@@ -398,6 +415,24 @@ export default function SupplierPublicProfile() {
                     {supplier.businessName}
                   </h1>
                 </div>
+                {/* Modern Report & Follow Toggles - Hidden for owner */}
+                {userAccount?.id !== supplier?.userId?._id && (
+                  <button
+                      onClick={() => {
+                          if(!isAuthenticated) {
+                              toast.info("Vui lòng đăng nhập để báo cáo cửa hàng");
+                              navigate("/signin");
+                              return;
+                          }
+                          setShowReportModal(true);
+                      }}
+                      className="ml-auto hidden sm:flex items-center gap-2.5 px-5 py-2.5 bg-white/10 hover:bg-red-500/80 backdrop-blur-md rounded-2xl border border-white/20 text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-xl active:scale-95 group"
+                      title="Báo cáo vi phạm"
+                  >
+                      <AlertCircle size={16} className="group-hover:scale-110 transition-transform" />
+                      <span>Báo cáo</span>
+                  </button>
+                )}
               </div>
 
               {/* Sub Header Content: Avatar inline with Description */}
@@ -460,65 +495,82 @@ export default function SupplierPublicProfile() {
 
                 {/* Actions Section */}
                 <div className="flex flex-col gap-3 min-w-[240px] w-full lg:w-auto lg:pt-2">
-                  {!isFollowing ? (
-                    <button
-                      onClick={handleFollow}
-                      disabled={followLoading}
-                      className="group/follow relative inline-flex items-center justify-center gap-3 px-8 py-4 rounded-[20px] bg-slate-900 text-white font-black text-sm uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-xl active:scale-95 disabled:opacity-50"
-                    >
-                      <Heart className="w-5 h-5" />
-                      <span>{followLoading ? "..." : "Theo dõi"}</span>
-                    </button>
-                  ) : (
-                    <div className="relative" ref={followMenuRef}>
+                  {userAccount?.id !== supplier?.userId?._id && (
+                    !isFollowing ? (
                       <button
-                        onClick={() => setShowFollowMenu(!showFollowMenu)}
+                        onClick={handleFollow}
                         disabled={followLoading}
-                        className="w-full inline-flex items-center justify-center gap-3 px-8 py-4 rounded-[20px] bg-white border-2 border-slate-100 text-slate-800 font-black text-sm uppercase tracking-widest hover:border-indigo-500 hover:text-indigo-600 transition-all shadow-sm active:scale-95"
+                        className="group/follow relative inline-flex items-center justify-center gap-3 px-8 py-4 rounded-[20px] bg-slate-900 text-white font-black text-sm uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-xl active:scale-95 disabled:opacity-50"
                       >
-                        <Bell size={18} />
-                        <span>Đã theo dõi</span>
-                        <ChevronDown size={14} className={showFollowMenu ? 'rotate-180' : ''} />
+                        <Heart className="w-5 h-5" />
+                        <span>{followLoading ? "..." : "Theo dõi"}</span>
                       </button>
-                      {showFollowMenu && (
-                        <div className="absolute left-0 right-0 top-full mt-3 bg-white rounded-[24px] shadow-2xl border border-slate-100 overflow-hidden z-[60] py-2 animate-in fade-in slide-in-from-top-2">
-                          {[
-                            { level: "all", icon: BellRing, label: "Tất cả", desc: "Mọi thông báo" },
-                            { level: "personalized", icon: Bell, label: "Cá nhân hóa", desc: "Chỉ thiết bị mới" },
-                            { level: "none", icon: BellOff, label: "Tắt", desc: "Không nhận thông báo" },
-                          ].map(({ level, icon: Icon, label, desc }) => (
-                            <button
-                              key={level}
-                              onClick={() => handleSetNotifLevel(level)}
-                              className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 transition-colors group/item"
-                            >
-                              <div className={`p-2 rounded-xl transition-colors ${getNotifLevel() === level ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-400 group-hover/item:bg-white group-hover/item:text-slate-600'}`}>
-                                <Icon size={20} />
+                    ) : (
+                      <div className="relative" ref={followMenuRef}>
+                        <button
+                          onClick={() => setShowFollowMenu(!showFollowMenu)}
+                          disabled={followLoading}
+                          className="w-full inline-flex items-center justify-center gap-3 px-8 py-4 rounded-[20px] bg-white border-2 border-slate-100 text-slate-800 font-black text-sm uppercase tracking-widest hover:border-indigo-500 hover:text-indigo-600 transition-all shadow-sm active:scale-95"
+                        >
+                          <Bell size={18} />
+                          <span>Đã theo dõi</span>
+                          <ChevronDown size={14} className={showFollowMenu ? 'rotate-180' : ''} />
+                        </button>
+                        {showFollowMenu && (
+                          <div className="absolute left-0 right-0 top-full mt-3 bg-white rounded-[24px] shadow-2xl border border-slate-100 overflow-hidden z-[60] py-2 animate-in fade-in slide-in-from-top-2">
+                            {[
+                              { level: "all", icon: BellRing, label: "Tất cả", desc: "Mọi thông báo" },
+                              { level: "personalized", icon: Bell, label: "Cá nhân hóa", desc: "Chỉ thiết bị mới" },
+                              { level: "none", icon: BellOff, label: "Tắt", desc: "Không nhận thông báo" },
+                            ].map(({ level, icon: Icon, label, desc }) => (
+                              <button
+                                key={level}
+                                onClick={() => handleSetNotifLevel(level)}
+                                className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 transition-colors group/item"
+                              >
+                                <div className={`p-2 rounded-xl transition-colors ${getNotifLevel() === level ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-400 group-hover/item:bg-white group-hover/item:text-slate-600'}`}>
+                                  <Icon size={20} />
+                                </div>
+                                <div className="flex-1 text-left">
+                                  <p className="text-sm font-bold text-slate-800">{label}</p>
+                                  <p className="text-[10px] text-slate-400 font-semibold uppercase">{desc}</p>
+                                </div>
+                                {getNotifLevel() === level && <Check size={16} className="text-indigo-600" />}
+                              </button>
+                            ))}
+                            <div className="h-px bg-slate-100 my-2 mx-4" />
+                            <button onClick={handleUnfollow} className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-red-50 transition-colors group/unfollow text-red-500">
+                              <div className="p-2 bg-red-50 text-red-400 rounded-xl group-hover/unfollow:bg-white group-hover/unfollow:text-red-500 transition-colors">
+                                <UserMinus size={20} />
                               </div>
-                              <div className="flex-1 text-left">
-                                <p className="text-sm font-bold text-slate-800">{label}</p>
-                                <p className="text-[10px] text-slate-400 font-semibold uppercase">{desc}</p>
-                              </div>
-                              {getNotifLevel() === level && <Check size={16} className="text-indigo-600" />}
+                              <span className="text-sm font-black uppercase tracking-wider">Bỏ theo dõi</span>
                             </button>
-                          ))}
-                          <div className="h-px bg-slate-100 my-2 mx-4" />
-                          <button onClick={handleUnfollow} className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-red-50 transition-colors group/unfollow text-red-500">
-                            <div className="p-2 bg-red-50 text-red-400 rounded-xl group-hover/unfollow:bg-white group-hover/unfollow:text-red-500 transition-colors">
-                              <UserMinus size={20} />
-                            </div>
-                            <span className="text-sm font-black uppercase tracking-wider">Bỏ theo dõi</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  )}
+
+                  {/* Add an "Edit Profile" button for the owner */}
+                  {userAccount?.id === supplier?.userId?._id && (
+                    <Link
+                      to="/user/profile/edit-supplier"
+                      className="inline-flex items-center justify-center gap-3 px-8 py-4 rounded-[20px] bg-indigo-600 text-white font-black text-sm uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl active:scale-95"
+                    >
+                      <Edit size={18} />
+                      <span>Chỉnh sửa shop</span>
+                    </Link>
                   )}
 
                   <div className="flex gap-2">
-                    <a href={`tel:${supplier.contactPhone}`} className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-4 bg-indigo-50 text-indigo-700 rounded-[20px] font-black text-xs uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm active:scale-95">
+                    <button
+                      type="button"
+                      onClick={handleOpenSupplierChat}
+                      className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-4 bg-indigo-50 text-indigo-700 rounded-[20px] font-black text-xs uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm active:scale-95"
+                    >
                       <MessageCircle size={18} />
                       Liên hệ
-                    </a>
+                    </button>
                     <button onClick={() => setShowMapModal(true)} className="flex-shrink-0 p-4 bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 hover:border-indigo-100 rounded-[20px] transition-all shadow-sm active:scale-95">
                       <MapPin size={22} />
                     </button>
@@ -542,35 +594,13 @@ export default function SupplierPublicProfile() {
                   {[1, 2, 3].map(i => (
                     <div key={i} className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-slate-200" />
                   ))}
-                                    <div className="flex items-center justify-center h-8 w-8 rounded-full ring-2 ring-white bg-indigo-600 text-[10px] font-black text-white">
+                  <div className="flex items-center justify-center h-8 w-8 rounded-full ring-2 ring-white bg-indigo-600 text-[10px] font-black text-white">
                     +{followerCount}
                   </div>
                 </div>
                 <span className="text-xs font-black text-slate-400 uppercase tracking-widest">
                   đang theo dõi
                 </span>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!isAuthenticated) {
-                      toast.info("Vui lòng đăng nhập để nhắn tin");
-                      navigate("/signin");
-                      return;
-                    }
-                    try {
-                      const suppUserId = supplier.userId?._id || supplier.userId;
-                      const conversation = await ApiCreateConversation(suppUserId);
-                      const friendInfo = await ApiGetUserByUserId(suppUserId);
-                      dispatch(openChatWindow({ ...conversation, friendInfo }));
-                    } catch (err) {
-                      toast.error("Không thể mở cuộc trò chuyện");
-                    }
-                  }}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 transition-all shadow-sm"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  Nhắn tin
-                </button>
               </div>
             </div>
           </div>
@@ -905,6 +935,12 @@ export default function SupplierPublicProfile() {
             </div>
           )}
         </div>
+        <ShopReportModal
+            isOpen={showReportModal}
+            onClose={() => setShowReportModal(false)}
+            shopId={supplier._id}
+            shopName={supplier.businessName}
+        />
       </main>
 
       <Footer />

@@ -1,12 +1,14 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import { motion, AnimatePresence } from "framer-motion";
 import { Editor } from "@tinymce/tinymce-react";
 import { createBlog, updateBlog } from "../../service/ApiService/BlogApi";
 import { CATEGORY_MAP } from "./BlogConstants";
+import { useTranslation } from "react-i18next";
 
 const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
+    const { t } = useTranslation();
     const userAccount = useSelector((state) => state.user.account);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isCategoryOpen, setIsCategoryOpen] = useState(false);
@@ -108,7 +110,7 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
         e.preventDefault();
 
         if (!submitFormData.title || !submitFormData.description || !submitFormData.content || selectedImages.length === 0) {
-            toast.error("Vui lòng điền đầy đủ các thông tin và đăng ít nhất 1 ảnh!");
+            toast.error("Vui lòng điền đầy đủ các thông tin và đăng ít nhất 1 hình ảnh hoặc video!");
             return;
         }
 
@@ -245,7 +247,7 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                                             >
                                                 <div className="flex items-center gap-3">
                                                     <div className={`h-2.5 w-2.5 rounded-full ${CATEGORY_MAP[submitFormData.category]?.color || "bg-primary"}`} />
-                                                    <span className="text-slate-700">{CATEGORY_MAP[submitFormData.category]?.label || "Chọn Chuyên mục"}</span>
+                                                    <span className="text-slate-700">{t(`blog.categories.${submitFormData.category}`, { defaultValue: "Chọn Chuyên mục" })}</span>
                                                 </div>
                                                 <span className={`material-symbols-outlined text-slate-400 transition-transform duration-300 ${isCategoryOpen ? "rotate-180" : ""}`}>expand_more</span>
                                             </button>
@@ -273,7 +275,7 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                                                                     }`}
                                                                 >
                                                                     <div className={`h-2 w-2 rounded-full ${color}`} />
-                                                                    {label}
+                                                                    {t(`blog.categories.${key}`)}
                                                                     {submitFormData.category === key && (
                                                                         <span className="material-symbols-outlined ml-auto text-sm">check_circle</span>
                                                                     )}
@@ -306,7 +308,7 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                                         onDrop={(e) => {
                                             e.preventDefault();
                                             e.currentTarget.classList.remove('border-primary', 'bg-primary/5', 'scale-[0.99]');
-                                            const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+                                            const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'));
                                             handleFiles(files);
                                         }}
                                         className="group relative flex flex-col items-center justify-center rounded-[2rem] border-2 border-dashed border-slate-200 bg-white p-12 transition-all duration-500 hover:border-primary/50 hover:bg-slate-50 cursor-pointer overflow-hidden shadow-sm active:scale-95"
@@ -315,7 +317,7 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                                             type="file"
                                             ref={fileInputRef}
                                             multiple
-                                            accept="image/*"
+                                            accept="image/*,video/*"
                                             onChange={handleFileChange}
                                             className="hidden"
                                         />
@@ -333,30 +335,49 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                                     {/* Scrollable Preview Bar */}
                                     {selectedImages.length > 0 && (
                                         <div className="flex gap-4 overflow-x-auto pb-4 pt-2 px-2 custom-scrollbar no-scrollbar">
-                                            {selectedImages.map((img, idx) => (
-                                                <motion.div 
-                                                    initial={{ opacity: 0, scale: 0.8 }}
-                                                    animate={{ opacity: 1, scale: 1 }}
-                                                    key={idx} 
-                                                    className="relative min-w-[120px] max-w-[120px] aspect-[4/5] rounded-2xl overflow-hidden border-2 border-slate-100 group shadow-md"
-                                                >
-                                                    <img src={img.preview} alt="preview" className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                                                    {idx === 0 && (
-                                                        <div className="absolute top-2 left-2 bg-primary/90 backdrop-blur-md text-white text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-widest shadow-lg">
-                                                            Ảnh bìa
+                                            {selectedImages.map((img, idx) => {
+                                                const isVideo = (img.file && img.file.type.startsWith('video/')) || 
+                                                               (img.isExisting && /\.(mp4|mov|avi|webm)$/i.test(img.preview));
+                                                
+                                                return (
+                                                    <motion.div 
+                                                        initial={{ opacity: 0, scale: 0.8 }}
+                                                        animate={{ opacity: 1, scale: 1 }}
+                                                        key={idx} 
+                                                        className="relative min-w-[120px] max-w-[120px] aspect-[4/5] rounded-2xl overflow-hidden border-2 border-slate-100 group shadow-md bg-slate-50"
+                                                    >
+                                                        {isVideo ? (
+                                                            <video src={img.preview} className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-700" muted />
+                                                        ) : (
+                                                            <img src={img.preview} alt="preview" className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                                                        )}
+
+                                                        {/* Video Overlay */}
+                                                        {isVideo && (
+                                                            <div className="absolute inset-0 flex items-center justify-center bg-black/10 pointer-events-none">
+                                                                <div className="h-8 w-8 rounded-full bg-white/80 flex items-center justify-center shadow-sm">
+                                                                    <div className="w-0 h-0 border-t-[5px] border-t-transparent border-l-[8px] border-l-primary border-b-[5px] border-b-transparent ml-0.5" />
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {idx === 0 && (
+                                                            <div className="absolute top-2 left-2 bg-primary/90 backdrop-blur-md text-white text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-widest shadow-lg">
+                                                                {isVideo ? 'Video chính' : 'Ảnh bìa'}
+                                                            </div>
+                                                        )}
+                                                        <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => { e.stopPropagation(); removeImage(idx); }}
+                                                                className="h-10 w-10 rounded-2xl bg-red-500 text-white flex items-center justify-center hover:scale-110 active:scale-90 transition-all shadow-xl shadow-red-500/30"
+                                                            >
+                                                                <span className="material-symbols-outlined text-xl">delete</span>
+                                                            </button>
                                                         </div>
-                                                    )}
-                                                    <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => { e.stopPropagation(); removeImage(idx); }}
-                                                            className="h-10 w-10 rounded-2xl bg-red-500 text-white flex items-center justify-center hover:scale-110 active:scale-90 transition-all shadow-xl shadow-red-500/30"
-                                                        >
-                                                            <span className="material-symbols-outlined text-xl">delete</span>
-                                                        </button>
-                                                    </div>
-                                                </motion.div>
-                                            ))}
+                                                    </motion.div>
+                                                );
+                                            })}
                                         </div>
                                     )}
                                 </div>

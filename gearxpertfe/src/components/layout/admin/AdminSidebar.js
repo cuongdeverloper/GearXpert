@@ -15,6 +15,7 @@ import {
   FiChevronUp,
   FiMessageSquare,
   FiBell,
+  FiAlertTriangle,
   FiCreditCard,
   FiDollarSign,
   FiClipboard
@@ -32,6 +33,15 @@ const navGroups = [
         icon: FiUsers,
         subItems: [
           { to: "/admin/advertisements", label: "Quảng cáo", icon: HiOutlineSpeakerphone }
+        ]
+      },
+       {
+        to: "/admin/suppliers",
+        label: "Nhà cung cấp",
+        icon: FiUserCheck,
+        subItems: [
+          { to: "/admin/suppliers", label: "Danh sách", icon: FiUserCheck },
+          { to: "/admin/shop-reports", label: "Báo cáo Shop", icon: FiAlertTriangle },
         ]
       },
       { to: "/admin/suppliers", label: "Nhà cung cấp", icon: FiUserCheck },
@@ -71,7 +81,8 @@ export default function AdminSidebar({ collapsed, onToggleCollapsed }) {
   const location = useLocation();
   const [openSubMenus, setOpenSubMenus] = useState({ 
     "/admin/users": true,
-    "/admin/blogs": true 
+    "/admin/blogs": true,
+    "/admin/suppliers": true
   }); // Open by default
 
   const toggleSubMenu = (to) => {

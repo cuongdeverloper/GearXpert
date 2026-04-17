@@ -56,9 +56,9 @@ const getBlogs = async (req, res) => {
             ];
         }
 
-        // Determine sort order
-        let sortOption = { createdAt: -1 }; // default: newest
-        if (sort === "oldest") sortOption = { createdAt: 1 };
+        // Determine sort order: Prioritize approval time for the main feed
+        let sortOption = { approvedAt: -1, createdAt: -1 }; // default: newest approval first
+        if (sort === "oldest") sortOption = { approvedAt: 1, createdAt: 1 };
         if (sort === "popular") sortOption = { views: -1 };
 
         const skip = (parseInt(page) - 1) * parseInt(limit);

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import {
-  Truck, PackageCheck, Wrench,
+  Truck, PackageCheck,
   CheckCircle, X, MapPin, Phone, FileText, User, Laptop
 } from 'lucide-react';
 import { getDeliveringRentals, getReturningRentals, claimDeliveryTask, confirmPickup } from '../../../service/ApiService/RentalApi';
@@ -14,6 +14,10 @@ const mapRentalToTask = (rental) => {
   const deviceName = firstItem?.deviceId?.name || 'Thiết bị';
   const extraCount = items.length - 1;
   const deviceLabel = extraCount > 0 ? `${deviceName} (+${extraCount} khác)` : deviceName;
+  const isAdditional = rental.deliveryTask?.isAdditional;
+  const issueNotes = rental.deliveryTask?.issueNotes;
+  const issueImages = rental.deliveryTask?.issueImages || [];
+
   return {
     id: rental._id,
     rentalId: rental._id,
@@ -27,6 +31,9 @@ const mapRentalToTask = (rental) => {
     deliveryTaskId: rental.deliveryTask?._id || null,
     assignedOperationStaffId: rental.assignedOperationStaffId?._id || rental.assignedOperationStaffId || null,
     rentalData: rental,
+    isAdditional,
+    issueNotes,
+    issueImages,
   };
 };
 
@@ -223,7 +230,6 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
               { id: 'all', label: 'Tất cả' },
               { id: 'delivery', label: 'Giao hàng' },
               { id: 'return', label: 'Thu hồi' },
-              { id: 'maintenance', label: 'Bảo trì' },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -268,23 +274,26 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
                 onClick={() => setSelectedTask(task)}
               >
                 <div className={`px-4 py-3 flex justify-between items-center ${
-                  task.type === 'delivery' ? 'bg-blue-50/50' :
-                  task.type === 'return' ? 'bg-amber-50/50' : 'bg-purple-50/50'
+                  task.type === 'delivery' 
+                    ? task.isAdditional 
+                      ? 'bg-rose-50/50 border-b border-rose-100' 
+                      : 'bg-blue-50/50' 
+                    : 'bg-amber-50/50'
                 }`}>
                   <div className="flex items-center gap-2">
                     {task.type === 'delivery' && (
-                      <span className="flex items-center gap-1.5 text-xs font-bold text-blue-700 bg-blue-100/50 px-2 py-1 rounded-md">
-                        <Truck size={14} /> GIAO HÀNG
+                      <span className={`flex items-center gap-1.5 text-[11px] font-extrabold uppercase px-2.5 py-1 rounded-md tracking-wide ${
+                        task.isAdditional 
+                          ? 'text-rose-700 bg-rose-100/70 border border-rose-200' 
+                          : 'text-blue-700 bg-blue-100/50 border border-blue-100/50'
+                      }`}>
+                        <Truck size={14} /> 
+                        {task.isAdditional ? 'GIAO HÀNG BỔ SUNG' : 'GIAO HÀNG'}
                       </span>
                     )}
                     {task.type === 'return' && (
-                      <span className="flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-100/50 px-2 py-1 rounded-md">
+                      <span className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase text-amber-700 bg-amber-100/50 px-2.5 py-1 rounded-md tracking-wide border border-amber-100/50">
                         <PackageCheck size={14} /> THU HỒI
-                      </span>
-                    )}
-                    {task.type === 'maintenance' && (
-                      <span className="flex items-center gap-1.5 text-xs font-bold text-purple-700 bg-purple-100/50 px-2 py-1 rounded-md">
-                        <Wrench size={14} /> BẢO TRÌ
                       </span>
                     )}
                   </div>
@@ -335,32 +344,29 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
             </div>
 
 <div className="flex-1 overflow-y-auto bg-slate-50/50 p-4 md:p-6 space-y-4">
-              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   {selectedTask.type === 'delivery' && (
-                    <div className="bg-indigo-100 text-indigo-700 p-2 rounded-xl">
-                      <Truck size={20} />
+                    <div className={`p-2.5 rounded-xl ${selectedTask.isAdditional ? 'bg-rose-100 text-rose-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                      <Truck size={22} />
                     </div>
                   )}
                   {selectedTask.type === 'return' && (
-                    <div className="bg-amber-100 text-amber-700 p-2 rounded-xl">
-                      <PackageCheck size={20} />
-                    </div>
-                  )}
-                  {selectedTask.type === 'maintenance' && (
-                    <div className="bg-purple-100 text-purple-700 p-2 rounded-xl">
-                      <Wrench size={20} />
+                    <div className="bg-amber-100 text-amber-700 p-2.5 rounded-xl">
+                      <PackageCheck size={22} />
                     </div>
                   )}
                   <div>
-                    <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Loại nhiệm vụ</p>
-                    <p className="font-bold text-slate-900 text-sm">
-                      {selectedTask.type === 'delivery' ? 'GIAO HÀNG' : selectedTask.type === 'return' ? 'THU HỒI' : 'BẢO TRÌ'}
+                    <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-0.5">Loại nhiệm vụ</p>
+                    <p className="font-extrabold text-slate-900 text-[15px]">
+                      {selectedTask.type === 'delivery' 
+                        ? (selectedTask.isAdditional ? 'GIAO HÀNG BỔ SUNG' : 'GIAO HÀNG')
+                        : 'THU HỒI'}
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border ${selectedTask.assignedOperationStaffId ? isSelectedLockedByOther ? 'bg-slate-100 text-slate-600 border-slate-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                <div className="self-end md:self-auto">
+                  <span className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${selectedTask.assignedOperationStaffId ? isSelectedLockedByOther ? 'bg-slate-100 text-slate-600 border-slate-200' : 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-amber-50 text-amber-700 border-amber-300 shadow-sm'}`}>
                     {selectedTask.assignedOperationStaffId
                       ? isSelectedLockedByOther
                         ? 'Staff khác xử lý'
@@ -396,27 +402,48 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
                   <h4 className="font-bold text-slate-800 text-[15px]">Chi tiết thiết bị</h4>
                 </div>
                 <div className="space-y-4">
-                  <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
-                    <p className="font-bold text-[16px] text-indigo-900 leading-tight">{selectedTask.device}</p>
+                  <div className={`p-4 rounded-xl border ${selectedTask.isAdditional ? 'bg-rose-50/40 border-rose-100' : 'bg-indigo-50/50 border-indigo-100'}`}>
+                    <p className={`font-bold text-[16px] leading-tight ${selectedTask.isAdditional ? 'text-rose-900' : 'text-indigo-900'}`}>{selectedTask.device}</p>
                     
-                    <div className="mt-3 bg-white p-3 rounded-lg border border-indigo-100 shadow-sm">
-                      <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-1">Ghi chú hệ thống</p>
+                    {selectedTask.isAdditional && selectedTask.issueNotes && (
+                      <div className="mt-3 bg-rose-100/50 p-3.5 rounded-lg border border-rose-200/60 shadow-sm">
+                        <p className="text-[11px] text-rose-700 font-extrabold uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                          <Truck size={14} /> Ghi chú giao bổ sung (Từ NCC)
+                        </p>
+                        <p className="text-sm font-medium text-rose-900 whitespace-pre-line">{selectedTask.issueNotes}</p>
+                        
+                        {selectedTask.issueImages && selectedTask.issueImages.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {selectedTask.issueImages.map((img, idx) => (
+                              <a href={img} target="_blank" rel="noreferrer" key={idx} className="block overflow-hidden rounded-lg border border-rose-200/60 shadow-sm hover:shadow-md transition-shadow">
+                                <img src={img} alt="Hình đính kèm" className="w-16 h-16 object-cover hover:scale-110 transition-transform duration-300" />
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className={`mt-3 bg-white p-3 rounded-lg border shadow-sm ${selectedTask.isAdditional ? 'border-rose-100' : 'border-indigo-100'}`}>
+                      <p className="text-xs text-slate-500 font-bold uppercase tracking-wide mb-1">Ghi chú hệ thống{selectedTask.isAdditional ? ' (Đơn gốc)' : ''}</p>
                       <p className="text-sm font-medium text-slate-800">{selectedTask.note && selectedTask.note !== '' ? selectedTask.note : 'Không có ghi chú'}</p>
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => {
-                      onOpenHandover?.(
-                        selectedTask.rentalId,
-                        selectedTask.type === 'return' ? 'RETURN' : 'DELIVERY'  
-                      );
-                      setSelectedTask(null);
-                    }}
-                    className="w-full py-2.5 bg-white border border-indigo-200 text-indigo-700 rounded-xl text-[14px] flex justify-center items-center gap-2 font-bold hover:bg-indigo-50 transition-colors shadow-sm"
-                  >
-                    <FileText size={18} /> Xem chi tiết biên bản/hợp đồng
-                  </button>
+                  {!selectedTask.isAdditional && (
+                    <button
+                      onClick={() => {
+                        onOpenHandover?.(
+                          selectedTask.rentalId,
+                          selectedTask.type === 'return' ? 'RETURN' : 'DELIVERY'  
+                        );
+                        setSelectedTask(null);
+                      }}
+                      className="w-full py-2.5 bg-white border border-indigo-200 text-indigo-700 rounded-xl text-[14px] flex justify-center items-center gap-2 font-bold hover:bg-indigo-50 transition-colors shadow-sm"
+                    >
+                      <FileText size={18} /> Xem chi tiết biên bản/hợp đồng
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

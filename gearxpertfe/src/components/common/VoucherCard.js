@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 const VoucherCard = ({ voucher, onApply, onViewDetails }) => {
     const [copied, setCopied] = useState(false);
-    const isGlobal = voucher.type === 'GLOBAL';
+    const isGlobal = voucher.type === 'GLOBAL' || voucher.type === 'PERSONAL';
 
     const formatDate = (dateString) => {
         const date = new Date(dateString);
@@ -16,9 +16,12 @@ const VoucherCard = ({ voucher, onApply, onViewDetails }) => {
     return (
         <div
             onClick={() => onViewDetails && onViewDetails(voucher)}
-            className={`group relative flex h-48 sm:h-44 overflow-hidden rounded-2xl shadow-sm transition-all duration-500 hover:-translate-y-1 hover:scale-[1.01] card-glow-hover cursor-pointer ${isGlobal
-                ? 'premium-mesh-bg text-white border border-white/20'
-                : 'bg-white border border-slate-100 dark:bg-slate-800 dark:border-slate-700'
+            className={`group relative flex h-48 sm:h-44 overflow-hidden rounded-2xl shadow-sm transition-all duration-500 hover:-translate-y-1 hover:scale-[1.01] cursor-pointer ${
+                voucher.type === 'PERSONAL' 
+                    ? `${voucher.rankColor} text-white border border-white/20 shadow-lg ${voucher.rankGlow}`
+                    : voucher.type === 'GLOBAL'
+                        ? 'premium-mesh-bg text-white border border-white/20 card-glow-hover'
+                        : 'bg-white border border-slate-100 dark:bg-slate-800 dark:border-slate-700 card-glow-hover'
                 }`}
         >
             {/* Left Section - Icon/Type */}
@@ -35,13 +38,13 @@ const VoucherCard = ({ voucher, onApply, onViewDetails }) => {
                     ) : (
                         <span className={`material-symbols-outlined text-[32px] sm:text-[40px] ${isGlobal ? 'text-white material-symbols-filled' : 'text-indigo-600 dark:text-indigo-400'
                             }`}>
-                            {isGlobal ? 'workspace_premium' : 'storefront'}
+                            {voucher.type === 'PERSONAL' ? voucher.rankIcon : (isGlobal ? 'workspace_premium' : 'storefront')}
                         </span>
                     )}
                 </div>
                 <p className={`mt-3 text-[10px] font-black uppercase tracking-[0.2em] text-center px-2 line-clamp-2 ${isGlobal ? 'text-indigo-100' : 'text-slate-500 dark:text-slate-400'
                     }`}>
-                    {isGlobal ? 'Global' : (voucher.shopInfo?.name || 'Supplier')}
+                    {isGlobal ? (voucher.type === 'PERSONAL' ? 'Riêng bạn' : 'Global') : (voucher.shopInfo?.name || 'Supplier')}
                 </p>
             </div>
 

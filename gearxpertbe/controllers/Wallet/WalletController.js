@@ -240,7 +240,7 @@ exports.requestWithdraw = async (req, res) => {
       amount,
       bankInfo,
       status: 'PENDING'
-    }], { session });
+    }], { session, ordered: true });
 
     // 2. Tạo lịch sử ví (Trạng thái SUCCESS - vì tiền ĐÃ TRỪ xong)
     await WalletTransaction.create([{
@@ -253,7 +253,7 @@ exports.requestWithdraw = async (req, res) => {
       referenceType: 'SYSTEM',
       referenceId: withdraw[0]._id, // Link tới đơn rút tiền
       description: `Rút tiền về ${bankInfo.bankName} - Đang chờ xử lý chuyển khoản`
-    }], { session });
+    }], { session, ordered: true });
 
     await session.commitTransaction();
     session.endSession();

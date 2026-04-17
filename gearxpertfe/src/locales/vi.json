@@ -73,7 +73,7 @@
     "pay_3_title": "Chuyển khoản / QR Code",
     "pay_3_desc": "Xác thực thanh toán tự động qua mã QR. Nhanh chóng, chính xác và hoàn toàn miễn phí giao dịch.",
     "payment_methods": "Phương thức thanh toán",
-    "ai_suggested": "Gợi ý từ AI dành riêng cho bạn",
+    "ai_suggested": "Gợi ý dành riêng cho bạn",
     "ai_suggested_subtitle": "Các lựa chọn hàng đầu dựa trên hoạt động gần đây và sở thích của bạn."
   },
   "footer": {
@@ -228,7 +228,9 @@
     "benefit_2_title": "Có lý do AI cho từng thiết bị",
     "benefit_2_desc": "Hiển thị rõ vì sao AI chọn camera, mic, ánh sáng.",
     "benefit_3_title": "Thêm combo vào giỏ chỉ 1 chạm",
-    "benefit_3_desc": "Không cần chọn từng món, tiết kiệm rất nhiều thời gian."
+    "benefit_3_desc": "Không cần chọn từng món, tiết kiệm rất nhiều thời gian.",
+    "benefit_4_title": "Đổi món thông minh & Cảnh báo tương thích",
+    "benefit_4_desc": "Tự do tùy biến"
   },
   "messenger": {
     "title": "Đoạn chat",
@@ -257,7 +259,7 @@
     "collapse": "Thu gọn",
     "popular_categories": "Chuyên mục phổ biến",
     "submit_post": "Đăng bài viết mới",
-    "my_posts": "Bản nháp của tôi",
+    "my_posts": "Bài viết của tôi",
     "saved_posts": "Bài viết đã lưu",
     "trending_now": "Xu hướng hiện nay",
     "newsletter_title": "Đăng ký nhận tin",

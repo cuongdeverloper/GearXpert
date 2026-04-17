@@ -49,7 +49,7 @@ const TestimonialsSection = ({ testimonials = [] }) => {
                   <p className="text-indigo-600 text-[10px] font-black uppercase tracking-widest">{testi.role}</p>
                 </div>
               </div>
-              <p className="text-slate-600 text-sm leading-relaxed italic">
+              <p className="text-slate-600 text-sm leading-relaxed italic whitespace-pre-wrap break-all">
                 &ldquo;{testi.content}&rdquo;
               </p>
             </ScrollAnimation>

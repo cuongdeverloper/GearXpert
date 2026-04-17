@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getAllVouchers } from "../../service/ApiService/VoucherApi";
+import { useSelector } from "react-redux";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
 import VoucherCard from "../../components/common/VoucherCard";
@@ -12,7 +13,10 @@ export default function VouchersPage() {
     const [vouchers, setVouchers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
-    const [activeFilter, setActiveFilter] = useState("ALL"); // ALL, GLOBAL, SUPPLIER
+    const [activeFilter, setActiveFilter] = useState("ALL"); // ALL, PERSONAL, GLOBAL, SUPPLIER
+    
+    const userAccount = useSelector((state) => state.user.account);
+    const userRank = (userAccount?.rank || "BRONZE").toUpperCase();
 
     // Modal State
     const [selectedVoucher, setSelectedVoucher] = useState(null);
@@ -20,9 +24,33 @@ export default function VouchersPage() {
 
     const voucherCategories = [
         { name: "Tất cả", id: "ALL", icon: "confirmation_number" },
+        { name: "Riêng bạn", id: "PERSONAL", icon: "workspace_premium" },
         { name: "Global", id: "GLOBAL", icon: "public" },
         { name: "Supplier", id: "SUPPLIER", icon: "storefront" },
     ];
+
+    const rankDiscounts = {
+        SILVER: { discount: 5, color: 'bg-gradient-to-br from-slate-400 via-slate-500 to-gray-400', icon: 'military_tech', glow: 'shadow-slate-400/40' },
+        GOLD: { discount: 10, color: 'bg-gradient-to-br from-yellow-500 via-amber-500 to-yellow-600', icon: 'star', glow: 'shadow-yellow-400/50' },
+        PLATINUM: { discount: 15, color: 'bg-gradient-to-br from-cyan-600 via-blue-500 to-indigo-500', icon: 'loyalty', glow: 'shadow-blue-500/50' },
+        DIAMOND: { discount: 20, color: 'bg-gradient-to-br from-purple-600 via-fuchsia-500 to-pink-500', icon: 'diamond', glow: 'shadow-fuchsia-500/50' }
+    };
+
+    const personalVoucher = rankDiscounts[userRank] ? {
+        _id: `RANK_${userRank}`,
+        code: `RANK_${userRank}`,
+        type: "PERSONAL",
+        description: `Voucher giảm giá ${rankDiscounts[userRank].discount}% đặc quyền dành cho hạng Khách hàng ${userRank}`,
+        discountType: "PERCENT",
+        discountValue: rankDiscounts[userRank].discount,
+        minOrderValue: 0,
+        expiredAt: new Date(2099, 11, 31).toISOString(),
+        status: "ACTIVE",
+        shopInfo: null,
+        rankColor: rankDiscounts[userRank].color,
+        rankIcon: rankDiscounts[userRank].icon,
+        rankGlow: rankDiscounts[userRank].glow
+    } : null;
 
     useEffect(() => {
         fetchVouchers();
@@ -53,7 +81,9 @@ export default function VouchersPage() {
         setIsModalOpen(true);
     };
 
-    const filteredVouchers = vouchers.filter(voucher => {
+    const allVouchersToDisplay = personalVoucher ? [personalVoucher, ...vouchers] : vouchers;
+
+    const filteredVouchers = allVouchersToDisplay.filter(voucher => {
         const matchesType = activeFilter === "ALL" || voucher.type === activeFilter;
 
         // Normalize search query: trim and lowercase

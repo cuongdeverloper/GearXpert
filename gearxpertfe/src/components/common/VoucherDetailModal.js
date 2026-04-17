@@ -7,7 +7,7 @@ const VoucherDetailModal = ({ isOpen, onClose, voucher, onApply }) => {
     const navigate = useNavigate();
     if (!voucher) return null;
 
-    const isGlobal = voucher.type === 'GLOBAL';
+    const isGlobal = voucher.type === 'GLOBAL' || voucher.type === 'PERSONAL';
 
     const formatDate = (dateString) => {
         const date = new Date(dateString);
@@ -47,7 +47,13 @@ const VoucherDetailModal = ({ isOpen, onClose, voucher, onApply }) => {
                         className="relative w-full max-w-lg overflow-hidden rounded-[32px] bg-white shadow-2xl dark:bg-slate-800"
                     >
                         {/* Hero Section */}
-                        <div className={`relative p-8 text-center overflow-hidden ${isGlobal ? 'premium-mesh-bg text-white' : 'bg-slate-50 dark:bg-slate-900/50'}`}>
+                        <div className={`relative p-8 text-center overflow-hidden ${
+                            voucher.type === 'PERSONAL' 
+                                ? `${voucher.rankColor} text-white`
+                                : voucher.type === 'GLOBAL'
+                                    ? 'premium-mesh-bg text-white' 
+                                    : 'bg-slate-50 dark:bg-slate-900/50'
+                        }`}>
                             {isGlobal && <div className="absolute inset-0 bg-black/10"></div>}
 
                             <button
@@ -67,7 +73,7 @@ const VoucherDetailModal = ({ isOpen, onClose, voucher, onApply }) => {
                                         />
                                     ) : (
                                         <span className={`material-symbols-outlined text-[48px] ${isGlobal ? 'text-white material-symbols-filled' : 'text-primary'}`}>
-                                            {isGlobal ? 'workspace_premium' : 'storefront'}
+                                            {voucher.type === 'PERSONAL' ? voucher.rankIcon : (isGlobal ? 'workspace_premium' : 'storefront')}
                                         </span>
                                     )}
                                 </div>
@@ -75,7 +81,7 @@ const VoucherDetailModal = ({ isOpen, onClose, voucher, onApply }) => {
                                     {voucher.discountType === 'PERCENT' ? `${voucher.discountValue}% OFF` : `-${voucher.discountValue.toLocaleString()}đ`}
                                 </h2>
                                 <p className={`text-sm font-bold tracking-widest uppercase opacity-80 ${isGlobal ? 'text-indigo-100' : 'text-slate-500'}`}>
-                                    {isGlobal ? 'Global Voucher' : (voucher.shopInfo?.name || 'Supplier Exclusive')}
+                                    {isGlobal ? (voucher.type === 'PERSONAL' ? 'Personal Voucher' : 'Global Voucher') : (voucher.shopInfo?.name || 'Supplier Exclusive')}
                                 </p>
                             </div>
                         </div>

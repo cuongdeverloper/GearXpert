@@ -1,9 +1,11 @@
 const express = require("express");
 const ReportRouter = express.Router();
 const uploadCloud = require("../configs/cloudinaryConfig");
+const { checkAccessToken, checkAdmin, checkSupplier } = require("../middleware/JWTAction");
+
 const deliveryCtrl = require("../controllers/Report/deliveryIssueController");
 const damageCtrl = require("../controllers/Report/damageReportController");
-const { checkAccessToken, checkSupplier } = require("../middleware/JWTAction");
+const shopReportCtrl = require("../controllers/Report/shopReportController");
 
 // LÚC GIAO HÀNG — Customer
 ReportRouter.post(
@@ -57,6 +59,30 @@ ReportRouter.post(
 
 ReportRouter.get("/damage/:rentalId", checkAccessToken, damageCtrl.getDamageReportsByRental);
 
+// SHOP REPORT
+ReportRouter.post(
+  "/shop-report",
+  checkAccessToken,
+  uploadCloud.array("evidence", 5),
+  shopReportCtrl.createShopReport
+);
+
+// ADMIN: GET ALL SHOP REPORTS
+ReportRouter.get(
+  "/admin/shop-reports",
+  checkAccessToken,
+  checkAdmin,
+  shopReportCtrl.getAllReports
+);
+
+// ADMIN: UPDATE SHOP REPORT STATUS
+ReportRouter.patch(
+  "/admin/shop-reports/:reportId",
+  checkAccessToken,
+  checkAdmin,
+  shopReportCtrl.updateReportStatus
+);
+
 // SUPPLIER — Xem tất cả sự cố liên quan đến đơn hàng của supplier
 ReportRouter.get(
   "/supplier-issues",
@@ -71,6 +97,21 @@ ReportRouter.patch(
   checkAccessToken,
   checkSupplier,
   deliveryCtrl.supplierUpdateIssueStatus
+);
+
+ReportRouter.post(
+  "/supplier-issues/:issueId/cancel-refund",
+  checkAccessToken,
+  checkSupplier,
+  deliveryCtrl.supplierCancelAndRefund
+);
+
+ReportRouter.post(
+  "/supplier-issues/:issueId/additional-delivery",
+  checkAccessToken,
+  checkSupplier,
+  uploadCloud.array("images", 5),
+  deliveryCtrl.supplierAdditionalDelivery
 );
 
 module.exports = ReportRouter;

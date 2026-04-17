@@ -1,5 +1,6 @@
 const Favorite = require('../../models/Favorite');
 const Device = require('../../models/Device');
+const DeviceItem = require('../../models/DeviceItem');
 const mongoose = require('mongoose');
 
 /**
@@ -71,7 +72,7 @@ exports.getUserFavorites = async (req, res) => {
         const favorites = await Favorite.find({ userId })
             .populate({
                 path: 'deviceId',
-                select: 'name slug rentPrice ratingAvg reviewCount location images category status'
+                select: 'name slug description rentPrice ratingAvg reviewCount location images category status discountPrice discountReason discountExpiry'
             })
             .skip(skip)
             .limit(parseInt(limit))
@@ -80,10 +81,27 @@ exports.getUserFavorites = async (req, res) => {
         // Filter out favorites where device was deleted
         const validFavorites = favorites.filter(fav => fav.deviceId !== null);
 
+        // Compute availableQuantity for each device via DeviceItem
+        const deviceIds = validFavorites.map(fav => fav.deviceId._id);
+        const availability = await DeviceItem.aggregate([
+            { $match: { deviceId: { $in: deviceIds }, status: 'AVAILABLE' } },
+            { $group: { _id: '$deviceId', availableCount: { $sum: 1 } } }
+        ]);
+        const availMap = {};
+        availability.forEach(a => { availMap[a._id.toString()] = a.availableCount; });
+
+        const favoritesWithAvailability = validFavorites.map(fav => ({
+            ...fav.toObject(),
+            deviceId: {
+                ...fav.deviceId.toObject(),
+                availableQuantity: availMap[fav.deviceId._id.toString()] || 0
+            }
+        }));
+
         const total = await Favorite.countDocuments({ userId });
 
         res.json({
-            favorites: validFavorites,
+            favorites: favoritesWithAvailability,
             total,
             page: parseInt(page),
             limit: parseInt(limit),
