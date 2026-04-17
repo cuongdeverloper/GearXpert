@@ -77,6 +77,19 @@ exports.createDeliveryIssue = async (req, res) => {
         .json({ message: "Bạn không phải chủ đơn hàng này" });
     }
 
+    // Kiểm tra báo cáo trùng lặp - đã có báo cáo giao hàng đang xử lý cho đơn này chưa
+    const DeliveryIssueReport = require("../../models/DeliveryIssueReport");
+    const existingReport = await DeliveryIssueReport.findOne({
+      rentalId,
+      status: { $in: ["OPEN", "PROCESSING", "WAITING_EVIDENCE"] }
+    });
+    if (existingReport) {
+      return res.status(400).json({
+        message: "Đã có báo cáo giao hàng đang được xử lý cho đơn này. Vui lòng chờ kết quả xử lý trước khi báo cáo mới.",
+        existingReportId: existingReport._id
+      });
+    }
+
     // Tìm các RentalItem được chọn
     const selectedItems = await RentalItem.find({
       _id: { $in: rentalItemIds },

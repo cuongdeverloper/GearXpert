@@ -15,7 +15,7 @@ export default function DamageReportModal({
   handleFileUpload,
   toggleSerialSelection,
 }) {
-  if (!damageReportModal.isOpen) return null;
+  if (!damageReportModal?.isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">

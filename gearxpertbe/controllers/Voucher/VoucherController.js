@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Voucher = require("../../models/Voucher");
 const Cart = require("../../models/Cart");
 const SupplierProfile = require("../../models/SupplierProfile");
@@ -7,11 +8,22 @@ exports.validateVoucher = async (req, res) => {
   const { code, cartType } = req.body;
   const customerId = req.user.id;
 
-  // 1. Tìm voucher
+  console.log(`[validateVoucher] Starting validation for code: "${code}", cartType: "${cartType}", customerId: ${customerId}`);
+
+  // 1. Tìm voucher (case-insensitive)
   let voucher = await Voucher.findOne({
-    code: code.toUpperCase(),
+    code: { $regex: new RegExp(`^${code}$`, 'i') },
     status: "ACTIVE"
   });
+
+  console.log(`[validateVoucher] Voucher found:`, voucher ? {
+    code: voucher.code,
+    status: voucher.status,
+    type: voucher.type,
+    expiredAt: voucher.expiredAt,
+    usedCount: voucher.usedCount,
+    usageLimit: voucher.usageLimit
+  } : "NOT FOUND");
 
   if (!voucher && code.toUpperCase().startsWith('RANK_')) {
     const User = require('../../models/User');
@@ -499,6 +511,368 @@ exports.updateVoucherStatusBySupplier = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Lỗi server khi cập nhật trạng thái voucher"
+    });
+  }
+};
+
+// API để tìm voucher phù hợp nhất cho cart (auto-apply)
+exports.getBestVoucherForCart = async (req, res) => {
+  try {
+    const { cartType } = req.query;
+    const customerId = req.user.id;
+
+    // 1. Lấy giỏ hàng
+    const cart = await Cart.findOne({
+      customerId,
+      cartType: cartType || 'RENT'
+    }).populate({
+      path: "items",
+      populate: {
+        path: "deviceId",
+        select: "rentPrice supplierId"
+      }
+    });
+
+    if (!cart || !cart.items.length) {
+      return res.status(200).json({
+        success: true,
+        bestVoucher: null,
+        message: "Giỏ hàng trống"
+      });
+    }
+
+    // 2. Lấy tất cả voucher đang active và chưa hết hạn
+    const currentDate = new Date();
+    const vouchers = await Voucher.find({
+      status: "ACTIVE",
+      expiredAt: { $gt: currentDate }
+    });
+
+    // 3. Tính tổng giá trị cart và tìm voucher tốt nhất
+    let bestVoucher = null;
+    let maxDiscount = 0;
+
+    for (const voucher of vouchers) {
+      // Kiểm tra giới hạn sử dụng
+      if (voucher.usageLimit !== undefined && voucher.usageLimit !== null) {
+        if (voucher.usageLimit <= 0 || voucher.usedCount >= voucher.usageLimit) {
+          continue;
+        }
+      }
+
+      // Tính tổng giá trị áp dụng voucher
+      let applicableTotal = 0;
+
+      cart.items.forEach(item => {
+        const device = item.deviceId;
+        if (!device) return;
+
+        const itemTotal = device.rentPrice.perDay * item.totalDays * item.quantity;
+
+        // GLOBAL: áp dụng cho tất cả
+        if (voucher.type === "GLOBAL") {
+          applicableTotal += itemTotal;
+        }
+        // SUPPLIER: chỉ áp dụng cho supplier của voucher
+        else if (voucher.type === "SUPPLIER") {
+          if (device.supplierId.equals(voucher.supplierId)) {
+            applicableTotal += itemTotal;
+          }
+        }
+      });
+
+      // Kiểm tra minOrderValue
+      if (applicableTotal < voucher.minOrderValue) {
+        continue;
+      }
+
+      // Tính discount
+      let discount = 0;
+      if (voucher.discountType === "PERCENT") {
+        discount = Math.round((applicableTotal * voucher.discountValue) / 100);
+        if (voucher.maxDiscount) {
+          discount = Math.min(discount, voucher.maxDiscount);
+        }
+      } else if (voucher.discountType === "FIXED") {
+        discount = Math.min(voucher.discountValue, applicableTotal);
+      }
+
+      // Cập nhật voucher tốt nhất nếu discount cao hơn
+      if (discount > maxDiscount) {
+        maxDiscount = discount;
+        bestVoucher = {
+          code: voucher.code,
+          type: voucher.type,
+          supplierId: voucher.supplierId ? voucher.supplierId.toString() : null,
+          discount,
+          discountType: voucher.discountType,
+          discountValue: voucher.discountValue,
+          applicableTotal,
+          description: voucher.description
+        };
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      bestVoucher,
+      maxDiscount,
+      message: bestVoucher 
+        ? `Tìm thấy voucher tốt nhất: Giảm ${maxDiscount.toLocaleString()}đ`
+        : "Không tìm thấy voucher phù hợp"
+    });
+  } catch (error) {
+    console.error("Get best voucher error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi tìm voucher phù hợp nhất"
+    });
+  }
+};
+
+// Get available vouchers for a specific cart
+exports.getAvailableVouchersForCart = async (req, res) => {
+  try {
+    const customerId = req.user.id;
+    const { cartType } = req.query;
+
+    console.log(`[getAvailableVouchersForCart] customerId: ${customerId}, cartType: ${cartType}`);
+
+    const cart = await Cart.findOne({
+      customerId,
+      cartType: cartType || "RENTAL"
+    }).populate({
+      path: "items",
+      populate: {
+        path: "deviceId",
+        select: "rentPrice supplierId name images"
+      }
+    });
+
+    console.log(`[getAvailableVouchersForCart] Cart found:`, cart ? {
+      cartId: cart._id,
+      itemCount: cart.items?.length,
+      items: cart.items?.map(i => ({ deviceId: i.deviceId?._id, name: i.deviceId?.name }))
+    } : "NOT FOUND");
+
+    if (!cart || !cart.items.length) {
+      return res.status(200).json({
+        success: true,
+        message: "Giỏ hàng trống",
+        totalValue: 0,
+        vouchers: []
+      });
+    }
+
+    let totalValue = 0;
+    const supplierIds = new Set();
+    
+    cart.items.forEach(item => {
+      const device = item.deviceId;
+      if (device) {
+        const itemTotal = device.rentPrice.perDay * item.totalDays * item.quantity;
+        totalValue += itemTotal;
+        supplierIds.add(device.supplierId.toString());
+      }
+    });
+
+    const currentDate = new Date();
+
+    const vouchers = await Voucher.find({
+      status: "ACTIVE",
+      expiredAt: { $gt: currentDate },
+      $expr: { $lt: ["$usedCount", "$usageLimit"] },
+      $or: [
+        { type: "GLOBAL" },
+        { 
+          type: "SUPPLIER",
+          supplierId: { $in: Array.from(supplierIds).map(id => new mongoose.Types.ObjectId(id)) }
+        }
+      ]
+    }).lean();
+
+    const availableVouchers = vouchers.map(v => {
+      let applicableTotal = 0;
+      
+      if (v.type === "GLOBAL") {
+        applicableTotal = totalValue;
+      } else if (v.type === "SUPPLIER") {
+        cart.items.forEach(item => {
+          const device = item.deviceId;
+          if (device && device.supplierId.equals(v.supplierId)) {
+            applicableTotal += device.rentPrice.perDay * item.totalDays * item.quantity;
+          }
+        });
+      }
+
+      const isApplicable = applicableTotal >= v.minOrderValue;
+      
+      let discount = 0;
+      if (isApplicable) {
+        if (v.discountType === "PERCENT") {
+          discount = Math.round((applicableTotal * v.discountValue) / 100);
+          if (v.maxDiscount) {
+            discount = Math.min(discount, v.maxDiscount);
+          }
+        } else if (v.discountType === "FIXED") {
+          discount = Math.min(v.discountValue, applicableTotal);
+        }
+      }
+
+      return {
+        ...v,
+        applicableTotal,
+        isApplicable,
+        potentialDiscount: discount
+      };
+    }).filter(v => v.isApplicable).sort((a, b) => b.potentialDiscount - a.potentialDiscount);
+
+    const vouchersWithShopInfo = await Promise.all(
+      availableVouchers.map(async (v) => {
+        if (v.type === "SUPPLIER" && v.supplierId) {
+          const profile = await SupplierProfile.findOne({ userId: v.supplierId })
+            .select("businessName businessAvatar")
+            .lean();
+          return {
+            ...v,
+            shopInfo: profile || null
+          };
+        }
+        return v;
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Lấy danh sách voucher khả dụng thành công",
+      totalValue,
+      vouchers: vouchersWithShopInfo
+    });
+  } catch (error) {
+    console.error("Get available vouchers error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi lấy danh sách voucher khả dụng"
+    });
+  }
+};
+
+// Auto-apply best voucher for cart
+exports.autoApplyBestVoucher = async (req, res) => {
+  try {
+    const customerId = req.user.id;
+    const { cartType } = req.body;
+
+    const cart = await Cart.findOne({
+      customerId,
+      cartType: cartType || "RENTAL"
+    }).populate({
+      path: "items",
+      populate: {
+        path: "deviceId",
+        select: "rentPrice supplierId"
+      }
+    });
+
+    if (!cart || !cart.items.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Giỏ hàng trống"
+      });
+    }
+
+    let totalValue = 0;
+    const supplierIds = new Set();
+    
+    cart.items.forEach(item => {
+      const device = item.deviceId;
+      if (device) {
+        const itemTotal = device.rentPrice.perDay * item.totalDays * item.quantity;
+        totalValue += itemTotal;
+        supplierIds.add(device.supplierId.toString());
+      }
+    });
+
+    const currentDate = new Date();
+
+    const vouchers = await Voucher.find({
+      status: "ACTIVE",
+      expiredAt: { $gt: currentDate },
+      $expr: { $lt: ["$usedCount", "$usageLimit"] },
+      $or: [
+        { type: "GLOBAL" },
+        { 
+          type: "SUPPLIER",
+          supplierId: { $in: Array.from(supplierIds).map(id => new mongoose.Types.ObjectId(id)) }
+        }
+      ]
+    }).lean();
+
+    let bestVoucher = null;
+    let bestDiscount = 0;
+
+    vouchers.forEach(v => {
+      let applicableTotal = 0;
+      
+      if (v.type === "GLOBAL") {
+        applicableTotal = totalValue;
+      } else if (v.type === "SUPPLIER") {
+        cart.items.forEach(item => {
+          const device = item.deviceId;
+          if (device && device.supplierId.equals(v.supplierId)) {
+            applicableTotal += device.rentPrice.perDay * item.totalDays * item.quantity;
+          }
+        });
+      }
+
+      if (applicableTotal >= v.minOrderValue) {
+        let discount = 0;
+        if (v.discountType === "PERCENT") {
+          discount = Math.round((applicableTotal * v.discountValue) / 100);
+          if (v.maxDiscount) {
+            discount = Math.min(discount, v.maxDiscount);
+          }
+        } else if (v.discountType === "FIXED") {
+          discount = Math.min(v.discountValue, applicableTotal);
+        }
+
+        if (discount > bestDiscount) {
+          bestDiscount = discount;
+          bestVoucher = {
+            ...v,
+            applicableTotal,
+            discount
+          };
+        }
+      }
+    });
+
+    if (!bestVoucher) {
+      return res.status(200).json({
+        success: true,
+        message: "Không có voucher phù hợp",
+        voucher: null,
+        discount: 0
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Đã tự động áp dụng voucher ${bestVoucher.code}`,
+      voucher: {
+        code: bestVoucher.code,
+        type: bestVoucher.type,
+        discountType: bestVoucher.discountType,
+        discountValue: bestVoucher.discountValue,
+        discount: bestVoucher.discount,
+        applicableTotal: bestVoucher.applicableTotal
+      }
+    });
+  } catch (error) {
+    console.error("Auto apply voucher error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi tự động áp dụng voucher"
     });
   }
 };

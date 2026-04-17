@@ -38,6 +38,7 @@ const rentalItemSchema = new mongoose.Schema(
     totalDays: { type: Number, required: true },
 
     isAddon: { type: Boolean, default: false },
+    isExtended: { type: Boolean, default: false },
 
     rentPrice: { type: Number, required: true }, // giá thuê cho 1 chiếc
     depositAmount: { type: Number, required: true }, // cọc cho 1 chiếc

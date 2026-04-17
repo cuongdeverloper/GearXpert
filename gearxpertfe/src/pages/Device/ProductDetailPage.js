@@ -44,12 +44,13 @@ import AuthRequirementModal from "../../components/common/AuthRequirementModal";
 
 /* ===== API ===== */
 import { getDeviceDetail, getDeviceAddons, getRelatedDevices, getDeviceAvailableCount } from "../../service/ApiService/DeviceApi";
-import { addToCart, addInstantToCart } from "../../service/ApiService/CartApi";
+import { addToCart, addInstantToCart, getCart } from "../../service/ApiService/CartApi";
 import { hasRentedDevice } from "../../service/ApiService/RentalApi";
 import {
   getMyReview,
   updateReview,
   deleteReview,
+  getDeviceReviews,
 } from "../../service/ApiService/ReviewApi";
 import { toggleFavorite, checkIsFavorite } from "../../service/ApiService/FavoriteApi";
 
@@ -85,6 +86,7 @@ export default function ProductDetailPage() {
   const [editComment, setEditComment] = useState("");
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [reviewToDelete, setReviewToDelete] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
@@ -98,6 +100,8 @@ export default function ProductDetailPage() {
   const [thumbnailOffset, setThumbnailOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [flyingItem, setFlyingItem] = useState(null); // For cart animation
+  const [cartItems, setCartItems] = useState([]); // Store cart items for validation
 
   const { socket } = useSocket();
 
@@ -213,6 +217,24 @@ export default function ProductDetailPage() {
     checkFavoriteStatus();
   }, [checkFavoriteStatus]);
 
+  // Fetch cart items for validation
+  const fetchCartItems = useCallback(async () => {
+    if (!isAuthenticated) return [];
+    try {
+      const res = await getCart();
+      const items = res?.items || res || [];
+      setCartItems(items);
+      return items;
+    } catch (err) {
+      console.error("Fetch cart items error:", err);
+      return [];
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    fetchCartItems();
+  }, [fetchCartItems]);
+
   useEffect(() => {
     if (!socket || !device?._id) return;
 
@@ -257,12 +279,82 @@ export default function ProductDetailPage() {
     }
   };
 
+  const handleDeleteReview = (reviewId) => {
+    // Handle MongoDB ObjectId object format (extract $oid or use toString)
+    const id = typeof reviewId === 'object' ? reviewId?.$oid || reviewId?._id || reviewId?.toString() : reviewId;
+    setReviewToDelete(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteReview = async () => {
+    if (!reviewToDelete) return;
+    try {
+      await deleteReview(reviewToDelete);
+      toast.success('Đã xóa đánh giá');
+      setShowDeleteConfirm(false);
+      setReviewToDelete(null);
+      // Reset my review state if deleting own review
+      if (myReview && reviewToDelete === myReview._id?.toString()) {
+        setMyReview(null);
+        setHasMyReview(false);
+      }
+      // Refresh reviews
+      const updated = await getDeviceReviews(device._id);
+      setReviews(updated || []);
+    } catch (err) {
+      toast.error(err?.response?.message || 'Không thể xóa đánh giá');
+    }
+  };
+
   const handleAddToCart = async () => {
     if (!isAuthenticated) {
       setIsAuthModalOpen(true);
       return;
     }
     if (!validateRental()) return;
+    
+    // Refresh cart items to get latest data
+    const currentCartItems = await fetchCartItems();
+    
+    // Check if product already exists in cart
+    console.log('Cart items:', currentCartItems);
+    console.log('Device ID:', device._id);
+    const existingCartItem = currentCartItems.find(item => {
+      const cartDeviceId = typeof item.deviceId === 'object' ? item.deviceId?._id : item.deviceId;
+      const currentDeviceId = typeof device._id === 'object' ? device._id?.toString() : device._id;
+      console.log('Comparing:', cartDeviceId, 'vs', currentDeviceId);
+      return cartDeviceId === currentDeviceId;
+    });
+    console.log('Existing cart item:', existingCartItem);
+    const existingQuantity = existingCartItem ? existingCartItem.quantity : 0;
+    const totalQuantity = existingQuantity + quantity;
+    
+    // Check if total quantity exceeds available stock
+    if (totalQuantity > realAvailableCount) {
+      toast.error(`Sản phẩm đã có ${existingQuantity} trong giỏ hàng. Chỉ còn ${realAvailableCount - existingQuantity} sản phẩm có thể thêm.`, {
+        description: "Vui lòng điều chỉnh số lượng hoặc xóa sản phẩm cũ trong giỏ hàng.",
+      });
+      return;
+    }
+    
+    // Trigger fly animation
+    const buttonRect = document.getElementById('addToCartBtn')?.getBoundingClientRect();
+    const cartRect = document.querySelector('[data-cart-icon]')?.getBoundingClientRect();
+    
+    if (buttonRect && cartRect && device?.images?.[0]) {
+      setFlyingItem({
+        startX: buttonRect.left + buttonRect.width / 2,
+        startY: buttonRect.top,
+        endX: cartRect.left + cartRect.width / 2,
+        endY: cartRect.top,
+        image: device.images[0],
+        id: Date.now(),
+      });
+      
+      // Clear flying item after animation
+      setTimeout(() => setFlyingItem(null), 1000);
+    }
+    
     try {
       await addToCart({
         deviceId: device._id,
@@ -271,6 +363,9 @@ export default function ProductDetailPage() {
         rentalEndDate: endDate,
         addons: addons.map((a) => a._id),
       });
+      // Refresh cart items after adding
+      await fetchCartItems();
+      window.dispatchEvent(new Event('cartUpdated'));
       toast.success(t('productDetail.success_add_cart'), {
         description: t('productDetail.success_add_cart_desc', { name: device.name }),
         action: {
@@ -350,26 +445,6 @@ export default function ProductDetailPage() {
       });
     } finally {
       setIsSubmittingReview(false);
-    }
-  };
-
-  const handleDeleteReview = () => {
-    setShowDeleteConfirm(true);
-  };
-
-  const confirmDeleteReview = async () => {
-    setShowDeleteConfirm(false);
-    const toastId = toast.loading(t('productDetail.deleting_review'));
-
-    try {
-      await deleteReview(myReview._id);
-      toast.success("Đã xóa review thành công", { id: toastId });
-      setMyReview(null);
-      setHasMyReview(false);
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Xóa review thất bại", {
-        id: toastId,
-      });
     }
   };
 
@@ -755,7 +830,33 @@ export default function ProductDetailPage() {
                                     </div>
                                   </div>
                                   <p className="text-slate-600 text-sm leading-relaxed">{r.comment}</p>
+                                  
+                                  {/* Review Images */}
+                                  {r.images && r.images.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mt-3">
+                                      {r.images.map((img, idx) => (
+                                        <img
+                                          key={idx}
+                                          src={img}
+                                          alt={`Review image ${idx + 1}`}
+                                          className="w-16 h-16 rounded-lg object-cover border border-slate-200 cursor-pointer hover:opacity-80"
+                                          onClick={() => window.open(img, '_blank')}
+                                        />
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
+                                
+                                {/* Delete button - only show for review owner */}
+                                {r.isOwner && (
+                                  <button
+                                    onClick={() => handleDeleteReview(r._id)}
+                                    className="text-red-400 hover:text-red-600 transition-colors p-1"
+                                    title="Xóa đánh giá"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                )}
                               </div>
                             </div>
                           ))}
@@ -857,7 +958,7 @@ export default function ProductDetailPage() {
                                     {t('common.edit')}
                                   </button>
                                   <button
-                                    onClick={handleDeleteReview}
+                                    onClick={() => handleDeleteReview(myReview._id)}
                                     className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 hover:border-rose-300 rounded-xl transition-all"
                                   >
                                     <Trash2 className="w-4 h-4" />
@@ -1131,6 +1232,7 @@ export default function ProductDetailPage() {
                     {/* Actions */}
                     <div className="grid grid-cols-2 gap-3 pt-2">
                       <button
+                        id="addToCartBtn"
                         onClick={handleAddToCart}
                         disabled={realAvailableCount === 0}
                         className="py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 flex items-center justify-center gap-2"
@@ -1465,6 +1567,60 @@ export default function ProductDetailPage() {
         </div>
       )}
 
+      {/* Flying Item Animation */}
+      {flyingItem && (
+        <div
+          className="fixed z-[9999] pointer-events-none"
+          style={{
+            left: flyingItem.startX,
+            top: flyingItem.startY,
+            width: '60px',
+            height: '60px',
+            animation: 'flyToCart 0.8s ease-in-out forwards',
+            '--end-x': `${flyingItem.endX - flyingItem.startX}px`,
+            '--end-y': `${flyingItem.endY - flyingItem.startY}px`,
+          }}
+        >
+          <img
+            src={flyingItem.image}
+            alt="Flying"
+            className="w-full h-full object-cover rounded-lg shadow-lg border-2 border-white"
+          />
+        </div>
+      )}
+
+      {/* Delete Review Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-gray-900/80 backdrop-blur-md"
+            onClick={() => setShowDeleteConfirm(false)}
+          />
+          <div className="relative bg-white w-full max-w-sm rounded-[2rem] shadow-2xl p-6 text-center">
+            <h3 className="text-xl font-black text-gray-900 uppercase italic mb-2">
+              Xác nhận xóa
+            </h3>
+            <p className="text-gray-500 text-sm mb-6">
+              Bạn có chắc muốn xóa đánh giá này? Hành động này không thể hoàn tác.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-bold text-sm hover:bg-gray-200 transition-all"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={confirmDeleteReview}
+                className="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold text-sm hover:bg-red-600 transition-all"
+              >
+                Xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <AuthRequirementModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
       <Footer />
     </div>
@@ -1500,6 +1656,31 @@ style.textContent = `
     to {
       transform: translateY(0);
       opacity: 1;
+    }
+  }
+
+  @keyframes flyToCart {
+    0% {
+      transform: translate(0, 0) scale(1) rotate(0deg);
+      opacity: 1;
+      filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3));
+    }
+    25% {
+      transform: translate(calc(var(--end-x) * 0.25), calc(var(--end-y) * 0.25)) scale(1.1) rotate(90deg);
+      filter: drop-shadow(0 15px 30px rgba(99, 102, 241, 0.4));
+    }
+    50% {
+      transform: translate(calc(var(--end-x) * 0.5), calc(var(--end-y) * 0.5)) scale(0.9) rotate(180deg);
+      filter: drop-shadow(0 20px 40px rgba(99, 102, 241, 0.5));
+    }
+    75% {
+      transform: translate(calc(var(--end-x) * 0.75), calc(var(--end-y) * 0.75)) scale(0.6) rotate(270deg);
+      filter: drop-shadow(0 10px 20px rgba(99, 102, 241, 0.3));
+    }
+    100% {
+      transform: translate(var(--end-x), var(--end-y)) scale(0.2) rotate(360deg);
+      opacity: 0;
+      filter: drop-shadow(0 0 0 rgba(0,0,0,0));
     }
   }
   

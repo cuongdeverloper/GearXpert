@@ -151,11 +151,15 @@ export default function SupplierExtensionRequests() {
     if (!result.isConfirmed) return;
 
     try {
-      await approveExtension(request._id);
-      toast.success("Đã chấp nhận gia hạn thành công!");
+      console.log("Approving extension request:", request._id);
+      const res = await approveExtension(request._id);
+      console.log("Approve response:", res);
+      toast.success(res?.data?.message || "Đã chấp nhận gia hạn thành công!");
       fetchRequests();
     } catch (err) {
-      toast.error(err?.message || "Lỗi khi chấp nhận gia hạn");
+      console.error("Approve extension error:", err);
+      console.error("Error response:", err?.response);
+      toast.error(err?.response?.data?.message || err?.message || "Lỗi khi chấp nhận gia hạn");
     }
   };
 
@@ -172,11 +176,15 @@ export default function SupplierExtensionRequests() {
     if (!result.isConfirmed) return;
 
     try {
-      await rejectExtension(request._id, "Không được chấp nhận bởi nhà cung cấp");
-      toast.success("Đã từ chối gia hạn");
+      console.log("Rejecting extension request:", request._id);
+      const res = await rejectExtension(request._id, "Không được chấp nhận bởi nhà cung cấp");
+      console.log("Reject response:", res);
+      toast.success(res?.data?.message || "Đã từ chối gia hạn");
       fetchRequests();
     } catch (err) {
-      toast.error(err?.message || "Lỗi khi từ chối gia hạn");
+      console.error("Reject extension error:", err);
+      console.error("Error response:", err?.response);
+      toast.error(err?.response?.data?.message || err?.message || "Lỗi khi từ chối gia hạn");
     }
   };
 
@@ -312,6 +320,7 @@ export default function SupplierExtensionRequests() {
                 <th className="px-4 py-3 font-semibold">Thiết bị</th>
                 <th className="px-4 py-3 font-semibold">Khách hàng</th>
                 <th className="px-4 py-3 font-semibold">Thời gian gia hạn</th>
+                <th className="px-4 py-3 font-semibold">Đơn giá thuê</th>
                 <th className="px-4 py-3 font-semibold">Phí gia hạn</th>
                 <th className="px-4 py-3 font-semibold">Trạng thái</th>
                 <th className="px-4 py-3 font-semibold text-right">Thao tác</th>
@@ -424,13 +433,29 @@ export default function SupplierExtensionRequests() {
                       </div>
                     </td>
 
+                    {/* Rent Price */}
+                    <td className="px-4 py-4">
+                      <div className="font-medium text-slate-900">
+                        {formatMoney(item?.rentPrice || device?.rentPrice?.perDay || 0)} ₫
+                        <span className="text-xs text-slate-500">/ngày</span>
+                      </div>
+                      <div className="text-xs text-slate-400 mt-1">
+                        Số lượng: {item?.quantity || 1} x {formatMoney(item?.rentPrice || device?.rentPrice?.perDay || 0)} ₫
+                      </div>
+                    </td>
+
                     {/* Fee */}
                     <td className="px-4 py-4">
                       <div className="font-semibold text-slate-900">
-                        {formatMoney(request.proposedExtraAmount)} ₫
+                        {formatMoney(request.proposedExtraAmount || 0)} ₫
                       </div>
+                      {request.proposedExtraAmount > 0 && request.requestedDays > 0 && (
+                        <div className="text-xs text-slate-500 mt-1">
+                          {request.requestedDays} ngày × {formatMoney(Math.round(request.proposedExtraAmount / request.requestedDays))} ₫/ngày
+                        </div>
+                      )}
                       {request.approvedExtraAmount > 0 && (
-                        <div className="text-xs text-emerald-600">
+                        <div className="text-xs text-emerald-600 mt-1">
                           Đã duyệt: {formatMoney(request.approvedExtraAmount)} ₫
                         </div>
                       )}
@@ -495,7 +520,7 @@ export default function SupplierExtensionRequests() {
 
               {!loading && filteredRequests.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-16 text-center">
+                  <td colSpan={8} className="px-4 py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
                         <FiCalendar size={32} className="text-slate-300" />
@@ -513,7 +538,7 @@ export default function SupplierExtensionRequests() {
 
               {loading && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-16 text-center">
+                  <td colSpan={8} className="px-4 py-16 text-center">
                     <div className="flex items-center justify-center gap-3">
                       <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
                       <span className="text-slate-500">Đang tải...</span>
