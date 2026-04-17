@@ -8,6 +8,14 @@ export const getBestVoucherForCart = (cartType = 'RENT') => {
   return axios.get(`/api/vouchers/best-for-cart?cartType=${cartType}`);
 };
 
+export const getAvailableVouchersForCart = (cartType = "RENTAL") => {
+  return axios.get(`/api/vouchers/available-for-cart?cartType=${cartType}`);
+};
+
+export const autoApplyBestVoucher = (cartType = "RENTAL") => {
+  return axios.post("/api/vouchers/auto-apply", { cartType });
+};
+
 export const getAllVouchers = () => {
   return axios.get("/api/vouchers");
 };
