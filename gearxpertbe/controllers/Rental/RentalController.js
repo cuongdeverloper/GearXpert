@@ -777,17 +777,23 @@ exports.checkoutRental = async (req, res) => {
 
 
       if (
-
         appliedVoucher &&
-
         appliedVoucher.usedCount >= appliedVoucher.usageLimit
-
       ) {
-
         throw new Error("Mã giảm giá đã hết lượt sử dụng");
-
       }
 
+      if (appliedVoucher) {
+        const usageCheck = await Rental.findOne({
+          customerId,
+          voucherCode: appliedVoucher.code,
+          status: { $nin: ["CANCELLED", "REJECTED"] },
+        }).session(session);
+
+        if (usageCheck) {
+          throw new Error("Bạn đã sử dụng mã giảm giá này cho một đơn hàng trước đó");
+        }
+      }
     }
 
 
