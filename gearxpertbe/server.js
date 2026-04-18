@@ -46,6 +46,7 @@ const { startAutoReturnJob } = require("./jobs/autoReturnRentals");
 const routerReview = require("./Routes/ReviewRoutes");
 const maintenanceRouter = require("./Routes/MaintenanceRoutes");
 const { startPreventiveMaintenanceJob } = require("./jobs/preventiveMaintenanceJob");
+const { startVoucherExpiryReminders } = require("./jobs/voucherExpiryReminders");
 const io = socketIo(server, {
   cors: {
     origin: "*",
@@ -125,6 +126,7 @@ startRentalDueReminders();
 socketHandler(io);
 startAutoReturnJob();
 startPreventiveMaintenanceJob();
+startVoucherExpiryReminders();
 (async () => {
   try {
     await connection();
