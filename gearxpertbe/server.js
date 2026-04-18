@@ -42,7 +42,6 @@ const operationLogRouter = require("./Routes/OperationLogRoutes");
 const handoverRouter = require("./Routes/HandoverRoutes");
 const returnRouter = require("./Routes/ReturnRoutes");
 const extensionRequestRouter = require("./Routes/ExtensionRequestRoutes");
-const { startAutoConfirmJob } = require("./jobs/autoConfirmDelivery");
 const { startAutoReturnJob } = require("./jobs/autoReturnRentals");
 const routerReview = require("./Routes/ReviewRoutes");
 const maintenanceRouter = require("./Routes/MaintenanceRoutes");
@@ -124,7 +123,6 @@ NotificationConfig.init(io);
 operationStaffSocket.init(io);
 startRentalDueReminders();
 socketHandler(io);
-startAutoConfirmJob();
 startAutoReturnJob();
 startPreventiveMaintenanceJob();
 (async () => {
