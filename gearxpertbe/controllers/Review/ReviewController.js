@@ -152,13 +152,14 @@ exports.getDeviceReviews = async (req, res) => {
 
     res.json(
       reviews.map(r => ({
-        _id: r._id,
+        _id: r._id.toString(),
         userName: r.userId.fullName,
         avatar: r.userId.avatar,
         rating: r.rating,
         comment: r.comment,
         date: r.createdAt,
-        images: r.images  // Thêm để trả images
+        images: r.images || [],
+        isOwner: r.userId._id.toString() === req.user?.id
       }))
     );
   } catch (err) {

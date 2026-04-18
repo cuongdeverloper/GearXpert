@@ -664,7 +664,7 @@ export default function SupplierRentalRequests() {
                           </button>
                         )}
 
-                        {rental.status === "RETURNING" && (
+                        {/* {rental.status === "RETURNING" && (
                           <button
                             onClick={() => handleConfirmReturn(rental)}
                             className="text-emerald-600 hover:text-emerald-700"
@@ -672,7 +672,7 @@ export default function SupplierRentalRequests() {
                           >
                             <FiCheckCircle size={16} />
                           </button>
-                        )}
+                        )} */}
                       </div>
                     </td>
                   </tr>

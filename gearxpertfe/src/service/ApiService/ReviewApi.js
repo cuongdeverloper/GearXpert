@@ -47,4 +47,19 @@ export const deleteReview = async (reviewId) => {
   }
 };
 
+/**
+ * Lấy danh sách review của thiết bị
+ * @param {string} deviceId 
+ * @returns {Promise<Array>}
+ */
+export const getDeviceReviews = async (deviceId) => {
+  try {
+    const response = await axios.get(`/api/rentals/devices/${deviceId}/reviews`);
+    return response;
+  } catch (error) {
+    console.error("Lỗi khi lấy device reviews:", error);
+    throw error;
+  }
+};
+
 // Nếu sau này cần thêm API khác liên quan đến review, cứ bổ sung vào đây

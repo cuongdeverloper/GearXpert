@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { Search, ShoppingCart, Bell, User, Sparkles, MapPin, Check, Store } from 'lucide-react'
 import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '../../service/ApiService/notificationApi'
+import { getCart } from '../../service/ApiService/CartApi'
 import { useSocket } from '../../SocketContext'
 
 const timeAgo = (date) => {
@@ -22,16 +23,29 @@ export function TopNavbar({ onNavigate = () => {} }) {
   const navigate = useNavigate()
   const { isAuthenticated, account } = useSelector((state) => state.user)
   const { socket } = useSocket()
-  const [cartCount] = useState(0)
+  const [cartCount, setCartCount] = useState(0)
   const [notifications, setNotifications] = useState([])
   const [showNotifPanel, setShowNotifPanel] = useState(false)
   const panelRef = useRef(null)
 
   const unreadCount = notifications.filter((n) => !n.isRead).length
 
+  // Fetch cart count
+  const fetchCartCount = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const res = await getCart();
+      const cartItems = res?.items || res || [];
+      setCartCount(cartItems.length);
+    } catch (err) {
+      console.error('Fetch cart count error:', err);
+    }
+  }, [isAuthenticated]);
+
   useEffect(() => {
     if (isAuthenticated) {
       fetchNotifications()
+      fetchCartCount()
     }
   }, [isAuthenticated])
 
@@ -47,6 +61,15 @@ export function TopNavbar({ onNavigate = () => {} }) {
     return () => socket.off('newNotification', handleNewNotif)
   }, [socket])
 
+  // Real-time: listen for cart updates
+  useEffect(() => {
+    const handleCartUpdate = () => {
+      fetchCartCount()
+    }
+    window.addEventListener('cartUpdated', handleCartUpdate)
+    return () => window.removeEventListener('cartUpdated', handleCartUpdate)
+  }, [fetchCartCount])
+
   // Close panel on outside click
   useEffect(() => {
     const handler = (e) => {
@@ -54,6 +77,7 @@ export function TopNavbar({ onNavigate = () => {} }) {
         setShowNotifPanel(false)
       }
     }
+
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
@@ -194,15 +218,14 @@ export function TopNavbar({ onNavigate = () => {} }) {
 
           {/* Cart - Bo góc 2xl */}
           <button
+            data-cart-icon
             onClick={() => onNavigate('checkout')}
             className="relative w-12 h-12 flex items-center justify-center rounded-2xl bg-white border border-slate-100 text-slate-500 hover:text-indigo-600 hover:shadow-md transition-all"
           >
             <ShoppingCart size={22} />
-            {cartCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 bg-slate-900 text-[10px] font-black text-white rounded-full flex justify-center items-center shadow-lg">
-                {cartCount}
-              </span>
-            )}
+            <span className={`absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 text-[10px] font-black text-white rounded-full flex justify-center items-center shadow-lg transition-colors ${cartCount > 0 ? 'bg-slate-900' : 'bg-slate-400'}`}>
+              {cartCount}
+            </span>
           </button>
 
           {/* Vertical Divider */}

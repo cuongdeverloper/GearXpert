@@ -3,7 +3,7 @@ import React from "react";
 import { XCircle, CheckCircle2 } from "lucide-react";
 
 export default function TrackingModal({ trackingModal, setTrackingModal }) {
-  if (!trackingModal.isOpen) return null;
+  if (!trackingModal?.isOpen) return null;
 
   const order = trackingModal.order;
   const pickedUpAt = order?.pickedUpAt;

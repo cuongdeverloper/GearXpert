@@ -54,10 +54,14 @@ const extensionRequestSchema = new mongoose.Schema(
     },
     paymentStatus: {
       type: String,
-      enum: ["UNPAID", "PAID", "WAIVED"],
+      enum: ["UNPAID", "PAID", "REFUNDED"],
       default: "UNPAID",
     },
-    paymentTransactionId: {
+    customerWalletTransactionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "WalletTransaction",
+    },
+    adminWalletTransactionId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "WalletTransaction",
     },

@@ -2,6 +2,7 @@ const Cart = require("../../models/Cart");
 const CartItem = require("../../models/CartItem");
 const Device = require("../../models/Device");
 const DeviceItem = require("../../models/DeviceItem");
+const SupplierProfile = require("../../models/SupplierProfile");
 
 const DAY = 1000 * 60 * 60 * 24;
 
@@ -90,9 +91,31 @@ exports.getCart = async (req, res) => {
       });
     }
 
+    // Enrich cart items with SupplierProfile data (businessName, businessAvatar)
+    const cartObj = cart.toObject();
+    const supplierIds = [...new Set(
+      cartObj.items
+        .map(item => item.deviceId?.supplierId?._id?.toString())
+        .filter(Boolean)
+    )];
+    const supplierProfiles = await SupplierProfile.find({ userId: { $in: supplierIds } })
+      .select("userId businessName businessAvatar")
+      .lean();
+    const profileMap = {};
+    supplierProfiles.forEach(p => { profileMap[p.userId.toString()] = p; });
+
+    cartObj.items = cartObj.items.map(item => {
+      const sid = item.deviceId?.supplierId?._id?.toString();
+      if (sid && profileMap[sid]) {
+        item.deviceId.supplierId.businessName = profileMap[sid].businessName;
+        item.deviceId.supplierId.businessAvatar = profileMap[sid].businessAvatar;
+      }
+      return item;
+    });
+
     // Trả về response
     res.json({
-      ...cart.toObject(),
+      ...cartObj,
       cleaned,
       message: cleaned
         ? `Đã tự động xóa ${invalidItemIds.length} sản phẩm không còn khả dụng`
@@ -115,6 +138,13 @@ exports.addToCart = async (req, res) => {
     const device = await Device.findById(deviceId);
     if (!device) {
       return res.status(404).json({ message: "Thiết bị không tồn tại" });
+    }
+
+    // Chặn supplier tự book sản phẩm của chính mình
+    if (device.supplierId.toString() === customerId.toString()) {
+      return res.status(403).json({
+        message: "Bạn không thể thuê sản phẩm do chính mình đăng ký cung cấp",
+      });
     }
 
     if (
@@ -212,6 +242,13 @@ exports.addInstantToCart = async (req, res) => {
     const device = await Device.findById(deviceId);
     if (!device) {
       return res.status(404).json({ message: "Thiết bị không tồn tại" });
+    }
+
+    // Chặn supplier tự book sản phẩm của chính mình
+    if (device.supplierId.toString() === customerId.toString()) {
+      return res.status(403).json({
+        message: "Bạn không thể thuê sản phẩm do chính mình đăng ký cung cấp",
+      });
     }
 
     // Check if device is active/available for rental
@@ -359,6 +396,12 @@ exports.addComboToCart = async (req, res) => {
         device.status === "SUSPICIOUS"
       ) {
         failed.push({ deviceId, reason: "Không khả dụng" });
+        continue;
+      }
+
+      // Chặn supplier tự book sản phẩm của chính mình
+      if (device.supplierId.toString() === customerId.toString()) {
+        failed.push({ deviceId, reason: "Bạn không thể thuê sản phẩm của chính mình" });
         continue;
       }
 
