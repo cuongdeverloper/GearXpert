@@ -185,8 +185,9 @@ function getSupplierActionsForIssue(issue) {
   const rentalStatus = issue.rentalId?.status;
   const isRejectedRental = rentalStatus === "REJECTED";
   const isStaffDeliveryIssue = issue._type === "DELIVERY" && issue.reportedBy === "STAFF";
+  const isStaffReturnIssue = issue._type === "RETURN" && issue.reportedBy === "STAFF";
 
-  if (isStaffDeliveryIssue) {
+  if (isStaffDeliveryIssue || isStaffReturnIssue) {
     return [
       {
         key: "processing",
@@ -194,18 +195,40 @@ function getSupplierActionsForIssue(issue) {
         hint: "Cập nhật trạng thái phía nhà cung cấp",
         icon: FiCheckCircle,
       },
-      {
-        key: "cancel_refund",
-        label: "Hủy đơn (Hoàn tiền)",
-        hint: "Hủy đơn và hoàn tiền cho khách hàng",
-        icon: FiXCircle,
-      },
-      {
-        key: "additional_delivery",
-        label: "Giao bổ sung",
-        hint: "Xác nhận tạo đơn giao hàng mới cho Staff",
-        icon: FiPlusCircle,
-      }
+      ...((isStaffReturnIssue) ? [] : [
+        {
+          key: "cancel_refund",
+          label: "Hủy đơn (Hoàn tiền)",
+          hint: "Hủy đơn và hoàn tiền cho khách hàng",
+          icon: FiXCircle,
+        },
+        {
+          key: "additional_delivery",
+          label: "Giao bổ sung",
+          hint: "Xác nhận tạo đơn giao hàng mới cho Staff",
+          icon: FiPlusCircle,
+        }
+      ]),
+      ...(isStaffReturnIssue ? [
+        {
+          key: "reply",
+          label: "Phản hồi",
+          hint: "Gửi phản hồi cho khách / vận hành",
+          icon: FiMessageSquare,
+        },
+        {
+          key: "evidence",
+          label: "Gửi bằng chứng",
+          hint: "Đính kèm ảnh / tài liệu bổ sung",
+          icon: FiUpload,
+        },
+        {
+          key: "escalate",
+          label: "Nhờ GearXpert can thiệp",
+          hint: "Yêu cầu hỗ trợ từ nền tảng",
+          icon: FiShield,
+        }
+      ] : [])
     ];
   }
 
@@ -784,12 +807,6 @@ function IssueCard({ issue, onImageClick, onOperationalDetail, onIssueUpdated, o
 
   const handleSupplierAction = async (e) => {
     e.stopPropagation();
-    if (String(issue._id).startsWith("return-failed-")) {
-      toast.warning(
-        "Không thể cập nhật bản ghi tổng hợp từ hệ thống. Liên hệ vận hành nếu cần."
-      );
-      return;
-    }
     const rentalStatus = issue.rentalId?.status;
     const isRejectedRental = rentalStatus === "REJECTED";
     const targetStatus = isRejectedRental ? "RESOLVED" : "PROCESSING";
@@ -981,7 +998,7 @@ function IssueCard({ issue, onImageClick, onOperationalDetail, onIssueUpdated, o
               {supplierActions.map(({ key, label, hint, icon: Icon }) => {
                 const rentalSt = issue.rentalId?.status;
                 const isRejectedRental = rentalSt === "REJECTED";
-                const isCustomAction = ["cancel_refund", "additional_delivery"].includes(key);
+                const isCustomAction = ["cancel_refund", "additional_delivery", "evidence", "escalate", "reply"].includes(key);
                 const processingDisabled =
                   key === "processing" &&
                   (!isRejectedRental
@@ -1015,13 +1032,17 @@ function IssueCard({ issue, onImageClick, onOperationalDetail, onIssueUpdated, o
                       onOpenAdditionalDelivery && onOpenAdditionalDelivery(issue);
                       return;
                     }
+                    if (key === "reply" || key === "evidence" || key === "escalate") {
+                      handleSupplierAction(e);
+                      return;
+                    }
                     toast.info(label);
                   }}
                   className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border bg-white shadow-sm transition-colors disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:bg-white
                     ${
-                      key === "cancel_refund" 
+                      key === "cancel_refund" || key === "escalate"
                         ? "border-rose-200 text-rose-700 hover:bg-rose-50 hover:border-rose-300"
-                        : key === "additional_delivery"
+                        : key === "additional_delivery" || key === "evidence"
                         ? "border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300"
                         : "border-indigo-200 text-indigo-800 hover:bg-indigo-50 hover:border-indigo-300"
                     }
