@@ -48,56 +48,107 @@ const {
 
 } = require("../../services/ReturnService");
 
+
+
 const { PayOS } = require("@payos/node");
 
+
+
 const payos = new PayOS(
+
   process.env.PAYOS_CLIENT_ID,
+
   process.env.PAYOS_API_KEY,
+
   process.env.PAYOS_CHECKSUM_KEY
+
 );
 
 // Đầu file RentalController.js (hoặc nơi bạn định nghĩa các hàm)
+
 const NotificationConfig = require("../../configs/NotificationConfig"); // điều chỉnh path cho đúng
+
 const { emitOperationStaffUpdate } = require("../../utils/operationStaffSocket");
+
+const SupplierProfile = require("../../models/SupplierProfile");
+const { HandoverRecord, HANDOVER_STATUS } = require("../../models/HandoverRecord");
+
+
 
 // Helper function to get client IP
 
 const getClientIp = (req) => {
+
   const forwardedFor = req.headers["x-forwarded-for"];
+
   if (typeof forwardedFor === "string" && forwardedFor.length > 0) {
+
     return forwardedFor.split(",")[0].trim();
+
   }
+
   return req.ip;
+
 };
 
+
+
 // Helper gửi noti cho supplier hoặc customer
+
 const sendRentalNotification = async (
+
   rental,
+
   receiverRole,
+
   title,
+
   message,
+
   linkSuffix = ""
+
 ) => {
+
   const receiverId =
+
     receiverRole === "SUPPLIER" ? rental.supplierId : rental.customerId;
+
   const senderId =
+
     receiverRole === "SUPPLIER" ? rental.customerId : rental.supplierId;
 
+
+
   const rid = rental._id?.toString?.() || rental._id;
+
   const link =
+
     receiverRole === "SUPPLIER"
+
       ? `/supplier/rental-requests?rental=${rid}`
+
       : linkSuffix
+
         ? `/my-rentals/${rid}${linkSuffix}`
+
         : `/my-rentals/${rid}`;
 
+
+
   await NotificationConfig.sendNotification({
+
     senderId,
+
     receiverId,
+
     title,
+
     message,
+
     link,
+
     type: "ORDER",
+
   });
 
 };
@@ -502,11 +553,25 @@ exports.getRentalById = async (req, res) => {
 
 
 
+    // Check if rental has been reviewed
+
+    const Review = require("../../models/Review");
+
+    const hasReview = await Review.exists({ rentalId: rental._id, userId });
+
+
+
     res.json({
 
       success: true,
 
-      rental: result,
+      rental: {
+
+        ...result,
+
+        isReviewed: !!hasReview,
+
+      },
 
       contractUrl,
 
@@ -630,6 +695,13 @@ exports.checkoutRental = async (req, res) => {
 
       const supplierId = device.supplierId.toString();
 
+      // Chặn supplier tự book sản phẩm của chính mình
+      if (supplierId === customerId.toString()) {
+        throw new Error(
+          `Bạn không thể thuê sản phẩm "${device.name}" do chính mình đăng ký cung cấp`
+        );
+      }
+
       if (!supplierGroups[supplierId]) {
 
         supplierGroups[supplierId] = {
@@ -650,7 +722,7 @@ exports.checkoutRental = async (req, res) => {
       const now = new Date();
       const discountExpiry = device.discountExpiry ? new Date(device.discountExpiry) : null;
       const isDiscountValid = device.discountPrice && discountExpiry && discountExpiry > now;
-
+      
       const effectivePrice = isDiscountValid ? device.discountPrice : device.rentPrice.perDay;
       const rent = effectivePrice * item.totalDays * item.quantity;
 
@@ -1661,6 +1733,10 @@ exports.getDeliveringRentals = async (req, res) => {
 
         // Check if rental is in DELIVERING or has a valid task in PENDING_RESOLUTION
         if (rental.status === "PENDING_RESOLUTION") {
+          // Bỏ qua nếu PENDING_RESOLUTION này là do thất bại khi thu hồi
+          if (rental.inspectedContext === "RETURN") {
+            return null;
+          }
           // Chỉ show ở tab Giao Hàng nếu đó là đơn "Giao bổ sung"
           if (!deliveryTask || !deliveryTask.isAdditional) {
             return null;
@@ -2099,9 +2175,25 @@ exports.getMyRentals = async (req, res) => {
 
               .select(
 
-                "issueType description status images resolvedNote createdAt updatedAt"
+                "issueType description status images resolvedNote createdAt updatedAt deviceItemIds"
 
               )
+
+              .populate({
+
+                path: "deviceItemIds",
+
+                select: "serialNumber deviceId",
+
+                populate: {
+
+                  path: "deviceId",
+
+                  select: "name images",
+
+                },
+
+              })
 
               .lean();
 
@@ -2117,9 +2209,18 @@ exports.getMyRentals = async (req, res) => {
 
               .select(
 
-                "description severity status images compensationAmount createdAt updatedAt"
+                "description severity status images compensationAmount createdAt updatedAt deviceItemIds"
 
               )
+
+              .populate({
+                path: "deviceItemIds",
+                select: "serialNumber deviceId",
+                populate: {
+                  path: "deviceId",
+                  select: "name images"
+                }
+              })
 
               .lean();
 
@@ -2149,11 +2250,21 @@ exports.getMyRentals = async (req, res) => {
 
 
 
+        // Check if rental has been reviewed
+
+        const Review = require("../../models/Review");
+
+        const hasReview = await Review.exists({ rentalId: rental._id, userId: customerId });
+
+
+
         return {
 
           ...rental,
 
           items: itemsWithReports,
+
+          isReviewed: !!hasReview,
 
         };
 
@@ -2161,7 +2272,31 @@ exports.getMyRentals = async (req, res) => {
 
     );
 
+    // Enrich supplier info with SupplierProfile (businessName, businessAvatar)
+    const allSupplierIds = [...new Set(
+      rentals.flatMap(r =>
+        (r.items || []).map(item => item.deviceId?.supplierId?._id?.toString()).filter(Boolean)
+      )
+    )];
+    if (allSupplierIds.length > 0) {
+      const supplierProfiles = await SupplierProfile.find({ userId: { $in: allSupplierIds } })
+        .select("userId businessName businessAvatar")
+        .lean();
+      const profileMap = {};
+      supplierProfiles.forEach(p => { profileMap[p.userId.toString()] = p; });
 
+      rentals = rentals.map(rental => ({
+        ...rental,
+        items: (rental.items || []).map(item => {
+          const sid = item.deviceId?.supplierId?._id?.toString();
+          if (sid && profileMap[sid] && item.deviceId?.supplierId) {
+            item.deviceId.supplierId.businessName = profileMap[sid].businessName;
+            item.deviceId.supplierId.businessAvatar = profileMap[sid].businessAvatar;
+          }
+          return item;
+        }),
+      }));
+    }
 
     res.json({ rentals });
 
@@ -3434,9 +3569,27 @@ exports.confirmReceived = async (req, res) => {
 
 
 
-    if (!rental.deliveredAt) {
+    // Kiểm tra đã có biên bản bàn giao hoàn thành chưa (thay vì deliveredAt)
 
-      throw new Error("Nhân viên chưa xác nhận đã giao hàng");
+    const completedHandover = await HandoverRecord.findOne({
+
+      rentalId: rental._id,
+
+      status: HANDOVER_STATUS.COMPLETED,
+
+      result: "SUCCESS"
+
+    }).session(session);
+
+    
+
+    // Hoặc cho phép xác nhận nếu đang ở trạng thái DELIVERING (staff đã giao)
+
+    // Trong trường hợp không có handover record, vẫn cho phép xác nhận
+
+    if (!completedHandover && rental.pickedUpAt) {
+
+      throw new Error("Đơn hàng đã được xác nhận trước đó");
 
     }
 
@@ -3444,7 +3597,9 @@ exports.confirmReceived = async (req, res) => {
 
     rental.status = "RENTING";
 
-    rental.pickedUpAt = new Date(); // hoặc deliveredAt nếu phù hợp
+    rental.pickedUpAt = new Date();
+
+    rental.deliveredAt = completedHandover?.customerConfirmation?.confirmedAt || new Date();
 
     await rental.save({ session });
 
@@ -3497,8 +3652,6 @@ exports.confirmReceived = async (req, res) => {
 };
 
 const ExtensionRequest = require("../../models/ExtensionRequest"); // import model mới
-
-
 
 // ====================== EXTEND RENTAL - ĐÃ SỬA ======================
 
@@ -3605,6 +3758,168 @@ exports.extendRental = async (req, res) => {
 
 
 
+    // Kiểm tra báo cáo trùng lặp - đã có yêu cầu gia hạn đang xử lý cho đơn này chưa
+
+    const existingRequest = await ExtensionRequest.findOne({
+
+      rentalId: rental._id,
+
+      status: { $in: ["PENDING", "PROCESSING"] }
+
+    });
+
+    if (existingRequest) {
+
+      throw new Error("Đã có yêu cầu gia hạn đang được xử lý cho đơn này. Vui lòng chờ kết quả xử lý trước khi gửi yêu cầu mới.");
+
+    }
+
+
+
+    // === XỬ LÝ THANH TOÁN TỪ VÍ ===
+
+    const extraAmountNum = Number(extraAmount) || 0;
+
+    let customerWalletTxId = null;
+
+    let adminWalletTxId = null;
+
+    let paymentStatus = "UNPAID";
+
+    
+
+    if (extraAmountNum > 0) {
+
+      // Lấy ví khách hàng
+
+      const customerWallet = await Wallet.findOne({ user: rental.customerId }).session(session);
+
+      if (!customerWallet) {
+
+        throw new Error("Không tìm thấy ví của khách hàng");
+
+      }
+
+      
+
+      if (customerWallet.balance < extraAmountNum) {
+
+        throw new Error(`Số dư ví không đủ. Cần ${extraAmountNum.toLocaleString()}đ, hiện có ${customerWallet.balance.toLocaleString()}đ`);
+
+      }
+
+      
+
+      // Trừ tiền từ ví khách
+
+      const custBalanceBefore = customerWallet.balance;
+
+      customerWallet.balance -= extraAmountNum;
+
+      await customerWallet.save({ session });
+
+      
+
+      // Tạo giao dịch trừ tiền khách
+
+      const custTx = await WalletTransaction.create(
+
+        [
+
+          {
+
+            wallet: customerWallet._id,
+
+            type: "PAYMENT",
+
+            amount: -extraAmountNum,
+
+            balanceBefore: custBalanceBefore,
+
+            balanceAfter: customerWallet.balance,
+
+            referenceType: "RENTAL",
+
+            referenceId: rental._id,
+
+            description: `Thanh toán phí gia hạn đơn thuê #${rental._id.toString().slice(-6)}`,
+
+            status: "SUCCESS",
+
+          },
+
+        ],
+
+        { session }
+
+      );
+
+      customerWalletTxId = custTx[0]._id;
+
+      
+
+      // Cộng tiền vào ví admin
+
+      const adminWallet = await Wallet.findOne({ isSystem: true }).session(session);
+
+      if (!adminWallet) {
+
+        throw new Error("Không tìm thấy ví hệ thống (admin)");
+
+      }
+
+      
+
+      const adminBalanceBefore = adminWallet.balance;
+
+      adminWallet.balance += extraAmountNum;
+
+      await adminWallet.save({ session });
+
+      
+
+      // Tạo giao dịch cộng tiền admin
+
+      const adminTx = await WalletTransaction.create(
+
+        [
+
+          {
+
+            wallet: adminWallet._id,
+
+            type: "PAYOUT",
+
+            amount: extraAmountNum,
+
+            balanceBefore: adminBalanceBefore,
+
+            balanceAfter: adminWallet.balance,
+
+            referenceType: "RENTAL",
+
+            referenceId: rental._id,
+
+            description: `Nhận phí gia hạn đơn thuê #${rental._id.toString().slice(-6)} (chờ duyệt)`,
+
+            status: "SUCCESS",
+
+          },
+
+        ],
+
+        { session }
+
+      );
+
+      adminWalletTxId = adminTx[0]._id;
+
+      paymentStatus = "PAID";
+
+    }
+
+
+
     // Tạo yêu cầu gia hạn
 
     const extensionRequest = await ExtensionRequest.create(
@@ -3623,11 +3938,17 @@ exports.extendRental = async (req, res) => {
 
           requestedDays: actualRequestedDays,
 
-          proposedExtraAmount: Number(extraAmount) || 0,
+          proposedExtraAmount: extraAmountNum,
 
           note: note.trim(),
 
           status: "PENDING",
+
+          paymentStatus: paymentStatus,
+
+          customerWalletTransactionId: customerWalletTxId,
+
+          adminWalletTransactionId: adminWalletTxId,
 
         },
 
@@ -4112,7 +4433,7 @@ exports.confirmPickup = async (req, res) => {
 
 
 
-exports.confirmReturn = async (req, res) => {
+exports.turn = exports.confirmReturn = async (req, res) => {
 
   const session = await mongoose.startSession();
 
@@ -4395,27 +4716,14 @@ exports.confirmReturn = async (req, res) => {
 
 
     // Cập nhật trạng thái cuối
+
     rental.status = "COMPLETED";
+
     rental.depositStatus = "REFUNDED";
+
     rental.supplierPayoutStatus = "PAID";
+
     rental.escrowStatus = "RELEASED";
-
-    // Cộng điểm thưởng rank cho khách hàng (10.000đ = 100 điểm)
-    const User = require("../../models/User");
-    const customer = await User.findById(rental.customerId).session(session);
-    if (customer) {
-      const earnedPoints = Math.floor(rental.rentPriceTotal / 10000) * 100;
-      customer.rewardPoints = (customer.rewardPoints || 0) + earnedPoints;
-      
-      const pts = customer.rewardPoints;
-      if (pts >= 20000) customer.rank = "DIAMOND";
-      else if (pts >= 10000) customer.rank = "PLATINUM";
-      else if (pts >= 5000) customer.rank = "GOLD";
-      else if (pts >= 1000) customer.rank = "SILVER";
-      else customer.rank = "BRONZE";
-
-      await customer.save({ session });
-    }
 
 
 
@@ -5056,4 +5364,7 @@ exports.repaySingleRental = async (req, res) => {
   }
 
 };
+
+// Export helper function for cron jobs
+exports.sendRentalNotification = sendRentalNotification;
 

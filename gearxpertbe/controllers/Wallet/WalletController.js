@@ -45,7 +45,7 @@ exports.topUpWallet = async (req, res) => {
       status: 'INIT'
     });
 
-    // 4. Tạo WalletTransaction (để hiển thị "Đang xử lý" trên UI WalletPage)
+    // 4. Tạo WalletTransaction (để hiển thị "Đang xử lý" trên UI WalletPage) - trạng thái PENDING vì chưa chắc chắn user sẽ thanh toán thành công
     await WalletTransaction.create({
       wallet: wallet._id,
       type: 'TOP_UP',

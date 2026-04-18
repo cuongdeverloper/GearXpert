@@ -438,7 +438,7 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
 
  {isDeliveryTask && delivered && (
  <span className="w-full px-6 py-3.5 bg-emerald-50 text-emerald-700 rounded-xl font-bold flex justify-center items-center gap-2 border border-emerald-200 text-sm sm:col-span-2 ">
- <CheckCircle size={18} /> Đã giao thành công (chờ khách xác nhận)
+ <CheckCircle size={18} /> Đã giao thành công
  </span>
  )}
 

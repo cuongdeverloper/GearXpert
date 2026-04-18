@@ -588,6 +588,14 @@ const confirmSuccess = async ({
       throw new DomainError("Biên bản bị thay đổi đồng thời, vui lòng tải lại", 409, "STATE_RACE_CONFLICT");
     }
 
+    if (updated.deliveryTaskId) {
+      await DeliveryTask.updateOne(
+        { _id: updated.deliveryTaskId },
+        { $set: { status: "COMPLETED", completedAt: new Date() } },
+        { session }
+      );
+    }
+
     await session.commitTransaction();
     return { idempotent: false, record: updated };
   } catch (error) {
@@ -687,6 +695,14 @@ const failHandover = async ({
 
     if (!updated) {
       throw new DomainError("Biên bản bị thay đổi đồng thời, vui lòng tải lại", 409, "STATE_RACE_CONFLICT");
+    }
+
+    if (updated.deliveryTaskId) {
+      await DeliveryTask.updateOne(
+        { _id: updated.deliveryTaskId },
+        { $set: { status: "FAILED", completedAt: new Date() } },
+        { session }
+      );
     }
 
     await Rental.updateOne(

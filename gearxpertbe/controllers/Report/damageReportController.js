@@ -52,7 +52,19 @@ exports.createDamageReport = async (req, res) => {
       });
     }
 
-    // 3. Tìm RentalItem
+    // 3. Kiểm tra báo cáo trùng lặp - đã có báo cáo đang xử lý cho rentalItem này chưa
+    const existingReport = await DamageReport.findOne({
+      rentalItemId,
+      status: { $in: ["PENDING", "PROCESSING", "WAITING_EVIDENCE"] }
+    });
+    if (existingReport) {
+      return res.status(400).json({
+        message: "Đã có báo cáo hư hỏng đang được xử lý cho thiết bị này. Vui lòng chờ kết quả xử lý trước khi báo cáo mới.",
+        existingReportId: existingReport._id
+      });
+    }
+
+    // 4. Tìm RentalItem
     const rentalItem = await RentalItem.findById(rentalItemId);
     if (!rentalItem) {
       return res.status(404).json({ message: "Không tìm thấy RentalItem" });
@@ -132,11 +144,25 @@ exports.createDamageReport = async (req, res) => {
         .json({ message: "Chỉ được tải lên tối đa 10 ảnh" });
     }
 
+    // 6. Populate deviceItemIds with DeviceItem data (name and serial)
+    let populatedDeviceItemIds = [];
+    if (hasSerials && normalizedDeviceItemIds.length > 0) {
+      const deviceItems = await DeviceItem.find({
+        _id: { $in: normalizedDeviceItemIds }
+      }).select("name serialNumber").lean();
+      
+      populatedDeviceItemIds = deviceItems.map(devItem => ({
+        _id: devItem._id,
+        name: devItem.name,
+        serialNumber: devItem.serialNumber
+      }));
+    }
+
     // 6. Tạo DamageReport
     const report = await DamageReport.create({
       rentalId,
       rentalItemId,
-      deviceItemIds: hasSerials ? normalizedDeviceItemIds : [], // đảm bảo luôn là mảng
+      deviceItemIds: hasSerials ? populatedDeviceItemIds : [], // Store device item objects
       deviceId: rentalItem.deviceId,
       customerId,
       description: description.trim(),
