@@ -1,13 +1,13 @@
 const express = require('express');
 const voucherRouter = express.Router();
 const voucherController = require('../controllers/Voucher/VoucherController');
-const { checkAccessToken, checkAdmin, checkSupplier } = require('../middleware/JWTAction');
+const { checkAccessToken, checkAdmin, checkSupplier, checkUserOptional } = require('../middleware/JWTAction');
 
 voucherRouter.post('/apply', checkAccessToken, voucherController.validateVoucher);
 voucherRouter.get('/best-for-cart', checkAccessToken, voucherController.getBestVoucherForCart);
 voucherRouter.get('/available-for-cart', checkAccessToken, voucherController.getAvailableVouchersForCart);
 voucherRouter.post('/auto-apply', checkAccessToken, voucherController.autoApplyBestVoucher);
-voucherRouter.get('/', voucherController.getAllVouchers);
+voucherRouter.get('/', checkUserOptional, voucherController.getAllVouchers);
 
 // Supplier Routes
 voucherRouter.get('/supplier', checkAccessToken, voucherController.getVouchersBySupplier);

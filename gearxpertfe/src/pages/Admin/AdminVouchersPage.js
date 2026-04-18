@@ -7,7 +7,7 @@ import {
     deleteVoucher
 } from "../../service/ApiService/VoucherApi";
 import { toast } from "react-toastify";
-import { FiPlus, FiTrash2, FiClock, FiTag, FiSearch, FiEdit2, FiMoreVertical, FiEye, FiEyeOff, FiRefreshCw, FiCalendar, FiDollarSign, FiHash, FiFileText, FiX } from "react-icons/fi";
+import { FiPlus, FiTrash2, FiClock, FiTag, FiSearch, FiEdit2, FiMoreVertical, FiEye, FiEyeOff, FiRefreshCw, FiCalendar, FiDollarSign, FiHash, FiFileText, FiX, FiLayers, FiGlobe, FiAward, FiShoppingBag } from "react-icons/fi";
 
 export default function AdminVouchersPage() {
     const [vouchers, setVouchers] = useState([]);
@@ -15,6 +15,10 @@ export default function AdminVouchersPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingVoucher, setEditingVoucher] = useState(null);
+
+    // State for tabs
+    const [activeTab, setActiveTab] = useState("ALL");
+    const [onlyShowValid, setOnlyShowValid] = useState(false);
 
     // State for active dropdown
     const [activeDropdown, setActiveDropdown] = useState(null);
@@ -28,7 +32,8 @@ export default function AdminVouchersPage() {
         minOrderValue: 0,
         maxDiscount: "",
         usageLimit: 1,
-        expiredAt: ""
+        expiredAt: "",
+        applicableRank: null // Thêm trường này: null cho Global, string cho Rank
     });
 
     useEffect(() => {
@@ -99,7 +104,8 @@ export default function AdminVouchersPage() {
             minOrderValue: voucher.minOrderValue,
             maxDiscount: voucher.maxDiscount || "",
             usageLimit: voucher.usageLimit,
-            expiredAt: voucher.expiredAt ? new Date(voucher.expiredAt).toISOString().split('T')[0] : ""
+            expiredAt: voucher.expiredAt ? new Date(voucher.expiredAt).toISOString().split('T')[0] : "",
+            applicableRank: voucher.applicableRank || null
         });
         setIsModalOpen(true);
         setActiveDropdown(null);
@@ -115,7 +121,8 @@ export default function AdminVouchersPage() {
             minOrderValue: 0,
             maxDiscount: "",
             usageLimit: 1,
-            expiredAt: ""
+            expiredAt: "",
+            applicableRank: null
         });
         setIsModalOpen(true);
     };
@@ -124,10 +131,18 @@ export default function AdminVouchersPage() {
         e.preventDefault();
         try {
             let response;
+            // Chuẩn bị dữ liệu gửi đi
+            const submitData = { ...formData };
+            // Nếu là voucher Rank, tự động set HSD cực xa (2099) và lượt dùng cực lớn nếu không có
+            if (submitData.applicableRank) {
+                if (!submitData.expiredAt) submitData.expiredAt = "2099-12-31";
+                if (!submitData.usageLimit || submitData.usageLimit <= 1) submitData.usageLimit = 999999;
+            }
+
             if (editingVoucher) {
-                response = await updateVoucherByAdmin(editingVoucher._id, formData);
+                response = await updateVoucherByAdmin(editingVoucher._id, submitData);
             } else {
-                response = await createVoucherByAdmin(formData);
+                response = await createVoucherByAdmin(submitData);
             }
 
             if (response && response.success) {
@@ -149,10 +164,42 @@ export default function AdminVouchersPage() {
         setFormData({ ...formData, code: result });
     };
 
-    const filteredVouchers = vouchers.filter(v =>
-        v.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        v.description?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const TABS = [
+        { id: "ALL", label: "Tất cả", icon: <FiLayers /> },
+        { id: "GLOBAL", label: "Hệ thống", icon: <FiGlobe /> },
+        { id: "RANK", label: "Hạng thành viên", icon: <FiAward /> },
+        { id: "SUPPLIER", label: "Nhà cung cấp", icon: <FiShoppingBag /> },
+    ];
+
+    const filteredVouchers = vouchers.filter(v => {
+        const matchesSearch = v.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            v.description?.toLowerCase().includes(searchTerm.toLowerCase());
+
+        if (!matchesSearch) return false;
+        
+        // Lọc theo Tab
+        let matchesTab = true;
+        if (activeTab === "GLOBAL") matchesTab = v.type === "GLOBAL" && !v.applicableRank;
+        else if (activeTab === "RANK") matchesTab = !!v.applicableRank;
+        else if (activeTab === "SUPPLIER") matchesTab = v.type === "SUPPLIER";
+        
+        if (!matchesTab) return false;
+
+        // Lọc theo trạng thái khả dụng (nếu bật)
+        if (onlyShowValid) {
+            // 1. Phải đang Active
+            if (v.status !== "ACTIVE") return false;
+
+            // 2. Kiểm tra hạn và lượt dùng
+            if (!v.applicableRank) {
+                const isExpired = v.expiredAt && new Date(v.expiredAt) < new Date();
+                const isFull = v.usedCount >= v.usageLimit;
+                if (isExpired || isFull) return false;
+            }
+        }
+        
+        return true;
+    });
 
     return (
         <div className="space-y-6">
@@ -174,6 +221,67 @@ export default function AdminVouchersPage() {
                 >
                     <FiPlus /> Tạo Voucher mới
                 </button>
+            </div>
+
+            {/* Tabs & Filters */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="flex flex-wrap gap-2 p-1.5 bg-slate-100 dark:bg-slate-800/50 rounded-[20px] w-fit shadow-inner">
+                    {TABS.map(tab => {
+                        const count = vouchers.filter(v => {
+                            let matches = true;
+                            if (tab.id === "GLOBAL") matches = v.type === "GLOBAL" && !v.applicableRank;
+                            else if (tab.id === "RANK") matches = !!v.applicableRank;
+                            else if (tab.id === "SUPPLIER") matches = v.type === "SUPPLIER";
+                            
+                            if (!matches) return false;
+
+                            if (onlyShowValid) {
+                                if (v.status !== "ACTIVE") return false;
+                                if (v.applicableRank) return true;
+                                const isExpired = v.expiredAt && new Date(v.expiredAt) < new Date();
+                                const isFull = v.usedCount >= v.usageLimit;
+                                return !isExpired && !isFull;
+                            }
+                            return true;
+                        }).length;
+
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`flex items-center gap-2 px-5 py-2.5 rounded-[16px] text-xs font-black uppercase tracking-wider transition-all duration-300 ${activeTab === tab.id
+                                    ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-[0_4px_12px_rgba(0,0,0,0.05)] scale-105"
+                                    : "text-slate-700 hover:text-indigo-600 dark:text-slate-300 hover:bg-white/50"
+                                    }`}
+                            >
+                                <span className="text-lg">{tab.icon}</span>
+                                {tab.label}
+                                <span className={`ml-1 px-2 py-0.5 rounded-full text-[10px] ${activeTab === tab.id ? "bg-indigo-50 text-indigo-600" : "bg-slate-200 text-slate-500"
+                                    }`}>
+                                    {count}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+
+                <div 
+                    onClick={() => setOnlyShowValid(!onlyShowValid)}
+                    className="flex items-center gap-3 px-6 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm hover:border-indigo-200 transition-all group cursor-pointer select-none"
+                >
+                    <div className="relative inline-flex items-center">
+                        <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={onlyShowValid}
+                            readOnly
+                        />
+                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+                    </div>
+                    <label className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider cursor-pointer group-hover:text-indigo-600 transition-colors">
+                        Chỉ hiện khả dụng
+                    </label>
+                </div>
             </div>
 
             {/* Vouchers Table */}
@@ -203,10 +311,16 @@ export default function AdminVouchersPage() {
                             <tr key={voucher._id} className="hover:bg-slate-50 transition-colors group">
                                 <td className="px-4 py-5">
                                     <div className="font-bold text-slate-900 mb-1">{voucher.code}</div>
-                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${voucher.type === 'GLOBAL' ? 'bg-indigo-100 text-indigo-600' : 'bg-amber-100 text-amber-600'
-                                        }`}>
-                                        {voucher.type}
-                                    </span>
+                                    {voucher.applicableRank ? (
+                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-orange-100 text-orange-600 border border-orange-200">
+                                            RANK - {voucher.applicableRank}
+                                        </span>
+                                    ) : (
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${voucher.type === 'GLOBAL' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-600'
+                                            }`}>
+                                            {voucher.type}
+                                        </span>
+                                    )}
                                 </td>
                                 <td className="px-4 py-5">
                                     <div className="flex items-center gap-2 text-slate-700 font-medium">
@@ -225,12 +339,14 @@ export default function AdminVouchersPage() {
                                 </td>
                                 <td className="px-4 py-5 font-mono text-slate-600">
                                     <div>Min: {voucher.minOrderValue?.toLocaleString()}đ</div>
-                                    <div className="text-[11px] mt-1 text-slate-400">Dùng: {voucher.usedCount} / {voucher.usageLimit}</div>
+                                    <div className="text-[11px] mt-1 text-slate-400">
+                                        Dùng: {voucher.usedCount} / {voucher.applicableRank ? <span className="text-sm font-black">∞</span> : voucher.usageLimit}
+                                    </div>
                                 </td>
                                 <td className="px-4 py-5 font-mono">
                                     <div className="flex items-center gap-2 text-slate-700">
-                                        <FiClock className={new Date(voucher.expiredAt) < new Date() ? 'text-red-500' : 'text-slate-400'} />
-                                        {new Date(voucher.expiredAt).toLocaleDateString("vi-VN")}
+                                        <FiClock className={!voucher.applicableRank && new Date(voucher.expiredAt) < new Date() ? 'text-red-500' : 'text-slate-400'} />
+                                        {voucher.applicableRank ? <span className="text-sm font-black">∞</span> : new Date(voucher.expiredAt).toLocaleDateString("vi-VN")}
                                     </div>
                                 </td>
                                 <td className="px-4 py-5 text-right relative">
@@ -300,10 +416,10 @@ export default function AdminVouchersPage() {
                             <div className="relative z-10 w-full flex items-center justify-between">
                                 <div>
                                     <h2 className="text-2xl font-black text-white uppercase italic tracking-tight leading-none">
-                                        {editingVoucher ? "Chỉnh sửa Voucher" : "Tạo Voucher GLOBAL"}
+                                        {editingVoucher ? "Chỉnh sửa Voucher" : (formData.applicableRank ? "Tạo Voucher RANK" : "Tạo Voucher GLOBAL")}
                                     </h2>
                                     <p className="text-indigo-100 text-xs font-bold uppercase tracking-widest mt-2 opacity-80">
-                                        Cấu hình ưu đãi toàn hệ thống
+                                        {formData.applicableRank ? `Ưu đãi đặc quyền cho hạng ${formData.applicableRank}` : "Cấu hình ưu đãi toàn hệ thống"}
                                     </p>
                                 </div>
                                 <button
@@ -315,9 +431,29 @@ export default function AdminVouchersPage() {
                             </div>
                         </div>
 
+                        {/* PANEL TABS */}
+                        {!editingVoucher && (
+                            <div className="flex p-2 bg-slate-100/50 mx-8 mt-6 rounded-2xl shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, applicableRank: null })}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${!formData.applicableRank ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                >
+                                    <FiTag /> Voucher Global
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, applicableRank: 'SILVER' })}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${formData.applicableRank ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                >
+                                    <FiTag /> Voucher Rank
+                                </button>
+                            </div>
+                        )}
+
                         <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto hide-scroll flex-1">
                             {/* SECTION: THÔNG TIN CHI TIẾT */}
-                            <div className="grid grid-cols-2 gap-5">
+                            <div className={`grid gap-5 ${formData.applicableRank ? 'grid-cols-1' : 'grid-cols-2'}`}>
                                 <div className="space-y-2">
                                     <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                                         <FiHash size={12} className="text-indigo-500" /> Mã Voucher
@@ -344,19 +480,45 @@ export default function AdminVouchersPage() {
                                         )}
                                     </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                                        <FiCalendar size={12} className="text-indigo-500" /> Hạn sử dụng
-                                    </label>
-                                    <input
-                                        required
-                                        type="date"
-                                        className="w-full px-4 py-3.5 bg-slate-50 border-2 border-transparent rounded-[20px] focus:bg-white focus:border-indigo-500/20 outline-none transition-all font-bold text-slate-700 focus:ring-4 ring-indigo-500/5 shadow-sm"
-                                        value={formData.expiredAt}
-                                        onChange={(e) => setFormData({ ...formData, expiredAt: e.target.value })}
-                                    />
-                                </div>
+                                {!formData.applicableRank && (
+                                    <div className="space-y-2">
+                                        <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                                            <FiCalendar size={12} className="text-indigo-500" /> Hạn sử dụng
+                                        </label>
+                                        <input
+                                            required
+                                            type="date"
+                                            className="w-full px-4 py-3.5 bg-slate-50 border-2 border-transparent rounded-[20px] focus:bg-white focus:border-indigo-500/20 outline-none transition-all font-bold text-slate-700 focus:ring-4 ring-indigo-500/5 shadow-sm"
+                                            value={formData.expiredAt}
+                                            onChange={(e) => setFormData({ ...formData, expiredAt: e.target.value })}
+                                        />
+                                    </div>
+                                )}
                             </div>
+
+                            {/* RANK SELECTION (Only show if applicableRank is not null) */}
+                            {formData.applicableRank && (
+                                <div className="p-5 bg-amber-50/50 rounded-[28px] border border-amber-100/50 space-y-4 animate-in slide-in-from-top-2 duration-300">
+                                    <label className="flex items-center gap-2 text-[10px] font-black text-amber-600 uppercase tracking-widest ml-1">
+                                        Xác định hạng thành viên đặc quyền
+                                    </label>
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                        {['SILVER', 'GOLD', 'PLATINUM', 'DIAMOND'].map((rank) => (
+                                            <button
+                                                key={rank}
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, applicableRank: rank })}
+                                                className={`py-3 rounded-2xl text-[10px] font-black transition-all border-2 ${formData.applicableRank === rank ? 'bg-amber-100 border-amber-400 text-amber-700 shadow-md' : 'bg-white border-transparent text-slate-400 hover:border-slate-100'}`}
+                                            >
+                                                {rank}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <p className="text-[10px] text-amber-500 font-medium italic">
+                                        * Voucher này sẽ chỉ hiển thị và áp dụng được cho khách hàng đạt hạng {formData.applicableRank}.
+                                    </p>
+                                </div>
+                            )}
 
                             <div className="space-y-2">
                                 <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
@@ -402,18 +564,20 @@ export default function AdminVouchersPage() {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-5">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Lượt dùng tối đa</label>
-                                        <input
-                                            type="number"
-                                            required
-                                            min="1"
-                                            className="w-full px-4 py-3.5 bg-white border-2 border-transparent rounded-[18px] focus:border-indigo-500/20 outline-none transition-all font-bold text-slate-700 shadow-sm"
-                                            value={formData.usageLimit}
-                                            onChange={(e) => setFormData({ ...formData, usageLimit: parseInt(e.target.value) || 1 })}
-                                        />
-                                    </div>
+                                <div className={`grid gap-5 ${formData.applicableRank ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                                    {!formData.applicableRank && (
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Lượt dùng tối đa</label>
+                                            <input
+                                                type="number"
+                                                required
+                                                min="1"
+                                                className="w-full px-4 py-3.5 bg-white border-2 border-transparent rounded-[18px] focus:border-indigo-500/20 outline-none transition-all font-bold text-slate-700 shadow-sm"
+                                                value={formData.usageLimit}
+                                                onChange={(e) => setFormData({ ...formData, usageLimit: parseInt(e.target.value) || 1 })}
+                                            />
+                                        </div>
+                                    )}
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Giảm tối đa (đ)</label>
                                         <input
