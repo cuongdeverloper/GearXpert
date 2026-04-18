@@ -1,5 +1,6 @@
 const Voucher = require("../../models/Voucher");
 const Cart = require("../../models/Cart");
+const Rental = require("../../models/Rental"); // Import Rental model
 const SupplierProfile = require("../../models/SupplierProfile");
 const { notifyFollowers } = require("../Supplier/SupplierController");
 
@@ -13,11 +14,30 @@ exports.validateVoucher = async (req, res) => {
     status: "ACTIVE"
   });
 
+  // LOGIC VOUCHER THEO RANK: Reset mỗi tháng, không cộng dồn
   if (!voucher && code.toUpperCase().startsWith('RANK_')) {
     const User = require('../../models/User');
     const user = await User.findById(customerId);
     const userRank = (user?.rank || 'BRONZE').toUpperCase();
     
+    // Kiểm tra xem User đã dùng voucher Rank trong tháng này chưa
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+    const usedRankVoucher = await Rental.findOne({
+      customerId,
+      voucherCode: { $regex: /^RANK_/i },
+      status: { $nin: ['CANCELLED', 'REJECTED'] },
+      createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+    });
+
+    if (usedRankVoucher) {
+      return res.status(400).json({ 
+        message: `Bạn đã sử dụng ưu đãi Rank của tháng ${now.getMonth() + 1}. Vui lòng quay lại vào tháng sau!` 
+      });
+    }
+
     const rankDiscounts = {
       SILVER: 5,
       GOLD: 10,
@@ -34,7 +54,7 @@ exports.validateVoucher = async (req, res) => {
         discountValue: rankDiscounts[userRank],
         minOrderValue: 0,
         expiredAt: new Date(2099, 11, 31),
-        usageLimit: null,
+        usageLimit: 1, // Giới hạn 1 lần dùng đối với logic ảo này
         usedCount: 0,
         status: "ACTIVE"
       };

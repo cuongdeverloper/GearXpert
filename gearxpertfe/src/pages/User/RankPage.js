@@ -245,6 +245,40 @@ export default function RankPage() {
                                         Điểm được tính ngay khi bạn hoàn thành một đơn hàng thuê hoặc thông qua các hoạt động đóng góp cho cộng đồng. 10.000đ = 100 điểm.
                                     </p>
                                 </div>
+
+                                {/* Monthly Reward Voucher Section */}
+                                {activeRankDetails.id !== 'BRONZE' && (
+                                    <div className="mt-6 p-6 rounded-2xl bg-gradient-to-br from-slate-900 to-indigo-950 text-white relative overflow-hidden group border border-indigo-500/30">
+                                        {/* Animation effect */}
+                                        <div className="absolute -right-4 -top-4 w-24 h-24 bg-indigo-500/20 rounded-full blur-2xl group-hover:bg-indigo-500/40 transition-all duration-700"></div>
+                                        
+                                        <div className="relative z-10">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h3 className="font-bold text-indigo-200 uppercase tracking-tighter text-xs">Ưu đãi của tháng {new Date().getMonth() + 1}</h3>
+                                                <span className="px-2 py-0.5 rounded-md bg-white/10 text-[10px] font-medium backdrop-blur-sm border border-white/10">Sử dụng 1 lần</span>
+                                            </div>
+                                            
+                                            <div className="flex items-end justify-between gap-4">
+                                                <div>
+                                                    <p className="text-2xl font-black mb-1">Giảm {RANKS.find(r => r.id === currentRank)?.benefits[1]?.match(/\d+/)?.[0] || '—'}%</p>
+                                                    <p className="text-[11px] text-indigo-300 font-medium">Reset sau {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() - new Date().getDate()} ngày nữa</p>
+                                                </div>
+                                                <div className="flex flex-col items-end gap-2">
+                                                    <div 
+                                                        className="px-4 py-2 bg-indigo-500 hover:bg-indigo-400 text-white rounded-xl text-sm font-bold cursor-pointer transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-indigo-500/20"
+                                                        onClick={() => {
+                                                            navigator.clipboard.writeText(`RANK_${currentRank}`);
+                                                            alert('Đã sao chép mã ưu đãi!');
+                                                        }}
+                                                    >
+                                                        RANK_{currentRank}
+                                                        <span className="material-symbols-outlined text-[16px]">content_copy</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
