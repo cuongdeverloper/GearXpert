@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 
 const VoucherCard = ({ voucher, onApply, onViewDetails }) => {
     const [copied, setCopied] = useState(false);
-    const isGlobal = voucher.type === 'GLOBAL' || voucher.type === 'PERSONAL';
 
     const formatDate = (dateString) => {
         const date = new Date(dateString);
@@ -13,16 +12,28 @@ const VoucherCard = ({ voucher, onApply, onViewDetails }) => {
         });
     };
 
+    // Mapping styling cho các hạng thành viên
+    const rankStyles = {
+        SILVER: { color: 'bg-gradient-to-br from-slate-400 via-slate-500 to-gray-400', icon: 'military_tech', glow: 'shadow-slate-400/40' },
+        GOLD: { color: 'bg-gradient-to-br from-yellow-500 via-amber-500 to-yellow-600', icon: 'star', glow: 'shadow-yellow-400/50' },
+        PLATINUM: { color: 'bg-gradient-to-br from-cyan-600 via-blue-500 to-indigo-500', icon: 'loyalty', glow: 'shadow-blue-500/50' },
+        DIAMOND: { color: 'bg-gradient-to-br from-purple-600 via-fuchsia-500 to-pink-500', icon: 'diamond', glow: 'shadow-fuchsia-500/50' }
+    };
+
+    const currentRankStyle = voucher.applicableRank ? rankStyles[voucher.applicableRank.toUpperCase()] : null;
+    const isRankVoucher = !!currentRankStyle;
+    const isGlobal = voucher.type === 'GLOBAL' || voucher.type === 'PERSONAL' || isRankVoucher;
+
     return (
         <div
             onClick={() => onViewDetails && onViewDetails(voucher)}
-            className={`group relative flex h-48 sm:h-44 overflow-hidden rounded-2xl shadow-sm transition-all duration-500 hover:-translate-y-1 hover:scale-[1.01] cursor-pointer ${
-                voucher.type === 'PERSONAL' 
-                    ? `${voucher.rankColor} text-white border border-white/20 shadow-lg ${voucher.rankGlow}`
-                    : voucher.type === 'GLOBAL'
-                        ? 'premium-mesh-bg text-white border border-white/20 card-glow-hover'
-                        : 'bg-white border border-slate-100 dark:bg-slate-800 dark:border-slate-700 card-glow-hover'
-                }`}
+    className={`group relative flex h-48 sm:h-44 overflow-hidden rounded-2xl shadow-sm transition-all duration-500 hover:-translate-y-1 hover:scale-[1.01] cursor-pointer ${
+        isRankVoucher || voucher.type === 'PERSONAL' 
+            ? `${currentRankStyle?.color || voucher.rankColor} text-white border border-white/20 shadow-lg ${currentRankStyle?.glow || voucher.rankGlow}`
+            : voucher.type === 'GLOBAL'
+                ? 'premium-mesh-bg text-white border border-white/20 card-glow-hover'
+                : 'bg-white border border-slate-100 dark:bg-slate-800 dark:border-slate-700 card-glow-hover'
+        }`}
         >
             {/* Left Section - Icon/Type */}
             <div className={`ticket-cutout flex w-24 sm:w-32 flex-col items-center justify-center shrink-0 ${isGlobal ? 'bg-white/10 backdrop-blur-md' : 'bg-slate-50 dark:bg-slate-900/50'
@@ -38,13 +49,13 @@ const VoucherCard = ({ voucher, onApply, onViewDetails }) => {
                     ) : (
                         <span className={`material-symbols-outlined text-[32px] sm:text-[40px] ${isGlobal ? 'text-white material-symbols-filled' : 'text-indigo-600 dark:text-indigo-400'
                             }`}>
-                            {voucher.type === 'PERSONAL' ? voucher.rankIcon : (isGlobal ? 'workspace_premium' : 'storefront')}
+                            {isRankVoucher ? currentRankStyle.icon : (voucher.type === 'PERSONAL' ? voucher.rankIcon : (isGlobal ? 'workspace_premium' : 'storefront'))}
                         </span>
                     )}
                 </div>
                 <p className={`mt-3 text-[10px] font-black uppercase tracking-[0.2em] text-center px-2 line-clamp-2 ${isGlobal ? 'text-indigo-100' : 'text-slate-500 dark:text-slate-400'
                     }`}>
-                    {isGlobal ? (voucher.type === 'PERSONAL' ? 'Riêng bạn' : 'Global') : (voucher.shopInfo?.name || 'Supplier')}
+                    {isGlobal ? (isRankVoucher ? (voucher.applicableRank + ' Rank') : (voucher.type === 'PERSONAL' ? 'Riêng bạn' : 'Global')) : (voucher.shopInfo?.name || 'Supplier')}
                 </p>
             </div>
 

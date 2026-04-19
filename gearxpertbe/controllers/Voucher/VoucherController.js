@@ -1,7 +1,9 @@
 const mongoose = require("mongoose");
 const Voucher = require("../../models/Voucher");
 const Cart = require("../../models/Cart");
+const Rental = require("../../models/Rental"); // Import Rental model
 const SupplierProfile = require("../../models/SupplierProfile");
+const User = require("../../models/User");
 const { notifyFollowers } = require("../Supplier/SupplierController");
 
 exports.validateVoucher = async (req, res) => {
@@ -16,54 +18,67 @@ exports.validateVoucher = async (req, res) => {
     status: "ACTIVE"
   });
 
-  console.log(`[validateVoucher] Voucher found:`, voucher ? {
-    code: voucher.code,
-    status: voucher.status,
-    type: voucher.type,
-    expiredAt: voucher.expiredAt,
-    usedCount: voucher.usedCount,
-    usageLimit: voucher.usageLimit
-  } : "NOT FOUND");
-
-  if (!voucher && code.toUpperCase().startsWith('RANK_')) {
-    const User = require('../../models/User');
-    const user = await User.findById(customerId);
-    const userRank = (user?.rank || 'BRONZE').toUpperCase();
-    
-    const rankDiscounts = {
-      SILVER: 5,
-      GOLD: 10,
-      PLATINUM: 15,
-      DIAMOND: 20
-    };
-
-    const requestedRank = code.toUpperCase().replace('RANK_', '');
-    if (requestedRank === userRank && rankDiscounts[userRank]) {
-      voucher = {
-        code: code.toUpperCase(),
-        type: "GLOBAL",
-        discountType: "PERCENT",
-        discountValue: rankDiscounts[userRank],
-        minOrderValue: 0,
-        expiredAt: new Date(2099, 11, 31),
-        usageLimit: null,
-        usedCount: 0,
-        status: "ACTIVE"
-      };
-    }
-  }
-
   if (!voucher) {
     return res.status(400).json({ message: "Voucher không hợp lệ hoặc không tồn tại" });
   }
 
-  // 2. Kiểm tra hết hạn
+  // LOGIC VOUCHER THEO RANK (Đã chuyển sang động từ DB)
+  if (voucher.applicableRank) {
+    const User = require('../../models/User');
+    const user = await User.findById(customerId).select("rank");
+    const userRank = (user?.rank || 'BRONZE').trim().toUpperCase();
+    const dbRank = voucher.applicableRank.trim().toUpperCase();
+    
+    // 1. Kiểm tra độc quyền: Hạng hiện tại phải khớp chính xác
+    if (userRank !== dbRank) {
+      return res.status(400).json({ 
+        message: `Mã này chỉ dành cho hạng ${dbRank}. Hạng hiện tại của bạn là ${userRank}` 
+      });
+    }
+
+    // 2. Kiểm tra giới hạn tần suất cho Voucher Rank
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+    // Kiểm tra xem mã NÀY đã được dùng trong tháng này chưa
+    const usedThisVoucher = await Rental.findOne({
+      customerId,
+      voucherCode: voucher.code,
+      status: { $nin: ['CANCELLED', 'REJECTED'] },
+      createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+    });
+
+    if (usedThisVoucher) {
+      return res.status(400).json({ 
+        message: `Bạn đã sử dụng ưu đãi hạng ${dbRank} của tháng này rồi. Vui lòng quay lại vào tháng sau!` 
+      });
+    }
+  }
+
+  // 2. Kiểm tra xem người dùng đã sử dụng Voucher này chưa 
+  // (Trừ Voucher có gán RANK vì loại này được reset hàng tháng ở bước trên)
+  if (!voucher.applicableRank) {
+    const usageCheck = await Rental.findOne({
+      customerId,
+      voucherCode: voucher.code,
+      status: { $nin: ["CANCELLED", "REJECTED"] },
+    });
+
+    if (usageCheck) {
+      return res.status(400).json({
+        message: "Bạn đã sử dụng mã giảm giá này cho một đơn hàng trước đó",
+      });
+    }
+  }
+
+  // 3. Kiểm tra hết hạn
   if (voucher.expiredAt < new Date()) {
     return res.status(400).json({ message: "Voucher đã hết hạn" });
   }
 
-  // 3. Kiểm tra giới hạn sử dụng
-  if (voucher.usageLimit !== undefined && voucher.usageLimit !== null) {
+  // 3. Kiểm tra giới hạn sử dụng (Bỏ qua nếu là voucher Rank)
+  if (!voucher.applicableRank && voucher.usageLimit !== undefined && voucher.usageLimit !== null) {
     if (voucher.usageLimit <= 0 || voucher.usedCount >= voucher.usageLimit) {
       return res.status(400).json({ message: "Voucher đã hết lượt sử dụng" });
     }
@@ -141,19 +156,61 @@ exports.validateVoucher = async (req, res) => {
 
 exports.getAllVouchers = async (req, res) => {
   try {
+    const { supplierId } = req.query;
     const currentDate = new Date();
+    let userRank = null;
 
-    // DEBUG: Find ALL vouchers to check connection
-    const allVouchers = await Voucher.find({});
+    // Nếu đã đăng nhập, lấy hạng của User từ DB
+    const userId = req.user?.id || req.user?._id;
+    
+    if (userId) {
+      try {
+        const user = await User.findById(userId).select("rank rewardPoints");
+        if (user) {
+          userRank = user.rank || "BRONZE";
+          console.log(`[getAllVouchers] Found User: ${userId}, Rank: ${userRank}`);
+        }
+      } catch (err) {
+        console.error(`[getAllVouchers] Error fetching user:`, err);
+      }
+    }
 
-    // Find vouchers that are ACTIVE and not expired
-    const vouchersRaw = await Voucher.find({
+    // Lọc theo điều kiện: Active, chưa hết hạn
+    let query = {
       status: "ACTIVE",
       expiredAt: { $gt: currentDate }
-    }).sort({ createdAt: -1 }).lean();
+    };
+
+    if (userRank) {
+      // Dùng Regex để tìm CHÍNH XÁC hạng hiện tại (Tránh lỗi khoảng trắng, hoa thường)
+      // Thiết lập độc quyền: Platinum chỉ thấy Platinum
+      const rankRegex = new RegExp(`^\\s*${userRank.trim()}\\s*$`, "i");
+
+      query.$or = [
+        { applicableRank: rankRegex },
+        { 
+          applicableRank: null, 
+          $expr: { $lt: ["$usedCount", "$usageLimit"] } 
+        }
+      ];
+      console.log(`[getAllVouchers] Strict Rank Match for: ${userRank}`);
+    } else {
+      // Nếu chưa đăng nhập: Chỉ hiện voucher thường còn lượt dùng
+      query.applicableRank = null;
+      query.$expr = { $lt: ["$usedCount", "$usageLimit"] };
+    }
+
+    // Nếu truyền supplierId (khách xem tại trang shop), lọc thêm theo shop đó
+    if (supplierId) {
+      query.supplierId = supplierId;
+    }
+
+    const vouchersRaw = await Voucher.find(query).sort({ createdAt: -1 }).lean();
+    console.log(`[getAllVouchers] Result: Found ${vouchersRaw.length} vouchers for rank ${userRank}`);
+    console.log(`[getAllVouchers] Found ${vouchersRaw.length} vouchers for customer.`);
 
     // Lấy thông tin shop cho các voucher SUPPLIER
-    const vouchers = await Promise.all(
+    let vouchers = await Promise.all(
       vouchersRaw.map(async (v) => {
         if (v.type === "SUPPLIER" && v.supplierId) {
           const profile = await SupplierProfile.findOne({ userId: v.supplierId })
@@ -172,6 +229,18 @@ exports.getAllVouchers = async (req, res) => {
         return v;
       })
     );
+
+    // MỚI: Nếu người dùng đã đăng nhập, lọc bỏ các voucher đã sử dụng
+    if (req.user && req.user.id) {
+      const customerId = req.user.id;
+      const usedVoucherCodes = await Rental.find({
+        customerId,
+        voucherCode: { $exists: true, $ne: null },
+        status: { $nin: ["CANCELLED", "REJECTED"] },
+      }).distinct("voucherCode");
+
+      vouchers = vouchers.filter((v) => !usedVoucherCodes.includes(v.code));
+    }
 
     res.status(200).json({
       success: true,
@@ -196,7 +265,8 @@ exports.createVoucherByAdmin = async (req, res) => {
       minOrderValue,
       maxDiscount,
       usageLimit,
-      expiredAt
+      expiredAt,
+      applicableRank // Thêm trường này vào body
     } = req.body;
 
     if (discountValue < 0 || minOrderValue < 0 || (maxDiscount !== undefined && maxDiscount < 0)) {
@@ -224,7 +294,8 @@ exports.createVoucherByAdmin = async (req, res) => {
       maxDiscount,
       usageLimit,
       expiredAt,
-      status: "ACTIVE"
+      status: "ACTIVE",
+      applicableRank // Lưu hạng áp dụng vào DB
     });
 
     await newVoucher.save();
@@ -379,19 +450,33 @@ exports.updateVoucherByAdmin = async (req, res) => {
 exports.getVouchersBySupplier = async (req, res) => {
   try {
     const supplierId = req.user.id;
+    // Chủ shop xem tất cả mã của mình (kể cả hết hạn/hết lượt)
     const vouchersRaw = await Voucher.find({ supplierId }).sort({ createdAt: -1 }).lean();
 
     const profile = await SupplierProfile.findOne({ userId: supplierId })
       .select("businessName businessAvatar")
       .lean();
 
-    const vouchers = vouchersRaw.map(v => ({
+    let vouchers = vouchersRaw.map(v => ({
       ...v,
       shopInfo: profile ? {
         name: profile.businessName,
         avatar: profile.businessAvatar
       } : null
     }));
+
+    // MỚI: Nếu người dùng đã đăng nhập (đây là API public lấy list của shop), lọc bỏ voucher đã dùng
+    // (Lưu ý: req.user ở đây có thể là bất kỳ ai đang xem shop đó)
+    if (req.user && req.user.id) {
+      const viewerId = req.user.id;
+      const usedVoucherCodes = await Rental.find({
+        customerId: viewerId,
+        voucherCode: { $exists: true, $ne: null },
+        status: { $nin: ["CANCELLED", "REJECTED"] },
+      }).distinct("voucherCode");
+
+      vouchers = vouchers.filter((v) => !usedVoucherCodes.includes(v.code));
+    }
 
     res.status(200).json({
       success: true,
@@ -548,15 +633,49 @@ exports.getBestVoucherForCart = async (req, res) => {
       expiredAt: { $gt: currentDate }
     });
 
+    // Lấy hạng của user để kiểm tra điều kiện mã Rank
+    const User = require('../../models/User');
+    const user = await User.findById(customerId).select("rank");
+    const userRank = (user?.rank || 'BRONZE').trim().toUpperCase();
+
+    // Kiểm tra xem tháng này đã dùng voucher hạng chưa
+    const Rental = require('../../models/Rental');
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    
+    // Lấy danh sách mã Rank trong hệ thống để đối chiếu
+    const rankVouchersInDB = await Voucher.find({ applicableRank: { $ne: null } }).select('code').lean();
+    const rankCodes = rankVouchersInDB.map(rv => rv.code);
+
+    const usedRankCodesThisMonth = await Rental.find({
+      customerId,
+      voucherCode: { $in: rankCodes },
+      status: { $nin: ['CANCELLED', 'REJECTED'] },
+      createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+    }).distinct('voucherCode');
+
     // 3. Tính tổng giá trị cart và tìm voucher tốt nhất
     let bestVoucher = null;
     let maxDiscount = 0;
 
     for (const voucher of vouchers) {
-      // Kiểm tra giới hạn sử dụng
-      if (voucher.usageLimit !== undefined && voucher.usageLimit !== null) {
-        if (voucher.usageLimit <= 0 || voucher.usedCount >= voucher.usageLimit) {
+      // KIỂM TRA ĐIỀU KIỆN RANK (QUAN TRỌNG)
+      if (voucher.applicableRank) {
+        // 1. Kiểm tra có đúng hạng không
+        if (voucher.applicableRank.trim().toUpperCase() !== userRank) {
           continue;
+        }
+        // 2. Kiểm tra tháng này đã dùng mã hạng này chưa (theo logic thăng hạng mới)
+        if (usedRankCodesThisMonth.includes(voucher.code)) {
+          continue;
+        }
+      } else {
+        // Đối với voucher thường: Kiểm tra usageLimit của voucher
+        if (voucher.usageLimit !== undefined && voucher.usageLimit !== null) {
+          if (voucher.usageLimit <= 0 || voucher.usedCount >= voucher.usageLimit) {
+            continue;
+          }
         }
       }
 
@@ -580,6 +699,15 @@ exports.getBestVoucherForCart = async (req, res) => {
           }
         }
       });
+
+      // Kiểm tra xem người dùng đã dùng voucher này chưa
+      const usageCheck = await Rental.findOne({
+        customerId,
+        voucherCode: voucher.code,
+        status: { $nin: ['CANCELLED', 'REJECTED'] }
+      });
+
+      if (usageCheck) continue;
 
       // Kiểm tra minOrderValue
       if (applicableTotal < voucher.minOrderValue) {
@@ -636,6 +764,10 @@ exports.getAvailableVouchersForCart = async (req, res) => {
     const customerId = req.user.id;
     const { cartType } = req.query;
 
+    const User = require('../../models/User');
+    const user = await User.findById(customerId);
+    const userRank = (user?.rank || 'BRONZE').trim().toUpperCase();
+
     console.log(`[getAvailableVouchersForCart] customerId: ${customerId}, cartType: ${cartType}`);
 
     const cart = await Cart.findOne({
@@ -681,7 +813,10 @@ exports.getAvailableVouchersForCart = async (req, res) => {
     const vouchers = await Voucher.find({
       status: "ACTIVE",
       expiredAt: { $gt: currentDate },
-      $expr: { $lt: ["$usedCount", "$usageLimit"] },
+      $or: [
+        { applicableRank: { $ne: null } },
+        { $expr: { $lt: ["$usedCount", "$usageLimit"] } }
+      ],
       $or: [
         { type: "GLOBAL" },
         { 
@@ -691,7 +826,51 @@ exports.getAvailableVouchersForCart = async (req, res) => {
       ]
     }).lean();
 
-    const availableVouchers = vouchers.map(v => {
+    // 1. Lấy danh sách các mã voucher RANK đang có trong hệ thống
+    const rankVouchersInDB = await Voucher.find({ applicableRank: { $ne: null } }).select('code').lean();
+    const rankCodes = rankVouchersInDB.map(rv => rv.code);
+
+    // 2. Lấy voucher thường đã dùng (loại trừ voucher Rank)
+    const usedVoucherCodesEver = await Rental.find({
+      customerId,
+      voucherCode: { $exists: true, $ne: null, $nin: rankCodes },
+      status: { $nin: ['CANCELLED', 'REJECTED'] }
+    }).distinct('voucherCode');
+
+    // 3. Lấy voucher Rank đã dùng TRONG THÁNG NÀY
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    
+    const usedRankThisMonth = await Rental.find({
+      customerId,
+      voucherCode: { $in: rankCodes },
+      status: { $nin: ['CANCELLED', 'REJECTED'] },
+      createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+    }).distinct('voucherCode');
+
+    // 4. Lọc danh sách cuối cùng
+    const filteredVouchers = vouchers.filter(v => {
+      // Nếu là voucher Rank
+      if (v.applicableRank) {
+        // Kiểm tra xem CHÍNH MÃ NÀY đã được dùng trong tháng này chưa
+        const isAlreadyUsedThisMonth = usedRankThisMonth.includes(v.code);
+        if (isAlreadyUsedThisMonth) return false;
+        
+        // Chuẩn hóa rank từ DB để so sánh
+        const dbRank = v.applicableRank.trim().toUpperCase();
+        
+        // Kiểm tra độc quyền: Hạng phải khớp tuyệt đối
+        if (dbRank !== userRank) return false;
+        
+        return true;
+      }
+      
+      // Nếu là voucher thường: Ẩn nếu đã dùng bao giờ rồi
+      return !usedVoucherCodesEver.includes(v.code);
+    });
+
+    const availableVouchers = filteredVouchers.map(v => {
       let applicableTotal = 0;
       
       if (v.type === "GLOBAL") {
@@ -798,7 +977,10 @@ exports.autoApplyBestVoucher = async (req, res) => {
     const vouchers = await Voucher.find({
       status: "ACTIVE",
       expiredAt: { $gt: currentDate },
-      $expr: { $lt: ["$usedCount", "$usageLimit"] },
+      $or: [
+        { applicableRank: { $ne: null } },
+        { $expr: { $lt: ["$usedCount", "$usageLimit"] } }
+      ],
       $or: [
         { type: "GLOBAL" },
         { 
@@ -808,10 +990,53 @@ exports.autoApplyBestVoucher = async (req, res) => {
       ]
     }).lean();
 
+    // Lấy hạng của user để kiểm tra
+    const userProfile = await User.findById(customerId).select("rank");
+    const userRank = (userProfile?.rank || 'BRONZE').trim().toUpperCase();
+
+    // Kiểm tra xem tháng này đã dùng voucher hạng chưa
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+    // Lấy danh sách mã Rank trong hệ thống để đối chiếu
+    const rankVouchersInDB = await Voucher.find({ applicableRank: { $ne: null } }).select('code').lean();
+    const rankCodes = rankVouchersInDB.map(rv => rv.code);
+
+    // Lọc bỏ những voucher người dùng đã sử dụng
+    const usedVoucherCodes = await Rental.find({
+      customerId,
+      voucherCode: { $exists: true, $ne: null },
+      status: { $nin: ["CANCELLED", "REJECTED"] },
+    }).distinct("voucherCode");
+
+    const usedRankCodesThisMonth = await Rental.find({
+      customerId,
+      voucherCode: { $in: rankCodes },
+      status: { $nin: ['CANCELLED', 'REJECTED'] },
+      createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+    }).distinct('voucherCode');
+
+    // Lọc bỏ những voucher không hợp lệ (hạng không khớp hoặc đã dùng)
+    const filteredVouchers = vouchers.filter((v) => {
+      // Nếu là Voucher Rank
+      if (v.applicableRank) {
+        const dbRank = v.applicableRank.trim().toUpperCase();
+        // 1. Phải khớp hạng
+        if (dbRank !== userRank) return false;
+        // 2. Chưa dùng mã này trong tháng (hỗ trợ thăng hạng)
+        if (usedRankCodesThisMonth.includes(v.code)) return false;
+        return true;
+      }
+      
+      // Nếu là Voucher thường
+      return !usedVoucherCodes.includes(v.code);
+    });
+
     let bestVoucher = null;
     let bestDiscount = 0;
 
-    vouchers.forEach(v => {
+    filteredVouchers.forEach((v) => {
       let applicableTotal = 0;
       
       if (v.type === "GLOBAL") {

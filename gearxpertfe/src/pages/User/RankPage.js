@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -14,6 +14,11 @@ export default function RankPage() {
     const dispatch = useDispatch();
     const userAccount = useSelector((state) => state.user.account);
     const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
+    const [rankVoucher, setRankVoucher] = useState(null);
+    const [loadingVoucher, setLoadingVoucher] = useState(true);
+
+    const currentRank = (userAccount?.rank || 'BRONZE').toUpperCase();
+    const currentPoints = userAccount?.rewardPoints || 0;
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -52,12 +57,37 @@ export default function RankPage() {
         }
     }, [isAuthenticated, navigate, dispatch]);
 
+    useEffect(() => {
+        if (isAuthenticated) {
+            const fetchRankVoucher = async () => {
+                try {
+                    setLoadingVoucher(true);
+                    // Gọi API lấy danh sách voucher tổng quát (thay vì available-for-cart để luôn thấy mã dù đã dùng)
+                    const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/vouchers`, {
+                        headers: { 'Authorization': `Bearer ${userAccount.access_token}` }
+                    });
+                    const result = await response.json();
+                    
+                    if (result.success && result.vouchers) {
+                        // Tìm voucher có rank khớp (Dùng trim và uppercase để an toàn tuyệt đối)
+                        const found = result.vouchers.find(v => 
+                            v.applicableRank && 
+                            v.applicableRank.trim().toUpperCase() === currentRank.trim().toUpperCase()
+                        );
+                        setRankVoucher(found);
+                    }
+                } catch (error) {
+                    console.error('Error fetching rank voucher:', error);
+                } finally {
+                    setLoadingVoucher(false);
+                }
+            };
+            fetchRankVoucher();
+        }
+    }, [isAuthenticated, currentRank, userAccount.access_token]);
+
     if (!isAuthenticated) return null;
 
-    const currentRank = (userAccount?.rank || 'BRONZE').toUpperCase();
-    const currentPoints = userAccount?.rewardPoints || 0;
-
-    // Define Ranks details
     const RANKS = [
         {
             id: 'BRONZE',
@@ -245,6 +275,46 @@ export default function RankPage() {
                                         Điểm được tính ngay khi bạn hoàn thành một đơn hàng thuê hoặc thông qua các hoạt động đóng góp cho cộng đồng. 10.000đ = 100 điểm.
                                     </p>
                                 </div>
+
+                                {activeRankDetails.id !== 'BRONZE' && rankVoucher && (
+                                    <div className="mt-6 p-6 rounded-2xl bg-gradient-to-br from-slate-900 to-indigo-950 text-white relative overflow-hidden group border border-indigo-500/30">
+                                        <div className="absolute -right-4 -top-4 w-24 h-24 bg-indigo-500/20 rounded-full blur-2xl group-hover:bg-indigo-500/40 transition-all duration-700"></div>
+                                        
+                                        <div className="relative z-10">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h3 className="font-bold text-indigo-200 uppercase tracking-tighter text-xs">Ưu đãi của tháng {new Date().getMonth() + 1}</h3>
+                                                <span className="px-2 py-0.5 rounded-md bg-white/10 text-[10px] font-medium backdrop-blur-sm border border-white/10">Sử dụng 1 lần</span>
+                                            </div>
+                                            
+                                            <div className="flex items-end justify-between gap-4">
+                                                <div>
+                                                    <p className="text-2xl font-black mb-1">
+                                                        {rankVoucher.discountType === 'PERCENT' ? `Giảm ${rankVoucher.discountValue}%` : `Giảm ${rankVoucher.discountValue.toLocaleString()}đ`}
+                                                    </p>
+                                                    <p className="text-[11px] text-indigo-300 font-medium">{rankVoucher.description}</p>
+                                                </div>
+                                                <div className="flex flex-col items-end gap-2">
+                                                    <div 
+                                                        className="px-4 py-2 bg-indigo-500 hover:bg-indigo-400 text-white rounded-xl text-sm font-bold cursor-pointer transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-indigo-500/20"
+                                                        onClick={() => {
+                                                            navigator.clipboard.writeText(rankVoucher.code);
+                                                            alert('Đã sao chép mã ưu đãi!');
+                                                        }}
+                                                    >
+                                                        {rankVoucher.code}
+                                                        <span className="material-symbols-outlined text-[16px]">content_copy</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {activeRankDetails.id !== 'BRONZE' && !rankVoucher && !loadingVoucher && (
+                                    <div className="mt-6 p-6 rounded-2xl bg-slate-100 border border-slate-200 text-slate-500 text-center text-sm">
+                                        <p>Hiện chưa có ưu đãi đặc biệt cho hạng này trong tháng này.</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
 

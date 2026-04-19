@@ -89,6 +89,19 @@ const checkAccessToken = async (req, res, next) => {
     req.user = verifiedToken;
     next();
 };
+
+const checkUserOptional = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (token) {
+        const verifiedToken = verifyAccessToken(token);
+        if (verifiedToken) {
+            req.user = verifiedToken;
+        }
+    }
+    next();
+};
 const createJWTVerifyEmail = (payload) => {
     const key = process.env.JWT_SECRET;
     const options = { expiresIn: '5m' };
@@ -158,6 +171,7 @@ module.exports = {
     verifyAccessToken,
     verifyRefreshToken,
     checkAccessToken,
+    checkUserOptional,
     checkAdmin,
     checkOperationStaff,
     checkSupplier,
