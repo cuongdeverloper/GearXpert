@@ -1434,12 +1434,30 @@ exports.transferToWallet = async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy ví đích' });
     }
 
-    // Check system wallet balance
-    if (systemWallet.balance < cleanAmount) {
+    // Calculate available balance (total - escrow holds - deposit holds)
+    const escrowHolds = await WalletTransaction.aggregate([
+      { $match: { wallet: systemWallet._id, type: { $in: ["ESCROW_HOLD", "ESCROW_RELEASE"] } } },
+      { $group: { _id: null, total: { $sum: "$amount" } } }
+    ]).session(session);
+
+    const depositHolds = await WalletTransaction.aggregate([
+      { $match: { wallet: systemWallet._id, type: { $in: ["DEPOSIT_HOLD", "DEPOSIT_RELEASE"] } } },
+      { $group: { _id: null, total: { $sum: "$amount" } } }
+    ]).session(session);
+
+    const pendingEscrow = Math.max(0, escrowHolds[0]?.total || 0);
+    const pendingDeposits = Math.max(0, depositHolds[0]?.total || 0);
+    const availableBalance = Math.max(0, systemWallet.balance - pendingEscrow - pendingDeposits);
+
+    // Check available balance (not total balance)
+    if (availableBalance < cleanAmount) {
       await session.abortTransaction();
       return res.status(400).json({
-        message: 'Số dư ví hệ thống không đủ',
-        currentBalance: systemWallet.balance,
+        message: 'Số dư khả dụng không đủ',
+        totalBalance: systemWallet.balance,
+        pendingEscrow: pendingEscrow,
+        pendingDeposits: pendingDeposits,
+        availableBalance: availableBalance,
         requestedAmount: cleanAmount
       });
     }
@@ -1795,12 +1813,30 @@ exports.transferToWallet = async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy ví đích' });
     }
 
-    // Check system wallet balance
-    if (systemWallet.balance < cleanAmount) {
+    // Calculate available balance (total - escrow holds - deposit holds)
+    const escrowHolds = await WalletTransaction.aggregate([
+      { $match: { wallet: systemWallet._id, type: { $in: ["ESCROW_HOLD", "ESCROW_RELEASE"] } } },
+      { $group: { _id: null, total: { $sum: "$amount" } } }
+    ]).session(session);
+
+    const depositHolds = await WalletTransaction.aggregate([
+      { $match: { wallet: systemWallet._id, type: { $in: ["DEPOSIT_HOLD", "DEPOSIT_RELEASE"] } } },
+      { $group: { _id: null, total: { $sum: "$amount" } } }
+    ]).session(session);
+
+    const pendingEscrow = Math.max(0, escrowHolds[0]?.total || 0);
+    const pendingDeposits = Math.max(0, depositHolds[0]?.total || 0);
+    const availableBalance = Math.max(0, systemWallet.balance - pendingEscrow - pendingDeposits);
+
+    // Check available balance (not total balance)
+    if (availableBalance < cleanAmount) {
       await session.abortTransaction();
       return res.status(400).json({
-        message: 'Số dư ví hệ thống không đủ',
-        currentBalance: systemWallet.balance,
+        message: 'Số dư khả dụng không đủ',
+        totalBalance: systemWallet.balance,
+        pendingEscrow: pendingEscrow,
+        pendingDeposits: pendingDeposits,
+        availableBalance: availableBalance,
         requestedAmount: cleanAmount
       });
     }
