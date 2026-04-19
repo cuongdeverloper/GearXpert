@@ -26,6 +26,18 @@ export const exportWalletTransactions = (params = {}) => {
   });
 };
 
+export const topUpAdminWallet = (amount) => {
+  return axiosInstance.post(`${API_BASE}/admin/wallet/topup`, { amount });
+};
+
+export const withdrawAdminWallet = (data) => {
+  return axiosInstance.post(`${API_BASE}/admin/wallet/withdraw`, data);
+};
+
+export const transferToWallet = (data) => {
+  return axiosInstance.post(`${API_BASE}/admin/wallet/transfer`, data);
+};
+
 // Admin Withdrawal APIs
 export const getWithdrawalRequests = (params = {}) => {
   return axiosInstance.get(`${API_BASE}/admin/withdrawals`, { params });

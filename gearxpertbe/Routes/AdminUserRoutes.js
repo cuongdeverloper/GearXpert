@@ -42,6 +42,10 @@ router.get('/wallet/transactions', checkAccessToken, checkAdmin, adminWalletCont
 router.post('/wallet/adjust-balance', checkAccessToken, checkAdmin, adminWalletController.adjustWalletBalance);
 router.post('/wallet/manual-transaction', checkAccessToken, checkAdmin, adminWalletController.createManualTransaction);
 router.get('/wallet/export-transactions', checkAccessToken, checkAdmin, adminWalletController.exportTransactions);
+router.post('/wallet/topup', checkAccessToken, checkAdmin, adminWalletController.topUpAdminWallet);
+router.post('/wallet/withdraw', checkAccessToken, checkAdmin, adminWalletController.withdrawAdminWallet);
+router.post('/wallet/transfer', checkAccessToken, checkAdmin, adminWalletController.transferToWallet);
+router.get('/wallet/lookup-user', checkAccessToken, checkAdmin, adminWalletController.lookupUserByWallet);
 
 // Withdrawal routes
 router.get('/withdrawals', checkAccessToken, checkAdmin, adminWalletController.getWithdrawalRequests);

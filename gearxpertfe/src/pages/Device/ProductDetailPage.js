@@ -84,6 +84,8 @@ export default function ProductDetailPage() {
   const [isEditingReview, setIsEditingReview] = useState(false);
   const [editRating, setEditRating] = useState(5);
   const [editComment, setEditComment] = useState("");
+  const [editImages, setEditImages] = useState([]); // Ảnh cũ giữ lại
+  const [editNewImages, setEditNewImages] = useState([]); // Ảnh mới upload
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [reviewToDelete, setReviewToDelete] = useState(null);
@@ -148,6 +150,8 @@ export default function ProductDetailPage() {
         setHasMyReview(true);
         setEditRating(data.review.rating);
         setEditComment(data.review.comment || "");
+        setEditImages(data.review.images || []);
+        setEditNewImages([]);
       }
     } catch (err) {
       console.log("Không có review của bạn hoặc lỗi:", err);
@@ -423,22 +427,41 @@ export default function ProductDetailPage() {
       return;
     }
 
+    // Kiểm tra tổng số ảnh
+    if (editImages.length + editNewImages.length > 5) {
+      toast.error("Tối đa 5 ảnh cho mỗi đánh giá");
+      return;
+    }
+
     setIsSubmittingReview(true);
     const toastId = toast.loading(t('productDetail.updating_review'));
 
     try {
-      await updateReview(myReview._id, {
-        rating: editRating,
-        comment: editComment,
+      const formData = new FormData();
+      formData.append("rating", editRating);
+      formData.append("comment", editComment);
+      
+      // Gửi ảnh cũ giữ lại
+      editImages.forEach((img) => {
+        formData.append("keepImages", img);
       });
+      
+      // Gửi ảnh mới
+      editNewImages.forEach((file) => {
+        formData.append("images", file);
+      });
+
+      await updateReview(myReview._id, formData);
 
       toast.success("Cập nhật review thành công!", { id: toastId });
       setMyReview((prev) => ({
         ...prev,
         rating: editRating,
         comment: editComment,
+        images: [...editImages, ...editNewImages.map(f => URL.createObjectURL(f))],
       }));
       setIsEditingReview(false);
+      setEditNewImages([]);
     } catch (err) {
       toast.error(err.response?.data?.message || "Cập nhật review thất bại", {
         id: toastId,
@@ -446,6 +469,23 @@ export default function ProductDetailPage() {
     } finally {
       setIsSubmittingReview(false);
     }
+  };
+
+  const handleRemoveEditImage = (index) => {
+    setEditImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAddEditImages = (e) => {
+    const files = Array.from(e.target.files);
+    if (editImages.length + editNewImages.length + files.length > 5) {
+      toast.error("Tối đa 5 ảnh");
+      return;
+    }
+    setEditNewImages((prev) => [...prev, ...files]);
+  };
+
+  const handleRemoveNewImage = (index) => {
+    setEditNewImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const days =
@@ -1026,6 +1066,76 @@ export default function ProductDetailPage() {
                               placeholder={t('productDetail.share_experience')}
                             />
                           </div>
+
+                          {/* Ảnh cũ được giữ lại */}
+                          {editImages.length > 0 && (
+                            <div>
+                              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                Ảnh đã lưu ({editImages.length})
+                              </label>
+                              <div className="flex gap-2 flex-wrap">
+                                {editImages.map((img, idx) => (
+                                  <div key={idx} className="relative group">
+                                    <img
+                                      src={img}
+                                      alt={`Review ${idx + 1}`}
+                                      className="w-20 h-20 object-cover rounded-lg border border-slate-200"
+                                    />
+                                    <button
+                                      onClick={() => handleRemoveEditImage(idx)}
+                                      className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                      type="button"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Ảnh mới upload */}
+                          {editNewImages.length > 0 && (
+                            <div>
+                              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                Ảnh mới ({editNewImages.length})
+                              </label>
+                              <div className="flex gap-2 flex-wrap">
+                                {editNewImages.map((file, idx) => (
+                                  <div key={idx} className="relative group">
+                                    <img
+                                      src={URL.createObjectURL(file)}
+                                      alt={`New ${idx + 1}`}
+                                      className="w-20 h-20 object-cover rounded-lg border border-slate-200"
+                                    />
+                                    <button
+                                      onClick={() => handleRemoveNewImage(idx)}
+                                      className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                      type="button"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Upload ảnh mới */}
+                          {editImages.length + editNewImages.length < 5 && (
+                            <div>
+                              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                Thêm ảnh mới (tối đa {5 - editImages.length - editNewImages.length})
+                              </label>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={handleAddEditImages}
+                                className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                              />
+                            </div>
+                          )}
 
                           <div className="flex gap-4 justify-end pt-1">
                             <button
