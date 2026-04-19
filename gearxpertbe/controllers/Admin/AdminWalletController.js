@@ -3,7 +3,6 @@ const WalletTransaction = require("../../models/WalletTransaction");
 const User = require("../../models/User");
 const WithdrawRequest = require("../../models/WithdrawRequest");
 const Payment = require("../../models/Payment");
-const Payment = require("../../models/Payment");
 const mongoose = require("mongoose");
 const { Parser } = require("json2csv");
 const { transferMoney } = require("../Wallet/PayOsController");
@@ -15,14 +14,9 @@ const payos = new PayOS(
   process.env.PAYOS_API_KEY,
   process.env.PAYOS_CHECKSUM_KEY
 );
-const { PayOS } = require("@payos/node");
 
-// Init PayOS for admin
-const payos = new PayOS(
-  process.env.PAYOS_CLIENT_ID,
-  process.env.PAYOS_API_KEY,
-  process.env.PAYOS_CHECKSUM_KEY
-);
+
+
 
 // Helper function to get transaction type label
 function getTransactionTypeLabel(type, metadata) {
@@ -416,12 +410,12 @@ exports.getAdminWallet = async (req, res) => {
     const [
       platformFees,
       platformFeeRefunds,
-      platformFeeRefunds,
+      
       escrowHolds,
       depositHolds,
       supplierPayouts,
       customerRefunds,
-      refunds,
+      
       refunds,
       serviceFees,
       penaltyFees
@@ -1510,50 +1504,6 @@ exports.transferToWallet = async (req, res) => {
   }
 };
 
-/**
- * Process admin withdrawal transfer via PayOS
- */
-const processAdminWithdrawal = async (transactionId, transferData) => {
-  try {
-    const transferResult = await transferMoney(transferData);
-    
-    // Update transaction with transfer result
-    await WalletTransaction.findByIdAndUpdate(transactionId, {
-      status: transferResult.success ? 'SUCCESS' : 'FAILED',
-      payosTransferId: transferResult.transferId || null,
-      'metadata.transferResult': transferResult,
-      'metadata.completedAt': new Date()
-    });
-
-    if (!transferResult.success) {
-      // If failed, refund the amount
-      const adminWallet = await Wallet.findOne({ isSystem: true });
-      if (adminWallet) {
-        const transaction = await WalletTransaction.findById(transactionId);
-        adminWallet.balance += Math.abs(transaction.amount);
-        await adminWallet.save();
-        
-        await WalletTransaction.create({
-          wallet: adminWallet._id,
-          type: 'REFUND',
-          amount: Math.abs(transaction.amount),
-          balanceBefore: adminWallet.balance - Math.abs(transaction.amount),
-          balanceAfter: adminWallet.balance,
-          referenceType: 'SYSTEM',
-          description: `Hoàn tiền do rút tiền thất bại`,
-          status: 'SUCCESS',
-          metadata: { originalTransactionId: transactionId }
-        });
-      }
-    }
-  } catch (err) {
-    console.error('[ADMIN WITHDRAWAL PROCESS] Error:', err);
-    await WalletTransaction.findByIdAndUpdate(transactionId, {
-      status: 'FAILED',
-      'metadata.error': err.message
-    });
-  }
-};
 
 /**
  * POST /api/admin/wallet/topup
