@@ -3,9 +3,18 @@ const WalletTransaction = require("../../models/WalletTransaction");
 const User = require("../../models/User");
 const WithdrawRequest = require("../../models/WithdrawRequest");
 const Payment = require("../../models/Payment");
+const Payment = require("../../models/Payment");
 const mongoose = require("mongoose");
 const { Parser } = require("json2csv");
 const { transferMoney } = require("../Wallet/PayOsController");
+const { PayOS } = require("@payos/node");
+
+// Init PayOS for admin
+const payos = new PayOS(
+  process.env.PAYOS_CLIENT_ID,
+  process.env.PAYOS_API_KEY,
+  process.env.PAYOS_CHECKSUM_KEY
+);
 const { PayOS } = require("@payos/node");
 
 // Init PayOS for admin
@@ -407,10 +416,12 @@ exports.getAdminWallet = async (req, res) => {
     const [
       platformFees,
       platformFeeRefunds,
+      platformFeeRefunds,
       escrowHolds,
       depositHolds,
       supplierPayouts,
       customerRefunds,
+      refunds,
       refunds,
       serviceFees,
       penaltyFees
@@ -457,6 +468,12 @@ exports.getAdminWallet = async (req, res) => {
         { $group: { _id: null, total: { $sum: { $abs: "$amount" } } } }
       ]),
       
+      // Refunds for cancelled orders (positive amounts from system wallet perspective - money going out)
+      WalletTransaction.aggregate([
+        { $match: { wallet: adminWallet._id, type: "REFUND", amount: { $lt: 0 } } },
+        { $group: { _id: null, total: { $sum: { $abs: "$amount" } } } }
+      ]),
+      
       // Service fees (positive amounts)
       WalletTransaction.aggregate([
         { $match: { wallet: adminWallet._id, type: "SERVICE_FEE", amount: { $gt: 0 } } },
@@ -475,6 +492,8 @@ exports.getAdminWallet = async (req, res) => {
     const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
+    // Calculate monthly revenue - CHỈ tính phí nền tảng và phí dịch vụ (doanh thu thực)
+    // Không tính ESCROW_HOLD và DEPOSIT_HOLD vì đó là tiền tạm giữ, không phải doanh thu
     // Calculate monthly revenue - CHỈ tính phí nền tảng và phí dịch vụ (doanh thu thực)
     // Không tính ESCROW_HOLD và DEPOSIT_HOLD vì đó là tiền tạm giữ, không phải doanh thu
     const monthlyRevenue = await WalletTransaction.aggregate([
@@ -679,6 +698,24 @@ exports.getAdminWalletTransactions = async (req, res) => {
         { description: { $regex: search, $options: 'i' } },
         { 'metadata.adjustmentReason': { $regex: search, $options: 'i' } }
       ];
+      
+      // If search looks like an ObjectId, also search by _id, referenceId, or user._id
+      if (isObjectId) {
+        searchConditions.push(
+          { _id: new mongoose.Types.ObjectId(search) },
+          { referenceId: new mongoose.Types.ObjectId(search) }
+        );
+      }
+      
+      // Partial match for IDs (last 6 characters of order ID)
+      if (search.length >= 6) {
+        searchConditions.push(
+          { description: { $regex: search, $options: 'i' } },
+          { 'metadata.orderCode': { $regex: search, $options: 'i' } }
+        );
+      }
+      
+      filter.$or = searchConditions;
       
       // If search looks like an ObjectId, also search by _id, referenceId, or user._id
       if (isObjectId) {
@@ -1111,6 +1148,410 @@ exports.rejectWithdrawal = async (req, res) => {
     });
   } finally {
     session.endSession();
+  }
+};
+
+/**
+ * POST /api/admin/wallet/topup
+ * Admin nạp tiền vào ví hệ thống qua PayOS
+ */
+exports.topUpAdminWallet = async (req, res) => {
+  try {
+    const { amount } = req.body;
+    const adminId = req.user.id;
+    
+    const cleanAmount = parseInt(amount, 10);
+    if (isNaN(cleanAmount) || cleanAmount < 10000) {
+      return res.status(400).json({ message: 'Số tiền tối thiểu 10.000đ' });
+    }
+
+    // Find or create system wallet
+    let adminWallet = await Wallet.findOne({ isSystem: true });
+    if (!adminWallet) {
+      adminWallet = await Wallet.create({ 
+        isSystem: true, 
+        balance: 0,
+        status: 'ACTIVE'
+      });
+    }
+
+    // Create orderCode
+    const orderCode = Math.floor(Date.now() / 1000) + Math.floor(Math.random() * 1000);
+
+    // Create Payment record for admin
+    const payment = await Payment.create({
+      user: adminId,
+      amount: cleanAmount,
+      orderCode,
+      status: 'INIT',
+      metadata: { type: 'ADMIN_TOPUP', walletId: adminWallet._id }
+    });
+
+    // Create pending transaction
+    await WalletTransaction.create({
+      wallet: adminWallet._id,
+      type: 'TOP_UP',
+      amount: cleanAmount,
+      balanceBefore: adminWallet.balance,
+      balanceAfter: adminWallet.balance,
+      status: 'PENDING',
+      referenceType: 'SYSTEM',
+      referenceId: payment._id,
+      description: `Admin nạp tiền qua PayOS (Mã: ${orderCode})`,
+      metadata: { adminId, orderCode }
+    });
+
+    const body = {
+      orderCode: Number(orderCode),
+      amount: Number(cleanAmount),
+      description: `Admin nap ${orderCode}`.slice(0, 25),
+      returnUrl: `${process.env.FRONTEND_URL}/admin/wallet/success`,
+      cancelUrl: `${process.env.FRONTEND_URL}/admin/wallet/cancel`
+    };
+
+    let paymentLinkRes;
+    if (payos.paymentRequests?.create) {
+      paymentLinkRes = await payos.paymentRequests.create(body);
+    } else {
+      paymentLinkRes = await payos.createPaymentLink(body);
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: paymentLinkRes,
+      orderCode
+    });
+  } catch (err) {
+    console.error('[ADMIN TOPUP ERROR]:', err);
+    return res.status(500).json({ message: 'Lỗi nạp tiền', error: err.message });
+  }
+};
+
+/**
+ * POST /api/admin/wallet/withdraw
+ * Admin rút tiền trực tiếp từ ví hệ thống (không cần request)
+ */
+exports.withdrawAdminWallet = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
+  try {
+    const { amount, bankInfo } = req.body;
+    const adminId = req.user.id;
+    
+    const cleanAmount = parseInt(amount, 10);
+    if (isNaN(cleanAmount) || cleanAmount < 10000) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: 'Số tiền tối thiểu 10.000đ' });
+    }
+
+    if (!bankInfo || !bankInfo.accountNumber || !bankInfo.accountName || !bankInfo.bankCode) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: 'Thiếu thông tin ngân hàng' });
+    }
+
+    // Find system wallet
+    let adminWallet = await Wallet.findOne({ isSystem: true }).session(session);
+    if (!adminWallet) {
+      await session.abortTransaction();
+      return res.status(404).json({ message: 'Không tìm thấy ví hệ thống' });
+    }
+
+    // Calculate available balance (total - escrow holds - deposit holds)
+    const escrowHolds = await WalletTransaction.aggregate([
+      { $match: { wallet: adminWallet._id, type: { $in: ["ESCROW_HOLD", "ESCROW_RELEASE"] } } },
+      { $group: { _id: null, total: { $sum: "$amount" } } }
+    ]).session(session);
+    
+    const depositHolds = await WalletTransaction.aggregate([
+      { $match: { wallet: adminWallet._id, type: { $in: ["DEPOSIT_HOLD", "DEPOSIT_RELEASE"] } } },
+      { $group: { _id: null, total: { $sum: "$amount" } } }
+    ]).session(session);
+    
+    const pendingEscrow = Math.max(0, escrowHolds[0]?.total || 0);
+    const pendingDeposits = Math.max(0, depositHolds[0]?.total || 0);
+    const availableBalance = Math.max(0, adminWallet.balance - pendingEscrow - pendingDeposits);
+
+    // Check available balance (not total balance)
+    if (availableBalance < cleanAmount) {
+      await session.abortTransaction();
+      return res.status(400).json({ 
+        message: 'Số dư khả dụng không đủ',
+        totalBalance: adminWallet.balance,
+        pendingEscrow: pendingEscrow,
+        pendingDeposits: pendingDeposits,
+        availableBalance: availableBalance,
+        requestedAmount: cleanAmount
+      });
+    }
+
+    // Deduct from wallet
+    const balanceBefore = adminWallet.balance;
+    adminWallet.balance -= cleanAmount;
+    await adminWallet.save({ session });
+
+    // Create withdrawal transaction
+    const transaction = await WalletTransaction.create([{
+      wallet: adminWallet._id,
+      type: 'WITHDRAW',
+      amount: -cleanAmount,
+      balanceBefore,
+      balanceAfter: adminWallet.balance,
+      referenceType: 'SYSTEM',
+      description: `Admin rút tiền về ${bankInfo.bankName} - ${bankInfo.accountNumber}`,
+      status: 'SUCCESS',
+      metadata: {
+        adminId,
+        bankInfo,
+        initiatedAt: new Date()
+      }
+    }], { session, ordered: true });
+
+    await session.commitTransaction();
+
+    // Execute PayOS transfer async
+    const transferData = {
+      amount: cleanAmount,
+      description: `Admin rút GearXpert`,
+      accountNumber: bankInfo.accountNumber,
+      accountName: bankInfo.accountName,
+      bankCode: bankInfo.bankCode
+    };
+
+    // Start transfer in background
+    processAdminWithdrawal(transaction[0]._id, transferData).catch(err => {
+      console.error('[ADMIN WITHDRAWAL] Background transfer error:', err);
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Yêu cầu rút tiền đã được gửi',
+      transactionId: transaction[0]._id,
+      amount: cleanAmount,
+      newBalance: adminWallet.balance
+    });
+  } catch (err) {
+    await session.abortTransaction();
+    console.error('[ADMIN WITHDRAW ERROR]:', err);
+    return res.status(500).json({ message: 'Lỗi rút tiền', error: err.message });
+  } finally {
+    session.endSession();
+  }
+};
+
+/**
+ * GET /api/admin/wallet/lookup-user
+ * Tìm kiếm thông tin user theo walletId hoặc email
+ */
+exports.lookupUserByWallet = async (req, res) => {
+  try {
+    const { walletId, email } = req.query;
+    
+    if (!walletId && !email) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Vui lòng cung cấp walletId hoặc email' 
+      });
+    }
+
+    let wallet;
+    let user;
+
+    if (walletId) {
+      wallet = await Wallet.findById(walletId);
+      if (wallet) {
+        user = await User.findById(wallet.user);
+      }
+    } else if (email) {
+      // Case-insensitive email search
+      user = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } });
+      if (user) {
+        wallet = await Wallet.findOne({ user: user._id });
+      }
+    }
+
+    if (!user || !wallet) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Không tìm thấy người dùng' 
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        userId: user._id,
+        fullName: user.fullName || user.username || 'Unknown',
+        email: user.email,
+        avatar: user.avatar,
+        walletId: wallet._id,
+        walletBalance: wallet.balance,
+        walletStatus: wallet.status
+      }
+    });
+  } catch (err) {
+    console.error('[LOOKUP USER ERROR]:', err);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Lỗi tìm kiếm', 
+      error: err.message 
+    });
+  }
+};
+
+/**
+ * POST /api/admin/wallet/transfer
+ * Chuyển tiền từ ví hệ thống đến ví cụ thể
+ */
+exports.transferToWallet = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { walletId, userEmail, amount, description, type } = req.body;
+    const adminId = req.user.id;
+
+    const cleanAmount = parseFloat(amount);
+    if (isNaN(cleanAmount) || cleanAmount <= 0) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: 'Số tiền không hợp lệ' });
+    }
+
+    // Find system wallet (source)
+    let systemWallet = await Wallet.findOne({ isSystem: true }).session(session);
+    if (!systemWallet) {
+      await session.abortTransaction();
+      return res.status(404).json({ message: 'Không tìm thấy ví hệ thống' });
+    }
+
+    // Find destination wallet
+    let destinationWallet;
+    if (walletId) {
+      destinationWallet = await Wallet.findById(walletId).session(session);
+    } else if (userEmail) {
+      const user = await User.findOne({ email: userEmail }).session(session);
+      if (user) {
+        destinationWallet = await Wallet.findOne({ user: user._id }).session(session);
+      }
+    }
+
+    if (!destinationWallet) {
+      await session.abortTransaction();
+      return res.status(404).json({ message: 'Không tìm thấy ví đích' });
+    }
+
+    // Check system wallet balance
+    if (systemWallet.balance < cleanAmount) {
+      await session.abortTransaction();
+      return res.status(400).json({
+        message: 'Số dư ví hệ thống không đủ',
+        currentBalance: systemWallet.balance,
+        requestedAmount: cleanAmount
+      });
+    }
+
+    // Deduct from system wallet
+    const systemBalanceBefore = systemWallet.balance;
+    systemWallet.balance -= cleanAmount;
+    await systemWallet.save({ session });
+
+    // Add to destination wallet
+    const destBalanceBefore = destinationWallet.balance;
+    destinationWallet.balance += cleanAmount;
+    await destinationWallet.save({ session });
+
+    // Create transaction record for admin (debit only)
+    const now = new Date();
+    const transferType = type || 'TRANSFER';
+
+    // Transfer type labels for clear categorization
+    const transferTypeLabels = {
+      'TRANSFER': 'Chuyển tiền',
+      'SUPPLIER_PAYOUT': 'Trả tiền NCC',
+      'CUSTOMER_REFUND': 'Hoàn tiền KH',
+      'BONUS': 'Thưởng'
+    };
+    const typeLabel = transferTypeLabels[transferType] || 'Chuyển tiền';
+
+    // Only create transaction for admin wallet (debit)
+    await WalletTransaction.create([{
+      wallet: systemWallet._id,
+      type: 'ADJUSTMENT',
+      amount: -cleanAmount,
+      balanceBefore: systemBalanceBefore,
+      balanceAfter: systemWallet.balance,
+      referenceType: 'SYSTEM',
+      description: description || `${typeLabel} đến ví ${destinationWallet._id}`,
+      status: 'SUCCESS',
+      metadata: {
+        adminId,
+        destinationWalletId: destinationWallet._id,
+        transferType,
+        transferLabel: typeLabel,
+        transferredAt: now
+      }
+    }], { session });
+
+    await session.commitTransaction();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Chuyển tiền thành công',
+      amount: cleanAmount,
+      sourceBalance: systemWallet.balance,
+      destinationBalance: destinationWallet.balance
+    });
+  } catch (err) {
+    await session.abortTransaction();
+    console.error('[ADMIN TRANSFER ERROR]:', err);
+    return res.status(500).json({ message: 'Lỗi chuyển tiền', error: err.message });
+  } finally {
+    session.endSession();
+  }
+};
+
+/**
+ * Process admin withdrawal transfer via PayOS
+ */
+const processAdminWithdrawal = async (transactionId, transferData) => {
+  try {
+    const transferResult = await transferMoney(transferData);
+    
+    // Update transaction with transfer result
+    await WalletTransaction.findByIdAndUpdate(transactionId, {
+      status: transferResult.success ? 'SUCCESS' : 'FAILED',
+      payosTransferId: transferResult.transferId || null,
+      'metadata.transferResult': transferResult,
+      'metadata.completedAt': new Date()
+    });
+
+    if (!transferResult.success) {
+      // If failed, refund the amount
+      const adminWallet = await Wallet.findOne({ isSystem: true });
+      if (adminWallet) {
+        const transaction = await WalletTransaction.findById(transactionId);
+        adminWallet.balance += Math.abs(transaction.amount);
+        await adminWallet.save();
+        
+        await WalletTransaction.create({
+          wallet: adminWallet._id,
+          type: 'REFUND',
+          amount: Math.abs(transaction.amount),
+          balanceBefore: adminWallet.balance - Math.abs(transaction.amount),
+          balanceAfter: adminWallet.balance,
+          referenceType: 'SYSTEM',
+          description: `Hoàn tiền do rút tiền thất bại`,
+          status: 'SUCCESS',
+          metadata: { originalTransactionId: transactionId }
+        });
+      }
+    }
+  } catch (err) {
+    console.error('[ADMIN WITHDRAWAL PROCESS] Error:', err);
+    await WalletTransaction.findByIdAndUpdate(transactionId, {
+      status: 'FAILED',
+      'metadata.error': err.message
+    });
   }
 };
 

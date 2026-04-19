@@ -62,4 +62,23 @@ export const getDeviceReviews = async (deviceId) => {
   }
 };
 
+/**
+ * Lấy danh sách review của user hiện tại (MyReviews page)
+ * @param {number} page 
+ * @param {number} limit 
+ * @param {number|null} ratingFilter 
+ * @returns {Promise<object>}
+ */
+export const getMyReviews = async (page = 1, limit = 10, ratingFilter = null) => {
+  try {
+    const params = { page, limit };
+    if (ratingFilter) params.rating = ratingFilter;
+    const response = await axios.get('/api/reviews/my-reviews', { params });
+    return response;
+  } catch (error) {
+    console.error("Lỗi khi lấy danh sách reviews:", error);
+    throw error;
+  }
+};
+
 // Nếu sau này cần thêm API khác liên quan đến review, cứ bổ sung vào đây
