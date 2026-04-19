@@ -125,35 +125,109 @@ const processWebhook = async (body) => {
     // ===== CASE 1: RENTAL =====
     if (rentals.length > 0 && rentals[0].paymentStatus !== "PAID") {
       console.log("[WEBHOOK] 🔄 Updating rental to PAID...");
-      let totalPlatformFee = 0;
 
+      // Mark all rentals as PAID first
       for (const rental of rentals) {
         rental.paymentStatus = "PAID";
         rental.status = "PENDING";
         await rental.save();
-
-        totalPlatformFee += rental.paymentBreakdown?.platformFee || 0;
-
-        // 👉 xử lý nặng tách riêng
         handleContractUpload(rental);
       }
 
-      // cộng tiền system
+      // Create per-rental system wallet transactions (với đúng referenceId cho mỗi rental)
       const systemWallet = await Wallet.findOne({ isSystem: true });
       if (systemWallet) {
-        const before = systemWallet.balance;
-        systemWallet.balance += totalPlatformFee;
+        const txNow = new Date();
+        let sysRunningBalance = systemWallet.balance;
+        const systemTxs = [];
+
+        for (let idx = 0; idx < rentals.length; idx++) {
+          const rental = rentals[idx];
+          const pFee = rental.paymentBreakdown?.platformFee || 0;
+          const rentAmount = rental.paymentBreakdown?.rentAmount || 0;
+          const depositAmt = rental.paymentBreakdown?.depositAmount || 0;
+          const shippingFee = rental.deliveryFee || 0;
+          // ESCROW = rentAmount - platformFee (rentAmount = rentAfterDiscount trong checkout)
+          const netEscrow = Math.max(0, rentAmount - pFee);
+          const offset = idx * 4;
+
+          if (pFee > 0) {
+            systemTxs.push({
+              wallet: systemWallet._id,
+              type: "PLATFORM_FEE",
+              amount: pFee,
+              balanceBefore: sysRunningBalance,
+              balanceAfter: sysRunningBalance + pFee,
+              status: "SUCCESS",
+              description: `Thu phí nền tảng đơn #${rental._id.toString().slice(-6)} (PayOS)`,
+              referenceType: "RENTAL",
+              referenceId: rental._id,
+              createdAt: new Date(txNow.getTime() + offset),
+              isEarned: false,
+              rentalStatus: "PENDING",
+              metadata: { orderCode, paymentMethod: "BANK" },
+            });
+            sysRunningBalance += pFee;
+          }
+
+          if (netEscrow > 0) {
+            systemTxs.push({
+              wallet: systemWallet._id,
+              type: "ESCROW_HOLD",
+              amount: netEscrow,
+              balanceBefore: sysRunningBalance,
+              balanceAfter: sysRunningBalance + netEscrow,
+              status: "SUCCESS",
+              description: `Tiền thuê tạm giữ đơn #${rental._id.toString().slice(-6)} (PayOS)`,
+              referenceType: "RENTAL",
+              referenceId: rental._id,
+              createdAt: new Date(txNow.getTime() + offset + 1),
+            });
+            sysRunningBalance += netEscrow;
+          }
+
+          if (depositAmt > 0) {
+            systemTxs.push({
+              wallet: systemWallet._id,
+              type: "DEPOSIT_HOLD",
+              amount: depositAmt,
+              balanceBefore: sysRunningBalance,
+              balanceAfter: sysRunningBalance + depositAmt,
+              status: "SUCCESS",
+              description: `Tiền đặt cọc tạm giữ đơn #${rental._id.toString().slice(-6)} (PayOS)`,
+              referenceType: "RENTAL",
+              referenceId: rental._id,
+              createdAt: new Date(txNow.getTime() + offset + 2),
+            });
+            sysRunningBalance += depositAmt;
+          }
+
+          if (shippingFee > 0) {
+            systemTxs.push({
+              wallet: systemWallet._id,
+              type: "SHIPPING_FEE",
+              amount: shippingFee,
+              balanceBefore: sysRunningBalance,
+              balanceAfter: sysRunningBalance + shippingFee,
+              status: "SUCCESS",
+              description: `Phí vận chuyển đơn #${rental._id.toString().slice(-6)} (PayOS)`,
+              referenceType: "RENTAL",
+              referenceId: rental._id,
+              createdAt: new Date(txNow.getTime() + offset + 3),
+              isEarned: false,
+              rentalStatus: "PENDING",
+              metadata: { orderCode, paymentMethod: "BANK" },
+            });
+            sysRunningBalance += shippingFee;
+          }
+        }
+
+        systemWallet.balance = sysRunningBalance;
         await systemWallet.save();
 
-        await WalletTransaction.create({
-          wallet: systemWallet._id,
-          type: "PLATFORM_FEE",
-          amount: totalPlatformFee,
-          balanceBefore: before,
-          balanceAfter: systemWallet.balance,
-          status: "SUCCESS",
-          description: `Platform fee (PayOS - ${orderCode})`,
-        });
+        if (systemTxs.length > 0) {
+          await WalletTransaction.insertMany(systemTxs);
+        }
       }
 
       return;
