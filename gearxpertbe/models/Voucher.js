@@ -68,6 +68,12 @@ const voucherSchema = new mongoose.Schema(
       type: String,
       enum: ["ACTIVE", "INACTIVE"],
       default: "ACTIVE"
+    },
+
+    applicableRank: {
+      type: String,
+      enum: ["SILVER", "GOLD", "PLATINUM", "DIAMOND"],
+      default: null
     }
   },
   { timestamps: true }

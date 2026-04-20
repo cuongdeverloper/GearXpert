@@ -24,30 +24,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import Header from "../../components/navigation/Header";
-import axios from "../../service/AxiosCustomize";
-
-// API functions
-const getMyReviews = async (page = 1, limit = 10, rating = null) => {
-  let url = `/api/reviews/my-reviews?page=${page}&limit=${limit}`;
-  if (rating) url += `&rating=${rating}`;
-  return await axios.get(url);
-};
-
-const updateReview = async (reviewId, data) => {
-  const formData = new FormData();
-  formData.append("rating", data.rating);
-  formData.append("comment", data.comment);
-  if (data.images) {
-    data.images.forEach((img) => formData.append("images", img));
-  }
-  return await axios.put(`/api/reviews/${reviewId}`, formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-};
-
-const deleteReview = async (reviewId) => {
-  return await axios.delete(`/api/reviews/${reviewId}`);
-};
+import { getMyReviews, updateReview, deleteReview } from "../../service/ApiService/ReviewApi";
 
 export default function MyReviews() {
   const navigate = useNavigate();
@@ -58,7 +35,9 @@ export default function MyReviews() {
   const [totalReviews, setTotalReviews] = useState(0);
   const [stats, setStats] = useState(null);
   const [editingReview, setEditingReview] = useState(null);
-  const [editForm, setEditForm] = useState({ rating: 5, comment: "", images: [] });
+  const [editForm, setEditForm] = useState({ rating: 5, comment: "" });
+  const [editImages, setEditImages] = useState([]); // Ảnh cũ giữ lại
+  const [editNewImages, setEditNewImages] = useState([]); // Ảnh mới upload
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [filterRating, setFilterRating] = useState(null);
@@ -94,8 +73,9 @@ export default function MyReviews() {
     setEditForm({
       rating: review.rating,
       comment: review.comment,
-      images: [],
     });
+    setEditImages(review.images || []);
+    setEditNewImages([]);
   };
 
   const handleUpdate = async () => {
@@ -103,17 +83,50 @@ export default function MyReviews() {
       toast.warning("Vui lòng nhập nội dung đánh giá");
       return;
     }
+    if (editImages.length + editNewImages.length > 5) {
+      toast.error("Tối đa 5 ảnh cho mỗi đánh giá");
+      return;
+    }
     try {
       setIsSubmitting(true);
-      await updateReview(editingReview._id, editForm);
+      const formData = new FormData();
+      formData.append("rating", editForm.rating);
+      formData.append("comment", editForm.comment);
+      // Gửi ảnh cũ giữ lại
+      editImages.forEach((img) => {
+        formData.append("keepImages", img);
+      });
+      // Gửi ảnh mới
+      editNewImages.forEach((file) => {
+        formData.append("images", file);
+      });
+      await updateReview(editingReview._id, formData);
       toast.success("Cập nhật đánh giá thành công");
       setEditingReview(null);
+      setEditNewImages([]);
       fetchReviews();
     } catch (error) {
       toast.error(error?.message || "Cập nhật thất bại");
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleRemoveEditImage = (index) => {
+    setEditImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAddEditImages = (e) => {
+    const files = Array.from(e.target.files);
+    if (editImages.length + editNewImages.length + files.length > 5) {
+      toast.error("Tối đa 5 ảnh");
+      return;
+    }
+    setEditNewImages((prev) => [...prev, ...files]);
+  };
+
+  const handleRemoveNewImage = (index) => {
+    setEditNewImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleDelete = async () => {
@@ -604,6 +617,76 @@ export default function MyReviews() {
                     placeholder="Chia sẻ trải nghiệm của bạn..."
                   />
                 </div>
+
+                {/* Ảnh cũ được giữ lại */}
+                {editImages.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                      Ảnh đã lưu ({editImages.length})
+                    </label>
+                    <div className="flex gap-2 flex-wrap">
+                      {editImages.map((img, idx) => (
+                        <div key={idx} className="relative group">
+                          <img
+                            src={img}
+                            alt={`Review ${idx + 1}`}
+                            className="w-20 h-20 object-cover rounded-lg border border-slate-200"
+                          />
+                          <button
+                            onClick={() => handleRemoveEditImage(idx)}
+                            className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            type="button"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Ảnh mới upload */}
+                {editNewImages.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                      Ảnh mới ({editNewImages.length})
+                    </label>
+                    <div className="flex gap-2 flex-wrap">
+                      {editNewImages.map((file, idx) => (
+                        <div key={idx} className="relative group">
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt={`New ${idx + 1}`}
+                            className="w-20 h-20 object-cover rounded-lg border border-slate-200"
+                          />
+                          <button
+                            onClick={() => handleRemoveNewImage(idx)}
+                            className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            type="button"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Upload ảnh mới */}
+                {editImages.length + editNewImages.length < 5 && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                      Thêm ảnh mới (tối đa {5 - editImages.length - editNewImages.length})
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleAddEditImages}
+                      className="block w-full text-sm text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                    />
+                  </div>
+                )}
 
                 <div className="flex gap-3 pt-4">
                   <button

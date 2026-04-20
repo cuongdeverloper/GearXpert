@@ -29,28 +29,6 @@ export default function VouchersPage() {
         { name: "Supplier", id: "SUPPLIER", icon: "storefront" },
     ];
 
-    const rankDiscounts = {
-        SILVER: { discount: 5, color: 'bg-gradient-to-br from-slate-400 via-slate-500 to-gray-400', icon: 'military_tech', glow: 'shadow-slate-400/40' },
-        GOLD: { discount: 10, color: 'bg-gradient-to-br from-yellow-500 via-amber-500 to-yellow-600', icon: 'star', glow: 'shadow-yellow-400/50' },
-        PLATINUM: { discount: 15, color: 'bg-gradient-to-br from-cyan-600 via-blue-500 to-indigo-500', icon: 'loyalty', glow: 'shadow-blue-500/50' },
-        DIAMOND: { discount: 20, color: 'bg-gradient-to-br from-purple-600 via-fuchsia-500 to-pink-500', icon: 'diamond', glow: 'shadow-fuchsia-500/50' }
-    };
-
-    const personalVoucher = rankDiscounts[userRank] ? {
-        _id: `RANK_${userRank}`,
-        code: `RANK_${userRank}`,
-        type: "PERSONAL",
-        description: `Voucher giảm giá ${rankDiscounts[userRank].discount}% đặc quyền dành cho hạng Khách hàng ${userRank}`,
-        discountType: "PERCENT",
-        discountValue: rankDiscounts[userRank].discount,
-        minOrderValue: 0,
-        expiredAt: new Date(2099, 11, 31).toISOString(),
-        status: "ACTIVE",
-        shopInfo: null,
-        rankColor: rankDiscounts[userRank].color,
-        rankIcon: rankDiscounts[userRank].icon,
-        rankGlow: rankDiscounts[userRank].glow
-    } : null;
 
     useEffect(() => {
         fetchVouchers();
@@ -81,10 +59,8 @@ export default function VouchersPage() {
         setIsModalOpen(true);
     };
 
-    const allVouchersToDisplay = personalVoucher ? [personalVoucher, ...vouchers] : vouchers;
-
-    const filteredVouchers = allVouchersToDisplay.filter(voucher => {
-        const matchesType = activeFilter === "ALL" || voucher.type === activeFilter;
+    const filteredVouchers = vouchers.filter(voucher => {
+        const matchesType = activeFilter === "ALL" || voucher.type === activeFilter || (activeFilter === "PERSONAL" && !!voucher.applicableRank);
 
         // Normalize search query: trim and lowercase
         const query = searchQuery.trim().toLowerCase();

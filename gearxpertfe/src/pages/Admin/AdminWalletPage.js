@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { FiCreditCard, FiTrendingUp, FiTrendingDown, FiArrowUpRight, FiArrowDownLeft, FiPieChart, FiActivity, FiSettings, FiPlus, FiDownload, FiX, FiAlertCircle } from "react-icons/fi";
-import { getAdminWallet, getAdminWalletTransactions, adjustWalletBalance, createManualTransaction, exportWalletTransactions } from "../../service/ApiService/AdminApi";
-import { useSelector } from "react-redux";
+import { FiCreditCard, FiTrendingUp, FiTrendingDown, FiArrowUpRight, FiArrowDownLeft, FiPieChart, FiActivity, FiPlus, FiDownload, FiX, FiAlertCircle, FiUpload, FiDollarSign, FiSend ,FiSettings} from "react-icons/fi";
+import { getAdminWallet, getAdminWalletTransactions, exportWalletTransactions, topUpAdminWallet, withdrawAdminWallet, createManualTransaction, transferToWallet } from "../../service/ApiService/AdminApi";
+import axiosInstance from "../../service/AxiosCustomize";
 import { toast } from "react-toastify";
 
 export default function AdminWalletPage() {
@@ -10,14 +10,24 @@ export default function AdminWalletPage() {
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState("ALL");
   const [dateRange, setDateRange] = useState("7days");
+  const [searchQuery, setSearchQuery] = useState("");
   
-  // Debug Redux state
-  const [showAdjustModal, setShowAdjustModal] = useState(false);
+  // Modal states
+  const [showTopUpModal, setShowTopUpModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   
   // Form states
-  const [adjustForm, setAdjustForm] = useState({ amount: "", reason: "", type: "MANUAL" });
+  const [topUpAmount, setTopUpAmount] = useState("");
+  const [withdrawForm, setWithdrawForm] = useState({
+    amount: "",
+    accountNumber: "",
+    accountName: "",
+    bankCode: "",
+    bankName: ""
+  });
   const [transactionForm, setTransactionForm] = useState({
     type: "PLATFORM_FEE",
     amount: "",
@@ -25,15 +35,22 @@ export default function AdminWalletPage() {
     referenceType: "SYSTEM",
     referenceId: ""
   });
-  
-  const userAccount = useSelector(state => state.user.account);
+  const [transferForm, setTransferForm] = useState({
+    walletId: "",
+    userEmail: "",
+    amount: "",
+    description: "",
+    type: "TRANSFER"
+  });
+  const [transferUserInfo, setTransferUserInfo] = useState(null);
+  const [loadingUserInfo, setLoadingUserInfo] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [walletRes, transactionsRes] = await Promise.all([
         getAdminWallet(),
-        getAdminWalletTransactions({ type: filterType, dateRange }),
+        getAdminWalletTransactions({ type: filterType, dateRange, search: searchQuery }),
       ]);
 
       setWallet(walletRes);
@@ -44,7 +61,7 @@ export default function AdminWalletPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterType, dateRange]);
+  }, [filterType, dateRange, searchQuery]);
 
   useEffect(() => {
     fetchData();
@@ -54,10 +71,20 @@ export default function AdminWalletPage() {
     switch (type) {
       case "PLATFORM_FEE":
         return <FiTrendingUp className="text-green-600" />;
+      case "PLATFORM_FEE_REFUND":
+        return <FiArrowUpRight className="text-rose-600" />;
       case "ESCROW_HOLD":
         return <FiArrowDownLeft className="text-blue-600" />;
+      case "ESCROW_RELEASE":
+        return <FiArrowUpRight className="text-blue-400" />;
       case "DEPOSIT_HOLD":
         return <FiArrowDownLeft className="text-orange-600" />;
+      case "DEPOSIT_RELEASE":
+        return <FiArrowUpRight className="text-orange-400" />;
+      case "SHIPPING_FEE":
+        return <FiTrendingUp className="text-teal-600" />;
+      case "SHIPPING_FEE_REFUND":
+        return <FiArrowUpRight className="text-teal-400" />;
       case "SUPPLIER_PAYOUT":
         return <FiArrowUpRight className="text-red-600" />;
       case "CUSTOMER_REFUND":
@@ -86,10 +113,20 @@ export default function AdminWalletPage() {
     switch (type) {
       case "PLATFORM_FEE":
         return "text-green-600 bg-green-50 border-green-200";
+      case "PLATFORM_FEE_REFUND":
+        return "text-rose-600 bg-rose-50 border-rose-200";
       case "ESCROW_HOLD":
         return "text-blue-600 bg-blue-50 border-blue-200";
+      case "ESCROW_RELEASE":
+        return "text-blue-400 bg-blue-50 border-blue-100";
       case "DEPOSIT_HOLD":
         return "text-orange-600 bg-orange-50 border-orange-200";
+      case "DEPOSIT_RELEASE":
+        return "text-orange-400 bg-orange-50 border-orange-100";
+      case "SHIPPING_FEE":
+        return "text-teal-600 bg-teal-50 border-teal-200";
+      case "SHIPPING_FEE_REFUND":
+        return "text-teal-400 bg-teal-50 border-teal-100";
       case "SUPPLIER_PAYOUT":
         return "text-red-600 bg-red-50 border-red-200";
       case "CUSTOMER_REFUND":
@@ -104,6 +141,8 @@ export default function AdminWalletPage() {
         return "text-red-600 bg-red-50 border-red-200";
       case "PAYMENT":
         return "text-blue-600 bg-blue-50 border-blue-200";
+      case "ADJUSTMENT":
+        return "text-purple-600 bg-purple-50 border-purple-200";
       case "ADJUSTMENT_IN":
         return "text-emerald-600 bg-emerald-50 border-emerald-200";
       case "ADJUSTMENT_OUT":
@@ -113,11 +152,27 @@ export default function AdminWalletPage() {
     }
   };
 
-  const getTransactionLabel = (type) => {
+  const getTransactionLabel = (type, metadata) => {
+    // Check if this is a transfer transaction
+    if (metadata?.transferType) {
+      const transferLabels = {
+        "TRANSFER": "Chuyển tiền",
+        "SUPPLIER_PAYOUT": "Trả tiền NCC",
+        "CUSTOMER_REFUND": "Hoàn tiền KH",
+        "BONUS": "Thưởng"
+      };
+      return transferLabels[metadata.transferType] || metadata.transferType;
+    }
+
     const labels = {
       "PLATFORM_FEE": "Phí nền tảng",
+      "PLATFORM_FEE_REFUND": "Hoàn phí nền tảng",
       "ESCROW_HOLD": "Tiền thuê tạm giữ",
+      "ESCROW_RELEASE": "Giải phóng tiền thuê",
       "DEPOSIT_HOLD": "Tiền đặt cọc",
+      "DEPOSIT_RELEASE": "Giải phóng tiền cọc",
+      "SHIPPING_FEE": "Phí vận chuyển",
+      "SHIPPING_FEE_REFUND": "Hoàn phí vận chuyển",
       "SUPPLIER_PAYOUT": "Trả tiền nhà cung cấp",
       "CUSTOMER_REFUND": "Hoàn tiền khách hàng",
       "SERVICE_FEE": "Phí dịch vụ",
@@ -127,7 +182,10 @@ export default function AdminWalletPage() {
       "PAYMENT": "Thanh toán",
       "REFUND": "Hoàn tiền",
       "ADJUSTMENT_IN": "Điều chỉnh tăng",
-      "ADJUSTMENT_OUT": "Điều chỉnh giảm"
+      "ADJUSTMENT_OUT": "Điều chỉnh giảm",
+      "ADJUSTMENT": "Điều chỉnh",
+      "PAYOUT": "Chi trả",
+      "DEPOSIT_REFUND": "Hoàn tiền cọc",
     };
     return labels[type] || type;
   };
@@ -157,27 +215,71 @@ export default function AdminWalletPage() {
     }
   };
 
-  const handleAdjustBalance = async (e) => {
+  const handleTopUp = async (e) => {
     e.preventDefault();
-    if (!adjustForm.amount || !adjustForm.reason) {
-      toast.error("Vui lòng điền đầy đủ thông tin");
+    const amount = parseInt(topUpAmount, 10);
+    if (!amount || amount < 10000) {
+      toast.error("Số tiền tối thiểu 10.000đ");
       return;
     }
     
     setSubmitting(true);
     try {
-      await adjustWalletBalance({
-        amount: parseFloat(adjustForm.amount),
-        reason: adjustForm.reason,
-        type: adjustForm.type
+      const res = await topUpAdminWallet(amount);
+      const checkoutUrl = res?.checkoutUrl || res?.data?.checkoutUrl;
+      
+      if (checkoutUrl) {
+        toast.info("Đang chuyển hướng đến trang thanh toán PayOS...");
+        window.open(checkoutUrl, "_blank");
+        setShowTopUpModal(false);
+        setTopUpAmount("");
+      } else {
+        toast.error("Không thể tạo link thanh toán");
+      }
+    } catch (error) {
+      console.error("Top up error:", error);
+      toast.error(error?.response?.data?.message || "Lỗi khi nạp tiền");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleWithdraw = async (e) => {
+    e.preventDefault();
+    const amount = parseInt(withdrawForm.amount, 10);
+    if (!amount || amount < 10000) {
+      toast.error("Số tiền tối thiểu 10.000đ");
+      return;
+    }
+    if (!withdrawForm.accountNumber || !withdrawForm.accountName || !withdrawForm.bankCode) {
+      toast.error("Vui lòng điền đầy đủ thông tin ngân hàng");
+      return;
+    }
+    
+    setSubmitting(true);
+    try {
+      await withdrawAdminWallet({
+        amount,
+        bankInfo: {
+          accountNumber: withdrawForm.accountNumber,
+          accountName: withdrawForm.accountName,
+          bankCode: withdrawForm.bankCode,
+          bankName: withdrawForm.bankName || withdrawForm.bankCode
+        }
       });
-      toast.success("Điều chỉnh số dư thành công!");
-      setShowAdjustModal(false);
-      setAdjustForm({ amount: "", reason: "", type: "MANUAL" });
+      toast.success("Yêu cầu rút tiền đã được gửi!");
+      setShowWithdrawModal(false);
+      setWithdrawForm({
+        amount: "",
+        accountNumber: "",
+        accountName: "",
+        bankCode: "",
+        bankName: ""
+      });
       fetchData();
     } catch (error) {
-      console.error("Adjust balance error:", error);
-      toast.error(error?.response?.data?.message || "Lỗi khi điều chỉnh số dư");
+      console.error("Withdraw error:", error);
+      toast.error(error?.response?.data?.message || "Lỗi khi rút tiền");
     } finally {
       setSubmitting(false);
     }
@@ -189,7 +291,7 @@ export default function AdminWalletPage() {
       toast.error("Vui lòng điền đầy đủ thông tin");
       return;
     }
-    
+
     setSubmitting(true);
     try {
       await createManualTransaction({
@@ -217,6 +319,81 @@ export default function AdminWalletPage() {
     }
   };
 
+  const lookupUserInfo = useCallback(async () => {
+    const walletId = transferForm.walletId?.trim();
+    const email = transferForm.userEmail?.trim();
+    
+    if (!walletId && !email) {
+      setTransferUserInfo(null);
+      return;
+    }
+    
+    setLoadingUserInfo(true);
+    try {
+      const params = new URLSearchParams();
+      if (walletId) params.append('walletId', walletId);
+      if (email) params.append('email', email);
+      
+      console.log('[LOOKUP] Searching with:', { walletId, email });
+      const res = await axiosInstance.get(`/api/admin/wallet/lookup-user?${params.toString()}`);
+      console.log('[LOOKUP] Response:', res);
+      
+      if (res?.success) {
+        setTransferUserInfo(res.data);
+      } else {
+        setTransferUserInfo(null);
+      }
+    } catch (error) {
+      console.error('[LOOKUP] Error:', error.response?.data || error.message);
+      setTransferUserInfo(null);
+    } finally {
+      setLoadingUserInfo(false);
+    }
+  }, [transferForm.walletId, transferForm.userEmail]);
+
+  // Auto lookup when walletId or email changes (with debounce)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      lookupUserInfo();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [lookupUserInfo]);
+
+  const handleTransfer = async (e) => {
+    e.preventDefault();
+    if (!transferForm.amount || (!transferForm.walletId && !transferForm.userEmail)) {
+      toast.error("Vui lòng điền số tiền và thông tin ví đích");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await transferToWallet({
+        walletId: transferForm.walletId || undefined,
+        userEmail: transferForm.userEmail || undefined,
+        amount: parseFloat(transferForm.amount),
+        description: transferForm.description,
+        type: transferForm.type
+      });
+      toast.success("Chuyển tiền thành công!");
+      setShowTransferModal(false);
+      setTransferForm({
+        walletId: "",
+        userEmail: "",
+        amount: "",
+        description: "",
+        type: "TRANSFER"
+      });
+      setTransferUserInfo(null);
+      fetchData();
+    } catch (error) {
+      console.error("Transfer error:", error);
+      toast.error(error?.response?.data?.message || "Lỗi khi chuyển tiền");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -237,18 +414,32 @@ export default function AdminWalletPage() {
         {/* Action Buttons */}
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setShowAdjustModal(true)}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+            onClick={() => setShowTopUpModal(true)}
+            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2"
           >
-            <FiSettings size={18} />
-            Điều chỉnh số dư
+            <FiUpload size={18} />
+            Nạp tiền PayOS
+          </button>
+          <button
+            onClick={() => setShowWithdrawModal(true)}
+            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center gap-2"
+          >
+            <FiDollarSign size={18} />
+            Rút tiền
           </button>
           <button
             onClick={() => setShowTransactionModal(true)}
-            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
           >
             <FiPlus size={18} />
             Tạo giao dịch
+          </button>
+          <button
+            onClick={() => setShowTransferModal(true)}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+          >
+            <FiSend size={18} />
+            Chuyển tiền
           </button>
           <button
             onClick={handleExport}
@@ -265,26 +456,13 @@ export default function AdminWalletPage() {
         <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl p-6 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-indigo-100 text-sm">Tổng doanh thu</p>
+              <p className="text-indigo-100 text-sm">Tổng số dư</p>
               <p className="text-3xl font-bold">
-                {formatCurrency(wallet?.totalRevenue || 0)}
+                {formatCurrency(wallet?.totalBalance || 0)}
               </p>
-              <p className="text-indigo-100 text-xs mt-2">Từ đầu tháng</p>
+              <p className="text-indigo-100 text-xs mt-2">Tất cả tiền trong ví</p>
             </div>
-            <FiTrendingUp className="text-4xl text-indigo-200" />
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-6 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-green-100 text-sm">Lợi nhuận ròng</p>
-              <p className="text-3xl font-bold">
-                {formatCurrency(wallet?.netProfit || 0)}
-              </p>
-              <p className="text-green-100 text-xs mt-2">Sau khi trừ chi phí</p>
-            </div>
-            <FiPieChart className="text-4xl text-green-200" />
+            <FiCreditCard className="text-4xl text-indigo-200" />
           </div>
         </div>
 
@@ -297,7 +475,20 @@ export default function AdminWalletPage() {
               </p>
               <p className="text-purple-100 text-xs mt-2">Có thể rút</p>
             </div>
-            <FiCreditCard className="text-4xl text-purple-200" />
+            <FiPieChart className="text-4xl text-purple-200" />
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-orange-100 text-sm">Chờ hoàn thành</p>
+              <p className="text-3xl font-bold">
+                {formatCurrency(wallet?.pendingCompletionBalance || 0)}
+              </p>
+              <p className="text-orange-100 text-xs mt-2">Tiền thuê tạm giữ</p>
+            </div>
+            <FiArrowDownLeft className="text-4xl text-orange-200" />
           </div>
         </div>
       </div>
@@ -306,35 +497,55 @@ export default function AdminWalletPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-gray-700">Phí Nền Tảng</h3>
+            <h3 className="text-sm font-medium text-gray-700">Phí Đã Kiếm</h3>
             <FiTrendingUp className="text-green-600" />
           </div>
           <p className="text-2xl font-bold text-green-600">
-            {formatCurrency(wallet?.totalPlatformFees || 0)}
+            {formatCurrency(wallet?.earnedFeeBalance || 0)}
           </p>
-          <p className="text-xs text-gray-500 mt-1">
-            {((wallet?.totalPlatformFees || 0) * 100 / (wallet?.totalRevenue || 1)).toFixed(1)}% tổng doanh thu
-          </p>
+          <p className="text-xs text-gray-500 mt-1">Từ đơn đã hoàn thành</p>
         </div>
 
         <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-gray-700">Tiền Tạm Giữ</h3>
-            <FiArrowDownLeft className="text-blue-600" />
+            <h3 className="text-sm font-medium text-gray-700">Phí Chờ Hoàn Thành</h3>
+            <FiTrendingUp className="text-blue-600" />
           </div>
           <p className="text-2xl font-bold text-blue-600">
-            {formatCurrency(wallet?.totalEscrow || 0)}
+            {formatCurrency(wallet?.pendingFeeBalance || 0)}
           </p>
-          <p className="text-xs text-gray-500 mt-1">Đang chờ xử lý</p>
+          <p className="text-xs text-gray-500 mt-1">Phí đơn chưa hoàn thành</p>
         </div>
 
         <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-gray-700">Tiền Đặt Cọc</h3>
+            <h3 className="text-sm font-medium text-gray-700">Phí Vận Chuyển Đã Kiếm</h3>
+            <FiTrendingUp className="text-cyan-600" />
+          </div>
+          <p className="text-2xl font-bold text-cyan-600">
+            {formatCurrency(wallet?.earnedShippingBalance || 0)}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">Từ đơn đã hoàn thành</p>
+        </div>
+
+        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-gray-700">Phí Vận Chuyển Chờ</h3>
+            <FiTrendingUp className="text-teal-600" />
+          </div>
+          <p className="text-2xl font-bold text-teal-600">
+            {formatCurrency(wallet?.pendingShippingBalance || 0)}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">Phí đơn chưa hoàn thành</p>
+        </div>
+
+        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-gray-700">Tiền Cọc Tạm Giữ</h3>
             <FiArrowDownLeft className="text-orange-600" />
           </div>
           <p className="text-2xl font-bold text-orange-600">
-            {formatCurrency(wallet?.totalDeposits || 0)}
+            {formatCurrency(wallet?.pendingDepositBalance || 0)}
           </p>
           <p className="text-xs text-gray-500 mt-1">Bảo đảm giao dịch</p>
         </div>
@@ -423,27 +634,47 @@ export default function AdminWalletPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Lịch Sử Giao Dịch</h2>
             <div className="flex items-center gap-4">
+              <input
+                type="text"
+                placeholder="Tìm ID đơn, ID user, mã đơn..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-64"
+              />
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="ALL">Tất cả</option>
-                <option value="PLATFORM_FEE">Phí nền tảng</option>
-                <option value="SERVICE_FEE">Phí dịch vụ</option>
-                <option value="PENALTY_FEE">Phí phạt</option>
-                <option value="ESCROW_HOLD">Tiền thuê tạm giữ</option>
-                <option value="DEPOSIT_HOLD">Tiền đặt cọc</option>
-                <option value="SUPPLIER_PAYOUT">Trả tiền NCC</option>
-                <option value="CUSTOMER_REFUND">Hoàn tiền khách</option>
-                <option value="TOP_UP">Nạp tiền</option>
-                <option value="WITHDRAW">Rút tiền</option>
-                <option value="PAYMENT">Thanh toán</option>
-                <option value="REFUND">Hoàn tiền</option>
-                <option value="ADJUSTMENT_IN">Điều chỉnh tăng</option>
-                <option value="ADJUSTMENT_OUT">Điều chỉnh giảm</option>
+                <option value="ALL">Tất cả loại</option>
+                <optgroup label="── Phí nền tảng">
+                  <option value="PLATFORM_FEE">Phí nền tảng</option>
+                  <option value="PLATFORM_FEE_REFUND">Hoàn phí nền tảng</option>
+                </optgroup>
+                <optgroup label="── Vận chuyển">
+                  <option value="SHIPPING_FEE">Phí vận chuyển</option>
+                  <option value="SHIPPING_FEE_REFUND">Hoàn phí vận chuyển</option>
+                </optgroup>
+                <optgroup label="── Tiền thuê">
+                  <option value="ESCROW_HOLD">Tiền thuê tạm giữ</option>
+                  <option value="ESCROW_RELEASE">Giải phóng tiền thuê</option>
+                </optgroup>
+                <optgroup label="── Tiền cọc">
+                  <option value="DEPOSIT_HOLD">Tiền đặt cọc</option>
+                  <option value="DEPOSIT_RELEASE">Giải phóng tiền cọc</option>
+                </optgroup>
+                <optgroup label="── Chi trả">
+                  <option value="SUPPLIER_PAYOUT">Chi trả NCC</option>
+                  <option value="CUSTOMER_REFUND">Hoàn tiền khách</option>
+                  <option value="REFUND">Hoàn tiền</option>
+                </optgroup>
+                <optgroup label="── Khác">
+                  <option value="TOP_UP">Nạp tiền</option>
+                  <option value="WITHDRAW">Rút tiền</option>
+                  <option value="PAYMENT">Thanh toán</option>
+                  <option value="ADJUSTMENT">Điều chỉnh</option>
+                </optgroup>
               </select>
-
               <select
                 value={dateRange}
                 onChange={(e) => setDateRange(e.target.value)}
@@ -486,7 +717,7 @@ export default function AdminWalletPage() {
                     <div className="flex items-center gap-2">
                       {getTransactionIcon(transaction.type)}
                       <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getTransactionColor(transaction.type)}`}>
-                        {getTransactionLabel(transaction.type)}
+                        {getTransactionLabel(transaction.type, transaction.metadata)}
                       </span>
                     </div>
                   </td>
@@ -535,49 +766,39 @@ export default function AdminWalletPage() {
         )}
       </div>
 
-      {/* Adjust Balance Modal */}
-      {showAdjustModal && (
+      {/* Top Up Modal */}
+      {showTopUpModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900">Điều chỉnh số dư</h2>
-              <button onClick={() => setShowAdjustModal(false)} className="text-gray-400 hover:text-gray-600">
+              <h2 className="text-xl font-bold text-gray-900">Nạp tiền vào ví hệ thống</h2>
+              <button onClick={() => setShowTopUpModal(false)} className="text-gray-400 hover:text-gray-600">
                 <FiX size={24} />
               </button>
             </div>
             
-            <form onSubmit={handleAdjustBalance}>
+            <form onSubmit={handleTopUp}>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Số tiền điều chỉnh (âm để giảm, dương để tăng)
+                    Số tiền nạp (VNĐ)
                   </label>
                   <input
                     type="number"
-                    value={adjustForm.amount}
-                    onChange={(e) => setAdjustForm({...adjustForm, amount: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Ví dụ: 1000000 hoặc -500000"
+                    value={topUpAmount}
+                    onChange={(e) => setTopUpAmount(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="Ví dụ: 1000000"
+                    min="10000"
                     required
                   />
+                  <p className="text-xs text-gray-500 mt-1">Tối thiểu 10.000đ</p>
                 </div>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Lý do điều chỉnh</label>
-                  <textarea
-                    value={adjustForm.reason}
-                    onChange={(e) => setAdjustForm({...adjustForm, reason: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    rows="3"
-                    placeholder="Nhập lý do điều chỉnh..."
-                    required
-                  />
-                </div>
-                
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start gap-2">
-                  <FiAlertCircle className="text-yellow-600 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-yellow-700">
-                    Lưu ý: Thao tác này sẽ ảnh hưởng trực tiếp đến số dư ví hệ thống. Hãy đảm bảo lý do hợp lệ.
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
+                  <FiAlertCircle className="text-blue-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-blue-700">
+                    Bạn sẽ được chuyển đến trang thanh toán PayOS để hoàn tất giao dịch. Số dư sẽ được cập nhật sau khi thanh toán thành công.
                   </p>
                 </div>
               </div>
@@ -585,7 +806,7 @@ export default function AdminWalletPage() {
               <div className="flex justify-end gap-3 mt-6">
                 <button
                   type="button"
-                  onClick={() => setShowAdjustModal(false)}
+                  onClick={() => setShowTopUpModal(false)}
                   className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
                   Hủy
@@ -593,9 +814,114 @@ export default function AdminWalletPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
                 >
-                  {submitting ? "Đang xử lý..." : "Xác nhận điều chỉnh"}
+                  {submitting ? "Đang xử lý..." : "Tiếp tục thanh toán"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Withdraw Modal */}
+      {showWithdrawModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Rút tiền từ ví hệ thống</h2>
+              <button onClick={() => setShowWithdrawModal(false)} className="text-gray-400 hover:text-gray-600">
+                <FiX size={24} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleWithdraw}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Số tiền rút (VNĐ)</label>
+                  <input
+                    type="number"
+                    value={withdrawForm.amount}
+                    onChange={(e) => setWithdrawForm({...withdrawForm, amount: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    placeholder="Ví dụ: 1000000"
+                    min="10000"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Số dư khả dụng: {formatCurrency(wallet?.availableBalance || 0)}
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Số tài khoản ngân hàng</label>
+                  <input
+                    type="text"
+                    value={withdrawForm.accountNumber}
+                    onChange={(e) => setWithdrawForm({...withdrawForm, accountNumber: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    placeholder="Ví dụ: 123456789"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tên chủ tài khoản</label>
+                  <input
+                    type="text"
+                    value={withdrawForm.accountName}
+                    onChange={(e) => setWithdrawForm({...withdrawForm, accountName: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    placeholder="Ví dụ: NGUYEN VAN A"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mã ngân hàng</label>
+                  <input
+                    type="text"
+                    value={withdrawForm.bankCode}
+                    onChange={(e) => setWithdrawForm({...withdrawForm, bankCode: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    placeholder="Ví dụ: VCB, TCB, BIDV..."
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tên ngân hàng (tùy chọn)</label>
+                  <input
+                    type="text"
+                    value={withdrawForm.bankName}
+                    onChange={(e) => setWithdrawForm({...withdrawForm, bankName: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    placeholder="Ví dụ: Vietcombank"
+                  />
+                </div>
+                
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 flex items-start gap-2">
+                  <FiAlertCircle className="text-orange-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-orange-700">
+                    Tiền sẽ được chuyển qua PayOS đến tài khoản ngân hàng của bạn. Thời gian xử lý có thể từ vài phút đến 24 giờ.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowWithdrawModal(false)}
+                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50"
+                >
+                  {submitting ? "Đang xử lý..." : "Xác nhận rút tiền"}
                 </button>
               </div>
             </form>
@@ -701,6 +1027,150 @@ export default function AdminWalletPage() {
                   className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
                 >
                   {submitting ? "Đang xử lý..." : "Tạo giao dịch"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Transfer Modal */}
+      {showTransferModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Chuyển tiền đến ví</h2>
+              <button onClick={() => setShowTransferModal(false)} className="text-gray-400 hover:text-gray-600">
+                <FiX size={24} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleTransfer}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Wallet ID (tùy chọn)</label>
+                  <input
+                    type="text"
+                    value={transferForm.walletId}
+                    onChange={(e) => setTransferForm({...transferForm, walletId: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="ID ví đích..."
+                  />
+                </div>
+                
+                <div className="text-center text-gray-500">- hoặc -</div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email người dùng (tùy chọn)</label>
+                  <input
+                    type="email"
+                    value={transferForm.userEmail}
+                    onChange={(e) => setTransferForm({...transferForm, userEmail: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="email@example.com"
+                  />
+                </div>
+                
+                {/* User Info Display */}
+                {loadingUserInfo && (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+                  </div>
+                )}
+                
+                {transferUserInfo && !loadingUserInfo && (
+                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                    <p className="text-xs text-purple-600 font-medium mb-2">Thông tin người nhận</p>
+                    <div className="flex items-center gap-3">
+                      <img 
+                        src={transferUserInfo.avatar || "/default-avatar.png"} 
+                        alt={transferUserInfo.fullName}
+                        className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm"
+                        onError={(e) => { e.target.src = "/default-avatar.png"; }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 truncate">{transferUserInfo.fullName}</p>
+                        <p className="text-sm text-gray-500 truncate">{transferUserInfo.email}</p>
+                        {transferUserInfo.walletBalance !== undefined && (
+                          <p className="text-sm text-purple-600">
+                            Số dư: {transferUserInfo.walletBalance?.toLocaleString()}đ
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-green-500">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {!transferUserInfo && !loadingUserInfo && (transferForm.walletId || transferForm.userEmail) && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                    <p className="text-sm text-red-600">Không tìm thấy thông tin người dùng</p>
+                  </div>
+                )}
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Số tiền (VNĐ)</label>
+                  <input
+                    type="number"
+                    value={transferForm.amount}
+                    onChange={(e) => setTransferForm({...transferForm, amount: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="Ví dụ: 1000000"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
+                  <textarea
+                    value={transferForm.description}
+                    onChange={(e) => setTransferForm({...transferForm, description: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    rows="3"
+                    placeholder="Nhập mô tả chuyển tiền..."
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Loại chuyển tiền</label>
+                  <select
+                    value={transferForm.type}
+                    onChange={(e) => setTransferForm({...transferForm, type: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="TRANSFER">Chuyển tiền thông thường</option>
+                    <option value="SUPPLIER_PAYOUT">Trả tiền nhà cung cấp</option>
+                    <option value="CUSTOMER_REFUND">Hoàn tiền khách hàng</option>
+                    <option value="BONUS">Thưởng</option>
+                  </select>
+                </div>
+                
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 flex items-start gap-2">
+                  <FiAlertCircle className="text-purple-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-purple-700">
+                    Chuyển tiền sẽ trừ từ ví hệ thống và cộng vào ví đích ngay lập tức.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowTransferModal(false)}
+                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                >
+                  {submitting ? "Đang xử lý..." : "Xác nhận chuyển"}
                 </button>
               </div>
             </form>

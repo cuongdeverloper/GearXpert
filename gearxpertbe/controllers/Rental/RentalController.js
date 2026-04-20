@@ -48,16 +48,26 @@ const {
 
 } = require("../../services/ReturnService");
 
+
+
 const { PayOS } = require("@payos/node");
 
+
+
 const payos = new PayOS(
+
   process.env.PAYOS_CLIENT_ID,
+
   process.env.PAYOS_API_KEY,
+
   process.env.PAYOS_CHECKSUM_KEY
+
 );
 
 // Đầu file RentalController.js (hoặc nơi bạn định nghĩa các hàm)
+
 const NotificationConfig = require("../../configs/NotificationConfig"); // điều chỉnh path cho đúng
+
 const { emitOperationStaffUpdate } = require("../../utils/operationStaffSocket");
 
 const SupplierProfile = require("../../models/SupplierProfile");
@@ -68,41 +78,77 @@ const { HandoverRecord, HANDOVER_STATUS } = require("../../models/HandoverRecord
 // Helper function to get client IP
 
 const getClientIp = (req) => {
+
   const forwardedFor = req.headers["x-forwarded-for"];
+
   if (typeof forwardedFor === "string" && forwardedFor.length > 0) {
+
     return forwardedFor.split(",")[0].trim();
+
   }
+
   return req.ip;
+
 };
 
+
+
 // Helper gửi noti cho supplier hoặc customer
+
 const sendRentalNotification = async (
+
   rental,
+
   receiverRole,
+
   title,
+
   message,
+
   linkSuffix = ""
+
 ) => {
+
   const receiverId =
+
     receiverRole === "SUPPLIER" ? rental.supplierId : rental.customerId;
+
   const senderId =
+
     receiverRole === "SUPPLIER" ? rental.customerId : rental.supplierId;
 
+
+
   const rid = rental._id?.toString?.() || rental._id;
+
   const link =
+
     receiverRole === "SUPPLIER"
+
       ? `/supplier/rental-requests?rental=${rid}`
+
       : linkSuffix
+
         ? `/my-rentals/${rid}${linkSuffix}`
+
         : `/my-rentals/${rid}`;
 
+
+
   await NotificationConfig.sendNotification({
+
     senderId,
+
     receiverId,
+
     title,
+
     message,
+
     link,
+
     type: "ORDER",
+
   });
 
 };
@@ -577,9 +623,16 @@ exports.checkoutRental = async (req, res) => {
 
       voucherCode,
 
-      shippingFee = 0,
+      // Accept both deliveryFee (new) and shippingFee (frontend compat)
+      deliveryFee: _deliveryFeeRaw,
+      shippingFee: _shippingFeeRaw,
+
+      customerSignature,
 
     } = req.body;
+
+    // Parse delivery fee: accept deliveryFee or shippingFee field from frontend
+    const deliveryFee = Number(_deliveryFeeRaw ?? _shippingFeeRaw ?? 0) || 0;
 
 
 
@@ -676,7 +729,7 @@ exports.checkoutRental = async (req, res) => {
       const now = new Date();
       const discountExpiry = device.discountExpiry ? new Date(device.discountExpiry) : null;
       const isDiscountValid = device.discountPrice && discountExpiry && discountExpiry > now;
-
+      
       const effectivePrice = isDiscountValid ? device.discountPrice : device.rentPrice.perDay;
       const rent = effectivePrice * item.totalDays * item.quantity;
 
@@ -731,17 +784,23 @@ exports.checkoutRental = async (req, res) => {
 
 
       if (
-
         appliedVoucher &&
-
         appliedVoucher.usedCount >= appliedVoucher.usageLimit
-
       ) {
-
         throw new Error("Mã giảm giá đã hết lượt sử dụng");
-
       }
 
+      if (appliedVoucher) {
+        const usageCheck = await Rental.findOne({
+          customerId,
+          voucherCode: appliedVoucher.code,
+          status: { $nin: ["CANCELLED", "REJECTED"] },
+        }).session(session);
+
+        if (usageCheck) {
+          throw new Error("Bạn đã sử dụng mã giảm giá này cho một đơn hàng trước đó");
+        }
+      }
     }
 
 
@@ -760,7 +819,6 @@ exports.checkoutRental = async (req, res) => {
 
 
 
-      const deliveryFee = shippingFee;
 
 
 
@@ -946,55 +1004,7 @@ exports.checkoutRental = async (req, res) => {
 
 
 
-      // Cộng phí nền tảng vào ví system
-
-      const systemWallet = await Wallet.findOne({ isSystem: true }).session(
-
-        session
-
-      );
-
-      if (!systemWallet) {
-
-        throw new Error("Không tìm thấy ví hệ thống");
-
-      }
-
-
-
-      const sysBalanceBefore = systemWallet.balance;
-
-      systemWallet.balance += totalPlatformFee;
-
-      await systemWallet.save({ session });
-
-
-
-      await WalletTransaction.create(
-
-        [
-
-          {
-
-            wallet: systemWallet._id,
-
-            type: "PLATFORM_FEE", // bạn có thể thêm enum này vào schema nếu muốn
-
-            amount: totalPlatformFee,
-
-            balanceBefore: sysBalanceBefore,
-
-            balanceAfter: systemWallet.balance,
-
-            referenceType: "RENTAL",
-
-            status: "SUCCESS",
-
-            description: `Thu phí nền tảng từ ${supplierIds.length} đơn thuê`,
-
-          },
-
-        ], { session, ordered: true });
+      // System wallet transactions sẽ được tạo ở step 7.5 (sau khi có rentalId)
 
 
 
@@ -1102,6 +1112,8 @@ exports.checkoutRental = async (req, res) => {
 
         notes,
 
+        customerSignature,
+
       };
 
 
@@ -1170,7 +1182,102 @@ exports.checkoutRental = async (req, res) => {
 
     }
 
+    // 7.5. Tạo system wallet transactions per rental (sau khi có rentalId để gắn referenceId đúng)
+    if (paymentMethod === "WALLET") {
+      const systemWallet = await Wallet.findOne({ isSystem: true }).session(session);
+      if (!systemWallet) throw new Error("Không tìm thấy ví hệ thống");
 
+      const txNow = new Date();
+      let sysRunningBalance = systemWallet.balance;
+      const systemTxs = [];
+
+      for (let idx = 0; idx < createdRentals.length; idx++) {
+        const { rental: createdRental } = createdRentals[idx];
+        const rd = allocatedData[idx];
+        const netEscrow = Math.max(0, (rd.rentAfterDiscount || 0) - (rd.platformFee || 0));
+        const pFee = rd.platformFee || 0;
+        const depositAmt = rd.depositAmount || 0;
+        const shippingFee = rd.deliveryFee || 0;
+        const offset = idx * 4;
+
+        if (pFee > 0) {
+          systemTxs.push({
+            wallet: systemWallet._id,
+            type: "PLATFORM_FEE",
+            amount: pFee,
+            balanceBefore: sysRunningBalance,
+            balanceAfter: sysRunningBalance + pFee,
+            referenceType: "RENTAL",
+            referenceId: createdRental._id,
+            description: `Thu phí nền tảng đơn #${createdRental._id.toString().slice(-6)}`,
+            status: "SUCCESS",
+            isEarned: false,
+            rentalStatus: "PENDING",
+            metadata: { paymentMethod: "WALLET" },
+            createdAt: new Date(txNow.getTime() + offset),
+          });
+          sysRunningBalance += pFee;
+        }
+
+        if (netEscrow > 0) {
+          systemTxs.push({
+            wallet: systemWallet._id,
+            type: "ESCROW_HOLD",
+            amount: netEscrow,
+            balanceBefore: sysRunningBalance,
+            balanceAfter: sysRunningBalance + netEscrow,
+            referenceType: "RENTAL",
+            referenceId: createdRental._id,
+            description: `Tiền thuê tạm giữ đơn #${createdRental._id.toString().slice(-6)}`,
+            status: "SUCCESS",
+            createdAt: new Date(txNow.getTime() + offset + 1),
+          });
+          sysRunningBalance += netEscrow;
+        }
+
+        if (depositAmt > 0) {
+          systemTxs.push({
+            wallet: systemWallet._id,
+            type: "DEPOSIT_HOLD",
+            amount: depositAmt,
+            balanceBefore: sysRunningBalance,
+            balanceAfter: sysRunningBalance + depositAmt,
+            referenceType: "RENTAL",
+            referenceId: createdRental._id,
+            description: `Tiền đặt cọc tạm giữ đơn #${createdRental._id.toString().slice(-6)}`,
+            status: "SUCCESS",
+            createdAt: new Date(txNow.getTime() + offset + 2),
+          });
+          sysRunningBalance += depositAmt;
+        }
+
+        if (shippingFee > 0) {
+          systemTxs.push({
+            wallet: systemWallet._id,
+            type: "SHIPPING_FEE",
+            amount: shippingFee,
+            balanceBefore: sysRunningBalance,
+            balanceAfter: sysRunningBalance + shippingFee,
+            referenceType: "RENTAL",
+            referenceId: createdRental._id,
+            description: `Phí vận chuyển đơn #${createdRental._id.toString().slice(-6)}`,
+            status: "SUCCESS",
+            isEarned: false,
+            rentalStatus: "PENDING",
+            metadata: { paymentMethod: "WALLET" },
+            createdAt: new Date(txNow.getTime() + offset + 3),
+          });
+          sysRunningBalance += shippingFee;
+        }
+      }
+
+      systemWallet.balance = sysRunningBalance;
+      await systemWallet.save({ session });
+
+      if (systemTxs.length > 0) {
+        await WalletTransaction.insertMany(systemTxs, { session });
+      }
+    }
 
     // 8. Notification và upload contract
 
@@ -1181,7 +1288,7 @@ exports.checkoutRental = async (req, res) => {
       for (const { rental, items } of createdRentals) {
 
         try {
-          await createContractForRental(rental, req, items);
+          await createContractForRental(rental, req, items, customerSignature);
         } catch (error) {
           console.error(`[CHECKOUT] Error stack:`, error.stack);
         }
@@ -1217,7 +1324,7 @@ exports.checkoutRental = async (req, res) => {
 
     // Helper function to create contract
 
-    async function createContractForRental(rental, req, rentalItemsData = []) {
+    async function createContractForRental(rental, req, rentalItemsData = [], customerSignature = null) {
       try {
         // Import contract controller functions
 
@@ -1230,6 +1337,12 @@ exports.checkoutRental = async (req, res) => {
         const DeviceItem = require('../../models/DeviceItem');
 
         const Device = require('../../models/Device');
+
+        // Gán customerSignature vào rental nếu có
+        if (customerSignature) {
+          rental.customerSignature = customerSignature;
+        }
+
         // Use provided items data, enrich with device and deviceItem info
         const enrichedItems = [];
 
@@ -1687,6 +1800,10 @@ exports.getDeliveringRentals = async (req, res) => {
 
         // Check if rental is in DELIVERING or has a valid task in PENDING_RESOLUTION
         if (rental.status === "PENDING_RESOLUTION") {
+          // Bỏ qua nếu PENDING_RESOLUTION này là do thất bại khi thu hồi
+          if (rental.inspectedContext === "RETURN") {
+            return null;
+          }
           // Chỉ show ở tab Giao Hàng nếu đó là đơn "Giao bổ sung"
           if (!deliveryTask || !deliveryTask.isAdditional) {
             return null;
@@ -2485,7 +2602,93 @@ exports.rejectRental = async (req, res) => {
 
       }
 
+      // Giải phóng ví system - tạo các giao dịch release để admin track
+      const systemWallet = await Wallet.findOne({ isSystem: true }).session(session);
+      if (systemWallet && rental.totalAmount > 0) {
+        const refundAmount = rental.totalAmount;
+        const sysBefore = systemWallet.balance;
+        systemWallet.balance -= refundAmount;
+        await systemWallet.save({ session });
 
+        const rentAmount = rental.paymentBreakdown?.rentAmount || 0;
+        const platformFee = rental.paymentBreakdown?.platformFee || 0;
+        const depositAmt = rental.paymentBreakdown?.depositAmount || 0;
+        const deliveryFeeAmt = rental.deliveryFee || 0;
+        const netEscrow = Math.max(0, rentAmount - platformFee);
+        let sysRunning = sysBefore;
+
+        if (netEscrow > 0) {
+          await WalletTransaction.create([{
+            wallet: systemWallet._id,
+            type: "ESCROW_RELEASE",
+            amount: -netEscrow,
+            balanceBefore: sysRunning,
+            balanceAfter: sysRunning - netEscrow,
+            referenceType: "RENTAL",
+            referenceId: rental._id,
+            description: `Giải phóng tiền thuê do NCC từ chối đơn #${rental._id.toString().slice(-6)}`,
+            status: "SUCCESS",
+          }], { session });
+          sysRunning -= netEscrow;
+        }
+
+        if (depositAmt > 0) {
+          await WalletTransaction.create([{
+            wallet: systemWallet._id,
+            type: "DEPOSIT_RELEASE",
+            amount: -depositAmt,
+            balanceBefore: sysRunning,
+            balanceAfter: sysRunning - depositAmt,
+            referenceType: "RENTAL",
+            referenceId: rental._id,
+            description: `Giải phóng tiền cọc do NCC từ chối đơn #${rental._id.toString().slice(-6)}`,
+            status: "SUCCESS",
+          }], { session });
+          sysRunning -= depositAmt;
+        }
+
+        if (platformFee > 0) {
+          await WalletTransaction.create([{
+            wallet: systemWallet._id,
+            type: "PLATFORM_FEE_REFUND",
+            amount: -platformFee,
+            balanceBefore: sysRunning,
+            balanceAfter: sysRunning - platformFee,
+            referenceType: "RENTAL",
+            referenceId: rental._id,
+            description: `Hoàn phí nền tảng do NCC từ chối đơn #${rental._id.toString().slice(-6)}`,
+            status: "SUCCESS",
+          }], { session });
+          sysRunning -= platformFee;
+
+          await WalletTransaction.updateOne(
+            { wallet: systemWallet._id, type: "PLATFORM_FEE", referenceType: "RENTAL", referenceId: rental._id },
+            { $set: { rentalStatus: "CANCELLED", isEarned: false, isRefunded: true } },
+            { session }
+          );
+        }
+
+        if (deliveryFeeAmt > 0) {
+          await WalletTransaction.create([{
+            wallet: systemWallet._id,
+            type: "SHIPPING_FEE_REFUND",
+            amount: -deliveryFeeAmt,
+            balanceBefore: sysRunning,
+            balanceAfter: sysRunning - deliveryFeeAmt,
+            referenceType: "RENTAL",
+            referenceId: rental._id,
+            description: `Hoàn phí vận chuyển do NCC từ chối đơn #${rental._id.toString().slice(-6)}`,
+            status: "SUCCESS",
+          }], { session });
+          sysRunning -= deliveryFeeAmt;
+
+          await WalletTransaction.updateOne(
+            { wallet: systemWallet._id, type: "SHIPPING_FEE", referenceType: "RENTAL", referenceId: rental._id },
+            { $set: { rentalStatus: "CANCELLED", isEarned: false, isRefunded: true } },
+            { session }
+          );
+        }
+      }
 
       rental.paymentStatus = "REFUNDED";
 
@@ -3251,60 +3454,97 @@ exports.cancelRental = async (req, res) => {
 
 
 
-      // Hoàn platform fee về ví system (nếu có)
+      // Trừ tiền từ ví system để hoàn cho khách (tạo giao dịch giải phóng)
+      const systemWallet = await Wallet.findOne({ isSystem: true }).session(session);
+      if (systemWallet && refundAmount > 0) {
+        const sysBefore = systemWallet.balance;
+        systemWallet.balance -= refundAmount;
+        await systemWallet.save({ session });
 
-      if (rental.paymentBreakdown?.platformFee > 0) {
+        const rentAmount = rental.paymentBreakdown?.rentAmount || 0;
+        const platformFee = rental.paymentBreakdown?.platformFee || 0;
+        const depositAmt = rental.paymentBreakdown?.depositAmount || 0;
+        const deliveryFee = rental.deliveryFee || 0;
 
-        const systemWallet = await Wallet.findOne({ isSystem: true }).session(
+        // FIX: netEscrow = rentAmount - platformFee (không cộng deliveryFee
+        // vì deliveryFee được lưu riêng trong SHIPPING_FEE transaction)
+        const netEscrow = Math.max(0, rentAmount - platformFee);
+        let sysRunning = sysBefore;
 
-          session
-
-        );
-
-        if (systemWallet) {
-
-          const sysBefore = systemWallet.balance;
-
-          systemWallet.balance -= rental.paymentBreakdown.platformFee;
-
-          await systemWallet.save({ session });
-
-
-
-          await WalletTransaction.create(
-
-            [
-
-              {
-
-                wallet: systemWallet._id,
-
-                type: "PLATFORM_FEE_REFUND",
-
-                amount: -rental.paymentBreakdown.platformFee,
-
-                balanceBefore: sysBefore,
-
-                balanceAfter: systemWallet.balance,
-
-                referenceType: "RENTAL",
-
-                referenceId: rental._id,
-
-                description: `Hoàn phí nền tảng do hủy đơn #${rental._id
-
-                  .toString()
-
-                  .slice(-6)}`,
-
-                status: "SUCCESS",
-
-              },
-
-            ], { session, ordered: true });
-
+        if (netEscrow > 0) {
+          await WalletTransaction.create([{
+            wallet: systemWallet._id,
+            type: "ESCROW_RELEASE",
+            amount: -netEscrow,
+            balanceBefore: sysRunning,
+            balanceAfter: sysRunning - netEscrow,
+            referenceType: "RENTAL",
+            referenceId: rental._id,
+            description: `Giải phóng tiền thuê do hủy đơn #${rental._id.toString().slice(-6)}`,
+            status: "SUCCESS",
+          }], { session });
+          sysRunning -= netEscrow;
         }
 
+        if (depositAmt > 0) {
+          await WalletTransaction.create([{
+            wallet: systemWallet._id,
+            type: "DEPOSIT_RELEASE",
+            amount: -depositAmt,
+            balanceBefore: sysRunning,
+            balanceAfter: sysRunning - depositAmt,
+            referenceType: "RENTAL",
+            referenceId: rental._id,
+            description: `Giải phóng tiền cọc do hủy đơn #${rental._id.toString().slice(-6)}`,
+            status: "SUCCESS",
+          }], { session });
+          sysRunning -= depositAmt;
+        }
+
+        if (platformFee > 0) {
+          await WalletTransaction.create([{
+            wallet: systemWallet._id,
+            type: "PLATFORM_FEE_REFUND",
+            amount: -platformFee,
+            balanceBefore: sysRunning,
+            balanceAfter: sysRunning - platformFee,
+            referenceType: "RENTAL",
+            referenceId: rental._id,
+            description: `Hoàn phí nền tảng do hủy đơn #${rental._id.toString().slice(-6)}`,
+            status: "SUCCESS",
+          }], { session });
+          sysRunning -= platformFee;
+
+          // Đánh dấu PLATFORM_FEE gốc là đã được hoàn
+          await WalletTransaction.updateOne(
+            { wallet: systemWallet._id, type: "PLATFORM_FEE", referenceType: "RENTAL", referenceId: rental._id },
+            { $set: { rentalStatus: "CANCELLED", isEarned: false, isRefunded: true } },
+            { session }
+          );
+        }
+
+        if (deliveryFee > 0) {
+          // Tạo transaction hoàn phí vận chuyển
+          await WalletTransaction.create([{
+            wallet: systemWallet._id,
+            type: "SHIPPING_FEE_REFUND",
+            amount: -deliveryFee,
+            balanceBefore: sysRunning,
+            balanceAfter: sysRunning - deliveryFee,
+            referenceType: "RENTAL",
+            referenceId: rental._id,
+            description: `Hoàn phí vận chuyển do hủy đơn #${rental._id.toString().slice(-6)}`,
+            status: "SUCCESS",
+          }], { session });
+          sysRunning -= deliveryFee;
+
+          // Đánh dấu SHIPPING_FEE gốc là đã được hoàn
+          await WalletTransaction.updateOne(
+            { wallet: systemWallet._id, type: "SHIPPING_FEE", referenceType: "RENTAL", referenceId: rental._id },
+            { $set: { rentalStatus: "CANCELLED", isEarned: false, isRefunded: true } },
+            { session }
+          );
+        }
       }
 
     }
@@ -3360,6 +3600,12 @@ exports.cancelRental = async (req, res) => {
           cancelledAt: new Date(),
 
           cancelReason: "Khách hàng yêu cầu hủy",
+
+          escrowStatus: "RELEASED",
+
+          depositStatus: "REFUNDED",
+
+          supplierPayoutStatus: "CANCELLED",
 
         },
 
@@ -4469,6 +4715,10 @@ exports.turn = exports.confirmReturn = async (req, res) => {
 
     const supplierReceive = rentAfterDiscount - platformFee;
 
+    // Tính số tiền escrow cần giải phóng: tiền thuê đã trừ phí (không bao gồm deliveryFee)
+    // deliveryFee là thu nhập của admin (đã có SHIPPING_FEE transaction riêng)
+    const escrowReleaseAmount = rentAfterDiscount - platformFee;
+
     const supplierWallet = await Wallet.findOne({
 
       user: rental.supplierId,
@@ -4607,7 +4857,7 @@ exports.turn = exports.confirmReturn = async (req, res) => {
 
 
 
-    // Tạo transaction cho payout từ admin
+    // Tạo transactions giảm ESCROW_HOLD và DEPOSIT_HOLD riêng biệt
 
     await WalletTransaction.create(
 
@@ -4617,13 +4867,35 @@ exports.turn = exports.confirmReturn = async (req, res) => {
 
           wallet: adminWallet._id,
 
+          type: "ESCROW_RELEASE",
+
+          amount: -escrowReleaseAmount, // Giảm tiền thuê tạm giữ (đã trừ phí + phí vận chuyển)
+
+          balanceBefore: adminBefore,
+
+          balanceAfter: adminBefore - escrowReleaseAmount,
+
+          referenceType: "RENTAL",
+
+          referenceId: rental._id,
+
+          description: `Giải phóng tiền thuê tạm giữ đơn #${rental._id.toString().slice(-6)}`,
+
+          status: "SUCCESS",
+
+        },
+
+        {
+
+          wallet: adminWallet._id,
+
           type: "PAYOUT",
 
           amount: -supplierReceive,
 
-          balanceBefore: adminBefore,
+          balanceBefore: adminBefore - escrowReleaseAmount,
 
-          balanceAfter: adminWallet.balance + rental.depositAmount, // Trước khi trừ deposit
+          balanceAfter: adminBefore - escrowReleaseAmount - supplierReceive,
 
           referenceType: "RENTAL",
 
@@ -4639,11 +4911,11 @@ exports.turn = exports.confirmReturn = async (req, res) => {
 
           wallet: adminWallet._id,
 
-          type: "DEPOSIT_REFUND",
+          type: "DEPOSIT_RELEASE",
 
-          amount: -rental.depositAmount,
+          amount: -rental.depositAmount, // Giảm tiền cọc tạm giữ
 
-          balanceBefore: adminWallet.balance + rental.depositAmount,
+          balanceBefore: adminBefore - rentAfterDiscount - supplierReceive,
 
           balanceAfter: adminWallet.balance,
 
@@ -4651,7 +4923,7 @@ exports.turn = exports.confirmReturn = async (req, res) => {
 
           referenceId: rental._id,
 
-          description: `Hoàn cọc khách đơn #${rental._id.toString().slice(-6)}`,
+          description: `Giải phóng tiền cọc đơn #${rental._id.toString().slice(-6)}`,
 
           status: "SUCCESS",
 
@@ -4661,37 +4933,54 @@ exports.turn = exports.confirmReturn = async (req, res) => {
 
 
 
-    // Platform fee đã ở lại trong ví admin (không cần chuyển đi đâu)
+    // Platform fee và Shipping fee đã ở lại trong ví admin (không cần chuyển đi đâu)
+    // Update PLATFORM_FEE transaction to mark as earned
+    await WalletTransaction.updateOne(
+      { 
+        wallet: adminWallet._id,
+        type: "PLATFORM_FEE",
+        referenceType: "RENTAL",
+        referenceId: rental._id
+      },
+      { 
+        $set: { 
+          rentalStatus: "COMPLETED",
+          isEarned: true
+        } 
+      },
+      { session }
+    );
 
-
+    // Update SHIPPING_FEE transaction to mark as earned
+    await WalletTransaction.updateOne(
+      { 
+        wallet: adminWallet._id,
+        type: "SHIPPING_FEE",
+        referenceType: "RENTAL",
+        referenceId: rental._id
+      },
+      { 
+        $set: { 
+          rentalStatus: "COMPLETED",
+          isEarned: true
+        } 
+      },
+      { session }
+    );
 
     // Cập nhật trạng thái cuối
+
     rental.status = "COMPLETED";
+
     rental.depositStatus = "REFUNDED";
+
     rental.supplierPayoutStatus = "PAID";
+
     rental.escrowStatus = "RELEASED";
-
-    // Cộng điểm thưởng rank cho khách hàng (10.000đ = 100 điểm)
-    const User = require("../../models/User");
-    const customer = await User.findById(rental.customerId).session(session);
-    if (customer) {
-      const earnedPoints = Math.floor(rental.rentPriceTotal / 10000) * 100;
-      customer.rewardPoints = (customer.rewardPoints || 0) + earnedPoints;
-      
-      const pts = customer.rewardPoints;
-      if (pts >= 20000) customer.rank = "DIAMOND";
-      else if (pts >= 10000) customer.rank = "PLATINUM";
-      else if (pts >= 5000) customer.rank = "GOLD";
-      else if (pts >= 1000) customer.rank = "SILVER";
-      else customer.rank = "BRONZE";
-
-      await customer.save({ session });
-    }
 
 
 
     // Gán paymentBreakdown để tránh validation error
-
     rental.paymentBreakdown = {
 
       rentAmount: rental.rentPriceTotal,
