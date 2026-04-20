@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { getCurrentUser, updateProfile, changePassword, sendOTPForPasswordChange } from '../../service/ApiService/AuthApi';
+import { getMySupplierContract } from '../../service/ApiService/SupplierApi';
 import { doLogin, doLogout } from '../../redux/action/userAction';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiCheckCircle, FiLock, FiCamera } from 'react-icons/fi';
@@ -26,6 +27,7 @@ export default function ProfilePage() {
     const [avatarPreview, setAvatarPreview] = useState(null);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [showEkycModal, setShowEkycModal] = useState(false);
+    const [supplierContract, setSupplierContract] = useState(null);
     const fileInputRef = useRef(null);
 
     // OTP state
@@ -73,9 +75,20 @@ export default function ProfilePage() {
 
         // Fetch latest user data
         fetchUserData();
+        fetchContractData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isAuthenticated, navigate]);
 
+    const fetchContractData = async () => {
+        try {
+            const res = await getMySupplierContract();
+            if (res && res.success && res.hasContract) {
+                setSupplierContract(res.contract);
+            }
+        } catch (error) {
+            console.error('Error fetching supplier contract:', error);
+        }
+    };
 
     const fetchUserData = async () => {
         try {
@@ -530,7 +543,7 @@ export default function ProfilePage() {
                                         </span>
                                     </div>
 
-                                    {userAccount?.role === 'CUSTOMER' && (
+                                    {userAccount?.role === 'CUSTOMER' && (!supplierContract || supplierContract.status === 'REJECTED') && (
                                     <div className="mt-6 pt-6 border-t border-slate-200">
                                         <button
                                             onClick={() => {
@@ -548,6 +561,32 @@ export default function ProfilePage() {
                                         </button>
                                         <p className="text-xs text-slate-500 text-center mt-2">
                                             {t('profile.upgrade_supplier_desc')}
+                                        </p>
+                                    </div>
+                                )}
+                                
+                                {supplierContract && supplierContract.status === 'PENDING' && (
+                                    <div className="mt-6 pt-6 border-t border-slate-200">
+                                        <div className="flex items-center gap-2 p-3 bg-amber-50 text-amber-600 rounded-lg border border-amber-100">
+                                            <span className="material-symbols-outlined">pending_actions</span>
+                                            <span className="text-sm font-semibold">Yêu cầu trở thành nhà cung cấp đang chờ phê duyệt</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {supplierContract && supplierContract.status === 'APPROVED' && supplierContract.signedPdfUrl && (
+                                    <div className="mt-6 pt-6 border-t border-slate-200">
+                                        <a
+                                            href={supplierContract.signedPdfUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-lg font-bold hover:shadow-lg hover:shadow-teal-500/30 hover:scale-[1.02] active:scale-95 transition-all duration-300"
+                                        >
+                                            <span className="material-symbols-outlined text-[20px]">download</span>
+                                            Tải hợp đồng nhà cung cấp
+                                        </a>
+                                        <p className="text-xs text-slate-500 text-center mt-2">
+                                            Hợp đồng đăng ký đã được phê duyệt
                                         </p>
                                     </div>
                                 )}
