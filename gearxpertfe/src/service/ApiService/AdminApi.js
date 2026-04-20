@@ -1,6 +1,6 @@
 import axiosInstance from "../AxiosCustomize";
 
-const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:1357/api";
+const API_BASE = process.env.REACT_APP_BACKEND_URL || "http://localhost:1357/api";
 
 // Admin Wallet APIs
 export const getAdminWallet = () => {
@@ -20,7 +20,7 @@ export const createManualTransaction = (data) => {
 };
 
 export const exportWalletTransactions = (params = {}) => {
-  return axiosInstance.get(`${API_BASE}/admin/wallet/export-transactions`, { 
+  return axiosInstance.get(`${API_BASE}/admin/wallet/export-transactions`, {
     params,
     responseType: 'blob'
   });
