@@ -1,5 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useSocket } from "../../../SocketContext";
+import { getBlogs } from "../../../service/ApiService/BlogApi";
+import { toast } from "react-toastify";
 import {
   FiHome,
   FiUsers,
@@ -84,6 +87,46 @@ export default function AdminSidebar({ collapsed, onToggleCollapsed }) {
     "/admin/blogs": true,
     "/admin/suppliers": true
   }); // Open by default
+  const { socket } = useSocket();
+  const [pendingBlogsCount, setPendingBlogsCount] = useState(0);
+
+  useEffect(() => {
+    const fetchPendingCount = async () => {
+      try {
+        const res = await getBlogs({ status: "pending", limit: 1 });
+        setPendingBlogsCount(res.data.total);
+      } catch (error) {
+        console.error("Lỗi khi lấy số lượng blog chờ duyệt:", error);
+      }
+    };
+    fetchPendingCount();
+  }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewBlog = (blog) => {
+      if (blog.status === "pending") {
+        setPendingBlogsCount(prev => prev + 1);
+      }
+    };
+
+    const handleBlogStatusChange = ({ oldStatus, newStatus }) => {
+      if (oldStatus === "pending" && newStatus !== "pending") {
+        setPendingBlogsCount(prev => Math.max(0, prev - 1));
+      } else if (oldStatus !== "pending" && newStatus === "pending") {
+        setPendingBlogsCount(prev => prev + 1);
+      }
+    };
+
+    socket.on("admin_new_blog_pending", handleNewBlog);
+    socket.on("admin_blog_status_changed", handleBlogStatusChange);
+
+    return () => {
+      socket.off("admin_new_blog_pending", handleNewBlog);
+      socket.off("admin_blog_status_changed", handleBlogStatusChange);
+    };
+  }, [socket]);
 
   const toggleSubMenu = (to) => {
     setOpenSubMenus(prev => ({
@@ -143,16 +186,26 @@ export default function AdminSidebar({ collapsed, onToggleCollapsed }) {
                       >
                         <span
                           className={cx(
-                            "grid h-9 w-9 place-items-center rounded-xl flex-shrink-0",
+                            "grid h-9 w-9 place-items-center rounded-xl flex-shrink-0 relative",
                             isActive
                               ? "bg-white text-primary shadow-sm shadow-primary/10"
                               : "bg-slate-100 text-slate-600"
                           )}
                         >
                           <Icon size={18} />
+                          {collapsed && item.to === "/admin/blogs" && pendingBlogsCount > 0 && (
+                            <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 ring-2 ring-white animate-pulse"></span>
+                          )}
                         </span>
                         {!collapsed && (
-                          <span className="font-medium whitespace-nowrap flex-1">{item.label}</span>
+                          <span className="font-medium whitespace-nowrap flex-1 flex items-center justify-between">
+                            {item.label}
+                            {item.to === "/admin/blogs" && pendingBlogsCount > 0 && (
+                              <span className="flex h-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white shadow-sm animate-pulse ml-2">
+                                {pendingBlogsCount > 99 ? '99+' : pendingBlogsCount}
+                              </span>
+                            )}
+                          </span>
                         )}
                         {hasSubItems && !collapsed && (
                           <button

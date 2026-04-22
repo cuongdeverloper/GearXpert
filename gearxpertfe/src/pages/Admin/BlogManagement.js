@@ -5,6 +5,7 @@ import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction
 import { FiSearch, FiCheckCircle, FiXCircle, FiEye, FiTrash2, FiClock, FiFileText, FiMoreHorizontal, FiStar } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { CATEGORY_MAP, formatDate } from "../Blog/BlogConstants";
+import { useSocket } from "../../SocketContext";
 
 export default function BlogManagement() {
     const dispatch = useDispatch();
@@ -13,6 +14,7 @@ export default function BlogManagement() {
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("pending");
     const [loading, setLoading] = useState(false);
+    const { socket } = useSocket();
     
     // Reason Modal States
     const [reasonModal, setReasonModal] = useState({ open: false, type: '', id: '', title: '' });
@@ -34,7 +36,8 @@ export default function BlogManagement() {
             const params = {
                 limit: 100,
                 status: status,
-                search: search || undefined
+                search: search || undefined,
+                isAdmin: true
             };
             const response = await getBlogs(params);
             setBlogs(response.blogs || []);
@@ -72,6 +75,29 @@ export default function BlogManagement() {
             return () => clearTimeout(delayDebounceFn);
         }
     }, [searchTerm, statusFilter, fetchBlogs]);
+
+    // Socket listeners for real-time updates
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleNewBlog = (blog) => {
+            if (blog.status === "pending") {
+                fetchBlogs(statusFilter, searchTerm);
+            }
+        };
+
+        const handleBlogStatusChange = () => {
+            fetchBlogs(statusFilter, searchTerm);
+        };
+
+        socket.on("admin_new_blog_pending", handleNewBlog);
+        socket.on("admin_blog_status_changed", handleBlogStatusChange);
+
+        return () => {
+            socket.off("admin_new_blog_pending", handleNewBlog);
+            socket.off("admin_blog_status_changed", handleBlogStatusChange);
+        };
+    }, [socket, statusFilter, searchTerm, fetchBlogs]);
 
     const handleUpdateStatus = async (id, status) => {
         if (status === 'rejected') {
@@ -556,6 +582,54 @@ export default function BlogManagement() {
                     </div>
                 </div>
             )}
+        {/* Reason Modal */}
+        {reasonModal.open && (
+            <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+                <div 
+                    className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" 
+                    onClick={() => {
+                        setReasonModal({ open: false, type: '', id: '', title: '' });
+                        setReasonText("");
+                    }}
+                ></div>
+                <div className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl relative z-10 p-8 animate-in fade-in zoom-in duration-200">
+                    <h3 className="text-xl font-black text-slate-900 mb-2">{reasonModal.title}</h3>
+                    <p className="text-sm text-slate-500 mb-6">
+                        Vui lòng cung cấp lý do để gửi email thông báo cho tác giả.
+                    </p>
+                    
+                    <textarea
+                        value={reasonText}
+                        onChange={(e) => setReasonText(e.target.value)}
+                        placeholder="Nhập lý do chi tiết..."
+                        className="w-full h-32 p-4 rounded-2xl border-2 border-slate-100 focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none resize-none mb-6 text-sm text-slate-700"
+                        autoFocus
+                    />
+                    
+                    <div className="flex gap-3 justify-end">
+                        <button
+                            onClick={() => {
+                                setReasonModal({ open: false, type: '', id: '', title: '' });
+                                setReasonText("");
+                            }}
+                            className="px-6 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all text-sm"
+                        >
+                            Hủy
+                        </button>
+                        <button
+                            onClick={submitReasonAction}
+                            className={`px-6 py-3 rounded-xl text-white font-bold transition-all text-sm shadow-lg ${
+                                reasonModal.type === 'reject' 
+                                    ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20' 
+                                    : 'bg-red-500 hover:bg-red-600 shadow-red-500/20'
+                            }`}
+                        >
+                            Xác nhận
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
         </div>
     );
 }
