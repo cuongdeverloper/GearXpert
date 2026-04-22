@@ -67,11 +67,11 @@ export default function RankPage() {
                         headers: { 'Authorization': `Bearer ${userAccount.access_token}` }
                     });
                     const result = await response.json();
-                    
+
                     if (result.success && result.vouchers) {
                         // Tìm voucher có rank khớp (Dùng trim và uppercase để an toàn tuyệt đối)
-                        const found = result.vouchers.find(v => 
-                            v.applicableRank && 
+                        const found = result.vouchers.find(v =>
+                            v.applicableRank &&
                             v.applicableRank.trim().toUpperCase() === currentRank.trim().toUpperCase()
                         );
                         setRankVoucher(found);
@@ -167,12 +167,12 @@ export default function RankPage() {
     const currentRankIndex = RANKS.findIndex(r => r.id === currentRank);
     const isMaxRank = currentRankIndex === RANKS.length - 1;
     const nextRank = isMaxRank ? null : RANKS[currentRankIndex + 1];
-    
+
     // Calculate Progress
     const basePoints = RANKS[currentRankIndex].minPoints;
     const targetPoints = nextRank ? nextRank.minPoints : basePoints;
     const pointsNeeded = nextRank ? targetPoints - currentPoints : 0;
-    
+
     let progressPercent = 100;
     if (!isMaxRank) {
         progressPercent = Math.min(100, Math.max(0, ((currentPoints - basePoints) / (targetPoints - basePoints)) * 100));
@@ -214,7 +214,7 @@ export default function RankPage() {
                             <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-slate-200/50 p-8 sticky top-24 overflow-hidden">
                                 {/* Decorative blob */}
                                 <div className={`absolute top-0 right-0 w-64 h-64 bg-gradient-to-br ${activeRankDetails.color} rounded-full mix-blend-multiply filter blur-3xl opacity-20 transform translate-x-1/2 -translate-y-1/2`}></div>
-                                
+
                                 <h2 className="text-xl font-bold text-slate-800 mb-8 flex items-center justify-between">
                                     Thứ hạng của bạn
                                     <span className={`px-4 py-1.5 rounded-full text-xs font-bold bg-gradient-to-r ${activeRankDetails.color} text-white shadow-lg`}>
@@ -247,7 +247,7 @@ export default function RankPage() {
                                         )}
                                     </div>
                                     <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner relative">
-                                        <motion.div 
+                                        <motion.div
                                             initial={{ width: 0 }}
                                             animate={{ width: `${progressPercent}%` }}
                                             transition={{ duration: 1.5, ease: "easeOut" }}
@@ -265,7 +265,7 @@ export default function RankPage() {
                                         </p>
                                     )}
                                 </div>
-                                
+
                                 <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-5 text-sm text-indigo-800 leading-relaxed shadow-sm">
                                     <p className="font-semibold mb-1 flex items-center gap-2">
                                         <span className="material-symbols-outlined text-indigo-500 text-[18px]">info</span>
@@ -279,13 +279,13 @@ export default function RankPage() {
                                 {activeRankDetails.id !== 'BRONZE' && rankVoucher && (
                                     <div className="mt-6 p-6 rounded-2xl bg-gradient-to-br from-slate-900 to-indigo-950 text-white relative overflow-hidden group border border-indigo-500/30">
                                         <div className="absolute -right-4 -top-4 w-24 h-24 bg-indigo-500/20 rounded-full blur-2xl group-hover:bg-indigo-500/40 transition-all duration-700"></div>
-                                        
+
                                         <div className="relative z-10">
                                             <div className="flex items-center justify-between mb-4">
                                                 <h3 className="font-bold text-indigo-200 uppercase tracking-tighter text-xs">Ưu đãi của tháng {new Date().getMonth() + 1}</h3>
                                                 <span className="px-2 py-0.5 rounded-md bg-white/10 text-[10px] font-medium backdrop-blur-sm border border-white/10">Sử dụng 1 lần</span>
                                             </div>
-                                            
+
                                             <div className="flex items-end justify-between gap-4">
                                                 <div>
                                                     <p className="text-2xl font-black mb-1">
@@ -294,7 +294,7 @@ export default function RankPage() {
                                                     <p className="text-[11px] text-indigo-300 font-medium">{rankVoucher.description}</p>
                                                 </div>
                                                 <div className="flex flex-col items-end gap-2">
-                                                    <div 
+                                                    <div
                                                         className="px-4 py-2 bg-indigo-500 hover:bg-indigo-400 text-white rounded-xl text-sm font-bold cursor-pointer transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-indigo-500/20"
                                                         onClick={() => {
                                                             navigator.clipboard.writeText(rankVoucher.code);
@@ -329,7 +329,7 @@ export default function RankPage() {
                                 const isCurrent = rank.id === currentRank;
 
                                 return (
-                                    <motion.div 
+                                    <motion.div
                                         key={rank.id}
                                         initial={{ opacity: 0, y: 20 }}
                                         whileInView={{ opacity: 1, y: 0 }}
@@ -399,7 +399,7 @@ export default function RankPage() {
                     </div>
                 </div>
             </main>
-            
+
             <Footer />
         </div>
     );

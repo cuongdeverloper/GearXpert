@@ -3,6 +3,8 @@ import Message from "../components/message/Message";
 import EmojiPicker from "emoji-picker-react";
 import { ApiMarkMessagesAsSeen } from "../ApiMessage";
 import "./ChatBox.scss"; 
+import defaultAvatar from "../../public/avatar.jpg";
+
 
 const ChatBox = ({
   currentChat,
@@ -75,7 +77,7 @@ const ChatBox = ({
             <div className="chatHeaderLeft">
               <div className="userAvatarContainer">
                  <img
-                    src={receiver?.avatar || "/default-avatar.png"}
+                    src={receiver?.avatar || defaultAvatar}
                     alt="avatar"
                     className="chatHeaderAvatar"
                 />
@@ -115,7 +117,7 @@ const ChatBox = ({
           >
             {messages.length === 0 ? (
               <div className="noMessageContainer">
-                 <img src={receiver?.avatar || "/default-avatar.png"} alt="" className="noMessageAvatar"/>
+                 <img src={receiver?.avatar || defaultAvatar} alt="" className="noMessageAvatar"/>
                  <p className="noMessageName">{receiver?.username}</p>
                  <span className="noMessageText">You are friends on Messenger</span>
               </div>
@@ -139,7 +141,7 @@ const ChatBox = ({
                     
                     {isLastMessage && isOwnMessage && m.seen && (
                       <div className="seenStatus">
-                          <img src={receiver?.avatar || "/default-avatar.png"} alt="Seen" className="seenAvatarTiny"/>
+                          <img src={receiver?.avatar || defaultAvatar} alt="Seen" className="seenAvatarTiny"/>
                       </div>
                     )}
                       {isLastMessage && isOwnMessage && !m.seen && (
