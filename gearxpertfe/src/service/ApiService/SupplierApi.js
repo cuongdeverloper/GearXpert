@@ -88,6 +88,10 @@ const previewSupplierContract = (data) => {
   });
 };
 
+const getMySupplierContract = () => {
+  return axios.get(`/api/suppliers-contract/my-contract`);
+};
+
 export {
   getSupplierProfile,
   updateSupplierProfile,
@@ -102,5 +106,6 @@ export {
   getMyFollowerAnalytics,
   getPublicSuppliers,
   requestBecomeSupplier,
-  previewSupplierContract
+  previewSupplierContract,
+  getMySupplierContract
 };

@@ -755,7 +755,19 @@ export default function WalletPage({ embeddedInSupplier = false } = {}) {
                               </div>
                               <div>
                                 <p className="font-bold text-gray-800 text-sm">
-                                  {tx.type === 'TOP_UP' ? 'Nạp tiền' : tx.type === 'WITHDRAW' ? 'Rút tiền' : 'Thanh toán'}
+                                  {tx.type === 'TOP_UP' 
+                                    ? (tx.metadata?.transferType 
+                                        ? {TRANSFER: 'Nhận chuyển tiền', SUPPLIER_PAYOUT: 'Trả tiền NCC', CUSTOMER_REFUND: 'Hoàn tiền', BONUS: 'Thưởng'}[tx.metadata.transferType] || 'Nạp tiền'
+                                        : 'Nạp tiền')
+                                    : tx.type === 'WITHDRAW' 
+                                      ? 'Rút tiền' 
+                                      : tx.type === 'REFUND'
+                                        ? 'Hoàn tiền đơn hủy'
+                                        : tx.type === 'DEPOSIT_REFUND'
+                                          ? 'Hoàn tiền cọc'
+                                          : tx.type === 'PAYMENT'
+                                            ? 'Thanh toán thuê'
+                                            : tx.type}
                                 </p>
                                 <p className="text-xs text-gray-500">{tx.description || tx.referenceType}</p>
                               </div>

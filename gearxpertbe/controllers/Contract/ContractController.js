@@ -434,7 +434,10 @@ const buildContractData = async (rental, providedItems = null) => {
 
     supplier_cccd: populatedRental.supplierId?.identityInfo?.cccdNumber || "",
 
-    supplier_address: supplierProfile?.warehouseAddress?.fullAddress || "",
+    supplier_address: supplierProfile?.warehouseAddress?.fullAddress ||
+      (supplierProfile?.warehouseAddress?.street &&
+        `${supplierProfile.warehouseAddress.street}, ${supplierProfile.warehouseAddress.district}, ${supplierProfile.warehouseAddress.city}`) ||
+      "",
 
     supplier_phone: supplierProfile?.contactPhone || populatedRental.supplierId?.phone || "",
 
@@ -879,7 +882,7 @@ const generateDocxBufferFromData = async (data) => {
 
       ...data,
 
-      image: data.signatureDataUrl, // Chuy qua {%image}
+      signatureImage: data.signatureDataUrl, // Map to {%signatureImage} in template
 
     });
 
@@ -1102,7 +1105,7 @@ const generateDocxBuffer = async (rental, items = null) => {
 
       ...data,
 
-      image: data.signatureDataUrl, // Chuy qua {%image}
+      signatureImage: data.signatureDataUrl, // Map to {%signatureImage} in template
 
     });
 

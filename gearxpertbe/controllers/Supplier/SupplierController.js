@@ -437,7 +437,7 @@ exports.getSupplierStorefrontVouchers = async (req, res) => {
       $expr: { $lt: ["$usedCount", "$usageLimit"] },
     })
       .select(
-        "code description discountType discountValue minOrderValue maxDiscount usageLimit usedCount expiredAt type"
+        "code description discountType discountValue minOrderValue maxDiscount usageLimit usedCount expiredAt type applicableRank"
       )
       .sort({ discountValue: -1 })
       .limit(10)

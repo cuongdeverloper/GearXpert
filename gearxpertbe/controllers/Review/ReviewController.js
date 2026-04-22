@@ -396,7 +396,7 @@ exports.updateReview = async (req, res) => {
   try {
     const userId = req.user.id;
     const { reviewId } = req.params;
-    const { rating, comment } = req.body;
+    const { rating, comment, keepImages } = req.body;
 
     const review = await Review.findById(reviewId);
 
@@ -415,14 +415,39 @@ exports.updateReview = async (req, res) => {
       return res.status(403).json({ message: 'Đã quá 48 giờ, không thể chỉnh sửa review' });
     }
 
-    review.rating = rating;
+    // Parse rating to number since FormData sends values as strings
+    const parsedRating = parseInt(rating, 10);
+    if (isNaN(parsedRating) || parsedRating < 1 || parsedRating > 5) {
+      return res.status(400).json({ message: 'Rating phải là số từ 1-5' });
+    }
+
+    review.rating = parsedRating;
     review.comment = comment;
 
-    // Nếu có upload ảnh mới → xử lý tương tự createReview
+    // Xử lý ảnh: giữ lại ảnh cũ + thêm ảnh mới
+    let updatedImages = [];
+    
+    // Giữ lại các ảnh cũ được chọn
+    if (keepImages) {
+      if (Array.isArray(keepImages)) {
+        updatedImages = [...keepImages];
+      } else if (typeof keepImages === 'string') {
+        updatedImages = [keepImages];
+      }
+    }
+    
+    // Thêm ảnh mới nếu có upload
     if (req.files && req.files.length > 0) {
       const newImages = req.files.map(file => file.path);
-      review.images = [...(review.images || []), ...newImages];
+      updatedImages = [...updatedImages, ...newImages];
     }
+    
+    // Giới hạn tối đa 5 ảnh
+    if (updatedImages.length > 5) {
+      return res.status(400).json({ message: 'Tối đa 5 ảnh cho mỗi đánh giá' });
+    }
+    
+    review.images = updatedImages;
 
     await review.save();
 
