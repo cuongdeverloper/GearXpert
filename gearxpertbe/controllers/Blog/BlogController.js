@@ -19,6 +19,7 @@ const getBlogs = async (req, res) => {
             featured,
             authorName,
             status,
+            isAdmin,
         } = req.query;
 
         const filter = {};
@@ -30,6 +31,13 @@ const getBlogs = async (req, res) => {
             // No status filter for "all"
         } else {
             filter.status = "approved";
+        }
+
+        if (isAdmin !== "true") {
+            filter.$or = [
+                { scheduledPublishDate: null },
+                { scheduledPublishDate: { $lte: new Date() } }
+            ];
         }
 
         if (category) {
@@ -140,13 +148,15 @@ const getBlogDetail = async (req, res) => {
 
         // Security check: Only approved blogs are public
         // If pending/rejected, only admin or author can view
-        if (blog.status !== "approved") {
+        const isScheduledForFuture = blog.scheduledPublishDate && new Date(blog.scheduledPublishDate) > new Date();
+        
+        if (blog.status !== "approved" || isScheduledForFuture) {
             const user = req.user; // Assuming req.user is populated by auth middleware
             const isAdmin = user && user.role === "ADMIN";
             const isAuthor = user && user.name === blog.author.name;
 
             if (!isAdmin && !isAuthor) {
-                return res.status(403).json({ message: "Bài viết này đang chờ duyệt hoặc đã bị từ chối" });
+                return res.status(403).json({ message: "Bài viết này hiện chưa được hiển thị công khai" });
             }
         }
 
@@ -171,7 +181,7 @@ const getBlogCategories = async (req, res) => {
 // POST /api/blogs — create a new blog
 const createBlog = async (req, res) => {
     try {
-        let { title, description, content, category, author, readTime, isFeatured } = req.body;
+        let { title, description, content, category, author, readTime, isFeatured, scheduledPublishDate } = req.body;
 
         // Xử lý images từ Cloudinary (req.files)
         let images = [];
@@ -206,10 +216,15 @@ const createBlog = async (req, res) => {
             isFeatured: isFeatured === 'true' || isFeatured === true,
             images: images,
             status: "pending", // Always pending on create
+            scheduledPublishDate: scheduledPublishDate ? new Date(scheduledPublishDate) : null,
         });
 
         await newBlog.save();
 
+        const io = req.app.get("io");
+        if (io) {
+            io.emit("admin_new_blog_pending", newBlog);
+        }
 
         return res.status(201).json({
             message: "Bài viết của bạn đã được gửi thành công!",
@@ -225,7 +240,7 @@ const createBlog = async (req, res) => {
 const updateBlog = async (req, res) => {
     try {
         const { id } = req.params;
-        let { title, description, content, category, author, readTime, isFeatured, existingImages } = req.body;
+        let { title, description, content, category, author, readTime, isFeatured, existingImages, scheduledPublishDate } = req.body;
 
         const blog = await Blog.findById(id);
         if (!blog) {
@@ -260,6 +275,7 @@ const updateBlog = async (req, res) => {
         blog.images = finalImages;
         blog.readTime = parseInt(readTime) || blog.readTime;
         blog.isFeatured = isFeatured !== undefined ? (isFeatured === 'true' || isFeatured === true) : blog.isFeatured;
+        blog.scheduledPublishDate = scheduledPublishDate ? new Date(scheduledPublishDate) : null;
 
         await blog.save();
 
@@ -360,6 +376,11 @@ const manageBlogStatus = async (req, res) => {
             blog.approvedAt = new Date();
         }
         await blog.save();
+
+        const io = req.app.get("io");
+        if (io) {
+            io.emit("admin_blog_status_changed", { blogId: blog._id, oldStatus, newStatus: status });
+        }
 
         // Send email notification for rejection
         if (status === "rejected" && reason) {
