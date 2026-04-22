@@ -532,7 +532,7 @@ const confirmSuccess = async ({
       { _id: current.rentalId, status: { $in: ["DELIVERING", "PENDING_RESOLUTION"] } },
       {
         $set: {
-          status: "RENTING",
+          status: "DELIVERED",
           deliveredAt: new Date(),
         },
       },
@@ -542,7 +542,7 @@ const confirmSuccess = async ({
     if (rentalUpdate.modifiedCount === 0) {
       const rental = await Rental.findById(current.rentalId).session(session).lean();
 
-      if (rental?.status === "RENTING") {
+      if (rental?.status === "DELIVERED") {
         const refreshed = await HandoverRecord.findById(handoverId).session(session);
         if (refreshed?.status === HANDOVER_STATUS.COMPLETED) {
           await session.commitTransaction();

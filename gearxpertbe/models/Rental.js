@@ -63,6 +63,7 @@ const rentalSchema = new mongoose.Schema(
         "PENDING",
         "REJECTED",
         "DELIVERING",
+        "DELIVERED",
         "RENTING",
         "RETURNING",
         "INSPECTING",
