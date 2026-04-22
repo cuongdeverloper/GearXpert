@@ -86,6 +86,10 @@ const statusMeta = (order) => {
 
     }
 
+    case "DELIVERED":
+
+      return { label: "Đã giao - Chờ bạn xác nhận", cls: "bg-indigo-50 text-indigo-700 border-indigo-200" };
+
     case "RENTING":
 
       return { label: "Đang thuê", cls: "bg-emerald-50 text-emerald-800 border-emerald-100" };
@@ -228,7 +232,7 @@ export default function RentalCard({
 
 
 
-    if (order.status === "DELIVERING") {
+    if (order.status === "DELIVERED") {
 
       return (
 
@@ -267,6 +271,26 @@ export default function RentalCard({
           </button>
 
 
+
+        </div>
+
+      );
+
+    }
+
+
+
+    if (order.status === "DELIVERING") {
+
+      return (
+
+        <div className="flex flex-wrap gap-2">
+
+          <span className="px-4 py-2.5 rounded-xl bg-blue-50 text-blue-700 text-sm font-bold inline-flex items-center gap-2">
+
+            <Truck size={16} /> Đang giao hàng
+
+          </span>
 
         </div>
 
@@ -658,7 +682,7 @@ export default function RentalCard({
 
               {primaryActions}
 
-              {order.status === "DELIVERING" && (
+              {(order.status === "DELIVERING" || order.status === "DELIVERED") && (
 
                 <button
 

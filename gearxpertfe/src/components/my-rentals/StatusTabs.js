@@ -1,84 +1,158 @@
-// StatusTabs.jsx
+// StatusTabs.jsx - Clean professional design with expandable group
 import React, { useState } from "react";
 
-const STATUS_TABS = [
-  { id: "ALL", label: "Tất cả đơn thuê" },
+const IN_PROGRESS_STATUSES = ["DELIVERING", "RENTING", "RETURNING"];
+
+const MAIN_TABS = [
   { id: "PENDING", label: "Chờ xác nhận" },
-  { id: "DELIVERING", label: "Đang giao hàng" },
-  { id: "RENTING", label: "Đang thuê" },
-  { id: "RETURNING", label: "Đang trả hàng" },
+  { id: "IN_PROGRESS", label: "Đang thực hiện", expandable: true },
   { id: "COMPLETED", label: "Hoàn thành" },
   { id: "CANCELLED", label: "Đã hủy" },
 ];
 
-export default function StatusTabs({ activeTab, setActiveTab }) {
-  const [isOpen, setIsOpen] = useState(false);
+const SUB_TABS = [
+  { id: "DELIVERING", label: "Đang giao" },
+  { id: "RENTING", label: "Đang thuê" },
+  { id: "RETURNING", label: "Đang trả" },
+];
 
-  const currentTab = STATUS_TABS.find((tab) => tab.id === activeTab) || STATUS_TABS[0];
+export default function StatusTabs({ activeTab, setActiveTab, counts = {} }) {
+  const [isExpanded, setIsExpanded] = useState(false);
 
-  const handleSelect = (id) => {
-    setActiveTab(id);
-    setIsOpen(false);
+  // Calculate total for IN_PROGRESS group
+  const inProgressCount = IN_PROGRESS_STATUSES.reduce((sum, status) => sum + (counts[status] || 0), 0);
+
+  const handleMainTabClick = (tabId) => {
+    if (tabId === "IN_PROGRESS") {
+      setIsExpanded(!isExpanded);
+      if (!isExpanded) {
+        setActiveTab("DELIVERING"); // Default sub-tab when expanding
+      }
+    } else {
+      setIsExpanded(false);
+      setActiveTab(tabId);
+    }
   };
 
+  const handleSubTabClick = (subTabId) => {
+    setActiveTab(subTabId);
+  };
+
+  const isInProgressActive = IN_PROGRESS_STATUSES.includes(activeTab);
+
   return (
-    <div className="mb-8">
-      <div className="relative w-full max-w-md">
-        {/* Trigger Button */}
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="w-full bg-white border border-gray-200 rounded-3xl px-6 py-4 
-                     text-left text-base font-medium text-gray-800 
-                     focus:outline-none focus:ring-2 focus:ring-indigo-500 
-                     shadow-sm flex items-center justify-between hover:border-gray-300 transition-all"
-        >
-          <span className="flex items-center gap-3">
-            {/* Pill hiển thị trạng thái */}
-            <span
-              className={`inline-flex items-center px-4 py-1 rounded-2xl text-sm font-semibold
-                ${currentTab.id === "ALL" ? "bg-gray-100 text-gray-700" : ""}
-                ${currentTab.id === "PENDING" ? "bg-amber-100 text-amber-700" : ""}
-                ${currentTab.id === "DELIVERING" ? "bg-blue-100 text-blue-700" : ""}
-                ${currentTab.id === "RENTING" ? "bg-emerald-100 text-emerald-700" : ""}
-                ${currentTab.id === "RETURNING" ? "bg-purple-100 text-purple-700" : ""}
-                ${currentTab.id === "COMPLETED" ? "bg-green-100 text-green-700" : ""}
-                ${currentTab.id === "CANCELLED" ? "bg-red-100 text-red-700" : ""}
+    <div className="mb-6">
+      {/* Main tabs - clean professional style */}
+      <div className="flex gap-2">
+        {MAIN_TABS.map((tab) => {
+          const isActive = tab.id === "IN_PROGRESS" 
+            ? isInProgressActive 
+            : activeTab === tab.id;
+          const count = tab.id === "IN_PROGRESS" 
+            ? inProgressCount 
+            : (counts[tab.id] || 0);
+
+          return (
+            <button
+              key={tab.id}
+              onClick={() => handleMainTabClick(tab.id)}
+              className={`
+                flex-shrink-0 px-4 py-2 rounded-xl font-semibold text-sm
+                transition-all duration-200 whitespace-nowrap
+                flex items-center gap-2
+                ${isActive
+                  ? "bg-slate-900 text-white shadow-lg"
+                  : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
+                }
               `}
             >
-              {currentTab.label}
-            </span>
-          </span>
+              <span>{tab.label}</span>
+              {count > 0 && (
+                <span className={`
+                  px-1.5 py-0.5 rounded text-[10px] font-bold min-w-[18px] text-center
+                  ${isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}
+                `}>
+                  {count > 99 ? '99+' : count}
+                </span>
+              )}
+              {tab.expandable && (
+                <svg 
+                  className={`w-4 h-4 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
+      {/* Expandable sub-tabs for IN_PROGRESS with beautiful animation */}
+      <div 
+        className={`
+          overflow-hidden transition-all duration-500 ease-out
+          ${isExpanded ? 'max-h-20 opacity-100 mt-3' : 'max-h-0 opacity-0 mt-0'}
+        `}
+      >
+        <div className="flex gap-2 pl-1">
+          {SUB_TABS.map((subTab, index) => {
+            const isSubActive = activeTab === subTab.id;
+            const subCount = counts[subTab.id] || 0;
 
-        {/* Dropdown Menu */}
-        {isOpen && (
-          <div className="absolute mt-2 w-full bg-white rounded-3xl shadow-xl border border-gray-100 py-2 z-50 max-h-80 overflow-auto">
-            {STATUS_TABS.map((tab) => (
+            return (
               <button
-                key={tab.id}
-                onClick={() => handleSelect(tab.id)}
-                className={`w-full px-6 py-3.5 text-left text-base font-medium hover:bg-gray-50 transition-colors flex items-center gap-3
-                  ${activeTab === tab.id ? "bg-indigo-50 text-indigo-700" : "text-gray-700"}`}
+                key={subTab.id}
+                onClick={() => handleSubTabClick(subTab.id)}
+                className={`
+                  flex-shrink-0 px-3 py-1.5 rounded-lg font-medium text-xs
+                  transition-all duration-300 whitespace-nowrap
+                  flex items-center gap-1.5
+                  ${isSubActive
+                    ? "bg-indigo-600 text-white shadow-md"
+                    : "bg-white text-slate-500 hover:bg-slate-50 border border-slate-200"
+                  }
+                `}
+                style={{
+                  animationDelay: `${index * 50}ms`,
+                  animation: isExpanded ? 'slideIn 0.3s ease-out forwards' : 'none',
+                }}
               >
-                <span>{tab.label}</span>
-                {activeTab === tab.id && (
-                  <span className="ml-auto text-indigo-600">✓</span>
+                <span className={`
+                  w-2 h-2 rounded-full
+                  ${subTab.id === "DELIVERING" ? "bg-blue-400" :
+                    subTab.id === "RENTING" ? "bg-emerald-400" :
+                    "bg-purple-400"}
+                `} />
+                <span>{subTab.label}</span>
+                {subCount > 0 && (
+                  <span className={`
+                    px-1 py-0 rounded text-[9px] font-bold min-w-[16px] text-center
+                    ${isSubActive ? 'bg-white/30' : 'bg-slate-100'}
+                  `}>
+                    {subCount > 99 ? '99+' : subCount}
+                  </span>
                 )}
               </button>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
       </div>
+
+      <style jsx>{`
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }
