@@ -310,6 +310,25 @@ export default function SupplierPublicProfile() {
     setTimeout(() => setCopiedCode(""), 2000);
   };
 
+  // Chuyển sang logic kế thừa: Hạng cao thấy và dùng được mã của hạng nhỏ hơn.
+  const filteredVouchers = React.useMemo(() => {
+    if (!vouchers || vouchers.length === 0) return [];
+    const rankWeights = { BRONZE: 1, SILVER: 2, GOLD: 3, PLATINUM: 4, DIAMOND: 5 };
+    
+    return vouchers.filter((v) => {
+      if (userAccount?.id === supplier?.userId?._id) return true;
+      if (!v.applicableRank) return true;
+      
+      const userRank = (userAccount?.rank || 'BRONZE').toUpperCase();
+      const dbRank = v.applicableRank.toUpperCase();
+      
+      const userWeight = rankWeights[userRank] || 1;
+      const voucherWeight = rankWeights[dbRank] || 1;
+      
+      return userWeight >= voucherWeight;
+    });
+  }, [vouchers, userAccount, supplier]);
+
   const checkVoucherScroll = useCallback(() => {
     const el = voucherScrollRef.current;
     if (!el) return;
@@ -329,7 +348,7 @@ export default function SupplierPublicProfile() {
       el.removeEventListener("scroll", checkVoucherScroll);
       window.removeEventListener("resize", checkVoucherScroll);
     };
-  }, [vouchers, checkVoucherScroll]);
+  }, [filteredVouchers, checkVoucherScroll]);
 
   const scrollVouchers = (dir) => {
     const el = voucherScrollRef.current;
@@ -667,7 +686,7 @@ export default function SupplierPublicProfile() {
         )}
 
         {/* ===== VOUCHERS SECTION ===== */}
-        {vouchers.length > 0 && (
+        {filteredVouchers.length > 0 && (
           <div className="max-w-[1440px] mx-auto px-6 pb-6">
             <div className="flex items-center gap-3 mb-4">
               <Ticket className="w-5 h-5 text-rose-500" />
@@ -699,7 +718,7 @@ export default function SupplierPublicProfile() {
                 className="flex gap-4 overflow-x-auto pb-2 scrollbar-none"
                 style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
               >
-                {vouchers.map((v) => {
+                {filteredVouchers.map((v) => {
                   const isPercent = v.discountType === "PERCENT";
                   const isCopied = copiedCode === v.code;
                   return (
