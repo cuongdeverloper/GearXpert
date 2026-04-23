@@ -73,7 +73,7 @@ let DefaultIcon = L.icon({
 L.Marker.prototype.options.icon = DefaultIcon;
 
 // --- CONSTANTS ---
-const FPT_COORDS = { lat: 15.9753, lng: 108.2524 };
+const FPT_COORDS = { lat: 16.0445, lng: 108.2475 };
 const MIN_DELIVERY_FEE = 10000;
 const FEE_PER_KM = 5000;
 
@@ -345,9 +345,15 @@ export default function CheckoutPage() {
       return false;
     }
     // Check if shipping fee has been calculated (unless pickup at warehouse)
-    if (address.street !== "Kho GearXpert" && distance === 0) {
-      toast.error("Vui lòng kiểm tra địa chỉ và tính phí vận chuyển trước khi tiếp tục");
-      return false;
+    if (address.street !== "Kho GearXpert") {
+      if (distance === 0) {
+        toast.error("Vui lòng kiểm tra địa chỉ và tính phí vận chuyển trước khi tiếp tục");
+        return false;
+      }
+      if (deliveryFee === 0) {
+        toast.error("Phí vận chuyển chưa được tính. Vui lòng kiểm tra lại địa chỉ.");
+        return false;
+      }
     }
     return true;
   };
@@ -1069,7 +1075,14 @@ export default function CheckoutPage() {
                           type="text"
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                           value={address.district}
-                          onChange={(e) => setAddress({ ...address, district: e.target.value })}
+                          onChange={(e) => {
+                            setAddress({ ...address, district: e.target.value });
+                            // Reset distance and delivery fee when user changes district
+                            if (distance > 0 || deliveryFee > 0) {
+                              setDistance(0);
+                              setDeliveryFee(0);
+                            }
+                          }}
                           placeholder="Nhập tên phường/xã, ví dụ: Phường Hòa Minh"
                         />
                       </div>
@@ -1085,7 +1098,14 @@ export default function CheckoutPage() {
                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                         placeholder="Số nhà + tên đường, ví dụ: 123 Nguyễn Văn Linh"
                         value={address.street}
-                        onChange={(e) => setAddress({ ...address, street: e.target.value })}
+                        onChange={(e) => {
+                          setAddress({ ...address, street: e.target.value });
+                          // Reset distance and delivery fee when user changes street
+                          if (distance > 0 || deliveryFee > 0) {
+                            setDistance(0);
+                            setDeliveryFee(0);
+                          }
+                        }}
                       />
                       <p className="text-xs text-gray-500 mt-1">Nhập số nhà và tên đường để tính phí ship chính xác</p>
                     </div>
@@ -1928,11 +1948,22 @@ export default function CheckoutPage() {
             </div>
 
             <div className="h-[400px]">
-              <MapContainer center={mapPosition} zoom={14} style={{ height: "100%", width: "100%" }}>
+              <MapContainer center={mapPosition} zoom={14} style={{ height: "100%", width: "100%", cursor: "crosshair" }}>
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                {/* Always show warehouse marker */}
                 <Marker position={[FPT_COORDS.lat, FPT_COORDS.lng]}>
-                  <Popup>Kho GearXpert</Popup>
+                  <Popup>
+                    <div className="font-bold text-blue-600">🏭 Kho GearXpert</div>
+                  </Popup>
                 </Marker>
+                {/* Show selected position marker when user clicks */}
+                {mapPosition[0] !== FPT_COORDS.lat || mapPosition[1] !== FPT_COORDS.lng ? (
+                  <Marker position={mapPosition}>
+                    <Popup>
+                      <div className="font-bold text-red-600">📍 Vị trí giao hàng</div>
+                    </Popup>
+                  </Marker>
+                ) : null}
                 <MapEventsHandler />
               </MapContainer>
             </div>

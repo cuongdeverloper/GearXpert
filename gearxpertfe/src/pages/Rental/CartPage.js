@@ -286,7 +286,7 @@ const CartPage = () => {
                               <div className="w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl overflow-hidden border-2 border-white shadow-lg flex-shrink-0 group-hover:scale-105 transition-transform duration-300">
                                 <div className="relative group">
                                   <div 
-                                    onClick={() => navigate(`/device/${deviceGroup.device?._id}`)}
+                                    onClick={() => navigate(`/device/${deviceGroup.device?.slug}`)}
                                     className="cursor-pointer"
                                   >
                                     <img
@@ -303,7 +303,7 @@ const CartPage = () => {
                             </div>
                             <div className="flex-1 min-w-0">
                               <h3 
-                                onClick={() => navigate(`/device/${deviceGroup.device?._id}`)}
+                                onClick={() => navigate(`/device/${deviceGroup.device?.slug}`)}
                                 className="font-bold text-slate-900 text-lg mb-2 leading-tight group-hover:text-indigo-600 transition-colors cursor-pointer hover:underline"
                               >
                                 {deviceGroup.device?.name}
