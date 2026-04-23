@@ -81,6 +81,8 @@ export default function AdminWalletPage() {
         return <FiArrowDownLeft className="text-orange-600" />;
       case "DEPOSIT_RELEASE":
         return <FiArrowUpRight className="text-orange-400" />;
+      case "DEPOSIT_REFUND":
+        return <FiArrowUpRight className="text-orange-500" />;
       case "SHIPPING_FEE":
         return <FiTrendingUp className="text-teal-600" />;
       case "SHIPPING_FEE_REFUND":
@@ -101,6 +103,10 @@ export default function AdminWalletPage() {
         return <FiCreditCard className="text-blue-600" />;
       case "REFUND":
         return <FiArrowUpRight className="text-orange-600" />;
+      case "PAYOUT":
+        return <FiArrowUpRight className="text-indigo-600" />;
+      case "PAYOUT_REFUND":
+        return <FiArrowUpRight className="text-indigo-400" />;
       case "ADJUSTMENT_IN":
       case "ADJUSTMENT_OUT":
         return <FiSettings className="text-gray-600" />;
@@ -123,6 +129,8 @@ export default function AdminWalletPage() {
         return "text-orange-600 bg-orange-50 border-orange-200";
       case "DEPOSIT_RELEASE":
         return "text-orange-400 bg-orange-50 border-orange-100";
+      case "DEPOSIT_REFUND":
+        return "text-orange-500 bg-orange-50 border-orange-200";
       case "SHIPPING_FEE":
         return "text-teal-600 bg-teal-50 border-teal-200";
       case "SHIPPING_FEE_REFUND":
@@ -147,6 +155,10 @@ export default function AdminWalletPage() {
         return "text-emerald-600 bg-emerald-50 border-emerald-200";
       case "ADJUSTMENT_OUT":
         return "text-rose-600 bg-rose-50 border-rose-200";
+      case "PAYOUT":
+        return "text-indigo-600 bg-indigo-50 border-indigo-200";
+      case "PAYOUT_REFUND":
+        return "text-indigo-400 bg-indigo-50 border-indigo-100";
       default:
         return "text-gray-600 bg-gray-50 border-gray-200";
     }
@@ -171,6 +183,7 @@ export default function AdminWalletPage() {
       "ESCROW_RELEASE": "Giải phóng tiền thuê",
       "DEPOSIT_HOLD": "Tiền đặt cọc",
       "DEPOSIT_RELEASE": "Giải phóng tiền cọc",
+      "DEPOSIT_REFUND": "Hoàn tiền cọc",
       "SHIPPING_FEE": "Phí vận chuyển",
       "SHIPPING_FEE_REFUND": "Hoàn phí vận chuyển",
       "SUPPLIER_PAYOUT": "Trả tiền nhà cung cấp",
@@ -185,7 +198,7 @@ export default function AdminWalletPage() {
       "ADJUSTMENT_OUT": "Điều chỉnh giảm",
       "ADJUSTMENT": "Điều chỉnh",
       "PAYOUT": "Chi trả",
-      "DEPOSIT_REFUND": "Hoàn tiền cọc",
+      "PAYOUT_REFUND": "Hoàn tác chi trả",
     };
     return labels[type] || type;
   };
@@ -662,11 +675,14 @@ export default function AdminWalletPage() {
                 <optgroup label="── Tiền cọc">
                   <option value="DEPOSIT_HOLD">Tiền đặt cọc</option>
                   <option value="DEPOSIT_RELEASE">Giải phóng tiền cọc</option>
+                  <option value="DEPOSIT_REFUND">Hoàn tiền cọc</option>
                 </optgroup>
                 <optgroup label="── Chi trả">
                   <option value="SUPPLIER_PAYOUT">Chi trả NCC</option>
                   <option value="CUSTOMER_REFUND">Hoàn tiền khách</option>
                   <option value="REFUND">Hoàn tiền</option>
+                  <option value="PAYOUT">Chi trả</option>
+                  <option value="PAYOUT_REFUND">Hoàn tác chi trả</option>
                 </optgroup>
                 <optgroup label="── Khác">
                   <option value="TOP_UP">Nạp tiền</option>
