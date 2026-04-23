@@ -4150,7 +4150,9 @@ async function executeConfirmReturnSettlement(session, req, options = {}) {
 
   await adminWallet.save({ session });
 
-  // Tạo transactions giảm ESCROW_HOLD và DEPOSIT_HOLD riêng biệt
+  // Ví hệ thống: một dòng giải phóng escrow tiền thuê (net sau phí) + một dòng giải phóng cọc.
+  // Không ghi thêm PAYOUT trên ví admin: tiền đó đã rời escrow ở ESCROW_RELEASE; PAYOUT (+) chỉ trên ví supplier.
+  const afterEscrow = adminBefore - escrowReleaseAmount;
 
   await WalletTransaction.create(
     [
@@ -4159,37 +4161,17 @@ async function executeConfirmReturnSettlement(session, req, options = {}) {
 
         type: "ESCROW_RELEASE",
 
-        amount: -escrowReleaseAmount, // Giảm tiền thuê tạm giữ (đã trừ phí + phí vận chuyển)
+        amount: -escrowReleaseAmount,
 
         balanceBefore: adminBefore,
 
-        balanceAfter: adminBefore - escrowReleaseAmount,
+        balanceAfter: afterEscrow,
 
         referenceType: "RENTAL",
 
         referenceId: rental._id,
 
-        description: `Giải phóng tiền thuê tạm giữ đơn #${rental._id.toString().slice(-6)}`,
-
-        status: "SUCCESS",
-      },
-
-      {
-        wallet: adminWallet._id,
-
-        type: "PAYOUT",
-
-        amount: -supplierReceive,
-
-        balanceBefore: adminBefore - escrowReleaseAmount,
-
-        balanceAfter: adminBefore - escrowReleaseAmount - supplierReceive,
-
-        referenceType: "RENTAL",
-
-        referenceId: rental._id,
-
-        description: `Payout cho supplier đơn #${rental._id.toString().slice(-6)}`,
+        description: `Giải phóng tiền thuê tạm giữ (trả NCC) đơn #${rental._id.toString().slice(-6)}`,
 
         status: "SUCCESS",
       },
@@ -4199,9 +4181,9 @@ async function executeConfirmReturnSettlement(session, req, options = {}) {
 
         type: "DEPOSIT_RELEASE",
 
-        amount: -depositRefundToCustomer, // Phần cọc tạm giữ còn lại (đã bớt phần chuyển bồi thường nếu có)
+        amount: -depositRefundToCustomer,
 
-        balanceBefore: adminBefore - rentAfterDiscount - supplierReceive,
+        balanceBefore: afterEscrow,
 
         balanceAfter: adminWallet.balance,
 

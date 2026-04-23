@@ -29,7 +29,6 @@ import {
   patchSupplierIssueStatus,
   supplierEscalateIssue,
   supplierIssueCancelRefund,
-  supplierIssueAdditionalDelivery,
 } from "../../service/ApiService/ReportApi";
 import { createWorkOrderFromIssue, getDeviceItemsByDeviceIds } from "../../service/ApiService/MaintenanceApi";
 import { toast } from "react-toastify";
@@ -366,7 +365,7 @@ export default function SupplierIssuesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [captureProposalState]);
 
   useEffect(() => {
     loadIssues();
@@ -1123,11 +1122,12 @@ function IssueCard({ issue, onImageClick, onOperationalDetail, onIssueUpdated, o
                 const isRejectedRental = rentalSt === "REJECTED";
                 const isCustomAction = ["cancel_refund", "additional_delivery", "evidence", "escalate", "reply"].includes(key);
                 const processingDisabled =
-                  key === "processing" &&
-                  (!isRejectedRental
-                    ? issue.status !== "OPEN"
-                    : !["OPEN", "PROCESSING"].includes(issue.status)) ||
-                  (isCustomAction && !["OPEN", "PROCESSING", "PENDING_RESOLUTION"].includes(issue.status));
+                  (key === "processing" &&
+                    (!isRejectedRental
+                      ? issue.status !== "OPEN"
+                      : !["OPEN", "PROCESSING"].includes(issue.status))) ||
+                  (isCustomAction &&
+                    !["OPEN", "PROCESSING", "PENDING_RESOLUTION"].includes(issue.status));
                 return (
                 <button
                   key={key}

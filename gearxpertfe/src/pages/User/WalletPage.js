@@ -10,7 +10,6 @@ import {
   RefreshCw,
   Banknote,
   X,
-  AlertCircle,
   CheckCircle2,
   Clock,
   TrendingUp,
@@ -226,8 +225,9 @@ export default function WalletPage({ embeddedInSupplier = false } = {}) {
         if (txDate >= targetMonday && txDate <= targetSunday) {
           const day = txDate.getDay();
           const index = day === 0 ? 6 : day - 1;
-          if (tx.amount > 0) incomeData[index] += tx.amount;
-          else outcomeData[index] += Math.abs(tx.amount);
+          // Chỉ tính TOP_UP là tiền nạp, không tính DEPOSIT_REFUND, REFUND, BONUS
+          if (tx.amount > 0 && tx.type === 'TOP_UP') incomeData[index] += tx.amount;
+          else if (tx.amount < 0) outcomeData[index] += Math.abs(tx.amount);
         }
       });
     } else if (range === "MONTH") {
@@ -252,8 +252,9 @@ export default function WalletPage({ embeddedInSupplier = false } = {}) {
         const d = new Date(tx.createdAt);
         if (d.getFullYear() === targetYear) {
           const month = d.getMonth();
-          if (tx.amount > 0) incomeData[month] += tx.amount;
-          else outcomeData[month] += Math.abs(tx.amount);
+          // Chỉ tính TOP_UP là tiền nạp, không tính DEPOSIT_REFUND, REFUND, BONUS
+          if (tx.amount > 0 && tx.type === 'TOP_UP') incomeData[month] += tx.amount;
+          else if (tx.amount < 0) outcomeData[month] += Math.abs(tx.amount);
         }
       });
     } else if (range === "YEAR") {
@@ -265,8 +266,9 @@ export default function WalletPage({ embeddedInSupplier = false } = {}) {
         const year = new Date(tx.createdAt).getFullYear();
         const idx = labels.indexOf(year);
         if (idx !== -1) {
-          if (tx.amount > 0) incomeData[idx] += tx.amount;
-          else outcomeData[idx] += Math.abs(tx.amount);
+          // Chỉ tính TOP_UP là tiền nạp, không tính DEPOSIT_REFUND, REFUND, BONUS
+          if (tx.amount > 0 && tx.type === 'TOP_UP') incomeData[idx] += tx.amount;
+          else if (tx.amount < 0) outcomeData[idx] += Math.abs(tx.amount);
         }
       });
     }
@@ -274,13 +276,13 @@ export default function WalletPage({ embeddedInSupplier = false } = {}) {
       labels,
       datasets: [
         {
-          label: "Tiền vào",
+          label: "Tiền vào (Nạp)",
           data: incomeData,
           backgroundColor: "#10b981",
           borderRadius: 6,
         },
         {
-          label: "Tiền ra",
+          label: "Tiền ra (Chi)",
           data: outcomeData,
           backgroundColor: "#ef4444",
           borderRadius: 6,
@@ -291,17 +293,26 @@ export default function WalletPage({ embeddedInSupplier = false } = {}) {
 
   // Statistics calculations
   const stats = useMemo(() => {
+    // Tổng tiền nạp: chỉ tính TOP_UP, không tính DEPOSIT_REFUND, REFUND, BONUS
+    const totalTopUp = transactions
+      .filter(t => t.amount > 0 && t.type === 'TOP_UP')
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    // Tổng tiền vào: bao gồm TOP_UP, REFUND, DEPOSIT_REFUND, BONUS (nhận tiền)
     const totalIn = transactions
       .filter(t => t.amount > 0)
       .reduce((sum, t) => sum + t.amount, 0);
+    
+    // Tổng tiền chi: bao gồm PAYMENT, WITHDRAW (trừ tiền)
     const totalOut = transactions
       .filter(t => t.amount < 0)
       .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    
     const topUpCount = transactions.filter(t => t.type === 'TOP_UP').length;
     const withdrawCount = transactions.filter(t => t.type === 'WITHDRAW').length;
     const pendingWithdraw = withdrawRequests.filter(r => r.status === 'PENDING').length;
     
-    return { totalIn, totalOut, topUpCount, withdrawCount, pendingWithdraw };
+    return { totalTopUp, totalIn, totalOut, topUpCount, withdrawCount, pendingWithdraw };
   }, [transactions, withdrawRequests]);
 
   /* ================= RENDER MODAL ================= */
@@ -587,7 +598,7 @@ export default function WalletPage({ embeddedInSupplier = false } = {}) {
                   <span className="text-xs font-medium text-gray-500">Tổng nạp</span>
                 </div>
                 <p className="text-lg font-bold text-gray-800">
-                  {stats.totalIn.toLocaleString('vi-VN')}đ
+                  {stats.totalTopUp.toLocaleString('vi-VN')}đ
                 </p>
                 <p className="text-xs text-gray-400 mt-1">{stats.topUpCount} giao dịch</p>
               </div>
@@ -733,8 +744,8 @@ export default function WalletPage({ embeddedInSupplier = false } = {}) {
                         <History size={20} className="text-indigo-500" />
                         Lịch sử giao dịch
                       </h3>
-                      <div className="flex gap-2">
-                        {["ALL", "TOP_UP", "WITHDRAW", "PAYMENT"].map((f) => (
+                      <div className="flex gap-2 flex-wrap">
+                        {["ALL", "TOP_UP", "WITHDRAW", "PAYMENT", "REFUND", "DEPOSIT_REFUND"].map((f) => (
                           <button
                             key={f}
                             onClick={() => { setFilterType(f); setPage(1); }}
@@ -744,7 +755,7 @@ export default function WalletPage({ embeddedInSupplier = false } = {}) {
                                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                             }`}
                           >
-                            {f === "ALL" ? "Tất cả" : f === "TOP_UP" ? "Nạp" : f === "WITHDRAW" ? "Rút" : "Chi"}
+                            {f === "ALL" ? "Tất cả" : f === "TOP_UP" ? "Nạp" : f === "WITHDRAW" ? "Rút" : f === "PAYMENT" ? "Chi" : f === "REFUND" ? "Hoàn tiền" : "Hoàn cọc"}
                           </button>
                         ))}
                       </div>

@@ -158,11 +158,6 @@ export default function RentalDetail() {
     }
   };
 
-  const handleTrack = () => {
-    if (!rentalId) return;
-    setShowTrackingModal(true);
-  };
-
   const handleExtend = () => {
     if (!rentalId || !rental) return;
     // Calculate extension data from rental info
@@ -527,6 +522,20 @@ export default function RentalDetail() {
                     <span className="text-sm font-black text-indigo-600 flex items-center gap-1">
                       <FileText size={16} />
                       Xem
+                    </span>
+                  </button>
+                )}
+
+                {["DELIVERING", "RENTING", "RETURNING"].includes(rental.status) && (
+                  <button
+                    type="button"
+                    onClick={() => setShowTrackingModal(true)}
+                    className="px-6 py-4 rounded-2xl flex flex-col items-center justify-center border-2 border-slate-200 bg-white hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
+                    <span className="text-sm font-bold text-slate-400">VẬN CHUYỂN</span>
+                    <span className="text-sm font-black text-slate-800 flex items-center gap-1">
+                      <Truck size={16} />
+                      Theo dõi
                     </span>
                   </button>
                 )}
@@ -1282,40 +1291,6 @@ export default function RentalDetail() {
 
 /* Sub Components */
 const StatusBadge = ({ status }) => {
-  const getStatusConfig = (rental) => {
-    const status = rental?.status;
-    switch (status) {
-      case "PENDING":
-        return { label: "Chờ xử lý", class: "bg-amber-100 text-amber-700 border-amber-200" };
-      case "REJECTED":
-        return { label: "Bị từ chối", class: "bg-rose-100 text-rose-700 border-rose-200" };
-      case "DELIVERING": {
-        if (rental?.pickedUpAt) {
-          return { label: "Đang giao đến bạn", class: "bg-indigo-100 text-indigo-700 border-indigo-200" };
-        }
-        if (rental?.assignedOperationStaffId) {
-          return { label: "Staff đang lấy hàng", class: "bg-blue-100 text-blue-700 border-blue-200" };
-        }
-        return { label: "Chờ staff nhận đơn", class: "bg-amber-100 text-amber-700 border-amber-200" };
-      }
-      case "RENTING":
-        return { label: "Đang thuê", class: "bg-emerald-100 text-emerald-700 border-emerald-200" };
-      case "RETURNING":
-        return { label: "Đang trả", class: "bg-purple-100 text-purple-700 border-purple-200" };
-      case "INSPECTING":
-        return { label: "Đang kiểm tra", class: "bg-slate-100 text-slate-700 border-slate-200" };
-      case "PENDING_RESOLUTION":
-        return { label: "Chờ giải quyết", class: "bg-orange-100 text-orange-700 border-orange-200" };
-      case "COMPLETED":
-        return { label: "Hoàn tất", class: "bg-slate-100 text-slate-700 border-slate-200" };
-      case "CANCELLED":
-        return { label: "Đã hủy", class: "bg-rose-100 text-rose-700 border-rose-200" };
-      default:
-        return { label: status || "—", class: "bg-slate-100 text-slate-700 border-slate-200" };
-    }
-  };
-
-  // For backward compatibility
   const configs = {
     PENDING: { label: "Chờ xử lý", class: "bg-amber-100 text-amber-700 border-amber-200" },
     REJECTED: { label: "Bị từ chối", class: "bg-rose-100 text-rose-700 border-rose-200" },
