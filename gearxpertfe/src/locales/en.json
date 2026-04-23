@@ -74,7 +74,8 @@
     "pay_3_desc": "Automatic payment verification via QR. Fast, accurate, and zero transaction fees.",
     "payment_methods": "Payment Methods",
     "ai_suggested": "Suggested for You",
-    "ai_suggested_subtitle": "Top picks based on your recent activity and preferences."
+    "ai_suggested_subtitle": "Top picks based on your recent activity and preferences.",
+    "testimonials_title": "CUSTOMER-CENTRIC, SATISFACTION IS OUR MISSION!"
   },
   "footer": {
     "description": "Professional technology equipment rental solution. Manage rentals, track orders and keep operations transparent for your team.",
@@ -205,7 +206,94 @@
     "free": "Free",
     "total": "Total",
     "checkout": "Checkout Now",
-    "refund_policy": "Deposit will be 100% refunded after successful device return."
+    "refund_policy": "Deposit will be 100% refunded after the device is successfully inspected and recovered.",
+    "back_to_shop": "Back to shop",
+    "breadcrumb": "Home / Your Cart",
+    "supplier": "Equipment Supplier",
+    "shop_prefix": "Shop",
+    "rent_schedules": "rent schedule(s)",
+    "in_stock": "In Stock",
+    "days": "day(s)",
+    "quantity_short": "Qty",
+    "supplier_subtotal": "Supplier subtotal:",
+    "including_deposit": "Including deposit",
+    "edit_schedule": "Edit Rent Schedule",
+    "start_date": "Start Date",
+    "end_date": "End Date",
+    "quantity": "Quantity",
+    "delete_confirm_title": "Confirm Delete",
+    "delete_confirm_desc": "Are you sure you want to delete the rent schedule for {{name}}?",
+    "delete": "Delete",
+    "auto_removed": "Some products in your cart are out of stock and have been automatically removed!",
+    "load_error": "Could not load cart",
+    "remove_success": "Deleted rent schedule for {{name}}!",
+    "remove_error": "Could not delete. Please try again!",
+    "update_success": "Rent schedule updated successfully!",
+    "update_error": "Could not update schedule. Please try again!",
+    "empty_warn": "Your cart is empty!",
+    "checkout_loading": "Redirecting to checkout...",
+    "loading": "Loading..."
+  },
+  "products": {
+    "title": "Category",
+    "subtitle": "Professional Equipment",
+    "hero_desc": "Equip your vision with industry-standard cameras, lenses, and lighting.",
+    "search_placeholder": "Search 'Sony FX3', 'Aputure', 'Ronin'...",
+    "search_btn": "Search",
+    "filter_category": "Filter by category",
+    "all_devices": "All devices",
+    "price_range": "Price range",
+    "price_unit": "VND / Day",
+    "min_price": "Min price",
+    "max_price": "Max price",
+    "combo_title": "Combo 15% Off",
+    "combo_desc": "Rent a professional camera set.",
+    "view_combo": "View packages",
+    "showing": "Showing",
+    "results": "results",
+    "compare": "Compare",
+    "comparing": "Loading...",
+    "compare_placeholder": "Search similar products to compare...",
+    "select_to_compare": "Select to compare",
+    "no_compare_candidates": "No suitable products found in this category.",
+    "no_results": "No results found",
+    "no_results_desc": "We couldn't find any results matching your search \"{{query}}\". Try adjusting filters or search terms.",
+    "ask_ai": "Ask GearXpert AI",
+    "clear_filters": "Clear filters",
+    "in_stock": "In Stock",
+    "rent": "Pick up",
+    "return": "Return",
+    "clear_date": "Clear date",
+    "sort_by": "Sort by",
+    "rating": "Rating",
+    "stars": "stars",
+    "and_up": "& up",
+    "all_ratings": "All ratings",
+    "compare_modal_title": "Device Comparison",
+    "compare_loading": "Loading comparison data...",
+    "feature": "Feature",
+    "close": "Close",
+    "error_max_compare": "You can compare up to 2 devices only.",
+    "error_same_category": "Only devices in the same category can be compared.",
+    "error_load_compare": "Failed to load comparison data. Please try again.",
+    "sort": {
+      "featured": "Featured",
+      "newest": "Newest",
+      "price_asc": "Price: Low → High",
+      "price_desc": "Price: High → Low",
+      "rating_desc": "Highest Rating"
+    },
+    "specs": {
+      "category": "Category",
+      "rent_day": "Rent per day",
+      "rent_week": "Rent per week",
+      "rent_month": "Rent per month",
+      "deposit": "Deposit",
+      "stock": "Total Stock",
+      "available": "Available",
+      "rating": "Rating",
+      "description": "Description"
+    }
   },
   "categories": {
     "CAMERA": "Camera",
@@ -294,6 +382,73 @@
       "CINEMATOGRAPHY": "Cinematography",
       "ACCESSORIES": "Accessories",
       "INDUSTRY_NEWS": "Industry News"
+    }
+  },
+  "rankPage": {
+    "hero_title": "Membership",
+    "hero_subtitle": "System",
+    "hero_desc": "Accumulate membership cards, enhance your shopping experience and receive countless attractive offers.",
+    "your_rank": "Your Rank",
+    "points": "points",
+    "max_rank": "MAX RANK",
+    "need_more": "Need",
+    "to_rank_up": "more points to rank up to",
+    "congrats_max": "Congratulations! You have reached the highest rank!",
+    "how_to_earn": "How to earn points",
+    "earn_desc": "Points are calculated as soon as you complete a rental order or through community contributions. 10,000 VND = 100 points.",
+    "monthly_offer": "Offer of the month",
+    "use_once": "One-time use",
+    "discount": "Discount",
+    "copy_success": "Offer code copied!",
+    "no_offer": "There are currently no special offers for this rank this month.",
+    "benefits_title": "Membership Rank Benefits",
+    "current": "Current",
+    "unlocked": "Unlocked",
+    "locked": "Locked",
+    "ranks": {
+      "BRONZE": {
+        "name": "Bronze",
+        "benefits": [
+          "Full access to platform features",
+          "Standard customer support",
+          "Earn reward points on every order"
+        ]
+      },
+      "SILVER": {
+        "name": "Silver",
+        "benefits": [
+          "All Bronze benefits",
+          "5% discount voucher every month",
+          "24/7 priority customer support"
+        ]
+      },
+      "GOLD": {
+        "name": "Gold",
+        "benefits": [
+          "All Silver benefits",
+          "10% discount voucher every month",
+          "Birthday gift voucher",
+          "Priority equipment rental issue handling"
+        ]
+      },
+      "PLATINUM": {
+        "name": "Platinum",
+        "benefits": [
+          "All Gold benefits",
+          "15% discount voucher every month",
+          "Free shipping (Max 50k)",
+          "Exclusive partner offers"
+        ]
+      },
+      "DIAMOND": {
+        "name": "Diamond",
+        "benefits": [
+          "All Platinum benefits",
+          "20% discount voucher every morning",
+          "Personal assistant support",
+          "Access to exclusive GearXpert events"
+        ]
+      }
     }
   }
 }

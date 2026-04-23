@@ -1,10 +1,13 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import ScrollAnimation from "../common/ScrollAnimation";
 
 /**
  * @param {Array<{ id: string, name: string, avatar: string, role: string, content: string }>} testimonials — từ API đánh giá thật
  */
 const TestimonialsSection = ({ testimonials = [] }) => {
+  const { t } = useTranslation();
+
   if (!testimonials.length) return null;
 
   return (
@@ -17,7 +20,7 @@ const TestimonialsSection = ({ testimonials = [] }) => {
       <div className="relative z-10 max-w-7xl mx-auto">
         <ScrollAnimation direction="up" className="text-center mb-16">
           <h2 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tight">
-            KHÁCH HÀNG LÀ TRUNG TÂM, HÀI LÒNG LÀ SỨ MỆNH!
+            {t("homepage.testimonials_title")}
           </h2>
           <div className="w-24 h-1.5 bg-gradient-to-r from-indigo-500 to-cyan-400 mx-auto mt-6 rounded-full"></div>
         </ScrollAnimation>

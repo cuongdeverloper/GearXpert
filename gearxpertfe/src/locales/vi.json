@@ -74,7 +74,8 @@
     "pay_3_desc": "Xác thực thanh toán tự động qua mã QR. Nhanh chóng, chính xác và hoàn toàn miễn phí giao dịch.",
     "payment_methods": "Phương thức thanh toán",
     "ai_suggested": "Gợi ý dành riêng cho bạn",
-    "ai_suggested_subtitle": "Các lựa chọn hàng đầu dựa trên hoạt động gần đây và sở thích của bạn."
+    "ai_suggested_subtitle": "Các lựa chọn hàng đầu dựa trên hoạt động gần đây và sở thích của bạn.",
+    "testimonials_title": "KHÁCH HÀNG LÀ TRUNG TÂM, HÀI LÒNG LÀ SỨ MỆNH!"
   },
   "footer": {
     "description": "Giải pháp cho thuê thiết bị công nghệ chuyên nghiệp. Quản lý việc thuê, theo dõi đơn hàng và giữ cho các hoạt động luôn minh bạch cho đội ngũ của bạn.",
@@ -205,7 +206,94 @@
     "free": "Miễn phí",
     "total": "Tổng cộng",
     "checkout": "Thanh toán ngay",
-    "refund_policy": "Tiền cọc sẽ được hoàn trả 100% sau khi thu hồi thiết bị thành công."
+    "refund_policy": "Tiền cọc sẽ được hoàn trả 100% sau khi thiết bị được kiểm tra và thu hồi thành công.",
+    "back_to_shop": "Quay lại cửa hàng",
+    "breadcrumb": "Trang chủ / Giỏ hàng của bạn",
+    "supplier": "Nhà cung cấp thiết bị",
+    "shop_prefix": "Cửa hàng",
+    "rent_schedules": "lịch thuê",
+    "in_stock": "Còn hàng",
+    "days": "ngày",
+    "quantity_short": "SL",
+    "supplier_subtotal": "Tạm tính supplier:",
+    "including_deposit": "Đã bao gồm tiền cọc",
+    "edit_schedule": "Chỉnh sửa lịch thuê",
+    "start_date": "Ngày bắt đầu",
+    "end_date": "Ngày kết thúc",
+    "quantity": "Số lượng",
+    "delete_confirm_title": "Xác nhận xóa",
+    "delete_confirm_desc": "Bạn có chắc muốn xóa lịch thuê của {{name}}?",
+    "delete": "Xóa",
+    "auto_removed": "Một số sản phẩm trong giỏ đã hết hàng và bị tự động xóa!",
+    "load_error": "Không thể tải giỏ hàng",
+    "remove_success": "Đã xóa lịch thuê của {{name}}!",
+    "remove_error": "Không thể xóa. Vui lòng thử lại!",
+    "update_success": "Đã cập nhật lịch thuê thành công!",
+    "update_error": "Không thể cập nhật lịch. Vui lòng thử lại!",
+    "empty_warn": "Giỏ hàng của bạn đang trống!",
+    "checkout_loading": "Đang chuyển đến trang thanh toán...",
+    "loading": "Đang tải..."
+  },
+  "products": {
+    "title": "Danh mục",
+    "subtitle": "Thiết bị chuyên nghiệp",
+    "hero_desc": "Trang bị cho tầm nhìn của bạn những máy ảnh, ống kính và ánh sáng tiêu chuẩn công nghiệp.",
+    "search_placeholder": "Tìm kiếm 'Sony FX3', 'Aputure', 'Ronin'...",
+    "search_btn": "Tìm kiếm",
+    "filter_category": "Lọc theo danh mục",
+    "all_devices": "Tất cả thiết bị",
+    "price_range": "Khoảng giá",
+    "price_unit": "VNĐ / Ngày",
+    "min_price": "Giá thấp nhất",
+    "max_price": "Giá cao nhất",
+    "combo_title": "Combo giảm 15%",
+    "combo_desc": "Thuê trọn bộ máy ảnh chuyên nghiệp.",
+    "view_combo": "Xem gói thuê",
+    "showing": "Đang hiển thị",
+    "results": "kết quả",
+    "compare": "So sánh",
+    "comparing": "Đang tải...",
+    "compare_placeholder": "Tìm kiếm sản phẩm tương tự để so sánh...",
+    "select_to_compare": "Chọn để so sánh",
+    "no_compare_candidates": "Không tìm thấy sản phẩm phù hợp trong danh mục này.",
+    "no_results": "Không tìm thấy kết quả",
+    "no_results_desc": "Chúng tôi không tìm thấy kết quả nào phù hợp với tìm kiếm \"{{query}}\". Hãy thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm của bạn.",
+    "ask_ai": "Hỏi GearXpert AI",
+    "clear_filters": "Xóa bộ lọc",
+    "in_stock": "Còn hàng",
+    "rent": "Nhận",
+    "return": "Trả",
+    "clear_date": "Xóa ngày",
+    "sort_by": "Sắp xếp",
+    "rating": "Đánh giá",
+    "stars": "sao",
+    "and_up": "trở lên",
+    "all_ratings": "Tất cả đánh giá",
+    "compare_modal_title": "So sánh thiết bị",
+    "compare_loading": "Đang tải dữ liệu so sánh...",
+    "feature": "Đặc tính",
+    "close": "Đóng",
+    "error_max_compare": "Bạn chỉ có thể so sánh tối đa 2 thiết bị.",
+    "error_same_category": "Chỉ có thể so sánh các thiết bị trong cùng danh mục.",
+    "error_load_compare": "Không thể tải dữ liệu so sánh. Vui lòng thử lại.",
+    "sort": {
+      "featured": "Nổi bật",
+      "newest": "Hàng mới về",
+      "price_asc": "Giá: Thấp → Cao",
+      "price_desc": "Giá: Cao → Thấp",
+      "rating_desc": "Đánh giá cao nhất"
+    },
+    "specs": {
+      "category": "Danh mục",
+      "rent_day": "Thuê theo ngày",
+      "rent_week": "Thuê theo tuần",
+      "rent_month": "Thuê theo tháng",
+      "deposit": "Tiền cọc",
+      "stock": "Tổng kho",
+      "available": "Có sẵn",
+      "rating": "Đánh giá",
+      "description": "Mô tả"
+    }
   },
   "categories": {
     "CAMERA": "Máy ảnh",
@@ -294,6 +382,73 @@
       "CINEMATOGRAPHY": "Quay phim điện ảnh",
       "ACCESSORIES": "Phụ kiện",
       "INDUSTRY_NEWS": "Tin tức ngành"
+    }
+  },
+  "rankPage": {
+    "hero_title": "Hệ Thống",
+    "hero_subtitle": "Thành Viên",
+    "hero_desc": "Tích lũy thẻ thành viên, nâng cao trải nghiệm mua sắm và nhận vô vàn ưu đãi hấp dẫn.",
+    "your_rank": "Thứ hạng của bạn",
+    "points": "điểm",
+    "max_rank": "MAX RANK",
+    "need_more": "Cần thêm",
+    "to_rank_up": "điểm để thăng hạng",
+    "congrats_max": "Chúc mừng bạn đã đạt thứ hạng cao nhất!",
+    "how_to_earn": "Cách tích điểm",
+    "earn_desc": "Điểm được tính ngay khi bạn hoàn thành một đơn hàng thuê hoặc thông qua các hoạt động đóng góp cho cộng đồng. 10.000đ = 100 điểm.",
+    "monthly_offer": "Ưu đãi của tháng",
+    "use_once": "Sử dụng 1 lần",
+    "discount": "Giảm",
+    "copy_success": "Đã sao chép mã ưu đãi!",
+    "no_offer": "Hiện chưa có ưu đãi đặc biệt cho hạng này trong tháng này.",
+    "benefits_title": "Quyền lợi các hạng thành viên",
+    "current": "Hiện tại",
+    "unlocked": "Đã mở khóa",
+    "locked": "Chưa mở khóa",
+    "ranks": {
+      "BRONZE": {
+        "name": "Bronze",
+        "benefits": [
+          "Truy cập đầy đủ tính năng nền tảng",
+          "Hỗ trợ khách hàng tiêu chuẩn",
+          "Tích lũy điểm thưởng qua mỗi đơn hàng"
+        ]
+      },
+      "SILVER": {
+        "name": "Silver",
+        "benefits": [
+          "Tất cả quyền lợi hạng Bronze",
+          "Voucher giảm giá 5% mỗi tháng",
+          "Hỗ trợ khách hàng ưu tiên 24/7"
+        ]
+      },
+      "GOLD": {
+        "name": "Gold",
+        "benefits": [
+          "Tất cả quyền lợi hạng Silver",
+          "Voucher giảm giá 10% mỗi tháng",
+          "Quà tặng voucher sinh nhật",
+          "Ưu tiên xử lý sự cố thuê thiết bị"
+        ]
+      },
+      "PLATINUM": {
+        "name": "Platinum",
+        "benefits": [
+          "Tất cả quyền lợi hạng Gold",
+          "Voucher giảm giá 15% mỗi tháng",
+          "Miễn phí vận chuyển (Tối đa 50k)",
+          "Ưu đãi độc quyền từ đối tác"
+        ]
+      },
+      "DIAMOND": {
+        "name": "Diamond",
+        "benefits": [
+          "Tất cả quyền lợi hạng Platinum",
+          "Voucher giảm giá 20% mỗi sáng",
+          "Trợ lý cá nhân hỗ trợ dịch vụ",
+          "Tham gia sự kiện độc quyền của GearXpert"
+        ]
+      }
     }
   }
 }
