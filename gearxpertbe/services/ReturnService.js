@@ -3,6 +3,7 @@ const Rental = require("../models/Rental");
 const RentalItem = require("../models/RentalItem");
 const DeviceItem = require("../models/DeviceItem");
 const DeliveryIssueReport = require("../models/DeliveryIssueReport");
+const NotificationConfig = require("../configs/NotificationConfig");
 const { HandoverRecord } = require("../models/HandoverRecord");
 const {
   ReturnRecord,
@@ -601,6 +602,7 @@ const failReturn = async ({ returnRecordId, failure, inspection, staffId, actorI
 
   const session = await mongoose.startSession();
   session.startTransaction();
+  let supplierNotificationPayload = null;
 
   try {
     const current = await ReturnRecord.findById(returnRecordId).session(session);
@@ -702,7 +704,29 @@ const failReturn = async ({ returnRecordId, failure, inspection, staffId, actorI
       { session }
     );
 
+    if (rental?.supplierId) {
+      supplierNotificationPayload = {
+        senderId: staffId,
+        receiverId: rental.supplierId.toString(),
+        title: "Biên bản sự cố thu hồi (vận hành)",
+        message: `Đơn #${rental._id
+          .toString()
+          .slice(-6)} có ghi nhận thu hồi thất bại. Vui lòng xem và xử lý sự cố.`,
+        link: "/supplier/issues?tab=RETURN",
+        type: "STAFF_RETURN_ISSUE_SUPPLIER",
+      };
+    }
+
     await session.commitTransaction();
+
+    if (supplierNotificationPayload) {
+      try {
+        await NotificationConfig.sendNotification(supplierNotificationPayload);
+      } catch (notifyErr) {
+        console.error("Lỗi gửi notification supplier (staff return issue):", notifyErr);
+      }
+    }
+
     return { idempotent: false, record: updated };
   } catch (error) {
     await session.abortTransaction();

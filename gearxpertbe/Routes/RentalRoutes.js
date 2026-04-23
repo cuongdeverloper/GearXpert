@@ -18,6 +18,7 @@ const {
   startDelivery,
   confirmPickup,
   confirmReturn,
+  confirmReturnAfterCompensation,
   cancelPayRental,
   repayRental,
   repaySingleRental,
@@ -57,6 +58,12 @@ rentalRouter.post(
 );
 rentalRouter.post('/:rentalId/confirm-pickup', checkAccessToken, confirmPickup);
 rentalRouter.post('/:rentalId/confirm-return', checkAccessToken, uploadCloud.array('images', 8), confirmReturn);
+rentalRouter.post(
+  '/:rentalId/confirm-return-after-compensation',
+  checkAccessToken,
+  uploadCloud.array('images', 8),
+  confirmReturnAfterCompensation
+);
 rentalRouter.post('/:rentalId/cancelpay', checkAccessToken, cancelPayRental);
 rentalRouter.post("/:rentalId/repay", checkAccessToken, repayRental);
 rentalRouter.post("/:rentalId/singlerepay", checkAccessToken, repaySingleRental);

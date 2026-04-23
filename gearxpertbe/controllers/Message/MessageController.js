@@ -1,6 +1,8 @@
 const Conversation = require("../../models/Conversation");
 const Message = require("../../models/Message");
 const User = require("../../models/User");
+const SupplierProfile = require("../../models/SupplierProfile");
+const { getUser } = require("../../utils/socketUser");
 
 const NewConversation = async (req, res) => {
     try {
@@ -51,11 +53,11 @@ const GetConversation = async (req, res) => {
 
 const SendMessage = async (req, res) => {
     try {
-        const { receiverId, text, conversationId, image, type } = req.body;
+        const { receiverId, text, conversationId, image, type, payload } = req.body;
         const senderId = req.user.id;
 
-        if (!receiverId || (!text && !image)) {
-            return res.status(400).json({ error: "ReceiverId and content (text or image) are required" });
+        if (!receiverId || (!text && !image && !payload)) {
+            return res.status(400).json({ error: "ReceiverId and content (text, image, or payload) are required" });
         }
 
         const receiver = await User.findById(receiverId);
@@ -90,11 +92,34 @@ const SendMessage = async (req, res) => {
             text: text || "",
             image: image || "",
             type: type || "text",
+            payload: payload || null,
             seen: false,
         });
 
         const savedMessage = await newMessage.save();
         const populatedMessage = await savedMessage.populate("sender", "username image avatar");
+
+        try {
+            const io = req.app.get("io");
+            if (io) {
+                const receiverSocket = getUser(String(receiverId));
+                if (receiverSocket?.socketId) {
+                    io.to(receiverSocket.socketId).emit("getMessage", {
+                        _id: savedMessage?._id,
+                        senderId: String(senderId),
+                        text: text || "",
+                        image: image || "",
+                        type: type || "text",
+                        payload: payload || null,
+                        conversationId: String(conversation._id),
+                        createdAt: savedMessage?.createdAt || new Date(),
+                        seen: false,
+                    });
+                }
+            }
+        } catch (emitErr) {
+            console.error("SendMessage socket emit:", emitErr);
+        }
 
         res.status(200).json(populatedMessage);
     } catch (err) {
@@ -166,7 +191,30 @@ const getUserByUserId = async (req, res) => {
             return res.status(404).json({ message: 'User not found.' });
         }
 
-        res.status(200).json(user);
+        const userObject = user.toObject();
+        let supplierProfile = null;
+        if (userObject?.role === "SUPPLIER") {
+            supplierProfile = await SupplierProfile.findOne({ userId: user._id })
+                .select("businessName businessAvatar")
+                .lean();
+        }
+
+        const chatDisplayName =
+            supplierProfile?.businessName || userObject?.fullName || userObject?.username || "User";
+        const chatDisplayAvatar =
+            supplierProfile?.businessAvatar || userObject?.avatar || userObject?.image || "";
+
+        res.status(200).json({
+            ...userObject,
+            supplierProfile: supplierProfile
+                ? {
+                    businessName: supplierProfile.businessName || "",
+                    businessAvatar: supplierProfile.businessAvatar || "",
+                }
+                : null,
+            chatDisplayName,
+            chatDisplayAvatar,
+        });
     } catch (error) {
         res.status(500).json({ message: 'Error fetching user', error });
     }

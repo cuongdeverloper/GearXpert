@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { ApiCreateConversation, ApiGetUserByUserId } from "../../components/Message Socket/ApiMessage";
@@ -24,7 +24,12 @@ import {
   FiPlusCircle,
 } from "react-icons/fi";
 import { HiOutlineChatAlt2 } from "react-icons/hi";
-import { getSupplierIssues, patchSupplierIssueStatus, supplierIssueCancelRefund, supplierIssueAdditionalDelivery } from "../../service/ApiService/ReportApi";
+import {
+  getSupplierIssues,
+  patchSupplierIssueStatus,
+  supplierEscalateIssue,
+  supplierIssueCancelRefund,
+} from "../../service/ApiService/ReportApi";
 import { createWorkOrderFromIssue, getDeviceItemsByDeviceIds } from "../../service/ApiService/MaintenanceApi";
 import { toast } from "react-toastify";
 import ReturnFailureDetailDialog from "../OperationStaff/tabs/handover/components/ReturnFailureDetailDialog";
@@ -70,6 +75,33 @@ const STATUS_STYLES = {
   RESOLVED: "bg-green-50 text-green-700 border-green-200",
   REJECTED: "bg-slate-50 text-slate-700 border-slate-200",
   VERIFIED: "bg-blue-50 text-blue-700 border-blue-200",
+};
+
+const COMPENSATION_FLOW_LABELS = {
+  PROPOSED: "Mới tạo đề xuất",
+  CUSTOMER_ACCEPTED: "Khách đã xác nhận",
+  CUSTOMER_REJECTED: "Khách đã từ chối",
+  SUPPLIER_REJECTED: "Supplier đã hủy",
+  PENDING_ADMIN_REVIEW: "Chờ admin duyệt",
+  ADMIN_APPROVED: "Admin đã duyệt",
+  ADMIN_REJECTED: "Admin đã từ chối",
+};
+
+const COMPENSATION_FLOW_STYLES = {
+  PROPOSED: "bg-slate-50 text-slate-700 border-slate-200",
+  CUSTOMER_ACCEPTED: "bg-blue-50 text-blue-700 border-blue-200",
+  CUSTOMER_REJECTED: "bg-rose-50 text-rose-700 border-rose-200",
+  SUPPLIER_REJECTED: "bg-rose-50 text-rose-700 border-rose-200",
+  PENDING_ADMIN_REVIEW: "bg-amber-50 text-amber-700 border-amber-200",
+  ADMIN_APPROVED: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  ADMIN_REJECTED: "bg-red-50 text-red-700 border-red-200",
+};
+
+const DECISION_STYLES = {
+  PENDING: "bg-slate-50 text-slate-700 border-slate-200",
+  ACCEPTED: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  REJECTED: "bg-rose-50 text-rose-700 border-rose-200",
+  APPROVED: "bg-emerald-50 text-emerald-700 border-emerald-200",
 };
 
 const HANDOVER_FAILURE_REASON_LABELS = {
@@ -270,8 +302,25 @@ export default function SupplierIssuesPage() {
   const [woDeviceItemsLoading, setWoDeviceItemsLoading] = useState(false);
 
   const [additionalDeliveryDialog, setAdditionalDeliveryDialog] = useState(null);
+  const previousProposalStateRef = useRef(new Map());
+  const hasBootstrappedProposalRef = useRef(false);
 
   const todayStr = () => new Date().toISOString().split("T")[0];
+
+  const captureProposalState = useCallback((delivery, damage) => {
+    const map = new Map();
+    [...(delivery || []), ...(damage || [])].forEach((row) => {
+      const proposal = row?.compensationProposal;
+      if (!row?._id || !proposal) return;
+      map.set(String(row._id), {
+        customerDecision: proposal.customerDecision || "PENDING",
+        supplierDecision: proposal.supplierDecision || "PENDING",
+        adminDecision: proposal.adminDecision || "PENDING",
+        flowStatus: proposal.flowStatus || "PROPOSED",
+      });
+    });
+    return map;
+  }, []);
 
   const loadIssues = useCallback(async () => {
     try {
@@ -281,6 +330,34 @@ export default function SupplierIssuesPage() {
         res?.deliveryIssues ?? res?.data?.deliveryIssues ?? [];
       const damageReports =
         res?.damageReports ?? res?.data?.damageReports ?? [];
+
+      const nextProposalState = captureProposalState(deliveryIssues, damageReports);
+      if (hasBootstrappedProposalRef.current) {
+        nextProposalState.forEach((next, issueId) => {
+          const prev = previousProposalStateRef.current.get(issueId);
+          if (!prev) return;
+
+          if (prev.customerDecision !== "ACCEPTED" && next.customerDecision === "ACCEPTED") {
+            toast.info(`Case #${issueId.slice(-6)}: Khách đã xác nhận đề xuất bồi thường.`);
+          }
+          if (prev.customerDecision !== "REJECTED" && next.customerDecision === "REJECTED") {
+            toast.warning(`Case #${issueId.slice(-6)}: Khách đã từ chối đề xuất bồi thường.`);
+          }
+          if (prev.flowStatus !== "PENDING_ADMIN_REVIEW" && next.flowStatus === "PENDING_ADMIN_REVIEW") {
+            toast.info(`Case #${issueId.slice(-6)}: Đề xuất đã chuyển sang chờ admin duyệt.`);
+          }
+          if (prev.adminDecision !== "APPROVED" && next.adminDecision === "APPROVED") {
+            toast.success(`Case #${issueId.slice(-6)}: Admin đã duyệt đề xuất bồi thường.`);
+          }
+          if (prev.adminDecision !== "REJECTED" && next.adminDecision === "REJECTED") {
+            toast.error(`Case #${issueId.slice(-6)}: Admin đã từ chối đề xuất bồi thường.`);
+          }
+        });
+      }
+
+      previousProposalStateRef.current = nextProposalState;
+      hasBootstrappedProposalRef.current = true;
+
       setDeliveryIssues(deliveryIssues);
       setDamageReports(damageReports);
     } catch {
@@ -288,7 +365,7 @@ export default function SupplierIssuesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [captureProposalState]);
 
   useEffect(() => {
     loadIssues();
@@ -405,6 +482,7 @@ export default function SupplierIssuesPage() {
       _deviceImages: (r.deviceIds || []).flatMap((d) => d?.images || []),
       _severity: null,
       _compensationAmount: null,
+      _compensationProposal: r.compensationProposal || null,
     }));
 
     const damage = damageReports.map((r) => ({
@@ -419,6 +497,7 @@ export default function SupplierIssuesPage() {
       _deviceImages: r.deviceId?.images || [],
       _severity: r.severity,
       _compensationAmount: r.compensationAmount,
+      _compensationProposal: r.compensationProposal || null,
     }));
 
     return [...delivery, ...damage].sort(
@@ -799,6 +878,11 @@ function IssueCard({ issue, onImageClick, onOperationalDetail, onIssueUpdated, o
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const isAuthenticated = useSelector((state) => state.user?.isAuthenticated);
+  const openIssueDetailPage = () => {
+    navigate(`/supplier/issues/${issue._id}`, {
+      state: { issue },
+    });
+  };
 
   const supplierActions = useMemo(
     () => getSupplierActionsForIssue(issue),
@@ -873,7 +957,7 @@ function IssueCard({ issue, onImageClick, onOperationalDetail, onIssueUpdated, o
       {/* Header row */}
       <div
         className="flex flex-col sm:flex-row sm:items-center gap-3 p-5 cursor-pointer"
-        onClick={() => setExpanded(!expanded)}
+        onClick={openIssueDetailPage}
       >
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -915,6 +999,19 @@ function IssueCard({ issue, onImageClick, onOperationalDetail, onIssueUpdated, o
                 {SEVERITY_LABELS[issue._severity] || issue._severity}
               </span>
             )}
+
+            {issue._compensationProposal?.submittedAt && (
+              <span
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+                  COMPENSATION_FLOW_STYLES[issue._compensationProposal?.flowStatus] ||
+                  "bg-slate-50 text-slate-700 border-slate-200"
+                }`}
+              >
+                {COMPENSATION_FLOW_LABELS[issue._compensationProposal?.flowStatus] ||
+                  issue._compensationProposal?.flowStatus ||
+                  "Luồng bồi thường"}
+              </span>
+            )}
           </div>
 
           {/* Customer & reporter */}
@@ -942,10 +1039,30 @@ function IssueCard({ issue, onImageClick, onOperationalDetail, onIssueUpdated, o
               Thiết bị: {issue._devices.join(", ")}
             </p>
           )}
+          {issue._compensationProposal?.submittedAt && (
+            <p className="text-xs mt-1 text-slate-600">
+              Trạng thái xác nhận: Khách{" "}
+              <span className="font-semibold">{issue._compensationProposal?.customerDecision || "PENDING"}</span>
+              {" • "}Supplier{" "}
+              <span className="font-semibold">{issue._compensationProposal?.supplierDecision || "PENDING"}</span>
+              {" • "}Admin{" "}
+              <span className="font-semibold">{issue._compensationProposal?.adminDecision || "PENDING"}</span>
+            </p>
+          )}
         </div>
 
         {/* Right side: timestamp + image count */}
         <div className="flex sm:flex-col items-center sm:items-end gap-2 sm:gap-1 shrink-0 text-right">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded((prev) => !prev);
+            }}
+            className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 bg-white hover:bg-slate-50"
+          >
+            {expanded ? "Thu gọn nhanh" : "Mở nhanh"}
+          </button>
           {showOperationalDetail && onOperationalDetail && (
             <button
               type="button"
@@ -968,6 +1085,11 @@ function IssueCard({ issue, onImageClick, onOperationalDetail, onIssueUpdated, o
           {issue._compensationAmount > 0 && (
             <span className="text-xs font-semibold text-rose-600">
               Bồi thường: {formatMoney(issue._compensationAmount)}₫
+            </span>
+          )}
+          {issue._compensationProposal?.submittedAt && (
+            <span className="text-xs font-semibold text-indigo-700">
+              Đề xuất: {formatMoney(issue._compensationProposal?.amount || 0)}₫
             </span>
           )}
         </div>
@@ -1000,11 +1122,12 @@ function IssueCard({ issue, onImageClick, onOperationalDetail, onIssueUpdated, o
                 const isRejectedRental = rentalSt === "REJECTED";
                 const isCustomAction = ["cancel_refund", "additional_delivery", "evidence", "escalate", "reply"].includes(key);
                 const processingDisabled =
-                  key === "processing" &&
-                  (!isRejectedRental
-                    ? issue.status !== "OPEN"
-                    : !["OPEN", "PROCESSING"].includes(issue.status)) ||
-                  (isCustomAction && !["OPEN", "PROCESSING", "PENDING_RESOLUTION"].includes(issue.status));
+                  (key === "processing" &&
+                    (!isRejectedRental
+                      ? issue.status !== "OPEN"
+                      : !["OPEN", "PROCESSING"].includes(issue.status))) ||
+                  (isCustomAction &&
+                    !["OPEN", "PROCESSING", "PENDING_RESOLUTION"].includes(issue.status));
                 return (
                 <button
                   key={key}
@@ -1032,7 +1155,17 @@ function IssueCard({ issue, onImageClick, onOperationalDetail, onIssueUpdated, o
                       onOpenAdditionalDelivery && onOpenAdditionalDelivery(issue);
                       return;
                     }
-                    if (key === "reply" || key === "evidence" || key === "escalate") {
+                    if (key === "escalate") {
+                      try {
+                        await supplierEscalateIssue(issue._id, {});
+                        toast.success("Đã gửi yêu cầu can thiệp tới GearXpert.");
+                        onIssueUpdated?.();
+                      } catch (err) {
+                        toast.error(err.response?.data?.message || err.message || "Không thể gửi yêu cầu can thiệp");
+                      }
+                      return;
+                    }
+                    if (key === "reply" || key === "evidence") {
                       handleSupplierAction(e);
                       return;
                     }
@@ -1099,6 +1232,63 @@ function IssueCard({ issue, onImageClick, onOperationalDetail, onIssueUpdated, o
               <p className="text-sm text-slate-700 whitespace-pre-wrap">
                 {issue.resolutionNote || issue.resolvedNote}
               </p>
+            </div>
+          )}
+
+          {issue._compensationProposal?.submittedAt && (
+            <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-indigo-800 mb-2">
+                Theo dõi đề xuất bồi thường
+              </h4>
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <span
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+                    COMPENSATION_FLOW_STYLES[issue._compensationProposal?.flowStatus] ||
+                    "bg-slate-50 text-slate-700 border-slate-200"
+                  }`}
+                >
+                  {COMPENSATION_FLOW_LABELS[issue._compensationProposal?.flowStatus] ||
+                    issue._compensationProposal?.flowStatus ||
+                    "—"}
+                </span>
+                <span className="text-xs text-slate-700">
+                  Mức đề xuất:{" "}
+                  <span className="font-semibold">
+                    {formatMoney(issue._compensationProposal?.amount || 0)} VND
+                  </span>
+                </span>
+                {Number(issue._compensationProposal?.approvedCompensationAmount || 0) > 0 && (
+                  <span className="text-xs text-emerald-700 font-semibold">
+                    Mức admin duyệt: {formatMoney(issue._compensationProposal?.approvedCompensationAmount)} VND
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <span
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+                    DECISION_STYLES[issue._compensationProposal?.customerDecision] ||
+                    "bg-slate-50 text-slate-700 border-slate-200"
+                  }`}
+                >
+                  Khách: {issue._compensationProposal?.customerDecision || "PENDING"}
+                </span>
+                <span
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+                    DECISION_STYLES[issue._compensationProposal?.supplierDecision] ||
+                    "bg-slate-50 text-slate-700 border-slate-200"
+                  }`}
+                >
+                  Supplier: {issue._compensationProposal?.supplierDecision || "PENDING"}
+                </span>
+                <span
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+                    DECISION_STYLES[issue._compensationProposal?.adminDecision] ||
+                    "bg-slate-50 text-slate-700 border-slate-200"
+                  }`}
+                >
+                  Admin: {issue._compensationProposal?.adminDecision || "PENDING"}
+                </span>
+              </div>
             </div>
           )}
 

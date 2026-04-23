@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import "./conversation.scss";
 import ImageUser from "../../public/avatar.jpg"; 
 import { ApiGetUserByUserId } from "../ApiMessage";
+import { getChatDisplayProfile } from "../chatDisplay";
 
 const Conversation = ({ conversation, currentUser, isActive, isOnline }) => {
   const [user, setUser] = useState(null);
@@ -27,14 +28,14 @@ const Conversation = ({ conversation, currentUser, isActive, isOnline }) => {
       <div className="conversationImgContainer">
         <img
           className="conversationImg"
-          src={user?.avatar || ImageUser}
+          src={getChatDisplayProfile(user).avatar || ImageUser}
           alt=""
         />
         {isOnline && <div className="onlineDot"></div>}
       </div>
       
       <div className="conversationDetails">
-        <span className="conversationName">{user?.fullName || "User"}</span>
+        <span className="conversationName">{getChatDisplayProfile(user).name || "User"}</span>
         <div className="conversationInfo">
             <span className="lastMessage">Click to start chatting</span>
         </div>

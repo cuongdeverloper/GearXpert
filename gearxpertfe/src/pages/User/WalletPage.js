@@ -10,7 +10,6 @@ import {
   RefreshCw,
   Banknote,
   X,
-  AlertCircle,
   CheckCircle2,
   Clock,
   TrendingUp,
@@ -38,6 +37,15 @@ import { toast } from "react-toastify";
 import Header from "../../components/navigation/Header";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
+
+const formatWalletTxDateTime = (dateValue) =>
+  new Date(dateValue).toLocaleString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
 const PAGE_SIZE = 5;
 
@@ -789,7 +797,7 @@ export default function WalletPage({ embeddedInSupplier = false } = {}) {
                                 {tx.amount > 0 ? "+" : ""}{tx.amount.toLocaleString('vi-VN')}đ
                               </p>
                               <p className="text-xs text-gray-400">
-                                {new Date(tx.createdAt).toLocaleDateString('vi-VN')}
+                                {formatWalletTxDateTime(tx.createdAt)}
                               </p>
                             </div>
                           </div>
