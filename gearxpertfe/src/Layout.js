@@ -222,7 +222,7 @@ export default function Layout() {
               path="rental-requests"
               element={<SupplierRentalRequests />}
             />
-          <Route path="extension-requests" element={<SupplierExtensionRequests />} />
+            <Route path="extension-requests" element={<SupplierExtensionRequests />} />
             <Route path="maintenance" element={<SupplierMaintenance />} />
             <Route path="revenue" element={<SupplierRevenue />} />
             <Route

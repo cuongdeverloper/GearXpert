@@ -43,7 +43,7 @@ const GetConversation = async (req, res) => {
 
         const conversations = await Conversation.find({
             members: { $in: [userId] },
-        });
+        }).sort({ updatedAt: -1 });
 
         res.status(200).json(conversations);
     } catch (err) {
@@ -68,11 +68,17 @@ const SendMessage = async (req, res) => {
         let conversation;
 
         if (conversationId) {
-            conversation = await Conversation.findById(conversationId);
+            conversation = await Conversation.findByIdAndUpdate(
+                conversationId, 
+                { $set: { updatedAt: new Date() } },
+                { new: true }
+            );
         } else {
-            conversation = await Conversation.findOne({
-                members: { $all: [senderId, receiverId] },
-            });
+            conversation = await Conversation.findOneAndUpdate(
+                { members: { $all: [senderId, receiverId] } },
+                { $set: { updatedAt: new Date() } },
+                { new: true }
+            );
 
             if (!conversation) {
                 conversation = new Conversation({ members: [senderId, receiverId] });

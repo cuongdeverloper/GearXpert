@@ -114,10 +114,10 @@ export default function ReportDetailModal({ isOpen, onClose, report }) {
                       <div key={idx} className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100">
                         {/* Product Image */}
                         <div className="w-12 h-12 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
-                          {deviceItem.deviceId?.images?.[0] ? (
+                          {report.deviceImage ? (
                             <img 
-                              src={deviceItem.deviceId.images[0]} 
-                              alt={deviceItem.deviceId?.name || "Product"}
+                              src={report.deviceImage} 
+                              alt={report.itemName || "Product"}
                               className="w-full h-full object-cover"
                             />
                           ) : (
@@ -127,8 +127,8 @@ export default function ReportDetailModal({ isOpen, onClose, report }) {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-gray-900 truncate">{deviceItem.deviceId?.name || report.itemName || "Sản phẩm"}</p>
-                          <p className="text-xs text-gray-500 font-mono">Serial: {deviceItem.serialNumber || "N/A"}</p>
+                          <p className="text-sm font-bold text-gray-900 truncate">{report.itemName || "Sản phẩm"}</p>
+                          <p className="text-xs text-gray-500 font-mono">Serial: {typeof deviceItem === 'string' ? deviceItem.slice(-8) : deviceItem.serialNumber || "N/A"}</p>
                         </div>
                         <span className={`px-2 py-1 rounded-lg text-[10px] font-bold ${
                           report.issueType === "MISSING" ? "bg-orange-100 text-orange-700" :
@@ -146,8 +146,18 @@ export default function ReportDetailModal({ isOpen, onClose, report }) {
                 <div className="p-4 bg-gray-50 rounded-xl">
                   <p className="text-xs font-bold text-gray-400 uppercase mb-2">Sản phẩm bị ảnh hưởng</p>
                   <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100">
-                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Package size={20} className="text-gray-400" />
+                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
+                      {report.deviceImage ? (
+                        <img 
+                          src={report.deviceImage} 
+                          alt={report.itemName || "Product"}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Package size={20} className="text-gray-400" />
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-gray-900 truncate">{report.itemName || "Sản phẩm"}</p>
@@ -217,10 +227,10 @@ export default function ReportDetailModal({ isOpen, onClose, report }) {
                       <div key={idx} className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100">
                         {/* Product Image */}
                         <div className="w-12 h-12 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
-                          {deviceItem.deviceId?.images?.[0] ? (
+                          {report.deviceImage ? (
                             <img 
-                              src={deviceItem.deviceId.images[0]} 
-                              alt={deviceItem.deviceId?.name || "Product"}
+                              src={report.deviceImage} 
+                              alt={report.itemName || "Product"}
                               className="w-full h-full object-cover"
                             />
                           ) : (
@@ -230,8 +240,8 @@ export default function ReportDetailModal({ isOpen, onClose, report }) {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-gray-900 truncate">{deviceItem.deviceId?.name || report.itemName || "Sản phẩm"}</p>
-                          <p className="text-xs text-gray-500 font-mono">Serial: {deviceItem.serialNumber || "N/A"}</p>
+                          <p className="text-sm font-bold text-gray-900 truncate">{report.itemName || "Sản phẩm"}</p>
+                          <p className="text-xs text-gray-500 font-mono">Serial: {typeof deviceItem === 'string' ? deviceItem.slice(-8) : deviceItem.serialNumber || "N/A"}</p>
                         </div>
                         <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-red-100 text-red-700">
                           Hư hỏng
@@ -244,8 +254,18 @@ export default function ReportDetailModal({ isOpen, onClose, report }) {
                 <div className="p-4 bg-gray-50 rounded-xl">
                   <p className="text-xs font-bold text-gray-400 uppercase mb-2">Sản phẩm bị hư hỏng</p>
                   <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100">
-                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Package size={20} className="text-gray-400" />
+                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
+                      {report.deviceImage ? (
+                        <img 
+                          src={report.deviceImage} 
+                          alt={report.itemName || "Product"}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Package size={20} className="text-gray-400" />
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-gray-900 truncate">{report.itemName || "Sản phẩm"}</p>

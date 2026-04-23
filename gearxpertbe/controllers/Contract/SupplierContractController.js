@@ -255,3 +255,21 @@ exports.requestToBecomeSupplier = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Lỗi server', error: error.message });
   }
 };
+
+exports.getMyContract = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const contract = await SupplierContract.findOne({ user: userId })
+      .sort({ createdAt: -1 })
+      .select('-contractSignature')
+      .lean();
+
+    if (!contract) {
+      return res.status(200).json({ success: true, hasContract: false, contract: null });
+    }
+    return res.status(200).json({ success: true, hasContract: true, contract });
+  } catch (error) {
+    console.error("Lỗi getMyContract:", error);
+    return res.status(500).json({ success: false, message: 'Lỗi server khi lấy thông tin hợp đồng', error: error.message });
+  }
+};

@@ -180,6 +180,18 @@ const Messenger = () => {
     } else {
       toast.info(`💬 Tin nhắn mới: "${arrivalMessage.textPreview}"`);
     }
+
+    setConversations((prev) => {
+      const convIndex = prev.findIndex((c) => c._id === arrivalMessage.conversationId);
+      if (convIndex > -1) {
+        const conv = prev[convIndex];
+        const newConversations = [...prev];
+        newConversations.splice(convIndex, 1);
+        newConversations.unshift(conv);
+        return newConversations;
+      }
+      return prev;
+    });
   }, [arrivalMessage, currentChat]);
 
   useEffect(() => {
@@ -389,6 +401,18 @@ const Messenger = () => {
       setMessages((prev) => [...prev, newMsg]);
       setNewMessage("");
       setFile(null);
+
+      setConversations((prev) => {
+        const convIndex = prev.findIndex((c) => c._id === currentChat._id);
+        if (convIndex > -1) {
+          const conv = prev[convIndex];
+          const newConversations = [...prev];
+          newConversations.splice(convIndex, 1);
+          newConversations.unshift(conv);
+          return newConversations;
+        }
+        return prev;
+      });
     } catch (err) {
       console.error("Lỗi gửi tin:", err);
     }

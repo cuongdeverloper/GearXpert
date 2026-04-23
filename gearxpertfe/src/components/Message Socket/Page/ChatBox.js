@@ -198,7 +198,7 @@ const ChatBox = ({
                     onClick={() => imageInputRef.current.click()}
                 ></i>
                 
-                <i className="fas fa-sticky-note iconAction stickerIcon"></i>
+                <i className="fas fa-sticky-not e iconAction stickerIcon"></i>
 
                 <div className="inputBox">
                     <textarea

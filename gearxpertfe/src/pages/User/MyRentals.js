@@ -9,9 +9,7 @@ import * as rentalService from "../../service/ApiService/RentalApi";
 import { hasReviewedRental } from "../../service/ApiService/RentalApi";
 
 import { getMyWallet } from "../../service/ApiService/WalletApi";
-
-
-
+import { Clock, AlertCircle } from "lucide-react";
 import Header from "../../components/navigation/Header";
 
 
@@ -247,6 +245,12 @@ export default function MyRentals() {
 
   const [extendTab, setExtendTab] = useState("processing"); // "processing" | "processed"
 
+  const [showAllRentals, setShowAllRentals] = useState(false); // Mặc định chỉ hiện 7 ngày gần nhất
+
+  const [isReportsExpanded, setIsReportsExpanded] = useState(false);
+
+  const [isExtendExpanded, setIsExtendExpanded] = useState(false);
+
 
 
   useEffect(() => {
@@ -267,7 +271,11 @@ export default function MyRentals() {
 
       const res = await rentalService.getMyRentals();
 
-      setRentals(res.rentals || []);
+      // Handle axios response - could be res.rentals or res.data.rentals
+
+      const rentalsData = res.rentals || res?.data?.rentals || [];
+
+      setRentals(rentalsData);
 
     } catch {
 
@@ -1079,17 +1087,37 @@ export default function MyRentals() {
 
 
 
-    if (activeTab !== "ALL") {
+    // Filter chỉ hiện đơn trong 7 ngày gần nhất nếu không chọn xem tất cả
 
-      result = result.filter((r) =>
+    if (!showAllRentals) {
 
-        activeTab === "DELIVERING"
+      const sevenDaysAgo = new Date();
 
-          ? r.status === "DELIVERING" || r.status === "APPROVED"
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-          : r.status === activeTab
+      result = result.filter((r) => new Date(r.createdAt) >= sevenDaysAgo);
 
-      );
+    }
+
+
+
+    if (activeTab && activeTab !== "ALL") {
+
+      result = result.filter((r) => {
+
+        // IN_PROGRESS group: DELIVERING, DELIVERED, RENTING, RETURNING
+
+        if (activeTab === "IN_PROGRESS") {
+
+          return ["DELIVERING", "DELIVERED", "RENTING", "RETURNING"].includes(r.status);
+
+        }
+
+        // Individual status tabs
+
+        return r.status === activeTab;
+
+      });
 
     }
 
@@ -1163,7 +1191,7 @@ export default function MyRentals() {
 
     return result;
 
-  }, [rentals, activeTab, searchTerm, sortOption]);
+  }, [rentals, activeTab, searchTerm, sortOption, showAllRentals]);
 
 
 
@@ -1247,9 +1275,11 @@ export default function MyRentals() {
 
             rentalId: rental._id,
 
-            rentalCode: rental.orderCode,
+            rentalCode: rental.orderCode || rental._id?.toString().slice(-6),
 
             itemName: item.deviceId?.name,
+
+            deviceImage: item.deviceId?.images?.[0],
 
             status: r.status,
 
@@ -1260,8 +1290,6 @@ export default function MyRentals() {
             description: r.description,
 
             issueType: r.issueType,
-
-            deviceItemIds: r.deviceItemIds || [],
 
             images: r.images || [],
 
@@ -1291,9 +1319,11 @@ export default function MyRentals() {
 
             rentalId: rental._id,
 
-            rentalCode: rental.orderCode,
+            rentalCode: rental.orderCode || rental._id?.toString().slice(-6),
 
             itemName: item.deviceId?.name,
+
+            deviceImage: item.deviceId?.images?.[0],
 
             status: r.status,
 
@@ -1343,28 +1373,68 @@ export default function MyRentals() {
 
     const reqs = [];
 
+    
+
+    console.log("[extendRequests] Total rentals:", rentals.length);
+
     for (const rental of rentals) {
 
-      for (const r of rental.extensionRequests || []) {
+      console.log("[extendRequests] Rental:", rental._id, "items:", rental.items?.length, "extReqs:", rental.extensionRequests?.length);
 
+      
+
+      // Debug first item
+
+      if (rental.items?.[0]) {
+
+        const firstItem = rental.items[0];
+
+        console.log("[extendRequests] First item deviceId:", typeof firstItem.deviceId, firstItem.deviceId?.name || firstItem.deviceId);
+
+      }
+
+      
+
+      for (const extReq of rental.extensionRequests || []) {
+
+        // Use devices from backend (already populated)
+
+        const rentalId = rental._id;
+
+        const rentalCode = rental.orderCode || rentalId?.toString().slice(-6);
+
+        
+
+        // Use devices from backend if available, otherwise map from rental items
+        let devices = extReq.devices || [];
+        if (!Array.isArray(devices) || devices.length === 0) {
+          // If backend didn't enrich, or enriched with empty array, fallback to rental items
+          const rentalItems = rental.items || [];
+          devices = rentalItems.map(item => {
+            const di = item.deviceId;
+            const ds = item.deviceSnapshot;
+            // di might be populated object OR ID string. ds is SNAPSHOT object.
+            const diIsObj = di && typeof di === 'object' && !Array.isArray(di);
+            return {
+              name: (diIsObj ? di.name : null) || ds?.name || "Thiết bị",
+              image: (diIsObj ? di.images?.[0] : null) || ds?.images?.[0] || "https://placehold.co/100x100?text=Gear",
+              quantity: item.quantity || 1
+            };
+          }).filter(d => d.name);
+        }
+        
         reqs.push({
-
-          rentalId: rental._id,
-
-          rentalCode: rental.orderCode,
-
-          requestedEndDate: r.requestedEndDate,
-
-          requestedDays: r.requestedDays,
-
-          proposedExtraAmount: r.proposedExtraAmount,
-
-          status: r.status,
-
-          note: r.note,
-
-          createdAt: r.createdAt,
-
+          _id: extReq._id,
+          rentalId: rentalId,
+          rentalCode: rentalCode,
+          devices: devices,
+          deviceCount: devices.length,
+          requestedEndDate: extReq.requestedEndDate,
+          requestedDays: extReq.requestedDays,
+          proposedExtraAmount: extReq.proposedExtraAmount,
+          status: extReq.status,
+          note: extReq.note,
+          createdAt: extReq.createdAt,
         });
 
       }
@@ -1374,6 +1444,44 @@ export default function MyRentals() {
     reqs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     return reqs;
+
+  }, [rentals]);
+
+
+
+  // Calculate counts for StatusTabs badges
+
+  const tabCounts = useMemo(() => {
+
+    const counts = {
+
+      PENDING: 0,
+
+      DELIVERING: 0,
+
+      DELIVERED: 0,
+
+      RENTING: 0,
+
+      RETURNING: 0,
+
+      COMPLETED: 0,
+
+      CANCELLED: 0,
+
+    };
+
+    rentals.forEach((r) => {
+
+      if (counts[r.status] !== undefined) {
+
+        counts[r.status]++;
+
+      }
+
+    });
+
+    return counts;
 
   }, [rentals]);
 
@@ -1487,281 +1595,481 @@ export default function MyRentals() {
 
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 lg:gap-8">
 
-          {/* LEFT SIDEBAR */}
+          {/* LEFT SIDEBAR - Reports */}
 
           <aside className="lg:col-span-3 xl:col-span-3">
 
-            <div className="bg-white rounded-3xl border border-gray-100 p-6 lg:sticky lg:top-24">
+            <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden lg:sticky lg:top-24 transition-all duration-300 ease-in-out">
 
-              <div className="flex items-end justify-between mb-4">
+              {/* Collapsed Header */}
 
-                <div>
+              <button
 
-                  <div className="text-[11px] font-black uppercase tracking-widest text-gray-400">
+                onClick={() => setIsReportsExpanded(!isReportsExpanded)}
 
-                    Reports
+                className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+
+              >
+
+                <div className="flex items-center gap-3">
+
+                  <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+
+                    <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+
+                    </svg>
 
                   </div>
 
-                  <div className="text-lg font-black text-gray-900">
+                  <div className="text-left">
 
-                    Delivery / Damage
+                    <div className="text-xs font-black text-gray-900">Báo cáo</div>
+
+                    <div className="text-[10px] text-gray-500">Delivery / Damage</div>
 
                   </div>
 
                 </div>
 
-                <div className="text-[11px] font-bold text-gray-400">
+                <div className="flex items-center gap-2">
 
-                  {filteredReports.length} báo cáo
+                  {filteredReports.length > 0 && (
 
-                </div>
+                    <span className="px-2 py-1 rounded-lg bg-amber-100 text-amber-700 text-[10px] font-black">
 
-              </div>
+                      {filteredReports.length}
 
+                    </span>
 
+                  )}
 
-              {/* Tabs for Reports */}
+                  <svg
 
-              <div className="flex gap-1 mb-4 bg-gray-100 p-1 rounded-xl">
+                    className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${isReportsExpanded ? 'rotate-180' : ''}`}
 
-                <button
+                    fill="none"
 
-                  onClick={() => { setReportTab("processing"); setReportsPage(1); }}
+                    stroke="currentColor"
 
-                  className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-black uppercase transition-all ${
+                    viewBox="0 0 24 24"
 
-                    reportTab === "processing"
+                  >
 
-                      ? "bg-white text-gray-900 shadow-sm"
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
 
-                      : "text-gray-500 hover:text-gray-700"
-
-                  }`}
-
-                >
-
-                  Đang xử lý
-
-                </button>
-
-                <button
-
-                  onClick={() => { setReportTab("processed"); setReportsPage(1); }}
-
-                  className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-black uppercase transition-all ${
-
-                    reportTab === "processed"
-
-                      ? "bg-white text-gray-900 shadow-sm"
-
-                      : "text-gray-500 hover:text-gray-700"
-
-                  }`}
-
-                >
-
-                  Đã xử lý
-
-                </button>
-
-              </div>
-
-
-
-              {filteredReports.length === 0 ? (
-
-                <div className="text-sm text-gray-500 text-center py-4">
-
-                  {reportTab === "processing" ? "Không có báo cáo đang xử lý" : "Không có báo cáo đã xử lý"}
+                  </svg>
 
                 </div>
 
-              ) : (
+              </button>
 
-                <>
 
-                  <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
 
-                    {currentReports.map((r, idx) => (
+              {/* Expanded Content with Animation */}
 
-                      <div
+              <div
 
-                        key={`${r.type}-${idx}`}
+                className={`overflow-hidden transition-all duration-300 ease-in-out ${
 
-                        onClick={() => setReportDetailModal({ isOpen: true, report: r })}
+                  isReportsExpanded ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
 
-                        className="p-4 rounded-2xl bg-gray-50 border border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors"
+                }`}
 
-                      >
+              >
 
-                        <div className="flex items-center justify-between gap-3">
+                <div className="px-4 pb-4 border-t border-gray-100">
 
-                          <div className="min-w-0">
+                  {/* Tabs for Reports */}
 
-                            <div className="text-xs font-black text-gray-900 truncate">
+                  <div className="flex gap-1 mt-4 mb-4 bg-gray-100 p-1 rounded-xl">
 
-                              {r.itemName || "Thiết bị"}{" "}
+                    <button
 
-                              <span className="text-gray-400 font-bold">
+                      onClick={() => { setReportTab("processing"); setReportsPage(1); }}
 
-                                {r.rentalCode
+                      className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-black uppercase transition-all ${
 
-                                  ? `• BK${String(r.rentalCode).padStart(4, "0")}`
+                        reportTab === "processing"
 
-                                  : ""}
+                          ? "bg-white text-gray-900 shadow-sm"
+
+                          : "text-gray-500 hover:text-gray-700"
+
+                      }`}
+
+                    >
+
+                      Đang xử lý
+
+                    </button>
+
+                    <button
+
+                      onClick={() => { setReportTab("processed"); setReportsPage(1); }}
+
+                      className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-black uppercase transition-all ${
+
+                        reportTab === "processed"
+
+                          ? "bg-white text-gray-900 shadow-sm"
+
+                          : "text-gray-500 hover:text-gray-700"
+
+                      }`}
+
+                    >
+
+                      Đã xử lý
+
+                    </button>
+
+                  </div>
+
+
+
+                  {filteredReports.length === 0 ? (
+
+                    <div className="text-sm text-gray-500 text-center py-4">
+
+                      {reportTab === "processing" ? "Không có báo cáo đang xử lý" : "Không có báo cáo đã xử lý"}
+
+                    </div>
+
+                  ) : (
+
+                    <>
+
+                      <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+
+                        {currentReports.map((r, idx) => (
+
+                          <div
+
+                            key={`${r.type}-${idx}`}
+
+                            onClick={() => setReportDetailModal({ isOpen: true, report: r })}
+
+                            className="p-3 rounded-2xl bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+
+                          >
+
+                            {/* Header with Order Code and Report Type */}
+
+                            <div className="flex items-center justify-between mb-3">
+
+                              <div className="flex items-center gap-2">
+
+                                <span className="text-xs font-black text-gray-400 uppercase tracking-wider">Đơn</span>
+
+                                <span className="px-2 py-1 bg-gray-900 text-white rounded-lg text-xs font-black">
+
+                                  {r.rentalCode ? `BK${String(r.rentalCode).padStart(4, "0")}` : "N/A"}
+
+                                </span>
+
+                              </div>
+
+                              <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase ${
+
+                                r.type === "DELIVERY" 
+
+                                  ? "bg-amber-100 text-amber-700" 
+
+                                  : "bg-rose-100 text-rose-700"
+
+                              }`}>
+
+                                {r.type === "DELIVERY" ? "Giao hàng" : "Hư hỏng"}
 
                               </span>
 
                             </div>
 
-                            <div className="text-[11px] text-gray-500 mt-1 line-clamp-2">
 
-                              {r.description || "-"}
+
+                            {/* Device Info with Image */}
+
+                            <div className="flex items-center gap-3 mb-3 p-2 bg-gray-50 rounded-xl">
+
+                              <div className="w-12 h-12 rounded-lg bg-white overflow-hidden flex-shrink-0 border border-gray-100">
+
+                                {r.deviceImage ? (
+
+                                  <img
+
+                                    src={r.deviceImage}
+
+                                    alt={r.itemName || "Device"}
+
+                                    className="w-full h-full object-cover"
+
+                                  />
+
+                                ) : (
+
+                                  <div className="w-full h-full flex items-center justify-center bg-gray-100">
+
+                                    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+
+                                    </svg>
+
+                                  </div>
+
+                                )}
+
+                              </div>
+
+                              <div className="flex-1 min-w-0">
+
+                                <p className="text-xs font-bold text-gray-900 truncate">
+
+                                  {r.itemName || "Thiết bị"}
+
+                                </p>
+
+                                <p className="text-[10px] text-gray-500">
+
+                                  {r.createdAt 
+
+                                    ? new Date(r.createdAt).toLocaleDateString("vi-VN") 
+
+                                    : "-"}
+
+                                </p>
+
+                              </div>
 
                             </div>
+
+
+
+                            {/* Report Details Grid */}
+
+                            <div className="grid grid-cols-2 gap-2">
+
+                              {/* Status */}
+
+                              <div className={`p-2 rounded-lg ${
+
+                                r.status === "RESOLVED" || r.status === "APPROVED"
+
+                                  ? "bg-emerald-50" 
+
+                                  : r.status === "REJECTED"
+
+                                  ? "bg-red-50"
+
+                                  : "bg-amber-50"
+
+                              }`}>
+
+                                <p className="text-[10px] text-gray-500">Trạng thái</p>
+
+                                <p className={`text-xs font-bold ${
+
+                                  r.status === "RESOLVED" || r.status === "APPROVED"
+
+                                    ? "text-emerald-700" 
+
+                                    : r.status === "REJECTED"
+
+                                    ? "text-red-700"
+
+                                    : "text-amber-700"
+
+                                }`}>
+
+                                  {r.status === "OPEN" ? "Chờ xử lý" :
+
+                                   r.status === "PROCESSING" ? "Đang xử lý" :
+
+                                   r.status === "RESOLVED" ? "Đã giải quyết" :
+
+                                   r.status === "APPROVED" ? "Đã duyệt" :
+
+                                   r.status === "REJECTED" ? "Từ chối" : 
+
+                                   r.status || "Chờ xử lý"}
+
+                                </p>
+
+                              </div>
+
+
+
+                              {/* Severity for Damage or Type for Delivery */}
+
+                              {r.type === "DAMAGE" && r.severity ? (
+
+                                <div className={`p-2 rounded-lg ${
+
+                                  r.severity === "CRITICAL" || r.severity === "HIGH"
+
+                                    ? "bg-rose-50"
+
+                                    : r.severity === "MEDIUM"
+
+                                    ? "bg-orange-50"
+
+                                    : "bg-green-50"
+
+                                }`}>
+
+                                  <p className="text-[10px] text-gray-500">Mức độ</p>
+
+                                  <p className={`text-xs font-bold ${
+
+                                    r.severity === "CRITICAL" || r.severity === "HIGH"
+
+                                      ? "text-rose-700"
+
+                                      : r.severity === "MEDIUM"
+
+                                      ? "text-orange-700"
+
+                                      : "text-green-700"
+
+                                  }`}>
+
+                                    {r.severity === "CRITICAL" ? "Nghiêm trọng" :
+
+                                     r.severity === "HIGH" ? "Cao" :
+
+                                     r.severity === "MEDIUM" ? "Trung bình" : "Thấp"}
+
+                                  </p>
+
+                                </div>
+
+                              ) : r.type === "DELIVERY" && r.issueType ? (
+
+                                <div className="p-2 bg-blue-50 rounded-lg">
+
+                                  <p className="text-[10px] text-gray-500">Loại vấn đề</p>
+
+                                  <p className="text-xs font-bold text-blue-700 truncate">
+
+                                    {r.issueType === "MISSING" ? "Thiếu hàng" :
+
+                                     r.issueType === "DAMAGED" ? "Hư hỏng" :
+
+                                     r.issueType === "WRONG_ITEM" ? "Sai sản phẩm" : r.issueType}
+
+                                  </p>
+
+                                </div>
+
+                              ) : (
+
+                                <div className="p-2 bg-gray-50 rounded-lg">
+
+                                  <p className="text-[10px] text-gray-500">Mã báo cáo</p>
+
+                                  <p className="text-xs font-bold text-gray-700">
+
+                                    #{r.id?.slice(-6) || "N/A"}
+
+                                  </p>
+
+                                </div>
+
+                              )}
+
+                            </div>
+
+
+
+                            {/* Description preview */}
+
+                            {r.description && (
+
+                              <div className="mt-2 p-2 bg-gray-50 rounded-lg">
+
+                                <p className="text-[10px] text-gray-600 line-clamp-2">
+
+                                  {r.description}
+
+                                </p>
+
+                              </div>
+
+                            )}
 
                           </div>
 
-                          <div className="flex flex-col items-end gap-1">
-
-                            <div
-
-                              className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase ${r.type === "DELIVERY"
-
-                                  ? "bg-amber-100 text-amber-700"
-
-                                  : "bg-red-100 text-red-700"
-
-                                }`}
-
-                            >
-
-                              {r.type === "DELIVERY" ? "Delivery" : "Damage"}
-
-                            </div>
-
-                            <div className="text-[10px] font-bold text-gray-400">
-
-                              {r.createdAt
-
-                                ? new Date(r.createdAt).toLocaleDateString("vi-VN")
-
-                                : ""}
-
-                            </div>
-
-                          </div>
-
-                        </div>
-
-                        <div className="mt-3 flex items-center justify-between">
-
-                          <div className="text-[11px] font-bold text-gray-500">
-
-                            Status:{" "}
-
-                            <span className="text-gray-700">
-
-                              {r.status || "OPEN"}
-
-                            </span>
-
-                          </div>
-
-                          {r.type === "DAMAGE" && r.severity && (
-
-                            <div className="text-[11px] font-bold text-gray-500">
-
-                              Severity:{" "}
-
-                              <span className="text-gray-700">{r.severity}</span>
-
-                            </div>
-
-                          )}
-
-                          {r.type === "DELIVERY" && r.issueType && (
-
-                            <div className="text-[11px] font-bold text-gray-500">
-
-                              Type:{" "}
-
-                              <span className="text-gray-700">{r.issueType}</span>
-
-                            </div>
-
-                          )}
-
-                        </div>
+                        ))}
 
                       </div>
 
-                    ))}
-
-                  </div>
 
 
+                      {/* Pagination for Reports */}
 
-                  {/* Pagination for Reports */}
+                      {totalReportsPages > 1 && (
 
-                  {totalReportsPages > 1 && (
+                        <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
 
-                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
+                          <button
 
-                      <button
+                            disabled={reportsPage <= 1}
 
-                        disabled={reportsPage <= 1}
+                            onClick={() => setReportsPage((p) => Math.max(1, p - 1))}
 
-                        onClick={() => setReportsPage((p) => Math.max(1, p - 1))}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold ${reportsPage <= 1
 
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold ${reportsPage <= 1
+                                ? "text-gray-300 cursor-not-allowed"
 
-                            ? "text-gray-300 cursor-not-allowed"
+                                : "text-gray-600 hover:bg-gray-100"
 
-                            : "text-gray-600 hover:bg-gray-100"
+                              }`}
 
-                          }`}
+                          >
 
-                      >
+                            ← Trước
 
-                        ← Trước
+                          </button>
 
-                      </button>
+                          <span className="text-xs font-semibold text-gray-500">
 
-                      <span className="text-xs font-semibold text-gray-500">
+                            {reportsPage} / {totalReportsPages}
 
-                        {reportsPage} / {totalReportsPages}
+                          </span>
 
-                      </span>
+                          <button
 
-                      <button
+                            disabled={reportsPage >= totalReportsPages}
 
-                        disabled={reportsPage >= totalReportsPages}
+                            onClick={() => setReportsPage((p) => Math.min(totalReportsPages, p + 1))}
 
-                        onClick={() => setReportsPage((p) => Math.min(totalReportsPages, p + 1))}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold ${reportsPage >= totalReportsPages
 
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold ${reportsPage >= totalReportsPages
+                                ? "text-gray-300 cursor-not-allowed"
 
-                            ? "text-gray-300 cursor-not-allowed"
+                                : "text-gray-600 hover:bg-gray-100"
 
-                            : "text-gray-600 hover:bg-gray-100"
+                              }`}
 
-                          }`}
+                          >
 
-                      >
+                            Sau →
 
-                        Sau →
+                          </button>
 
-                      </button>
+                        </div>
 
-                    </div>
+                      )}
+
+                    </>
 
                   )}
 
-                </>
+                </div>
 
-              )}
+              </div>
 
             </div>
 
@@ -1773,7 +2081,7 @@ export default function MyRentals() {
 
           <main className="lg:col-span-6 xl:col-span-6">
 
-            <StatusTabs activeTab={activeTab} setActiveTab={setActiveTab} />
+            <StatusTabs activeTab={activeTab} setActiveTab={setActiveTab} counts={tabCounts} />
 
             <SearchAndSortBar
 
@@ -1786,6 +2094,80 @@ export default function MyRentals() {
               setSortOption={setSortOption}
 
             />
+
+
+
+            {/* Toggle Xem tất cả / 7 ngày gần nhất - Professional Segmented Control */}
+
+            {!loading && rentals.length > 0 && (
+
+              <div className="flex items-center justify-between mb-5 px-1">
+
+                <span className="text-sm font-medium text-gray-600">
+
+                  {filteredAndSortedRentals.length} đơn hàng
+
+                </span>
+
+                <div className="flex items-center bg-gray-100 rounded-xl p-1">
+
+                  <button
+
+                    onClick={() => {
+
+                      setShowAllRentals(false);
+
+                      setCurrentPage(1);
+
+                    }}
+
+                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${
+
+                      !showAllRentals
+
+                        ? "bg-white text-gray-900 shadow-sm"
+
+                        : "text-gray-500 hover:text-gray-700"
+
+                    }`}
+
+                  >
+
+                    7 ngày qua
+
+                  </button>
+
+                  <button
+
+                    onClick={() => {
+
+                      setShowAllRentals(true);
+
+                      setCurrentPage(1);
+
+                    }}
+
+                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${
+
+                      showAllRentals
+
+                        ? "bg-white text-gray-900 shadow-sm"
+
+                        : "text-gray-500 hover:text-gray-700"
+
+                    }`}
+
+                  >
+
+                    Tất cả
+
+                  </button>
+
+                </div>
+
+              </div>
+
+            )}
 
 
 
@@ -1913,13 +2295,37 @@ export default function MyRentals() {
 
                     <h3 className="text-2xl font-bold text-gray-900">Chưa có đơn thuê nào</h3>
 
-                    <p className="text-gray-500 mt-2">Bạn chưa có giao dịch nào trong mục này</p>
+                    <p className="text-gray-500 mt-2">
+
+                      {!showAllRentals
+
+                        ? "Bạn không có đơn thuê nào trong 7 ngày qua"
+
+                        : "Bạn chưa có giao dịch nào trong mục này"}
+
+                    </p>
+
+                    {!showAllRentals && rentals.length > 0 && (
+
+                      <button
+
+                        onClick={() => setShowAllRentals(true)}
+
+                        className="mt-4 px-6 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl font-bold text-sm"
+
+                      >
+
+                        Xem tất cả đơn thuê
+
+                      </button>
+
+                    )}
 
                     <button
 
                       onClick={() => navigate("/devices")}
 
-                      className="mt-8 px-10 py-4 bg-gray-900 hover:bg-black text-white rounded-2xl font-bold text-sm"
+                      className="mt-8 px-10 py-4 bg-gray-900 hover:bg-black text-white rounded-2xl font-bold text-sm block mx-auto"
 
                     >
 
@@ -1939,241 +2345,318 @@ export default function MyRentals() {
 
 
 
-          {/* RIGHT SIDEBAR */}
+          {/* RIGHT SIDEBAR - Extend Requests */}
 
           <aside className="lg:col-span-3">
 
-            <div className="bg-white rounded-3xl border border-gray-100 p-6 lg:sticky lg:top-24">
+            <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden lg:sticky lg:top-24 transition-all duration-300 ease-in-out">
 
-              <div className="flex items-end justify-between mb-4">
+              {/* Collapsed Header */}
 
-                <div>
+              <button
 
-                  <div className="text-[11px] font-black uppercase tracking-widest text-gray-400">
+                onClick={() => setIsExtendExpanded(!isExtendExpanded)}
 
-                    Extend requests
+                className="w-full p-4 flex items-center justify-between hover:bg-indigo-50/50 transition-colors"
+
+              >
+
+                <div className="flex items-center gap-3">
+
+                  <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
+
+                    <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+
+                    </svg>
 
                   </div>
 
-                  <div className="text-lg font-black text-gray-900">
+                  <div className="text-left">
 
-                    Pending extensions
+                    <div className="text-xs font-black text-gray-900">Gia hạn</div>
+
+                    <div className="text-[10px] text-gray-500">Extend requests</div>
 
                   </div>
 
                 </div>
 
-                <div className="text-[11px] font-bold text-gray-400">
+                <div className="flex items-center gap-2">
 
-                  {filteredExtendRequests.length} yêu cầu
+                  {filteredExtendRequests.length > 0 && (
 
-                </div>
+                    <span className="px-2 py-1 rounded-lg bg-indigo-100 text-indigo-700 text-[10px] font-black">
 
-              </div>
+                      {filteredExtendRequests.length}
 
-
-
-              {/* Tabs for Extend */}
-
-              <div className="flex gap-1 mb-4 bg-indigo-100 p-1 rounded-xl">
-
-                <button
-
-                  onClick={() => { setExtendTab("processing"); setExtendPage(1); }}
-
-                  className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-black uppercase transition-all ${
-
-                    extendTab === "processing"
-
-                      ? "bg-white text-indigo-900 shadow-sm"
-
-                      : "text-indigo-600 hover:text-indigo-800"
-
-                  }`}
-
-                >
-
-                  Đang xử lý
-
-                </button>
-
-                <button
-
-                  onClick={() => { setExtendTab("processed"); setExtendPage(1); }}
-
-                  className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-black uppercase transition-all ${
-
-                    extendTab === "processed"
-
-                      ? "bg-white text-indigo-900 shadow-sm"
-
-                      : "text-indigo-600 hover:text-indigo-800"
-
-                  }`}
-
-                >
-
-                  Đã xử lý
-
-                </button>
-
-              </div>
-
-
-
-              {filteredExtendRequests.length === 0 ? (
-
-                <div className="text-sm text-gray-500 text-center py-4">
-
-                  {extendTab === "processing" ? "Không có yêu cầu đang xử lý" : "Không có yêu cầu đã xử lý"}
-
-                </div>
-
-              ) : (
-
-                <>
-
-                  <div className="space-y-3 max-h-[340px] overflow-y-auto pr-1">
-
-                    {currentExtendRequests.map((r, idx) => (
-
-                      <div
-
-                        key={`${r.rentalId}-${idx}`}
-
-                        className="p-4 rounded-2xl bg-indigo-50 border border-indigo-100"
-
-                      >
-
-                        <div className="flex items-center justify-between gap-3">
-
-                          <div className="min-w-0">
-
-                            <div className="text-xs font-black text-gray-900 truncate">
-
-                              {r.rentalCode
-
-                                ? `BK${String(r.rentalCode).padStart(4, "0")}`
-
-                                : r.rentalId}
-
-                            </div>
-
-                            <div className="text-[11px] text-gray-600 mt-1">
-
-                              Đến ngày:{" "}
-
-                              <span className="font-bold">
-
-                                {r.requestedEndDate
-
-                                  ? new Date(r.requestedEndDate).toLocaleDateString("vi-VN")
-
-                                  : "-"}
-
-                              </span>{" "}
-
-                              • {r.requestedDays || 0} ngày
-
-                            </div>
-
-                          </div>
-
-                          <div className="flex flex-col items-end gap-1">
-
-                            <div className="px-3 py-1 rounded-xl text-[10px] font-black uppercase bg-indigo-600 text-white">
-
-                              {r.status || "PENDING"}
-
-                            </div>
-
-                            <div className="text-[10px] font-bold text-indigo-700">
-
-                              {(r.proposedExtraAmount || 0).toLocaleString()} ₫
-
-                            </div>
-
-                          </div>
-
-                        </div>
-
-                        {r.note && (
-
-                          <div className="text-[11px] text-indigo-700 mt-2 line-clamp-2">
-
-                            {r.note}
-
-                          </div>
-
-                        )}
-
-                      </div>
-
-                    ))}
-
-                  </div>
-
-
-
-                  {/* Pagination for Extend Requests */}
-
-                  {totalExtendPages > 1 && (
-
-                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
-
-                      <button
-
-                        disabled={extendPage <= 1}
-
-                        onClick={() => setExtendPage((p) => Math.max(1, p - 1))}
-
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold ${extendPage <= 1
-
-                            ? "text-gray-300 cursor-not-allowed"
-
-                            : "text-gray-600 hover:bg-gray-100"
-
-                          }`}
-
-                      >
-
-                        ← Trước
-
-                      </button>
-
-                      <span className="text-xs font-semibold text-gray-500">
-
-                        {extendPage} / {totalExtendPages}
-
-                      </span>
-
-                      <button
-
-                        disabled={extendPage >= totalExtendPages}
-
-                        onClick={() => setExtendPage((p) => Math.min(totalExtendPages, p + 1))}
-
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold ${extendPage >= totalExtendPages
-
-                            ? "text-gray-300 cursor-not-allowed"
-
-                            : "text-gray-600 hover:bg-gray-100"
-
-                          }`}
-
-                      >
-
-                        Sau →
-
-                      </button>
-
-                    </div>
+                    </span>
 
                   )}
 
-                </>
+                  <svg
 
-              )}
+                    className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${isExtendExpanded ? 'rotate-180' : ''}`}
+
+                    fill="none"
+
+                    stroke="currentColor"
+
+                    viewBox="0 0 24 24"
+
+                  >
+
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+
+                  </svg>
+
+                </div>
+
+              </button>
+
+
+
+              {/* Expanded Content with Animation */}
+
+              <div
+
+                className={`overflow-hidden transition-all duration-300 ease-in-out ${
+
+                  isExtendExpanded ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
+
+                }`}
+
+              >
+
+                <div className="px-4 pb-4 border-t border-gray-100">
+
+                  {/* Tabs for Extend */}
+
+                  <div className="flex gap-1 mt-4 mb-4 bg-indigo-100 p-1 rounded-xl">
+
+                    <button
+
+                      onClick={() => { setExtendTab("processing"); setExtendPage(1); }}
+
+                      className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-black uppercase transition-all ${
+
+                        extendTab === "processing"
+
+                          ? "bg-white text-indigo-900 shadow-sm"
+
+                          : "text-indigo-600 hover:text-indigo-800"
+
+                      }`}
+
+                    >
+
+                      Đang xử lý
+
+                    </button>
+
+                    <button
+
+                      onClick={() => { setExtendTab("processed"); setExtendPage(1); }}
+
+                      className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-black uppercase transition-all ${
+
+                        extendTab === "processed"
+
+                          ? "bg-white text-indigo-900 shadow-sm"
+
+                          : "text-indigo-600 hover:text-indigo-800"
+
+                      }`}
+
+                    >
+
+                      Đã xử lý
+
+                    </button>
+
+                  </div>
+
+
+
+                  {filteredExtendRequests.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                      <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4 border border-dashed border-gray-200">
+                        <Clock size={24} className="text-gray-300" />
+                      </div>
+                      <p className="text-sm font-bold text-gray-900">
+                        {extendTab === "processing" ? "Không có yêu cầu đang xử lý" : "Không có yêu cầu đã xử lý"}
+                      </p>
+                      <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wider">
+                        Danh sách của bạn đang trống
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                        {currentExtendRequests.map((r) => (
+                          <div
+                            key={r._id || `${r.rentalId}-${Math.random()}`}
+                            className="p-4 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 group"
+                          >
+                            {/* Header with Order Code and Status */}
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center gap-2">
+                                <span className="px-2 py-1 bg-gray-900 text-white rounded-lg text-[10px] font-black tracking-tight">
+                                  {r.rentalCode ? `BK${String(r.rentalCode).padStart(4, "0")}` : "N/A"}
+                                </span>
+                              </div>
+                              <div className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 ${
+                                r.status === "APPROVED" ? "bg-emerald-50 text-emerald-700 border border-emerald-100" :
+                                r.status === "REJECTED" ? "bg-rose-50 text-rose-700 border border-rose-100" :
+                                "bg-amber-50 text-amber-700 border border-amber-100"
+                              }`}>
+                                <div className={`w-1 h-1 rounded-full ${
+                                  r.status === "APPROVED" ? "bg-emerald-500" :
+                                  r.status === "REJECTED" ? "bg-rose-500" :
+                                   "bg-amber-500"
+                                }`} />
+                                {r.status === "APPROVED" ? "Đã duyệt" :
+                                 r.status === "REJECTED" ? "Từ chối" : "Chờ duyệt"}
+                              </div>
+                            </div>
+
+                            {/* Device Info */}
+                            <div className="mb-4 space-y-3">
+                              {r.devices && r.devices.length > 0 ? (
+                                <>
+                                  {/* Thumbnails Row */}
+                                  <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
+                                    {r.devices.map((device, dIdx) => (
+                                      <div key={dIdx} className="relative flex-shrink-0 group/img">
+                                        <img
+                                          src={device.image || "https://placehold.co/40x40?text=Gear"}
+                                          alt={device.name}
+                                          className="w-10 h-10 rounded-lg object-cover border border-white shadow-sm"
+                                          onError={(e) => { e.target.src = "https://placehold.co/40x40?text=Wait"; }}
+                                        />
+                                        {device.quantity > 1 && (
+                                          <div className="absolute -bottom-1 -right-1 h-4 px-1 bg-white rounded-full flex items-center justify-center shadow-sm text-[8px] font-black text-gray-900 border border-gray-100 min-w-[1rem]">
+                                            x{device.quantity}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                  {/* Device Name(s) */}
+                                  <div className="bg-gray-50/50 rounded-xl p-2 border border-gray-100/50">
+                                    <p className="text-[11px] font-bold text-gray-900 line-clamp-2 leading-relaxed">
+                                      {r.devices[0].name}
+                                      {r.devices.length > 1 && (
+                                        <span className="text-gray-400 font-medium ml-1">
+                                          & {r.devices.length - 1} khác
+                                        </span>
+                                      )}
+                                    </p>
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="flex items-center gap-2 text-gray-400 p-2 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                                  <AlertCircle size={14} />
+                                  <span className="text-[10px] font-medium">Bản nháp thiết bị</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Extension Details */}
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-[10px]">
+                                <span className="text-gray-500 font-medium">Ngày kết thúc mới</span>
+                                <span className="text-gray-900 font-bold">
+                                  {r.requestedEndDate
+                                    ? new Date(r.requestedEndDate).toLocaleDateString("vi-VN")
+                                    : "-"}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between text-[10px]">
+                                <span className="text-gray-500 font-medium">Phí gia hạn</span>
+                                <span className="text-indigo-600 font-black">
+                                  {(r.proposedExtraAmount || 0).toLocaleString()} ₫
+                                </span>
+                              </div>
+                            </div>
+
+                            {r.note && (
+                              <div className="mt-3 pt-3 border-t border-gray-50">
+                                <p className="text-[10px] text-gray-500 italic line-clamp-2">
+                                  "{r.note}"
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+
+
+                      {/* Pagination for Extend Requests */}
+
+                      {totalExtendPages > 1 && (
+
+                        <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
+
+                          <button
+
+                            disabled={extendPage <= 1}
+
+                            onClick={() => setExtendPage((p) => Math.max(1, p - 1))}
+
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold ${extendPage <= 1
+
+                                ? "text-gray-300 cursor-not-allowed"
+
+                                : "text-gray-600 hover:bg-gray-100"
+
+                              }`}
+
+                          >
+
+                            ← Trước
+
+                          </button>
+
+                          <span className="text-xs font-semibold text-gray-500">
+
+                            {extendPage} / {totalExtendPages}
+
+                          </span>
+
+                          <button
+
+                            disabled={extendPage >= totalExtendPages}
+
+                            onClick={() => setExtendPage((p) => Math.min(totalExtendPages, p + 1))}
+
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold ${extendPage >= totalExtendPages
+
+                                ? "text-gray-300 cursor-not-allowed"
+
+                                : "text-gray-600 hover:bg-gray-100"
+
+                              }`}
+
+                          >
+
+                            Sau →
+
+                          </button>
+
+                        </div>
+
+                      )}
+
+                    </>
+
+                  )}
+
+                </div>
+
+              </div>
 
             </div>
 

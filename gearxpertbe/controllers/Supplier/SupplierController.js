@@ -437,7 +437,7 @@ exports.getSupplierStorefrontVouchers = async (req, res) => {
       $expr: { $lt: ["$usedCount", "$usageLimit"] },
     })
       .select(
-        "code description discountType discountValue minOrderValue maxDiscount usageLimit usedCount expiredAt type"
+        "code description discountType discountValue minOrderValue maxDiscount usageLimit usedCount expiredAt type applicableRank"
       )
       .sort({ discountValue: -1 })
       .limit(10)
@@ -824,7 +824,8 @@ exports.getPublicSuppliers = async (req, res) => {
       .lean();
 
     // 2. Tính toán số lượng thiết bị đang AVAILABLE cho mỗi Shop
-    const finalData = await Promise.all(profiles.map(async (profile) => {
+    const validProfiles = profiles.filter(profile => profile && profile.userId);
+    const finalData = await Promise.all(validProfiles.map(async (profile) => {
       const deviceCount = await Device.countDocuments({
         supplierId: profile.userId._id,
         status: "AVAILABLE"
