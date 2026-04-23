@@ -1,5 +1,5 @@
 /**
- * Chỉ luồng admin duyệt / từ chối (và legacy review) đề xuất bồi thường.
+ * Chỉ luồng admin duyệt / từ chối (và legacy review) đề xuất bồi thường
  * Route: /api/reports/admin/issues/:issueId/compensation-proposal/*
  */
 const DeliveryIssueReport = require("../../models/DeliveryIssueReport");
@@ -213,9 +213,8 @@ async function runAdminCompensationProposalDecision(req, forcedDecision = null) 
         throw new Error("Không tìm thấy báo cáo sự cố");
       }
       if (!iss.statusHistory) iss.statusHistory = [];
-      const approvedNote = `Admin đã duyệt đề xuất bồi thường: ${finalApprovedAmount.toLocaleString("vi-VN")}đ${
-        cleanNote ? ` — Ghi chú: ${cleanNote}` : ""
-      }`;
+      const approvedNote = `Admin đã duyệt đề xuất bồi thường: ${finalApprovedAmount.toLocaleString("vi-VN")}đ${cleanNote ? ` — Ghi chú: ${cleanNote}` : ""
+        }`;
       iss.status = "RESOLVED";
       iss.resolutionNote = `Đề xuất bồi thường đã duyệt: ${finalApprovedAmount.toLocaleString("vi-VN")}đ`;
       iss.compensationAmount = finalApprovedAmount;
@@ -370,9 +369,8 @@ async function runAdminCompensationProposalDecision(req, forcedDecision = null) 
       message:
         cleanDecision === "APPROVED"
           ? `Case #${String(issueDoc._id).slice(-6)}: mức bồi thường ghi nhận ${finalApprovedAmount.toLocaleString(
-              "vi-VN"
-            )}đ. Sự cố ghi nhận kết thúc${
-            walletSummary && walletSummary.applied ? " — đã ghi sổ ví theo mức duyệt." : "."
+            "vi-VN"
+          )}đ. Sự cố ghi nhận kết thúc${walletSummary && walletSummary.applied ? " — đã ghi sổ ví theo mức duyệt." : "."
           }`
           : `Case #${String(issueDoc._id).slice(-6)}: đề xuất bị từ chối — có thể gửi đề xuất mới nếu cần.`,
       link: `/supplier/issues/${issueDoc._id}`,
@@ -390,11 +388,10 @@ async function runAdminCompensationProposalDecision(req, forcedDecision = null) 
       message:
         cleanDecision === "APPROVED"
           ? `Mức bồi thường admin ghi nhận: ${finalApprovedAmount.toLocaleString(
-              "vi-VN"
-            )}đ. Sự cố trên hồ sơ thuê đã kết thúc${
-            walletSummary && walletSummary.applied
-              ? " — số tương ứng đã phản ánh trên ví (nếu áp dụng được)."
-              : "."
+            "vi-VN"
+          )}đ. Sự cố trên hồ sơ thuê đã kết thúc${walletSummary && walletSummary.applied
+            ? " — số tương ứng đã phản ánh trên ví (nếu áp dụng được)."
+            : "."
           }`
           : "Đề xuất không được chấp nhận. Bạn theo dõi thông báo / chat nếu shop gửi đề xuất mới.",
       link: `/customer/rentals/${issueDoc.rentalId}`,
@@ -529,10 +526,10 @@ exports.getCompensationSettlementPreview = async (req, res) => {
     }
     const rental = proposal.rentalId
       ? await Rental.findById(proposal.rentalId)
-          .select(
-            "_id status depositAmount rentPriceTotal depositStatus escrowStatus paymentBreakdown"
-          )
-          .lean()
+        .select(
+          "_id status depositAmount rentPriceTotal depositStatus escrowStatus paymentBreakdown"
+        )
+        .lean()
       : null;
     if (!rental) {
       return res.status(404).json({ message: "Không tìm thấy đơn thuê gắn đề xuất" });
