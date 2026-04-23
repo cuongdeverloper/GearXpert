@@ -29,10 +29,14 @@ exports.validateVoucher = async (req, res) => {
     const userRank = (user?.rank || 'BRONZE').trim().toUpperCase();
     const dbRank = voucher.applicableRank.trim().toUpperCase();
     
-    // 1. Kiểm tra độc quyền: Hạng hiện tại phải khớp chính xác
-    if (userRank !== dbRank) {
+    // 1. Kiểm tra độc quyền: Phải đạt hạng từ yêu cầu trở lên (Kế thừa)
+    const rankWeights = { BRONZE: 1, SILVER: 2, GOLD: 3, PLATINUM: 4, DIAMOND: 5 };
+    const userWeight = rankWeights[userRank] || 1;
+    const voucherWeight = rankWeights[dbRank] || 1;
+
+    if (userWeight < voucherWeight) {
       return res.status(400).json({ 
-        message: `Mã này chỉ dành cho hạng ${dbRank}. Hạng hiện tại của bạn là ${userRank}` 
+        message: `Mã này dành cho hạng ${dbRank} trở lên. Hạng hiện tại của bạn là ${userRank}. Cố gắng thăng hạng nhé!` 
       });
     }
 
@@ -182,18 +186,21 @@ exports.getAllVouchers = async (req, res) => {
     };
 
     if (userRank) {
-      // Dùng Regex để tìm CHÍNH XÁC hạng hiện tại (Tránh lỗi khoảng trắng, hoa thường)
-      // Thiết lập độc quyền: Platinum chỉ thấy Platinum
-      const rankRegex = new RegExp(`^\\s*${userRank.trim()}\\s*$`, "i");
+      // Logic kế thừa: Người dùng Hạng Vàng được thấy/lấy mã Của Vàng, Bạc, Đồng.
+      const rankWeights = { BRONZE: 1, SILVER: 2, GOLD: 3, PLATINUM: 4, DIAMOND: 5 };
+      const currentWeight = rankWeights[userRank.trim().toUpperCase()] || 1;
+      
+      const allowedRanks = Object.keys(rankWeights).filter(rank => rankWeights[rank] <= currentWeight);
+      const rankRegexes = allowedRanks.map(rank => new RegExp(`^\\s*${rank}\\s*$`, "i"));
 
       query.$or = [
-        { applicableRank: rankRegex },
+        { applicableRank: { $in: rankRegexes } },
         { 
           applicableRank: null, 
           $expr: { $lt: ["$usedCount", "$usageLimit"] } 
         }
       ];
-      console.log(`[getAllVouchers] Strict Rank Match for: ${userRank}`);
+      console.log(`[getAllVouchers] Hierarchical Rank Match for: ${userRank}. Allowed Ranks: ${allowedRanks.join(', ')}`);
     } else {
       // Nếu chưa đăng nhập: Chỉ hiện voucher thường còn lượt dùng
       query.applicableRank = null;
@@ -662,8 +669,12 @@ exports.getBestVoucherForCart = async (req, res) => {
     for (const voucher of vouchers) {
       // KIỂM TRA ĐIỀU KIỆN RANK (QUAN TRỌNG)
       if (voucher.applicableRank) {
-        // 1. Kiểm tra có đúng hạng không
-        if (voucher.applicableRank.trim().toUpperCase() !== userRank) {
+        // 1. Kiểm tra có đúng hạng không (Kế Thừa Logic)
+        const rankWeights = { BRONZE: 1, SILVER: 2, GOLD: 3, PLATINUM: 4, DIAMOND: 5 };
+        const userWeight = rankWeights[userRank] || 1;
+        const voucherWeight = rankWeights[voucher.applicableRank.trim().toUpperCase()] || 1;
+
+        if (userWeight < voucherWeight) {
           continue;
         }
         // 2. Kiểm tra tháng này đã dùng mã hạng này chưa (theo logic thăng hạng mới)
@@ -860,8 +871,12 @@ exports.getAvailableVouchersForCart = async (req, res) => {
         // Chuẩn hóa rank từ DB để so sánh
         const dbRank = v.applicableRank.trim().toUpperCase();
         
-        // Kiểm tra độc quyền: Hạng phải khớp tuyệt đối
-        if (dbRank !== userRank) return false;
+        // Tính điểm trọng số kế thừa: hạng User >= hạng Voucher
+        const rankWeights = { BRONZE: 1, SILVER: 2, GOLD: 3, PLATINUM: 4, DIAMOND: 5 };
+        const userWeight = rankWeights[userRank] || 1;
+        const voucherWeight = rankWeights[dbRank] || 1;
+        
+        if (userWeight < voucherWeight) return false;
         
         return true;
       }

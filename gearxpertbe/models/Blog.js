@@ -62,6 +62,10 @@ const blogSchema = new mongoose.Schema(
             enum: ["pending", "approved", "rejected"],
             default: "pending",
         },
+        scheduledPublishDate: {
+            type: Date,
+            default: null,
+        },
     },
     { timestamps: true }
 );

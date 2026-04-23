@@ -6,20 +6,169 @@ import { Editor } from "@tinymce/tinymce-react";
 import { createBlog, updateBlog } from "../../service/ApiService/BlogApi";
 import { CATEGORY_MAP } from "./BlogConstants";
 import { useTranslation } from "react-i18next";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+
+const customDatePickerStyle = `
+.custom-calendar {
+    font-family: 'Inter', sans-serif !important;
+    border: none !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+    border-radius: 1.5rem !important;
+    padding: 12px !important;
+    background: #ffffff !important;
+}
+
+.custom-calendar .react-datepicker__header {
+    background-color: transparent !important;
+    border-bottom: 1px dashed #e2e8f0 !important;
+    padding-top: 10px !important;
+    border-top-left-radius: 1.5rem !important;
+    border-top-right-radius: 1.5rem !important;
+}
+
+.custom-calendar .react-datepicker__current-month {
+    font-weight: 900 !important;
+    font-size: 1.15rem !important;
+    color: #0f172a !important;
+    margin-bottom: 12px !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+}
+
+.custom-calendar .react-datepicker__day-name {
+    color: #94a3b8 !important;
+    font-weight: 800 !important;
+    font-size: 0.7rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    width: 2.2rem !important;
+    margin: 0.15rem !important;
+}
+
+.custom-calendar .react-datepicker__day {
+    color: #334155 !important;
+    font-weight: 600 !important;
+    border-radius: 50% !important;
+    width: 2.2rem !important;
+    height: 2.2rem !important;
+    line-height: 2.2rem !important;
+    margin: 0.15rem !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    font-size: 0.9rem !important;
+}
+
+.custom-calendar .react-datepicker__day:hover {
+    background-color: #f8fafc !important;
+    color: #6366F1 !important;
+    transform: scale(1.15);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+}
+
+.custom-calendar .react-datepicker__day--disabled,
+.custom-calendar .react-datepicker__day--disabled:hover {
+    color: #cbd5e1 !important; /* Mờ đi */
+    background-color: transparent !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
+    font-weight: 500 !important;
+}
+
+.custom-calendar .react-datepicker__day--selected,
+.custom-calendar .react-datepicker__day--keyboard-selected {
+    background-color: #6366F1 !important;
+    color: white !important;
+    box-shadow: 0 8px 16px -4px rgba(99, 102, 241, 0.5) !important;
+    transform: scale(1.1) !important;
+    font-weight: 700 !important;
+}
+
+.custom-calendar .react-datepicker__navigation {
+    top: 20px !important;
+}
+
+.custom-calendar .react-datepicker__navigation-icon::before {
+    border-color: #94a3b8 !important;
+    border-width: 2px 2px 0 0 !important;
+    transition: all 0.2s !important;
+}
+
+.custom-calendar .react-datepicker__navigation:hover .react-datepicker__navigation-icon::before {
+    border-color: #6366F1 !important;
+    border-width: 3px 3px 0 0 !important;
+}
+
+.custom-calendar .react-datepicker__input-time-container {
+    margin: 15px 0 5px 0 !important;
+    background: #f8fafc !important;
+    padding: 14px 16px !important;
+    border-radius: 1rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    border: 1px solid #f1f5f9 !important;
+}
+
+.custom-calendar .react-datepicker-time__caption {
+    font-weight: 800 !important;
+    color: #475569 !important;
+    font-size: 0.75rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+}
+
+.custom-calendar .react-datepicker-time__input {
+    margin-left: auto !important;
+}
+
+.custom-calendar input[type="time"] {
+    background: white !important;
+    border: 2px solid #e2e8f0 !important;
+    border-radius: 0.75rem !important;
+    padding: 8px 14px !important;
+    font-weight: 800 !important;
+    color: #0f172a !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+    font-size: 1.1rem !important;
+    outline: none !important;
+    transition: all 0.2s !important;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+    cursor: pointer !important;
+}
+
+.custom-calendar input[type="time"]:focus {
+    border-color: #6366F1 !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2) !important;
+}
+
+.custom-calendar input[type="time"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    background-color: #f1f5f9;
+    padding: 5px;
+    border-radius: 5px;
+    transition: 0.2s;
+}
+
+.custom-calendar input[type="time"]::-webkit-calendar-picker-indicator:hover {
+    background-color: #e2e8f0;
+}
+`;
 
 const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
     const { t } = useTranslation();
     const userAccount = useSelector((state) => state.user.account);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+    const [isScheduled, setIsScheduled] = useState(!!initialData?.scheduledPublishDate);
     const dropdownRef = useRef(null);
-    
+
     const [submitFormData, setSubmitFormData] = useState({
         title: initialData?.title || "",
         description: initialData?.description || "",
         content: initialData?.content || "",
         category: initialData?.category || "CAMERA",
         readTime: initialData?.readTime || 0,
+        scheduledPublishDate: initialData?.scheduledPublishDate ? new Date(initialData.scheduledPublishDate).toISOString().slice(0, 16) : "",
     });
 
     const [selectedImages, setSelectedImages] = useState([]); // Array of { file, preview, isExisting }
@@ -33,8 +182,10 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                 content: initialData.content,
                 category: initialData.category,
                 readTime: initialData.readTime,
+                scheduledPublishDate: initialData.scheduledPublishDate ? new Date(initialData.scheduledPublishDate).toISOString().slice(0, 16) : "",
             });
-            
+            setIsScheduled(!!initialData.scheduledPublishDate);
+
             // Handle existing images
             if (initialData.images && initialData.images.length > 0) {
                 const existing = initialData.images.map(url => ({
@@ -125,6 +276,17 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
             formData.append("category", submitFormData.category);
             formData.append("readTime", submitFormData.readTime);
 
+            // Validate scheduled time
+            if (isScheduled && submitFormData.scheduledPublishDate) {
+                const selectedTime = new Date(submitFormData.scheduledPublishDate);
+                if (selectedTime <= new Date()) {
+                    toast.error("Thời gian hẹn xuất bản phải lớn hơn thời gian hiện tại!");
+                    setIsSubmitting(false);
+                    return;
+                }
+                formData.append("scheduledPublishDate", submitFormData.scheduledPublishDate);
+            }
+
             // Append author as JSON string
             formData.append("author", JSON.stringify({
                 name: userAccount.username || userAccount.email,
@@ -135,7 +297,7 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
             const existingImages = selectedImages
                 .filter(img => img.isExisting)
                 .map(img => img.preview);
-            
+
             formData.append("existingImages", JSON.stringify(existingImages));
 
             // Append image files (only new ones)
@@ -169,7 +331,9 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
             content: "",
             category: "CAMERA",
             readTime: 0,
+            scheduledPublishDate: "",
         });
+        setIsScheduled(false);
         setSelectedImages([]);
         onClose();
     };
@@ -177,7 +341,8 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+                    <style>{customDatePickerStyle}</style>
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -195,7 +360,7 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                         <div className="relative overflow-hidden bg-slate-900 px-8 py-8 md:px-12">
                             <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2" />
                             <div className="absolute bottom-0 left-0 w-32 h-32 bg-accent-cyan/10 blur-[60px] rounded-full translate-y-1/2 -translate-x-1/2" />
-                            
+
                             <div className="relative z-10 flex items-center justify-between">
                                 <div>
                                     <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-2 block">Trung tâm Sáng tạo Nội dung</span>
@@ -214,14 +379,14 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                         </div>
 
                         <form onSubmit={handleSubmitBlog} className="max-h-[75vh] overflow-y-auto px-8 py-10 md:px-12 space-y-10 custom-scrollbar bg-slate-50/50">
-                            
+
                             {/* Section 1: Core Identity */}
                             <div className="space-y-6">
                                 <div className="flex items-center gap-3 mb-2">
                                     <div className="h-8 w-1 bg-primary rounded-full" />
                                     <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">01. Thông tin cơ bản</h3>
                                 </div>
-                                
+
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div className="md:col-span-2 group">
                                         <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 mb-2 block ml-1 transition-colors group-focus-within:text-primary">Tiêu đề bài viết</label>
@@ -241,9 +406,8 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                                             <button
                                                 type="button"
                                                 onClick={() => setIsCategoryOpen(!isCategoryOpen)}
-                                                className={`flex w-full items-center justify-between rounded-2xl border-2 px-5 py-4 text-sm font-bold transition-all duration-300 shadow-sm ${
-                                                    isCategoryOpen ? "border-primary/30 ring-4 ring-primary/5 bg-white" : "border-slate-100 bg-white hover:border-slate-200"
-                                                }`}
+                                                className={`flex w-full items-center justify-between rounded-2xl border-2 px-5 py-4 text-sm font-bold transition-all duration-300 shadow-sm ${isCategoryOpen ? "border-primary/30 ring-4 ring-primary/5 bg-white" : "border-slate-100 bg-white hover:border-slate-200"
+                                                    }`}
                                             >
                                                 <div className="flex items-center gap-3">
                                                     <div className={`h-2.5 w-2.5 rounded-full ${CATEGORY_MAP[submitFormData.category]?.color || "bg-primary"}`} />
@@ -270,9 +434,8 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                                                                         setSubmitFormData(prev => ({ ...prev, category: key }));
                                                                         setIsCategoryOpen(false);
                                                                     }}
-                                                                    className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-bold transition-all hover:bg-slate-50 ${
-                                                                        submitFormData.category === key ? "bg-primary/5 text-primary" : "text-slate-600"
-                                                                    }`}
+                                                                    className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-bold transition-all hover:bg-slate-50 ${submitFormData.category === key ? "bg-primary/5 text-primary" : "text-slate-600"
+                                                                        }`}
                                                                 >
                                                                     <div className={`h-2 w-2 rounded-full ${color}`} />
                                                                     {t(`blog.categories.${key}`)}
@@ -286,6 +449,78 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                                                 )}
                                             </AnimatePresence>
                                         </div>
+                                    </div>
+
+                                    <div className="md:col-span-3 group bg-white p-5 rounded-2xl border-2 border-slate-100 shadow-sm transition-all hover:border-primary/20">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <label className="text-sm font-black text-slate-800 mb-1 block">Hẹn giờ xuất bản</label>
+                                                <p className="text-[11px] text-slate-500 font-medium">Bật để lên lịch tự động xuất bản sau khi được duyệt</p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setIsScheduled(!isScheduled);
+                                                    if (isScheduled) {
+                                                        setSubmitFormData(prev => ({ ...prev, scheduledPublishDate: "" }));
+                                                    }
+                                                }}
+                                                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${isScheduled ? 'bg-primary' : 'bg-slate-200'}`}
+                                            >
+                                                <span
+                                                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-300 ${isScheduled ? 'translate-x-6' : 'translate-x-1'}`}
+                                                />
+                                            </button>
+                                        </div>
+
+                                        <AnimatePresence>
+                                            {isScheduled && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                                                    animate={{ opacity: 1, height: 'auto', marginTop: 16 }}
+                                                    exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                                                    className="relative"
+                                                >
+                                                    <div className="relative mt-2">
+                                                        <DatePicker
+                                                            selected={submitFormData.scheduledPublishDate ? new Date(submitFormData.scheduledPublishDate) : null}
+                                                            onChange={(date) => {
+                                                                if (date === null) {
+                                                                    handleInputChange({ target: { name: 'scheduledPublishDate', value: '' } });
+                                                                    return;
+                                                                }
+                                                                // Verify if date is valid
+                                                                if (date instanceof Date && !isNaN(date)) {
+                                                                    handleInputChange({ target: { name: 'scheduledPublishDate', value: date.toISOString() } });
+                                                                }
+                                                            }}
+                                                            onChangeRaw={(e) => e.preventDefault()} // Ngăn chặn gõ trực tiếp
+                                                            showTimeInput
+                                                            timeInputLabel="Nhập giờ:"
+                                                            dateFormat="dd/MM/yyyy HH:mm"
+                                                            placeholderText="Bấm vào để chọn ngày giờ"
+                                                            minDate={new Date()}
+                                                            wrapperClassName="w-full"
+                                                            calendarClassName="custom-calendar"
+                                                            portalId="root"
+                                                            popperClassName="!z-[9999]"
+                                                            className="w-full rounded-xl border-2 border-slate-100 bg-white px-5 py-3.5 pl-12 text-sm font-bold text-slate-700 outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all duration-300 shadow-sm cursor-pointer hover:border-primary/30"
+                                                        />
+                                                        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-primary/60 pointer-events-none transition-colors">calendar_month</span>
+                                                    </div>
+
+                                                    {isScheduled && submitFormData.scheduledPublishDate && new Date(submitFormData.scheduledPublishDate) <= new Date() && (
+                                                        <motion.p
+                                                            initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}
+                                                            className="text-[11px] text-red-500 mt-2 ml-2 font-bold flex items-center gap-1"
+                                                        >
+                                                            <span className="material-symbols-outlined text-[14px]">error</span>
+                                                            Thời gian xuất bản phải lớn hơn thời điểm hiện tại.
+                                                        </motion.p>
+                                                    )}
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </div>
                                 </div>
                             </div>
@@ -336,14 +571,14 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                                     {selectedImages.length > 0 && (
                                         <div className="flex gap-4 overflow-x-auto pb-4 pt-2 px-2 custom-scrollbar no-scrollbar">
                                             {selectedImages.map((img, idx) => {
-                                                const isVideo = (img.file && img.file.type.startsWith('video/')) || 
-                                                               (img.isExisting && /\.(mp4|mov|avi|webm)$/i.test(img.preview));
-                                                
+                                                const isVideo = (img.file && img.file.type.startsWith('video/')) ||
+                                                    (img.isExisting && /\.(mp4|mov|avi|webm)$/i.test(img.preview));
+
                                                 return (
-                                                    <motion.div 
+                                                    <motion.div
                                                         initial={{ opacity: 0, scale: 0.8 }}
                                                         animate={{ opacity: 1, scale: 1 }}
-                                                        key={idx} 
+                                                        key={idx}
                                                         className="relative min-w-[120px] max-w-[120px] aspect-[4/5] rounded-2xl overflow-hidden border-2 border-slate-100 group shadow-md bg-slate-50"
                                                     >
                                                         {isVideo ? (
@@ -461,23 +696,23 @@ const SubmitBlogModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                                         disabled={isSubmitting}
                                         className="relative group w-full overflow-hidden rounded-[1.5rem] bg-slate-900 py-6 font-black text-white text-lg transition-all duration-500 hover:scale-[1.02] active:scale-95 disabled:opacity-70 disabled:grayscale disabled:scale-100 disabled:cursor-not-allowed shadow-2xl shadow-slate-900/20"
                                     >
-                                    <div className="absolute inset-0 bg-gradient-to-r from-primary via-accent-cyan to-primary opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-                                    <div className="relative z-10 flex items-center justify-center gap-3">
-                                        {isSubmitting ? (
-                                            <>
-                                                <div className="h-6 w-6 border-3 border-white/20 border-t-white rounded-full animate-spin" />
-                                                <span className="uppercase tracking-widest">{initialData ? "Đang cập nhật..." : "Đang xuất bản..."}</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <span className="material-symbols-outlined text-2xl">{initialData ? "auto_fix_high" : "rocket_launch"}</span>
-                                                <span className="uppercase tracking-[0.2em]">{initialData ? "Cập nhật bài viết" : "Xuất bản bài viết"}</span>
-                                            </>
-                                        )}
-                                    </div>
+                                        <div className="absolute inset-0 bg-gradient-to-r from-primary via-accent-cyan to-primary opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                                        <div className="relative z-10 flex items-center justify-center gap-3">
+                                            {isSubmitting ? (
+                                                <>
+                                                    <div className="h-6 w-6 border-3 border-white/20 border-t-white rounded-full animate-spin" />
+                                                    <span className="uppercase tracking-widest">{initialData ? "Đang cập nhật..." : "Đang xuất bản..."}</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <span className="material-symbols-outlined text-2xl">{initialData ? "auto_fix_high" : "rocket_launch"}</span>
+                                                    <span className="uppercase tracking-[0.2em]">{initialData ? "Cập nhật bài viết" : "Xuất bản bài viết"}</span>
+                                                </>
+                                            )}
+                                        </div>
                                     </button>
                                 </div>
-                                
+
                                 <button
                                     type="button"
                                     onClick={handleClose}
