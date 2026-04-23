@@ -129,7 +129,7 @@ const runPreventiveMaintenanceJob = async () => {
       `✅ [PreventiveMaintenance] Hoàn tất: tạo ${createdCount} reminder mới, bỏ qua ${skippedCount}`
     );
   } catch (err) {
-    console.error("❌ [PreventiveMaintenance] Lỗi cron job:", err);
+    console.error("[PreventiveMaintenance] Lỗi cron job:", err);
   }
 };
 
