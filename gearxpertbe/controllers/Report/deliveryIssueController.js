@@ -9,7 +9,6 @@ const WalletTransaction = require("../../models/WalletTransaction");
 const User = require("../../models/User");
 const DeviceItem = require("../../models/DeviceItem");
 const mongoose = require("mongoose");
-const { getUser } = require("../../utils/socketUser");
 const {
   sendCompensationProposalChatMessage,
   buildSupplierToCustomerProposalText,
@@ -18,6 +17,7 @@ const { ReturnRecord, RETURN_FAILURE_REASON } = require("../../models/ReturnReco
 const NotificationConfig = require("../../configs/NotificationConfig");
 const { ensureDraftForReturn, reportIssue } = require("../../services/ReturnService");
 const { emitOperationStaffUpdate } = require("../../utils/operationStaffSocket");
+const { toCompensationProposalDto } = require("../../utils/toCompensationProposalDto");
 
 const RETURN_FAILURE_LABELS = {
   [RETURN_FAILURE_REASON.CUSTOMER_UNAVAILABLE]: "Khách vắng mặt / Không liên hệ được",
@@ -107,40 +107,6 @@ async function sendCustomerCompensationProposalCardToSupplier(req, params) {
   } catch (emitErr) {
     console.error("sendCustomerCompensationProposalCardToSupplier:", emitErr);
   }
-}
-
-function toCompensationProposalDto(proposal) {
-  if (!proposal) return null;
-  return {
-    _id: proposal._id,
-    proposedBy: proposal.proposedBy,
-    amount: proposal.amount ?? 0,
-    currency: proposal.currency || "VND",
-    reason: proposal.reason || "",
-    explanation: proposal.explanation || "",
-    suggestedResolution: proposal.suggestedResolution,
-    images: Array.isArray(proposal.images) ? proposal.images : [],
-    submittedAt: proposal.submittedAt || proposal.createdAt,
-    forwardedToCustomerAt: proposal.forwardedToCustomerAt,
-    forwardedMessagePreview: proposal.forwardedMessagePreview || "",
-    customerDecision: proposal.customerDecision || "PENDING",
-    customerDecidedAt: proposal.customerDecidedAt,
-    customerDecidedBy: proposal.customerDecidedBy,
-    customerDecisionNote: proposal.customerDecisionNote || "",
-    supplierDecision: proposal.supplierDecision || "PENDING",
-    supplierDecidedAt: proposal.supplierDecidedAt,
-    supplierDecidedBy: proposal.supplierDecidedBy,
-    supplierDecisionNote: proposal.supplierDecisionNote || "",
-    adminDecision: proposal.adminDecision || "PENDING",
-    adminDecidedAt: proposal.adminDecidedAt,
-    adminDecidedBy: proposal.adminDecidedBy,
-    adminDecisionNote: proposal.adminDecisionNote || "",
-    approvedCompensationAmount: proposal.approvedCompensationAmount ?? 0,
-    flowStatus: proposal.flowStatus || "PROPOSED",
-    appliedToDeposit: Boolean(proposal.appliedToDeposit),
-    appliedToDepositAt: proposal.appliedToDepositAt,
-    deductedFromDepositAmount: proposal.deductedFromDepositAmount ?? 0,
-  };
 }
 
 async function attachLatestCompensationProposal({ deliveryIssues = [], damageReports = [] }) {
@@ -1749,11 +1715,21 @@ exports.supplierConfirmCompensationProposal = async (req, res) => {
             receiverId: adminUser._id,
             title: "Có đề xuất bồi thường chờ duyệt",
             message: `Case #${String(issueDoc._id).slice(-6)} đã đủ xác nhận 2 bên, chờ admin duyệt.`,
-            link: `/admin/reports/issues/${issueDoc._id}`,
+            link: "/admin/compensation-proposals",
             type: "COMPENSATION_PROPOSAL_REVIEW",
           })
         )
       );
+      if (rental?.customerId) {
+        await NotificationConfig.sendNotification({
+          senderId: supplierId,
+          receiverId: rental.customerId,
+          title: "Đề xuất bồi thường đã lên admin duyệt",
+          message: `Case #${String(issueDoc._id).slice(-6)}: shop vừa xác nhận — hệ thống chờ quản trị duyệt mức bồi thường. Bạn sẽ nhận thông báo khi có kết quả.`,
+          link: `/customer/rentals/${issueDoc.rentalId}`,
+          type: "COMPENSATION_PROPOSAL",
+        });
+      }
     }
 
     return res.json({
@@ -1766,239 +1742,6 @@ exports.supplierConfirmCompensationProposal = async (req, res) => {
     });
   } catch (err) {
     console.error("supplierConfirmCompensationProposal:", err);
-    return res.status(500).json({ message: err.message || "Lỗi server" });
-  }
-};
-
-/**
- * @param {import("express").Request} req
- * @param {"APPROVED"|"REJECTED"|null} forcedDecision — null: đọc từ body.decision (legacy /review)
- */
-async function runAdminCompensationProposalDecision(req, forcedDecision = null) {
-  const adminId = req.user.id;
-  const { issueId } = req.params;
-  const { decision = "APPROVED", approvedAmount, note = "" } = req.body || {};
-  const cleanDecision = forcedDecision
-    ? forcedDecision
-    : String(decision || "APPROVED").trim();
-  const cleanNote = String(note || "").trim();
-
-  if (!["APPROVED", "REJECTED"].includes(cleanDecision)) {
-    return { status: 400, body: { message: "decision phải là APPROVED hoặc REJECTED" } };
-  }
-
-  let issueDoc = await DeliveryIssueReport.findById(issueId);
-  let referenceModel = "DeliveryIssueReport";
-  if (!issueDoc) {
-    issueDoc = await DamageReport.findById(issueId);
-    referenceModel = "DamageReport";
-  }
-  if (!issueDoc) {
-    return { status: 404, body: { message: "Không tìm thấy báo cáo sự cố" } };
-  }
-
-  const proposal = await CompensationProposal.findOne({
-    referenceModel,
-    referenceId: issueDoc._id,
-  }).sort({ submittedAt: -1, createdAt: -1 });
-
-  if (!proposal) {
-    return {
-      status: 404,
-      body: { message: "Chưa có đề xuất bồi thường cho sự cố này" },
-    };
-  }
-
-  if (proposal.flowStatus !== "PENDING_ADMIN_REVIEW") {
-    return {
-      status: 409,
-      body: { message: "Đề xuất chưa ở trạng thái chờ admin duyệt" },
-    };
-  }
-
-  if (proposal.customerDecision !== "ACCEPTED" || proposal.supplierDecision !== "ACCEPTED") {
-    return {
-      status: 409,
-      body: { message: "Chỉ duyệt khi cả khách hàng và supplier đều đã xác nhận đề xuất" },
-    };
-  }
-
-  let finalApprovedAmount = 0;
-  if (cleanDecision === "APPROVED") {
-    const requestedAmount = Number(proposal.amount || 0);
-    const customApprovedAmount =
-      approvedAmount === undefined || approvedAmount === null
-        ? requestedAmount
-        : Number(approvedAmount);
-    if (!Number.isFinite(customApprovedAmount) || customApprovedAmount < 0) {
-      return { status: 400, body: { message: "approvedAmount không hợp lệ" } };
-    }
-    finalApprovedAmount = customApprovedAmount;
-  }
-
-  proposal.adminDecision = cleanDecision;
-  proposal.adminDecidedAt = new Date();
-  proposal.adminDecidedBy = adminId;
-  proposal.adminDecisionNote = cleanNote || undefined;
-  proposal.approvedCompensationAmount = finalApprovedAmount;
-  proposal.flowStatus = cleanDecision === "APPROVED" ? "ADMIN_APPROVED" : "ADMIN_REJECTED";
-  await proposal.save();
-
-  const rentalId = proposal.rentalId || issueDoc.rentalId;
-  const rental = rentalId
-    ? await Rental.findById(rentalId).select("supplierId customerId status")
-    : null;
-
-  /** Tạm thời khi admin duyệt: chỉ gắn id đề xuất vào rental (không đổi rental.status ở đây) */
-  if (cleanDecision === "APPROVED") {
-    if (rentalId) {
-      await Rental.updateOne(
-        { _id: rentalId },
-        { $addToSet: { compensationProposalIds: proposal._id } }
-      );
-    }
-
-    if (!issueDoc.statusHistory) issueDoc.statusHistory = [];
-    const approvedNote = `Admin đã duyệt đề xuất bồi thường: ${finalApprovedAmount.toLocaleString("vi-VN")}đ${
-      cleanNote ? ` — Ghi chú: ${cleanNote}` : ""
-    }`;
-    issueDoc.status = "RESOLVED";
-    issueDoc.resolutionNote = `Đề xuất bồi thường đã duyệt: ${finalApprovedAmount.toLocaleString("vi-VN")}đ`;
-    issueDoc.statusHistory.push({
-      status: "RESOLVED",
-      changedBy: adminId,
-      note: approvedNote,
-      createdAt: new Date(),
-    });
-
-    if (referenceModel === "DamageReport") {
-      issueDoc.compensationAmount = finalApprovedAmount;
-      if (Array.isArray(issueDoc.deviceItemIds) && issueDoc.deviceItemIds.length) {
-        await DeviceItem.updateMany(
-          { _id: { $in: issueDoc.deviceItemIds } },
-          { $set: { status: "RENTED", activeIssueId: null } }
-        );
-      }
-    }
-  } else {
-    if (!issueDoc.statusHistory) issueDoc.statusHistory = [];
-    issueDoc.status = "PROCESSING";
-    issueDoc.statusHistory.push({
-      status: "PROCESSING",
-      changedBy: adminId,
-      note: `Admin từ chối đề xuất bồi thường${cleanNote ? `: ${cleanNote}` : ""} — NCC có thể gửi đề xuất mới`,
-      createdAt: new Date(),
-    });
-  }
-
-  await issueDoc.save();
-
-  if (rental?.supplierId) {
-    await NotificationConfig.sendNotification({
-      senderId: adminId,
-      receiverId: rental.supplierId,
-      title:
-        cleanDecision === "APPROVED"
-          ? "Admin đã duyệt đề xuất bồi thường"
-          : "Admin từ chối đề xuất bồi thường",
-      message:
-        cleanDecision === "APPROVED"
-          ? `Case #${String(issueDoc._id).slice(-6)} được duyệt mức ${finalApprovedAmount.toLocaleString(
-              "vi-VN"
-            )}đ. Sự cố đã đóng.`
-          : `Case #${String(issueDoc._id).slice(-6)}: đề xuất bị từ chối — có thể gửi đề xuất mới nếu cần.`,
-      link: `/supplier/issues/${issueDoc._id}`,
-      type: "COMPENSATION_PROPOSAL_REVIEW",
-    });
-  }
-  if (rental?.customerId) {
-    await NotificationConfig.sendNotification({
-      senderId: adminId,
-      receiverId: rental.customerId,
-      title:
-        cleanDecision === "APPROVED"
-          ? "Đề xuất bồi thường đã được admin duyệt"
-          : "Đề xuất bồi thường đã bị admin từ chối",
-      message:
-        cleanDecision === "APPROVED"
-          ? `Số tiền dự kiến trừ cọc: ${finalApprovedAmount.toLocaleString("vi-VN")}đ. Sự cố ghi nhận đã kết thúc.`
-          : "Đề xuất không được chấp nhận. Bạn theo dõi thông báo / chat nếu shop gửi đề xuất mới.",
-      link: `/customer/rentals/${issueDoc.rentalId}`,
-      type: "COMPENSATION_PROPOSAL_REVIEW",
-    });
-  }
-
-  const io = req.app && req.app.get("io");
-  if (io && rental) {
-    const payload = {
-      type: "COMPENSATION_PROPOSAL_ADMIN_REVIEW",
-      issueId: String(issueDoc._id),
-      rentalId: String(issueDoc.rentalId),
-      referenceModel,
-      decision: cleanDecision,
-      flowStatus: proposal.flowStatus,
-      proposalId: String(proposal._id),
-      issueStatus: issueDoc.status,
-      rentalStatus: cleanDecision === "APPROVED" && rental ? rental.status : undefined,
-    };
-    for (const uid of [rental.supplierId, rental.customerId]) {
-      if (!uid) continue;
-      const s = getUser(uid.toString());
-      if (s && s.socketId) {
-        io.to(s.socketId).emit("issueUpdate", payload);
-      }
-    }
-  }
-
-  emitOperationStaffUpdate({
-    message: `Admin ${cleanDecision === "APPROVED" ? "duyệt" : "từ chối"} đề xuất bồi thường case #${String(
-      issueDoc._id
-    ).slice(-6)}`,
-    issueId: String(issueDoc._id),
-    rentalId: String(issueDoc.rentalId),
-  });
-
-  return {
-    status: 200,
-    body: {
-      success: true,
-      message:
-        cleanDecision === "APPROVED"
-          ? "Đã duyệt: đã gắn id đề xuất vào đơn thuê, sự cố chuyển RESOLVED, đã gửi thông báo khách & supplier"
-          : "Đã từ chối đề xuất bồi thường, sự cố mở lại cho NCC",
-      proposal: toCompensationProposalDto(proposal.toObject()),
-      issue: { _id: issueDoc._id, status: issueDoc.status, referenceModel },
-    },
-  };
-}
-
-exports.adminApproveCompensationProposal = async (req, res) => {
-  try {
-    const result = await runAdminCompensationProposalDecision(req, "APPROVED");
-    return res.status(result.status).json(result.body);
-  } catch (err) {
-    console.error("adminApproveCompensationProposal:", err);
-    return res.status(500).json({ message: err.message || "Lỗi server" });
-  }
-};
-
-exports.adminRejectCompensationProposal = async (req, res) => {
-  try {
-    const result = await runAdminCompensationProposalDecision(req, "REJECTED");
-    return res.status(result.status).json(result.body);
-  } catch (err) {
-    console.error("adminRejectCompensationProposal:", err);
-    return res.status(500).json({ message: err.message || "Lỗi server" });
-  }
-};
-
-/** Legacy: body `{ decision, approvedAmount?, note? }` */
-exports.adminReviewCompensationProposal = async (req, res) => {
-  try {
-    const result = await runAdminCompensationProposalDecision(req, null);
-    return res.status(result.status).json(result.body);
-  } catch (err) {
-    console.error("adminReviewCompensationProposal:", err);
     return res.status(500).json({ message: err.message || "Lỗi server" });
   }
 };
@@ -2117,9 +1860,6 @@ module.exports = {
   supplierSubmitCompensationProposal: exports.supplierSubmitCompensationProposal,
   customerConfirmCompensationProposal: exports.customerConfirmCompensationProposal,
   supplierConfirmCompensationProposal: exports.supplierConfirmCompensationProposal,
-  adminApproveCompensationProposal: exports.adminApproveCompensationProposal,
-  adminRejectCompensationProposal: exports.adminRejectCompensationProposal,
-  adminReviewCompensationProposal: exports.adminReviewCompensationProposal,
   adminGetCompensationProposals: exports.adminGetCompensationProposals,
   supplierEscalateIssue: exports.supplierEscalateIssue,
   supplierCloseIssueNoCompensation: exports.supplierCloseIssueNoCompensation,

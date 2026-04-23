@@ -4,6 +4,7 @@ const uploadCloud = require("../configs/cloudinaryConfig");
 const { checkAccessToken, checkAdmin, checkSupplier } = require("../middleware/JWTAction");
 
 const deliveryCtrl = require("../controllers/Report/deliveryIssueController");
+const adminCompensationProposalCtrl = require("../controllers/Report/AdminCompensationProposalController");
 const damageCtrl = require("../controllers/Report/damageReportController");
 const shopReportCtrl = require("../controllers/Report/shopReportController");
 
@@ -124,14 +125,14 @@ ReportRouter.post(
   "/admin/issues/:issueId/compensation-proposal/approve",
   checkAccessToken,
   checkAdmin,
-  deliveryCtrl.adminApproveCompensationProposal
+  adminCompensationProposalCtrl.adminApproveCompensationProposal
 );
 
 ReportRouter.post(
   "/admin/issues/:issueId/compensation-proposal/reject",
   checkAccessToken,
   checkAdmin,
-  deliveryCtrl.adminRejectCompensationProposal
+  adminCompensationProposalCtrl.adminRejectCompensationProposal
 );
 
 /** Legacy: body gồm `decision` + optional `approvedAmount`, `note` */
@@ -139,7 +140,7 @@ ReportRouter.post(
   "/admin/issues/:issueId/compensation-proposal/review",
   checkAccessToken,
   checkAdmin,
-  deliveryCtrl.adminReviewCompensationProposal
+  adminCompensationProposalCtrl.adminReviewCompensationProposal
 );
 
 ReportRouter.get(
@@ -147,6 +148,14 @@ ReportRouter.get(
   checkAccessToken,
   checkAdmin,
   deliveryCtrl.adminGetCompensationProposals
+);
+
+/** Admin: tạm tính dòng tiền khi xem trước khi duyệt (query: approvedAmount tùy chọn) */
+ReportRouter.get(
+  "/admin/compensation-proposals/:proposalId/settlement-preview",
+  checkAccessToken,
+  checkAdmin,
+  adminCompensationProposalCtrl.getCompensationSettlementPreview
 );
 
 ReportRouter.post(

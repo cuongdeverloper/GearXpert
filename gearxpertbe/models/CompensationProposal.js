@@ -93,6 +93,7 @@ const compensationProposalSchema = new mongoose.Schema(
         "SUPPLIER_ACCEPTED",
         "SUPPLIER_REJECTED",
         "PENDING_ADMIN_REVIEW",
+        "PENDING_WALLET", // khóa tạm khi admin duyệt, tránh ghi ví 2 lần (double-click / song song)
         "ADMIN_APPROVED",
         "ADMIN_REJECTED",
       ],

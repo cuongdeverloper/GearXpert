@@ -21,6 +21,8 @@ import { closeChatWindow } from "../../../redux/reducer/chatWindowReducer";
 import { useTranslation } from "react-i18next";
 import { CustomerCompensationDecisionChatCard } from "../../compensation/CompensationChatCustomerDecision";
 
+const DEFAULT_AVATAR = "/default-avatar.png";
+
 const MiniChatWindow = ({ conversation }) => {
     const { t } = useTranslation();
     const dispatch = useDispatch();
@@ -398,7 +400,7 @@ const MiniChatWindow = ({ conversation }) => {
                 ) : m.type === "compensation_proposal" ? (
                     <div ref={scrollRef} className={`flex mb-1 ${isOwn ? "justify-end" : "justify-start"}`}>
                         {!isOwn && (
-                            <img src={friendAvatar} className="w-6 h-6 rounded-full object-cover mr-2 mt-auto border border-gray-200" alt="" onError={(e) => { e.target.src = "/default-avatar.png" }} />
+                            <img src={friendAvatar} className="w-6 h-6 rounded-full object-cover mr-2 mt-auto border border-gray-200" alt="" onError={(e) => { e.target.src = DEFAULT_AVATAR }} />
                         )}
                         <div className={`flex flex-col max-w-[84%] min-w-0 ${isOwn ? "items-end" : "items-start"}`}>
                             <CompensationProposalBubble message={m} isOwn={isOwn} />
@@ -407,7 +409,7 @@ const MiniChatWindow = ({ conversation }) => {
                 ) : (
                     <div ref={scrollRef} className={`flex mb-1 ${isOwn ? "justify-end" : "justify-start"}`}>
                         {!isOwn && (
-                            <img src={friendAvatar} className="w-6 h-6 rounded-full object-cover mr-2 mt-auto border border-gray-200" alt="" onError={(e) => { e.target.src = defaultAvatar }} />
+                            <img src={friendAvatar} className="w-6 h-6 rounded-full object-cover mr-2 mt-auto border border-gray-200" alt="" onError={(e) => { e.target.src = DEFAULT_AVATAR }} />
                         )}
                         <div className={`flex flex-col max-w-[70%] min-w-0 ${isOwn ? "items-end" : "items-start"}`}>
                             {m.image && <img src={m.image} alt="att" className="rounded-lg mb-1 max-w-full max-h-40 object-cover border border-gray-200 cursor-pointer" onClick={() => window.open(m.image, "_blank")} />}
@@ -424,7 +426,7 @@ const MiniChatWindow = ({ conversation }) => {
     };
 
     const partnerName = partnerDisplay.name || "Người dùng";
-    const partnerAvatar = partnerDisplay.avatar || "/default-avatar.png";
+    const partnerAvatar = partnerDisplay.avatar || DEFAULT_AVATAR;
 
     const partnerId = conversation.members.find(m => {
         const mId = typeof m === 'string' ? m : m._id;
@@ -440,7 +442,7 @@ const MiniChatWindow = ({ conversation }) => {
                 <div className="h-14 px-3 flex items-center justify-between border-b border-gray-200 bg-white rounded-t-xl z-10">
                     <div className="flex items-center gap-2 cursor-pointer">
                         <div className="relative w-9 h-9">
-                            <img src={partnerAvatar} alt="Avt" className="w-full h-full rounded-full object-cover border border-gray-200" onError={(e) => { e.target.src = defaultAvatar }} />
+                            <img src={partnerAvatar} alt="Avt" className="w-full h-full rounded-full object-cover border border-gray-200" onError={(e) => { e.target.src = DEFAULT_AVATAR }} />
                             <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 border-2 border-white rounded-full ${isPartnerOnline ? "bg-green-500" : "bg-gray-400"}`}></span>
                         </div>
                         <div className="flex flex-col">

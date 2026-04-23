@@ -74,6 +74,10 @@ export const adminReviewCompensationProposal = (issueId, data = {}) =>
 export const adminGetCompensationProposals = (params = {}) =>
   axios.get("/api/reports/admin/compensation-proposals", { params });
 
+/** Admin: tạm tính dòng tiền (xem trước khi duyệt). params: { approvedAmount? } */
+export const adminGetCompensationSettlementPreview = (proposalId, params = {}) =>
+  axios.get(`/api/reports/admin/compensation-proposals/${proposalId}/settlement-preview`, { params });
+
 /** Supplier: Xử lý giao thiếu - Hủy đơn (Hoàn tiền) */
 export const supplierIssueCancelRefund = (issueId) =>
   axios.post(`/api/reports/supplier-issues/${issueId}/cancel-refund`);
