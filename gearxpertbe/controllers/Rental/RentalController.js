@@ -3998,96 +3998,69 @@ exports.turn = exports.confirmReturn = async (req, res) => {
     await adminWallet.save({ session });
 
     // Tạo transactions giảm ESCROW_HOLD và DEPOSIT_HOLD riêng biệt
+    // Chỉ tạo 2 transactions tương ứng với số tiền thực tế bị trừ
 
-    await WalletTransaction.create(
-      [
-        {
-          wallet: adminWallet._id,
+    let currentBalance = adminBefore;
 
-          type: "ESCROW_RELEASE",
+    const transactions = [];
 
-          amount: -escrowReleaseAmount, // Giảm tiền thuê tạm giữ (đã trừ phí + phí vận chuyển)
+    // ESCROW_RELEASE: giải phóng tiền thuê cho supplier
+    if (supplierReceive > 0) {
+      const tx = {
+        wallet: adminWallet._id,
+        type: "ESCROW_RELEASE",
+        amount: -supplierReceive,
+        balanceBefore: currentBalance,
+        balanceAfter: currentBalance - supplierReceive,
+        referenceType: "RENTAL",
+        referenceId: rental._id,
+        description: `Giải phóng tiền thuê tạm giữ đơn #${rental._id.toString().slice(-6)}`,
+        status: "SUCCESS",
+      };
+      transactions.push(tx);
+      currentBalance -= supplierReceive;
+    }
 
-          balanceBefore: adminBefore,
+    // DEPOSIT_RELEASE: giải phóng tiền cọc để hoàn cho khách
+    if (rental.depositAmount > 0) {
+      const tx = {
+        wallet: adminWallet._id,
+        type: "DEPOSIT_RELEASE",
+        amount: -rental.depositAmount,
+        balanceBefore: currentBalance,
+        balanceAfter: currentBalance - rental.depositAmount,
+        referenceType: "RENTAL",
+        referenceId: rental._id,
+        description: `Giải phóng tiền cọc đơn #${rental._id.toString().slice(-6)}`,
+        status: "SUCCESS",
+      };
+      transactions.push(tx);
+      currentBalance -= rental.depositAmount;
+    }
 
-          balanceAfter: adminBefore - escrowReleaseAmount,
-
-          referenceType: "RENTAL",
-
-          referenceId: rental._id,
-
-          description: `Giải phóng tiền thuê tạm giữ đơn #${rental._id.toString().slice(-6)}`,
-
-          status: "SUCCESS",
-        },
-
-        {
-          wallet: adminWallet._id,
-
-          type: "PAYOUT",
-
-          amount: -supplierReceive,
-
-          balanceBefore: adminBefore - escrowReleaseAmount,
-
-          balanceAfter: adminBefore - escrowReleaseAmount - supplierReceive,
-
-          referenceType: "RENTAL",
-
-          referenceId: rental._id,
-
-          description: `Payout cho supplier đơn #${rental._id.toString().slice(-6)}`,
-
-          status: "SUCCESS",
-        },
-
-        {
-          wallet: adminWallet._id,
-
-          type: "DEPOSIT_RELEASE",
-
-          amount: -rental.depositAmount, // Giảm tiền cọc tạm giữ
-
-          balanceBefore: adminBefore - rentAfterDiscount - supplierReceive,
-
-          balanceAfter: adminWallet.balance,
-
-          referenceType: "RENTAL",
-
-          referenceId: rental._id,
-
-          description: `Giải phóng tiền cọc đơn #${rental._id.toString().slice(-6)}`,
-
-          status: "SUCCESS",
-        },
-      ],
-      { session, ordered: true },
-    );
+    if (transactions.length > 0) {
+      await WalletTransaction.create(transactions, { session, ordered: true });
+    }
 
     // Platform fee và Shipping fee đã ở lại trong ví admin (không cần chuyển đi đâu)
 
-    // Update PLATFORM_FEE transaction to mark as earned
+    // Update tất cả PLATFORM_FEE transactions của rental này để mark as earned
+    // (bao gồm cả PLATFORM_FEE từ extension nếu có)
 
-    await WalletTransaction.updateOne(
+    await WalletTransaction.updateMany(
       {
         wallet: adminWallet._id,
-
         type: "PLATFORM_FEE",
-
         referenceType: "RENTAL",
-
         referenceId: rental._id,
       },
-
       {
         $set: {
           rentalStatus: "COMPLETED",
-
           isEarned: true,
         },
       },
-
-      { session },
+      { session }
     );
 
     // Update SHIPPING_FEE transaction to mark as earned
