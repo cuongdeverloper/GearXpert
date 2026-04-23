@@ -1043,9 +1043,15 @@ exports.autoApplyBestVoucher = async (req, res) => {
         if (usedRankCodesThisMonth.includes(v.code)) return false;
         return true;
       }
-      
+
       // Nếu là Voucher thường
-      return !usedVoucherCodes.includes(v.code);
+      // Check đã dùng chưa
+      if (usedVoucherCodes.includes(v.code)) return false;
+      // Check còn lượt sử dụng không
+      if (v.usageLimit !== undefined && v.usageLimit !== null) {
+        if (v.usageLimit <= 0 || v.usedCount >= v.usageLimit) return false;
+      }
+      return true;
     });
 
     let bestVoucher = null;
