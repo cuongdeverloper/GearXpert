@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { getChatDisplayProfile } from '../../chatDisplay';
 
 const ChatInfo = ({receiver, messages, setShowChatInfo }) => {
     const [isMediaOpen, setIsMediaOpen] = useState(true); 
     const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
+    const receiverDisplay = getChatDisplayProfile(receiver);
 
     const mediaList = messages.filter(m => m.image && m.image !== "");
 
@@ -12,13 +14,13 @@ const ChatInfo = ({receiver, messages, setShowChatInfo }) => {
             <div className="flex flex-col items-center mb-6">
                 <div className="relative mb-3">
                      <img 
-                        src={receiver?.avatar || "/default-avatar.png"} 
+                        src={receiverDisplay.avatar} 
                         alt="avatar" 
                         className="w-20 h-20 rounded-full object-cover cursor-pointer hover:opacity-90 transition-opacity border border-gray-100"
                     />
                     <span className="absolute bottom-1 right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></span>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900">{receiver?.username || "User"}</h3>
+                <h3 className="text-xl font-bold text-gray-900">{receiverDisplay.name || "User"}</h3>
                 <span className="text-xs text-gray-500 mt-1">Đang hoạt động</span>
             </div>
 

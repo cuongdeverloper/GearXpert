@@ -1,8 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import { useSelector, useDispatch } from "react-redux";
-import { toast } from "react-toastify";
 import { setSocketConnection } from "./redux/action/userAction";
+import { focusOrOpenChatWindow } from "./redux/reducer/chatWindowReducer";
+import {
+  playIncomingMessageSound,
+  resumeIncomingMessageSound,
+} from "./utils/incomingMessageSound";
 
 const SocketContext = createContext();
 
@@ -50,9 +54,25 @@ export const SocketProvider = ({ children }) => {
     });
 
     newSocket.on("getMessage", (data) => {
-      toast.info(`💬 Ai đó vừa nhắn tin cho bạn: "${data.text}"`, {
-        autoClose: 4000,
-      });
+      const myId = String(tutorId);
+      if (!data?.conversationId) return;
+      if (String(data.senderId) === myId) return;
+
+      playIncomingMessageSound();
+
+      const path = typeof window !== "undefined" ? window.location.pathname : "";
+      const noMiniChat =
+        path.startsWith("/messenger") ||
+        path.startsWith("/admin") ||
+        path.startsWith("/staff");
+      if (noMiniChat) return;
+
+      const conv = {
+        _id: data.conversationId,
+        members: [myId, String(data.senderId)],
+        friendInfo: data.friendInfo || null,
+      };
+      dispatch(focusOrOpenChatWindow(conv));
     });
 
     setSocket(newSocket);
@@ -62,6 +82,20 @@ export const SocketProvider = ({ children }) => {
       dispatch(setSocketConnection(null));
     };
   }, [tutorId, dispatch]);
+
+  // Unlock Web Audio after first gesture (helps autoplay policy).
+  useEffect(() => {
+    if (!tutorId) return;
+    const onFirstGesture = () => {
+      resumeIncomingMessageSound();
+    };
+    document.addEventListener("click", onFirstGesture, { once: true });
+    document.addEventListener("keydown", onFirstGesture, { once: true });
+    return () => {
+      document.removeEventListener("click", onFirstGesture);
+      document.removeEventListener("keydown", onFirstGesture);
+    };
+  }, [tutorId]);
 
   return (
     <SocketContext.Provider value={{ socket, onlineUsers, connected: !!socket }}>

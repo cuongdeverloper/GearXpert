@@ -30,6 +30,7 @@ import SupplierRevenue from "./pages/Supplier/SupplierRevenue";
 import SupplierInventoryPage from "./pages/Supplier/SupplierInventoryPage";
 import SupplierVouchersPage from "./pages/Supplier/SupplierVouchersPage";
 import SupplierIssuesPage from "./pages/Supplier/SupplierIssuesPage";
+import SupplierIssueDetailPage from "./pages/Supplier/SupplierIssueDetailPage";
 import SupplierCalendarPage from "./pages/Supplier/SupplierCalendarPage";
 import SupplierAiPricingPage from "./pages/Supplier/SupplierAiPricingPage";
 import SupplierAdsPage from "./pages/Supplier/SupplierAdsPage";
@@ -53,6 +54,7 @@ import AdminBroadcastPage from "./pages/Admin/AdminBroadcastPage";
 import AdminShopReports from "./pages/Admin/AdminShopReports";
 import AdminWalletPage from "./pages/Admin/AdminWalletPage";
 import AdminWithdrawalsPage from "./pages/Admin/AdminWithdrawalsPage";
+import AdminCompensationReviewsPage from "./pages/Admin/AdminCompensationReviewsPage";
 
 // pages
 import RentalCheckout from "./pages/Rental/RentalCheckout";
@@ -230,6 +232,7 @@ export default function Layout() {
             <Route path="vouchers" element={<SupplierVouchersPage />} />
             <Route path="reviews" element={<SupplierReviewsPage />} />
             <Route path="issues" element={<SupplierIssuesPage />} />
+            <Route path="issues/:issueId" element={<SupplierIssueDetailPage />} />
             <Route
               path="delivery/incidents"
               element={<Navigate to="/supplier/issues?tab=DELIVERY" replace />}
@@ -257,6 +260,7 @@ export default function Layout() {
             <Route path="notifications" element={<AdminBroadcastPage />} />
             <Route path="wallet" element={<AdminWalletPage />} />
             <Route path="withdrawals" element={<AdminWithdrawalsPage />} />
+            <Route path="compensation-proposals" element={<AdminCompensationReviewsPage />} />
           </Route>
 
           <Route path="/privacy" element={<PrivacyPolicyPage />} />

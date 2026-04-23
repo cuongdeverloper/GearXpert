@@ -59,6 +59,7 @@ const navGroups = [
         ]
       },
       { to: "/admin/reports", label: "Báo cáo", icon: FiBarChart2 },
+      { to: "/admin/compensation-proposals", label: "Duyệt bồi thường", icon: FiAlertTriangle },
       { to: "/admin/notifications", label: "Thông báo hệ thống", icon: FiBell },
       { to: "/admin/wallet", label: "Ví Admin", icon: FiCreditCard },
       { to: "/admin/withdrawals", label: "Duyệt rút tiền", icon: FiDollarSign },

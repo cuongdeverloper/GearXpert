@@ -100,6 +100,56 @@ ReportRouter.patch(
 );
 
 ReportRouter.post(
+  "/supplier-issues/:issueId/compensation-proposal",
+  checkAccessToken,
+  checkSupplier,
+  uploadCloud.array("images", 8),
+  deliveryCtrl.supplierSubmitCompensationProposal
+);
+
+ReportRouter.post(
+  "/customer-issues/:issueId/compensation-proposal/confirm",
+  checkAccessToken,
+  deliveryCtrl.customerConfirmCompensationProposal
+);
+
+ReportRouter.post(
+  "/supplier-issues/:issueId/compensation-proposal/confirm",
+  checkAccessToken,
+  checkSupplier,
+  deliveryCtrl.supplierConfirmCompensationProposal
+);
+
+ReportRouter.post(
+  "/admin/issues/:issueId/compensation-proposal/approve",
+  checkAccessToken,
+  checkAdmin,
+  deliveryCtrl.adminApproveCompensationProposal
+);
+
+ReportRouter.post(
+  "/admin/issues/:issueId/compensation-proposal/reject",
+  checkAccessToken,
+  checkAdmin,
+  deliveryCtrl.adminRejectCompensationProposal
+);
+
+/** Legacy: body gồm `decision` + optional `approvedAmount`, `note` */
+ReportRouter.post(
+  "/admin/issues/:issueId/compensation-proposal/review",
+  checkAccessToken,
+  checkAdmin,
+  deliveryCtrl.adminReviewCompensationProposal
+);
+
+ReportRouter.get(
+  "/admin/compensation-proposals",
+  checkAccessToken,
+  checkAdmin,
+  deliveryCtrl.adminGetCompensationProposals
+);
+
+ReportRouter.post(
   "/supplier-issues/:issueId/cancel-refund",
   checkAccessToken,
   checkSupplier,
@@ -112,6 +162,20 @@ ReportRouter.post(
   checkSupplier,
   uploadCloud.array("images", 5),
   deliveryCtrl.supplierAdditionalDelivery
+);
+
+ReportRouter.post(
+  "/supplier-issues/:issueId/escalate",
+  checkAccessToken,
+  checkSupplier,
+  deliveryCtrl.supplierEscalateIssue
+);
+
+ReportRouter.post(
+  "/supplier-issues/:issueId/close-no-compensation",
+  checkAccessToken,
+  checkSupplier,
+  deliveryCtrl.supplierCloseIssueNoCompensation
 );
 
 module.exports = ReportRouter;

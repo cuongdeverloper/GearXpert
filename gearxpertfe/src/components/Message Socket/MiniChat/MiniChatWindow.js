@@ -10,9 +10,16 @@ import {
     ApiMarkMessagesAsSeen,
     ApiGetUserByUserId
 } from "../ApiMessage";
+import {
+    customerConfirmCompensationProposal,
+    supplierConfirmCompensationProposal,
+} from "../../../service/ApiService/ReportApi";
+import { toast } from "react-toastify";
+import { getChatDisplayProfile } from "../chatDisplay";
 import { useSocket } from "../../../SocketContext";
 import { closeChatWindow } from "../../../redux/reducer/chatWindowReducer";
 import { useTranslation } from "react-i18next";
+import { CustomerCompensationDecisionChatCard } from "../../compensation/CompensationChatCustomerDecision";
 
 const MiniChatWindow = ({ conversation }) => {
     const { t } = useTranslation();
@@ -174,8 +181,18 @@ const MiniChatWindow = ({ conversation }) => {
     useEffect(() => {
         if (!socket) return;
         const handleMsg = (data) => {
-            if (data.conversationId === conversation._id) {
-                setMessages((prev) => [...prev, { ...data, sender: { _id: data.senderId } }]);
+            const sameConv =
+                data?.conversationId != null &&
+                conversation?._id != null &&
+                String(data.conversationId) === String(conversation._id);
+            if (sameConv) {
+                setMessages((prev) => {
+                    const mid = data?._id != null ? String(data._id) : null;
+                    if (mid && prev.some((m) => m?._id != null && String(m._id) === mid)) {
+                        return prev;
+                    }
+                    return [...prev, { ...data, sender: { _id: data.senderId } }];
+                });
                 ApiMarkMessagesAsSeen(conversation._id);
             }
         };
@@ -234,9 +251,8 @@ const MiniChatWindow = ({ conversation }) => {
             if (!imageUrl && !newMessage.trim()) return;
         }
 
-        socket.emit("sendMessage", {
-            senderId: currentUserId, receiverId, text: newMessage, image: imageUrl, conversationId: conversation._id
-        });
+        // Chỉ gửi qua API — MessageController đã io.emit("getMessage") tới receiver.
+        // Không gọi thêm socket.emit("sendMessage") (socket.js) để tránh 2 bản tin trùng.
 
         try {
             const res = await ApiSendMessage(receiverId, newMessage, conversation._id, imageUrl);
@@ -260,8 +276,9 @@ const MiniChatWindow = ({ conversation }) => {
         return date.toLocaleString('en-US', { day: 'numeric', month: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true });
     };
 
-    const friendName = partnerInfo?.fullName || partnerInfo?.username || "Người dùng";
-    const friendAvatar = partnerInfo?.avatar || partnerInfo?.image || "/default-avatar.png";
+    const partnerDisplay = getChatDisplayProfile(partnerInfo);
+    const friendName = partnerDisplay.name || "Người dùng";
+    const friendAvatar = partnerDisplay.avatar || "/default-avatar.png";
 
     const VideoCallOverlay = callActive ? (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center pointer-events-none">
@@ -378,6 +395,15 @@ const MiniChatWindow = ({ conversation }) => {
                             </div>
                         </div>
                     </div>
+                ) : m.type === "compensation_proposal" ? (
+                    <div ref={scrollRef} className={`flex mb-1 ${isOwn ? "justify-end" : "justify-start"}`}>
+                        {!isOwn && (
+                            <img src={friendAvatar} className="w-6 h-6 rounded-full object-cover mr-2 mt-auto border border-gray-200" alt="" onError={(e) => { e.target.src = "/default-avatar.png" }} />
+                        )}
+                        <div className={`flex flex-col max-w-[84%] min-w-0 ${isOwn ? "items-end" : "items-start"}`}>
+                            <CompensationProposalBubble message={m} isOwn={isOwn} />
+                        </div>
+                    </div>
                 ) : (
                     <div ref={scrollRef} className={`flex mb-1 ${isOwn ? "justify-end" : "justify-start"}`}>
                         {!isOwn && (
@@ -397,8 +423,8 @@ const MiniChatWindow = ({ conversation }) => {
         );
     };
 
-    const partnerName = partnerInfo?.fullName || partnerInfo?.username || "Người dùng";
-    const partnerAvatar = partnerInfo?.avatar || partnerInfo?.image || "/default-avatar.png";
+    const partnerName = partnerDisplay.name || "Người dùng";
+    const partnerAvatar = partnerDisplay.avatar || "/default-avatar.png";
 
     const partnerId = conversation.members.find(m => {
         const mId = typeof m === 'string' ? m : m._id;
@@ -464,6 +490,189 @@ const MiniChatWindow = ({ conversation }) => {
                 </div>
             </div>
         </>
+    );
+};
+
+const CompensationProposalBubble = ({ message, isOwn }) => {
+    const payload = message?.payload || {};
+    const [confirming, setConfirming] = useState(false);
+    const [localDecision, setLocalDecision] = useState(payload.customerDecision || "PENDING");
+    const [localSupplierDecision, setLocalSupplierDecision] = useState(payload.supplierDecision || "PENDING");
+    const [localAdminDecision, setLocalAdminDecision] = useState(payload.adminDecision || "PENDING");
+    const [localFlowStatus, setLocalFlowStatus] = useState(payload.flowStatus || "PROPOSED");
+    const amount = Number(payload.amount || 0);
+    const resolutionLabelMap = {
+        CUSTOMER_PAY: "De xuat khach den bu",
+        SUPPLIER_BEAR: "Supplier tu chiu",
+        REQUEST_GX_REVIEW: "Nho GearXpert danh gia",
+    };
+    const actionLink = payload.link || payload.customerLink || payload.supplierLink;
+    const images = Array.isArray(payload.images) ? payload.images : [];
+    const issueIdFromLink = String(payload.supplierLink || "").match(/\/supplier\/issues\/([^/?#]+)/)?.[1] || null;
+    const issueId = payload.issueId || issueIdFromLink;
+    const canCustomerConfirm =
+        !isOwn &&
+        !!issueId &&
+        localDecision !== "ACCEPTED";
+    const canSupplierConfirm =
+        isOwn &&
+        !!issueId &&
+        localDecision === "ACCEPTED" &&
+        localSupplierDecision !== "ACCEPTED" &&
+        localFlowStatus !== "PENDING_ADMIN_REVIEW" &&
+        localFlowStatus !== "ADMIN_APPROVED";
+    const statusMeta =
+        localAdminDecision === "APPROVED" || localFlowStatus === "ADMIN_APPROVED"
+            ? { text: "Admin da duyet de xuat", color: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200" }
+            : localAdminDecision === "REJECTED" || localFlowStatus === "ADMIN_REJECTED"
+            ? { text: "Admin da tu choi de xuat", color: "text-red-700", bg: "bg-red-50", border: "border-red-200" }
+            : localFlowStatus === "PENDING_ADMIN_REVIEW"
+            ? { text: "Dang cho admin duyet", color: "text-amber-700", bg: "bg-amber-50", border: "border-amber-200" }
+            : localDecision === "REJECTED"
+            ? { text: "Khach hang da tu choi", color: "text-red-700", bg: "bg-red-50", border: "border-red-200" }
+            : localDecision === "ACCEPTED"
+            ? { text: "Khach da xac nhan, cho supplier chuyen admin", color: "text-blue-700", bg: "bg-blue-50", border: "border-blue-200" }
+            : { text: "Dang cho khach hang xac nhan", color: "text-amber-700", bg: "bg-amber-50", border: "border-amber-200" };
+
+    useEffect(() => {
+        setLocalDecision(payload.customerDecision || "PENDING");
+        setLocalSupplierDecision(payload.supplierDecision || "PENDING");
+        setLocalAdminDecision(payload.adminDecision || "PENDING");
+        setLocalFlowStatus(payload.flowStatus || "PROPOSED");
+    }, [payload.customerDecision, payload.supplierDecision, payload.adminDecision, payload.flowStatus]);
+
+    if (payload.cardVariant === "CUSTOMER_DECISION") {
+        return (
+            <div className="w-full" style={{ maxWidth: 360 }}>
+                <CustomerCompensationDecisionChatCard payload={payload} isOwn={isOwn} maxWidth={360} />
+            </div>
+        );
+    }
+
+    const handleCustomerConfirm = async () => {
+        if (!issueId || confirming || localDecision === "ACCEPTED") return;
+        try {
+            setConfirming(true);
+            const res = await customerConfirmCompensationProposal(issueId, { decision: "ACCEPTED" });
+            const proposal = res?.data?.proposal || res?.proposal || {};
+            const nextDecision = proposal?.customerDecision || "ACCEPTED";
+            setLocalDecision(nextDecision);
+            setLocalSupplierDecision(proposal?.supplierDecision || "PENDING");
+            setLocalAdminDecision(proposal?.adminDecision || "PENDING");
+            setLocalFlowStatus(proposal?.flowStatus || "CUSTOMER_ACCEPTED");
+            toast.success("Da xac nhan de xuat boi thuong");
+        } catch (error) {
+            toast.error(error?.response?.data?.message || "Khong the xac nhan de xuat");
+        } finally {
+            setConfirming(false);
+        }
+    };
+
+    const handleSupplierConfirm = async () => {
+        if (!issueId || confirming || !canSupplierConfirm) return;
+        try {
+            setConfirming(true);
+            const res = await supplierConfirmCompensationProposal(issueId, { decision: "ACCEPTED" });
+            const proposal = res?.data?.proposal || res?.proposal || {};
+            setLocalDecision(proposal?.customerDecision || localDecision);
+            setLocalSupplierDecision(proposal?.supplierDecision || "ACCEPTED");
+            setLocalAdminDecision(proposal?.adminDecision || "PENDING");
+            setLocalFlowStatus(proposal?.flowStatus || "PENDING_ADMIN_REVIEW");
+            toast.success("Supplier da chap nhan thiet hai va chuyen admin duyet");
+        } catch (error) {
+            toast.error(error?.response?.data?.message || "Khong the chuyen de xuat cho admin");
+        } finally {
+            setConfirming(false);
+        }
+    };
+
+    return (
+        <div
+            className={`rounded-2xl border shadow-sm p-3 ${
+                isOwn ? "bg-blue-50 border-blue-200" : "bg-white border-slate-200"
+            }`}
+            style={{ width: "100%", maxWidth: 360 }}
+        >
+            <p className="text-[11px] font-bold uppercase tracking-wide text-blue-700 mb-1">
+                De xuat boi thuong
+            </p>
+            <p className="text-sm font-semibold text-slate-800 mb-2">
+                {payload.title || "De xuat xu ly su co thiet bi"}
+            </p>
+            <div className="grid grid-cols-2 gap-2 mb-2">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
+                    <p className="text-[10px] text-slate-500">Muc de xuat</p>
+                    <p className="text-sm font-bold text-slate-800">{amount.toLocaleString("vi-VN")} VND</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
+                    <p className="text-[10px] text-slate-500">Phuong an</p>
+                    <p className="text-xs font-semibold text-slate-700">
+                        {resolutionLabelMap[payload.suggestedResolution] || payload.suggestedResolution || "-"}
+                    </p>
+                </div>
+            </div>
+            {payload.reason && (
+                <p className="text-xs text-slate-700 mb-1">
+                    <span className="font-semibold">Ly do:</span> {payload.reason}
+                </p>
+            )}
+            {payload.explanation && (
+                <p className="text-xs text-slate-700 whitespace-pre-wrap mb-2">
+                    <span className="font-semibold">Giai thich:</span> {payload.explanation}
+                </p>
+            )}
+            {images.length > 0 && (
+                <div className="flex gap-1.5 flex-wrap mb-2">
+                    {images.slice(0, 3).map((img, idx) => (
+                        <img
+                            key={`proposal-chat-${idx}`}
+                            src={img}
+                            alt={`proposal-${idx}`}
+                            className="w-14 h-14 rounded-lg border border-slate-200 object-cover cursor-pointer"
+                            onClick={() => window.open(img, "_blank")}
+                        />
+                    ))}
+                </div>
+            )}
+            {actionLink && (
+                <button
+                    type="button"
+                    onClick={() => {
+                        window.location.href = actionLink;
+                    }}
+                    className="w-full rounded-lg bg-blue-600 text-white text-xs font-semibold py-2 hover:bg-blue-700"
+                >
+                    Xem chi tiet
+                </button>
+            )}
+            {canCustomerConfirm && (
+                <button
+                    type="button"
+                    onClick={handleCustomerConfirm}
+                    disabled={confirming}
+                    className="w-full mt-2 rounded-lg border border-emerald-600 text-emerald-700 text-xs font-semibold py-2 hover:bg-emerald-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                    {confirming ? "Dang xac nhan..." : "Xac nhan de xuat"}
+                </button>
+            )}
+            {canSupplierConfirm && (
+                <button
+                    type="button"
+                    onClick={handleSupplierConfirm}
+                    disabled={confirming}
+                    className="w-full mt-2 rounded-lg border border-amber-500 text-amber-700 text-xs font-semibold py-2 hover:bg-amber-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                    {confirming ? "Dang chuyen..." : "Supplier chap nhan thiet hai"}
+                </button>
+            )}
+            {!canCustomerConfirm && (
+                <p
+                    className={`mt-2 text-[11px] font-semibold rounded-md border px-2 py-1 inline-block ${statusMeta.color} ${statusMeta.bg} ${statusMeta.border}`}
+                >
+                    {statusMeta.text}
+                </p>
+            )}
+        </div>
     );
 };
 

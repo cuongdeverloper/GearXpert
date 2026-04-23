@@ -19,6 +19,7 @@ const Wallet = require("../../models/Wallet");
 const WalletTransaction = require("../../models/WalletTransaction");
 
 const DeviceItem = require("../../models/DeviceItem");
+const CompensationProposal = require("../../models/CompensationProposal");
 
 const DeliveryTask = require("../../models/DeliveryTask");
 
@@ -72,6 +73,106 @@ const { emitOperationStaffUpdate } = require("../../utils/operationStaffSocket")
 
 const SupplierProfile = require("../../models/SupplierProfile");
 const { HandoverRecord, HANDOVER_STATUS } = require("../../models/HandoverRecord");
+const toCompensationProposalDto = (proposal) => {
+  if (!proposal) return null;
+  return {
+    _id: proposal._id,
+    proposedBy: proposal.proposedBy,
+    amount: proposal.amount ?? 0,
+    currency: proposal.currency || "VND",
+    reason: proposal.reason || "",
+    explanation: proposal.explanation || "",
+    suggestedResolution: proposal.suggestedResolution,
+    images: Array.isArray(proposal.images) ? proposal.images : [],
+    submittedAt: proposal.submittedAt || proposal.createdAt,
+    forwardedToCustomerAt: proposal.forwardedToCustomerAt,
+    forwardedMessagePreview: proposal.forwardedMessagePreview || "",
+    customerDecision: proposal.customerDecision || "PENDING",
+    customerDecidedAt: proposal.customerDecidedAt,
+    customerDecidedBy: proposal.customerDecidedBy,
+    customerDecisionNote: proposal.customerDecisionNote || "",
+    supplierDecision: proposal.supplierDecision || "PENDING",
+    supplierDecidedAt: proposal.supplierDecidedAt,
+    supplierDecidedBy: proposal.supplierDecidedBy,
+    supplierDecisionNote: proposal.supplierDecisionNote || "",
+    adminDecision: proposal.adminDecision || "PENDING",
+    adminDecidedAt: proposal.adminDecidedAt,
+    adminDecidedBy: proposal.adminDecidedBy,
+    adminDecisionNote: proposal.adminDecisionNote || "",
+    approvedCompensationAmount: proposal.approvedCompensationAmount ?? 0,
+    flowStatus: proposal.flowStatus || "PROPOSED",
+    appliedToDeposit: Boolean(proposal.appliedToDeposit),
+    appliedToDepositAt: proposal.appliedToDepositAt,
+    deductedFromDepositAmount: proposal.deductedFromDepositAmount ?? 0,
+  };
+};
+
+const attachLatestCompensationProposal = async ({
+  deliveryIssues = [],
+  damageReports = [],
+}) => {
+  const toObjectIdList = (items = []) =>
+    items
+      .map((item) => item?._id)
+      .filter((id) => mongoose.Types.ObjectId.isValid(id))
+      .map((id) => new mongoose.Types.ObjectId(id));
+
+  const deliveryIds = toObjectIdList(deliveryIssues);
+  const damageIds = toObjectIdList(damageReports);
+
+  const orConditions = [];
+  if (deliveryIds.length) {
+    orConditions.push({
+      referenceModel: "DeliveryIssueReport",
+      referenceId: { $in: deliveryIds },
+    });
+  }
+  if (damageIds.length) {
+    orConditions.push({
+      referenceModel: "DamageReport",
+      referenceId: { $in: damageIds },
+    });
+  }
+
+  const proposalMap = new Map();
+  if (orConditions.length) {
+    const latestProposals = await CompensationProposal.aggregate([
+      { $match: { $or: orConditions } },
+      { $sort: { submittedAt: -1, createdAt: -1 } },
+      {
+        $group: {
+          _id: {
+            referenceModel: "$referenceModel",
+            referenceId: "$referenceId",
+          },
+          proposal: { $first: "$$ROOT" },
+        },
+      },
+    ]);
+
+    latestProposals.forEach((entry) => {
+      const model = entry?._id?.referenceModel;
+      const referenceId = entry?._id?.referenceId;
+      if (!model || !referenceId) return;
+      proposalMap.set(
+        `${model}:${String(referenceId)}`,
+        toCompensationProposalDto(entry.proposal)
+      );
+    });
+  }
+
+  const mapIssues = (items = [], modelName) =>
+    items.map((item) => {
+      const proposal = proposalMap.get(`${modelName}:${String(item?._id)}`) || null;
+      return { ...item, compensationProposal: proposal };
+    });
+
+  return {
+    deliveryIssues: mapIssues(deliveryIssues, "DeliveryIssueReport"),
+    damageReports: mapIssues(damageReports, "DamageReport"),
+  };
+};
+
 
 
 
@@ -471,7 +572,7 @@ exports.getRentalById = async (req, res) => {
 
           .model("DeliveryIssueReport")
 
-          .find({ rentalItemId: item._id })
+          .find({ rentalItemIds: { $in: [item._id] } })
 
           .sort({ createdAt: -1 })
 
@@ -503,13 +604,18 @@ exports.getRentalById = async (req, res) => {
 
 
 
+        const issuesWithProposals = await attachLatestCompensationProposal({
+          deliveryIssues,
+          damageReports,
+        });
+
         return {
 
           ...item,
 
-          deliveryIssues,
+          deliveryIssues: issuesWithProposals.deliveryIssues,
 
-          damageReports,
+          damageReports: issuesWithProposals.damageReports,
 
           serialNumbers: item.deviceItemIds?.map((d) => d.serialNumber) || [],
 
@@ -4776,7 +4882,6 @@ exports.turn = exports.confirmReturn = async (req, res) => {
 
 
     // Hoàn cọc cho khách (nếu không forfeit)
-
     if (rental.depositAmount > 0) {
 
       const customerWallet = await Wallet.findOne({
@@ -4913,7 +5018,7 @@ exports.turn = exports.confirmReturn = async (req, res) => {
 
           type: "DEPOSIT_RELEASE",
 
-          amount: -rental.depositAmount, // Giảm tiền cọc tạm giữ
+          amount: -rental.depositAmount, // Giải phóng toàn bộ cọc đã tạm giữ
 
           balanceBefore: adminBefore - rentAfterDiscount - supplierReceive,
 

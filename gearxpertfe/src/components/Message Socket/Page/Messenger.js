@@ -12,6 +12,7 @@ import Peer from "simple-peer";
 import VideoCallModal from "../../VideoCallModal/VideoCallModal";
 import ChatInfo from "../components/ChatInfor/ChatInfo";
 import Header from "../../navigation/Header";
+import { getChatDisplayProfile } from "../chatDisplay";
 
 const Messenger = () => {
   const { conversationId } = useParams();
@@ -91,7 +92,8 @@ const Messenger = () => {
             const friendInfo = await ApiGetUserByUserId(friendId);
             return {
               ...conv,
-              friendName: friendInfo?.fullName || friendInfo?.username || "",
+              friendInfo,
+              friendName: getChatDisplayProfile(friendInfo).name || "",
               friendId: friendId
             };
           }
@@ -110,7 +112,9 @@ const Messenger = () => {
 
   useEffect(() => {
     if (!conversationId || conversations.length === 0) return;
-    const matched = conversations.find((c) => c._id === conversationId);
+    const matched = conversations.find(
+      (c) => c._id != null && String(c._id) === String(conversationId)
+    );
     if (matched) setCurrentChat(matched);
   }, [conversationId, conversations]);
 
@@ -131,10 +135,14 @@ const Messenger = () => {
     if (!socket) return;
     socket.on("getMessage", (data) => {
       setArrivalMessage({
-        sender: data.senderId,
+        _id: data._id || undefined,
+        sender: { _id: data.senderId },
         text: data.text,
         image: data.image,
-        createdAt: Date.now(),
+        type: data.type || "text",
+        payload: data.payload || null,
+        createdAt: data.createdAt || Date.now(),
+        seen: Boolean(data.seen),
         conversationId: data.conversationId,
         textPreview: data.text || (data.image ? "Đã gửi một ảnh" : "")
       });
@@ -163,7 +171,11 @@ const Messenger = () => {
 
   useEffect(() => {
     if (!arrivalMessage) return;
-    if (currentChat && arrivalMessage.conversationId === currentChat._id) {
+    const sameConv =
+      currentChat?._id != null &&
+      arrivalMessage?.conversationId != null &&
+      String(arrivalMessage.conversationId) === String(currentChat._id);
+    if (currentChat && sameConv) {
       setMessages((prev) => [...prev, arrivalMessage]);
     } else {
       toast.info(`💬 Tin nhắn mới: "${arrivalMessage.textPreview}"`);
@@ -172,11 +184,17 @@ const Messenger = () => {
 
   useEffect(() => {
     if (!socket) return;
-    socket.on("messageSeen", ({ conversationId }) => {
-      if (currentChat && currentChat._id === conversationId) {
+    socket.on("messageSeen", ({ conversationId: seenConvId }) => {
+      const same =
+        currentChat?._id != null &&
+        seenConvId != null &&
+        String(currentChat._id) === String(seenConvId);
+      if (currentChat && same) {
         setMessages((prevMessages) =>
           prevMessages.map((msg) =>
-            msg.sender._id === user.account.id ? { ...msg, seen: true } : msg
+            String(msg.sender?._id) === String(user.account.id)
+              ? { ...msg, seen: true }
+              : msg
           )
         );
       }
@@ -358,13 +376,7 @@ const Messenger = () => {
       if (!imageUrl) return;
     }
 
-    socket.emit("sendMessage", {
-      senderId: user.account.id,
-      receiverId,
-      text: newMessage,
-      image: imageUrl,
-      conversationId: currentChat._id,
-    });
+    // Backend ApiSendMessage đã emit "getMessage" tới người nhận; không dùng socket.js sendMessage (trùng sự kiện).
 
     try {
       const data = await ApiSendMessage(receiverId, newMessage, currentChat._id, imageUrl);

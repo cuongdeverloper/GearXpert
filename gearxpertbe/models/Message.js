@@ -22,7 +22,11 @@ const MessageSchema = new mongoose.Schema(
     type: {
       type: String,
       default: "text", 
-      enum: ["text", "image", "call"]
+      enum: ["text", "image", "call", "compensation_proposal"]
+    },
+    payload: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
     },
     deletedBy: [
       {

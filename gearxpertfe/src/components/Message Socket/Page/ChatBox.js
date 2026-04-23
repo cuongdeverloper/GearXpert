@@ -3,6 +3,7 @@ import Message from "../components/message/Message";
 import EmojiPicker from "emoji-picker-react";
 import { ApiMarkMessagesAsSeen } from "../ApiMessage";
 import "./ChatBox.scss"; 
+import { getChatDisplayProfile } from "../chatDisplay";
 
 const ChatBox = ({
   currentChat,
@@ -21,6 +22,7 @@ const ChatBox = ({
   handleDeleteMessage,
   isReceiverOnline,
 }) => {
+  const receiverDisplay = getChatDisplayProfile(receiver);
   const chatTopRef = useRef();
   const imageInputRef = useRef(); 
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -75,7 +77,7 @@ const ChatBox = ({
             <div className="chatHeaderLeft">
               <div className="userAvatarContainer">
                  <img
-                    src={receiver?.avatar || "/default-avatar.png"}
+                    src={receiverDisplay.avatar}
                     alt="avatar"
                     className="chatHeaderAvatar"
                 />
@@ -83,7 +85,7 @@ const ChatBox = ({
               </div>
               
               <div className="chatHeaderInfo">
-                <span className="chatHeaderName">{receiver?.fullName || "User"}</span>
+                <span className="chatHeaderName">{receiverDisplay.name || "User"}</span>
                 <span className="chatHeaderStatus">
                     {isReceiverOnline ? "Active now" : "Offline"}
                 </span>
@@ -115,8 +117,8 @@ const ChatBox = ({
           >
             {messages.length === 0 ? (
               <div className="noMessageContainer">
-                 <img src={receiver?.avatar || "/default-avatar.png"} alt="" className="noMessageAvatar"/>
-                 <p className="noMessageName">{receiver?.username}</p>
+                 <img src={receiverDisplay.avatar} alt="" className="noMessageAvatar"/>
+                 <p className="noMessageName">{receiverDisplay.name}</p>
                  <span className="noMessageText">You are friends on Messenger</span>
               </div>
             ) : (
@@ -139,7 +141,7 @@ const ChatBox = ({
                     
                     {isLastMessage && isOwnMessage && m.seen && (
                       <div className="seenStatus">
-                          <img src={receiver?.avatar || "/default-avatar.png"} alt="Seen" className="seenAvatarTiny"/>
+                          <img src={receiverDisplay.avatar} alt="Seen" className="seenAvatarTiny"/>
                       </div>
                     )}
                       {isLastMessage && isOwnMessage && !m.seen && (
