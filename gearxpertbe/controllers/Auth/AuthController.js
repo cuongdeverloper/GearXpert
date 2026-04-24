@@ -1,6 +1,7 @@
 const { createJWT, createRefreshToken, verifyAccessToken, createJWTResetPassword, createJWTVerifyEmail, createJWTOtp } = require('../../middleware/JWTAction');
 const bcrypt = require('bcryptjs');
 const uploadCloud = require('../../configs/cloudinaryConfig');
+const cloudinary = require('cloudinary').v2;
 const { sendMail } = require('../../configs/sendMail');
 const { registrationTemplate, passwordResetTemplate, otpPasswordChangeTemplate } = require('../../utils/EmailTemplates');
 
@@ -60,7 +61,8 @@ const apiLogin = async (req, res) => {
                 walletBalance: walletBalance,
                 rewardPoints: userRecord.rewardPoints,
                 isVerified: userRecord.isVerified,
-                isVerifiedEkyc: userRecord.isVerifiedEkyc
+                isVerifiedEkyc: userRecord.isVerifiedEkyc,
+                signatureUrl: userRecord.signatureUrl
             }
         });
     } catch (error) {
@@ -355,7 +357,8 @@ const getCurrentUser = async (req, res) => {
                 walletBalance: walletBalance,
                 rewardPoints: userRecord.rewardPoints,
                 isVerified: userRecord.isVerified,
-                isVerifiedEkyc: userRecord.isVerifiedEkyc
+                isVerifiedEkyc: userRecord.isVerifiedEkyc,
+                signatureUrl: userRecord.signatureUrl
             }
         });
     } catch (error) {
@@ -420,7 +423,8 @@ const updateProfile = async (req, res) => {
                             walletBalance: walletBalance,
                             rewardPoints: userRecord.rewardPoints,
                             isVerified: userRecord.isVerified,
-                            isVerifiedEkyc: userRecord.isVerifiedEkyc
+                            isVerifiedEkyc: userRecord.isVerifiedEkyc,
+                            signatureUrl: userRecord.signatureUrl
                         }
                     });
                     resolve();
@@ -437,8 +441,40 @@ const updateProfile = async (req, res) => {
     }
 };
 
+const apiSaveSignature = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { signatureDataUrl } = req.body;
+
+        if (!signatureDataUrl) {
+            return res.status(400).json({ errorCode: 1, message: 'Signature data is required' });
+        }
+
+        // Upload to Cloudinary
+        const uploadResponse = await cloudinary.uploader.upload(signatureDataUrl, {
+            folder: 'gearxpert/signatures',
+            public_id: `sig-${userId}-${Date.now()}`,
+            resource_type: 'image'
+        });
+
+        const signatureUrl = uploadResponse.secure_url;
+
+        // Update user
+        const user = await User.findByIdAndUpdate(userId, { signatureUrl }, { new: true });
+
+        return res.status(200).json({
+            errorCode: 0,
+            message: 'Signature saved successfully',
+            data: { signatureUrl: user.signatureUrl }
+        });
+    } catch (error) {
+        console.error('Save Signature Error:', error);
+        return res.status(500).json({ errorCode: 5, message: 'Failed to save signature' });
+    }
+};
+
 module.exports = {
     apiLogin, apiRegister,
     requestPasswordReset, resetPassword, changePassword, verifyAccountByLink,
-    getCurrentUser, updateProfile, sendOTPForPasswordChange
+    getCurrentUser, updateProfile, sendOTPForPasswordChange, apiSaveSignature
 };

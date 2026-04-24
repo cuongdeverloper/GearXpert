@@ -497,7 +497,8 @@ exports.deleteReview = async (req, res) => {
       io.to(`device_${deviceId}`).emit("deviceReviewUpdate", { type: "REVIEW_DELETE", deviceId });
     }
 
-    // Rating trung bình sẽ tự cập nhật nhờ post hook (nếu bạn xóa thì cần trigger lại hoặc để hook xử lý)
+    // Trình cập nhật lại rating trung bình
+    await Review.updateDeviceAndSupplierRatings(deviceId);
 
     res.json({ message: 'Đã xóa review thành công' });
   } catch (err) {

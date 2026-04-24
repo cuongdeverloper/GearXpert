@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { getCurrentUser, updateProfile, changePassword, sendOTPForPasswordChange } from '../../service/ApiService/AuthApi';
+import { getCurrentUser, updateProfile, changePassword, sendOTPForPasswordChange, saveSignature } from '../../service/ApiService/AuthApi';
+import SignatureCanvas from 'react-signature-canvas';
 import { getMySupplierContract } from '../../service/ApiService/SupplierApi';
 import { doLogin, doLogout } from '../../redux/action/userAction';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -29,6 +30,12 @@ export default function ProfilePage() {
     const [showEkycModal, setShowEkycModal] = useState(false);
     const [supplierContract, setSupplierContract] = useState(null);
     const fileInputRef = useRef(null);
+
+    // Signature state
+    const [signatureUrl, setSignatureUrl] = useState('');
+    const sigCanvas = useRef({});
+    const [isSavingSignature, setIsSavingSignature] = useState(false);
+    const [isEditingSignature, setIsEditingSignature] = useState(false);
 
     // OTP state
     const [otpSent, setOtpSent] = useState(false);
@@ -103,6 +110,10 @@ export default function ProfilePage() {
                     city: data.address?.city || '',
                 });
 
+                if (data.signatureUrl) {
+                    setSignatureUrl(data.signatureUrl);
+                }
+
                 if (data.avatar) {
                     setAvatarPreview(data.avatar);
                 }
@@ -125,6 +136,7 @@ export default function ProfilePage() {
                         rewardPoints: data.rewardPoints,
                         isVerified: data.isVerified,
                         isVerifiedEkyc: data.isVerifiedEkyc,
+                        signatureUrl: data.signatureUrl,
                     }
                 }));
             }
@@ -254,6 +266,7 @@ export default function ProfilePage() {
                         rewardPoints: data.rewardPoints,
                         isVerified: data.isVerified,
                         isVerifiedEkyc: data.isVerifiedEkyc,
+                        signatureUrl: data.signatureUrl,
                     }
                 }));
 
@@ -362,6 +375,50 @@ export default function ProfilePage() {
     const handleReLogin = () => {
         dispatch(doLogout());
         navigate('/signin');
+    };
+
+    const handleSaveSignature = async () => {
+        if (!sigCanvas.current || sigCanvas.current.isEmpty()) {
+            toast.warning(t('profile.error_empty_signature', { defaultValue: 'Vui lòng ký trước khi lưu' }));
+            return;
+        }
+
+        setIsSavingSignature(true);
+        try {
+            let canvasToUse;
+            try {
+                canvasToUse = sigCanvas.current.getTrimmedCanvas();
+            } catch (trimErr) {
+                console.warn("getTrimmedCanvas failed, falling back to full canvas:", trimErr);
+                canvasToUse = sigCanvas.current.getCanvas();
+            }
+            const dataUrl = canvasToUse.toDataURL('image/png');
+            const response = await saveSignature(dataUrl);
+            
+            if (response.errorCode === 0) {
+                toast.success(t('profile.success_save_signature', { defaultValue: 'Đã lưu chữ ký thành công' }));
+                setSignatureUrl(response.data.signatureUrl);
+                setIsEditingSignature(false);
+                
+                // Update local account data to reflect the new signature
+                const updatedAccount = { ...userAccount, signatureUrl: response.data.signatureUrl };
+                dispatch(doLogin({ 
+                    data: { 
+                        ...updatedAccount, 
+                        id: userAccount.id,
+                        access_token: userAccount.access_token, 
+                        refresh_token: userAccount.refresh_token 
+                    } 
+                }));
+            } else {
+                toast.error(response.message || 'Lỗi khi lưu chữ ký');
+            }
+        } catch (error) {
+            console.error('Error saving signature:', error);
+            toast.error(t('profile.error_save_signature', { defaultValue: 'Không thể lưu chữ ký. Vui lòng thử lại.' }));
+        } finally {
+            setIsSavingSignature(false);
+        }
     };
 
     const formatRank = (rank) => {
@@ -734,6 +791,98 @@ export default function ProfilePage() {
                                         </button>
                                     </div>
                                 </form>
+                            </div>
+
+                            {/* Digital Signature Section */}
+                            <div className="bg-white/90 backdrop-blur-lg rounded-2xl shadow-xl hover:shadow-glow-cyan border border-slate-200/50 p-6 md:p-8 transition-all duration-300">
+                                <div className="flex items-center justify-between mb-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 flex-shrink-0 bg-indigo-500/10 rounded-full flex items-center justify-center shadow-sm">
+                                            <span className="material-symbols-outlined text-indigo-500 text-xl">draw</span>
+                                        </div>
+                                        <h2 className="text-2xl font-bold text-slate-900 font-display">
+                                            {t('profile.digital_signature', { defaultValue: 'Chữ ký điện tử' })}
+                                        </h2>
+                                    </div>
+                                    {!isEditingSignature && signatureUrl && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsEditingSignature(true)}
+                                            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg font-bold text-sm hover:bg-indigo-100 transition-all border border-indigo-100 shadow-sm"
+                                        >
+                                            <span className="material-symbols-outlined text-[18px]">edit</span>
+                                            {t('profile.edit_signature', { defaultValue: 'Thay đổi chữ ký' })}
+                                        </button>
+                                    )}
+                                </div>
+
+                                {isEditingSignature || !signatureUrl ? (
+                                    <div className="space-y-6 animate-fade-in">
+                                        <div className="p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-300">
+                                            <div className="bg-white rounded-xl shadow-inner overflow-hidden">
+                                                <SignatureCanvas
+                                                    ref={sigCanvas}
+                                                    penColor="black"
+                                                    canvasProps={{
+                                                        width: 800,
+                                                        height: 200,
+                                                        className: "w-full h-40 cursor-crosshair"
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <p className="text-sm text-slate-500 italic">
+                                                {t('profile.signature_hint', { defaultValue: '* Vẽ chữ ký của bạn vào khung trên. Chữ ký này sẽ được sử dụng trong các hợp đồng thuê đồ.' })}
+                                            </p>
+                                            <div className="flex gap-3">
+                                                {signatureUrl && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setIsEditingSignature(false)}
+                                                        className="px-6 py-2 border border-slate-300 rounded-lg text-slate-700 font-bold hover:bg-slate-50 transition-all"
+                                                    >
+                                                        {t('common.cancel')}
+                                                    </button>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => sigCanvas.current.clear()}
+                                                    className="px-6 py-2 bg-red-50 text-red-600 rounded-lg font-bold hover:bg-red-100 transition-all"
+                                                >
+                                                    {t('profile.clear_signature', { defaultValue: 'Xóa' })}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    disabled={isSavingSignature}
+                                                    onClick={handleSaveSignature}
+                                                    className="px-8 py-2 bg-slate-900 text-white rounded-lg font-bold hover:bg-slate-800 transition-all flex items-center gap-2"
+                                                >
+                                                    {isSavingSignature ? (
+                                                        <span className="material-symbols-outlined animate-spin">sync</span>
+                                                    ) : (
+                                                        <span className="material-symbols-outlined">save</span>
+                                                    )}
+                                                    {t('common.save')}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border border-slate-200">
+                                        <div className="bg-white p-4 rounded-xl shadow-md mb-4 w-full flex justify-center">
+                                            <img 
+                                                src={signatureUrl} 
+                                                alt="My Signature" 
+                                                className="max-h-32 object-contain"
+                                                referrerPolicy="no-referrer"
+                                            />
+                                        </div>
+                                        <p className="text-sm text-slate-500">
+                                            {t('profile.signature_stored', { defaultValue: 'Chữ ký của bạn đã được lưu an toàn' })}
+                                        </p>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Change Password Form */}

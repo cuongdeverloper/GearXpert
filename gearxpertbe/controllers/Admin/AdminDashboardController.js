@@ -186,6 +186,7 @@ exports.getAdminReports = async (req, res) => {
     const topDevice = await Device.find().sort({ ratingAvg: -1 }).limit(1);
     const topDeviceName = topDevice[0]?.name || "N/A";
     const avgRatingResult = await Device.aggregate([
+      { $match: { reviewCount: { $gt: 0 } } },
       { $group: { _id: null, avgRating: { $avg: "$ratingAvg" } } },
     ]);
     const averageRating = Number(avgRatingResult[0]?.avgRating || 0).toFixed(1);
