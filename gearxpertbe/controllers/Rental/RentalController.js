@@ -20,6 +20,8 @@ const Wallet = require("../../models/Wallet");
 const WalletTransaction = require("../../models/WalletTransaction");
 
 const DeviceItem = require("../../models/DeviceItem");
+const CompensationProposal = require("../../models/CompensationProposal");
+const { compensationAuditLog } = require("../../utils/compensationAuditLog");
 
 const DeliveryTask = require("../../models/DeliveryTask");
 
@@ -65,10 +67,114 @@ const {
 
 const SupplierProfile = require("../../models/SupplierProfile");
 
-const {
-  HandoverRecord,
-  HANDOVER_STATUS,
-} = require("../../models/HandoverRecord");
+const { HandoverRecord, HANDOVER_STATUS } = require("../../models/HandoverRecord");
+
+const toCompensationProposalDto = (proposal) => {
+  if (!proposal) return null;
+  return {
+    _id: proposal._id,
+    proposedBy: proposal.proposedBy,
+    amount: proposal.amount ?? 0,
+    currency: proposal.currency || "VND",
+    reason: proposal.reason || "",
+    explanation: proposal.explanation || "",
+    suggestedResolution: proposal.suggestedResolution,
+    images: Array.isArray(proposal.images) ? proposal.images : [],
+    submittedAt: proposal.submittedAt || proposal.createdAt,
+    forwardedToCustomerAt: proposal.forwardedToCustomerAt,
+    forwardedMessagePreview: proposal.forwardedMessagePreview || "",
+    customerDecision: proposal.customerDecision || "PENDING",
+    customerDecidedAt: proposal.customerDecidedAt,
+    customerDecidedBy: proposal.customerDecidedBy,
+    customerDecisionNote: proposal.customerDecisionNote || "",
+    supplierDecision: proposal.supplierDecision || "PENDING",
+    supplierDecidedAt: proposal.supplierDecidedAt,
+    supplierDecidedBy: proposal.supplierDecidedBy,
+    supplierDecisionNote: proposal.supplierDecisionNote || "",
+    adminDecision: proposal.adminDecision || "PENDING",
+    adminDecidedAt: proposal.adminDecidedAt,
+    adminDecidedBy: proposal.adminDecidedBy,
+    adminDecisionNote: proposal.adminDecisionNote || "",
+    approvedCompensationAmount: proposal.approvedCompensationAmount ?? 0,
+    flowStatus: proposal.flowStatus || "PROPOSED",
+    appliedToDeposit: Boolean(proposal.appliedToDeposit),
+    appliedToDepositAt: proposal.appliedToDepositAt,
+    deductedFromDepositAmount: proposal.deductedFromDepositAmount ?? 0,
+  };
+};
+
+const attachLatestCompensationProposal = async ({
+  deliveryIssues = [],
+  damageReports = [],
+}) => {
+  const toObjectIdList = (items = []) =>
+    items
+      .map((item) => item?._id)
+      .filter((id) => mongoose.Types.ObjectId.isValid(id))
+      .map((id) => new mongoose.Types.ObjectId(id));
+
+  const deliveryIds = toObjectIdList(deliveryIssues);
+  const damageIds = toObjectIdList(damageReports);
+
+  const orConditions = [];
+  if (deliveryIds.length) {
+    orConditions.push({
+      referenceModel: "DeliveryIssueReport",
+      referenceId: { $in: deliveryIds },
+    });
+  }
+  if (damageIds.length) {
+    orConditions.push({
+      referenceModel: "DamageReport",
+      referenceId: { $in: damageIds },
+    });
+  }
+
+  const proposalMap = new Map();
+  if (orConditions.length) {
+    const latestProposals = await CompensationProposal.aggregate([
+      { $match: { $or: orConditions } },
+      { $sort: { submittedAt: -1, createdAt: -1 } },
+      {
+        $group: {
+          _id: {
+            referenceModel: "$referenceModel",
+            referenceId: "$referenceId",
+          },
+          proposal: { $first: "$$ROOT" },
+        },
+      },
+    ]);
+
+    latestProposals.forEach((entry) => {
+      const model = entry?._id?.referenceModel;
+      const referenceId = entry?._id?.referenceId;
+      if (!model || !referenceId) return;
+      proposalMap.set(
+        `${model}:${String(referenceId)}`,
+        toCompensationProposalDto(entry.proposal)
+      );
+    });
+  }
+
+  const mapIssues = (items = [], modelName) =>
+    items.map((item) => {
+      const proposal = proposalMap.get(`${modelName}:${String(item?._id)}`) || null;
+      return { ...item, compensationProposal: proposal };
+    });
+
+  return {
+    deliveryIssues: mapIssues(deliveryIssues, "DeliveryIssueReport"),
+    damageReports: mapIssues(damageReports, "DamageReport"),
+  };
+};
+
+
+
+
+
+
+
 
 // Helper function to get client IP
 
@@ -363,7 +469,7 @@ exports.getRentalById = async (req, res) => {
 
           .model("DeliveryIssueReport")
 
-          .find({ rentalItemId: item._id })
+          .find({ rentalItemIds: { $in: [item._id] } })
 
           .sort({ createdAt: -1 })
 
@@ -387,12 +493,19 @@ exports.getRentalById = async (req, res) => {
 
           .lean();
 
+
+
+        const issuesWithProposals = await attachLatestCompensationProposal({
+          deliveryIssues,
+          damageReports,
+        });
+
         return {
           ...item,
 
-          deliveryIssues,
+          deliveryIssues: issuesWithProposals.deliveryIssues,
 
-          damageReports,
+          damageReports: issuesWithProposals.damageReports,
 
           serialNumbers: item.deviceItemIds?.map((d) => d.serialNumber) || [],
 
@@ -3833,346 +3946,430 @@ exports.confirmPickup = async (req, res) => {
   }
 };
 
+/**
+ * Quyết toán trả hàng (payout, hoàn cọc net, biên bản return) — dùng chung.
+ * @param {import("mongoose").ClientSession} session
+ * @param {boolean} [options.requireApprovedCompensation] — bắt buộc đã có CompensationProposal ADMIN_APPROVED (bước đóng sau bồi thường)
+ */
+async function executeConfirmReturnSettlement(session, req, options = {}) {
+  const { requireApprovedCompensation = false } = options;
+
+  const { rentalId } = req.params;
+
+  const rental = await Rental.findById(rentalId).session(session);
+
+  const actorId = req.user?.id;
+
+  const actorRole = req.user?.role;
+
+  if (!rental) throw new Error("Không tìm thấy đơn thuê");
+
+  if (actorRole === "OPERATION_STAFF") {
+    if (!rental.assignedOperationStaffId) {
+      throw new Error("Đơn chưa có staff được phân công");
+    }
+
+    if (String(rental.assignedOperationStaffId) !== String(actorId)) {
+      throw new Error("Đơn đang được lock cho staff khác");
+    }
+  }
+
+  if (requireApprovedCompensation) {
+    const approvedExists = await CompensationProposal.findOne({
+      rentalId: rental._id,
+      flowStatus: "ADMIN_APPROVED",
+    })
+      .select("_id")
+      .session(session)
+      .lean();
+    if (!approvedExists) {
+      throw new Error(
+        "Chưa có đề xuất bồi thường ở trạng thái admin đã duyệt. Hãy duyệt bồi thường trước, hoặc dùng POST /confirm-return thay cho bước này."
+      );
+    }
+    compensationAuditLog("CONFIRM_RETURN_AFTER_COMPENSATION", {
+      rentalId: String(rental._id),
+    });
+  }
+
+  if (rental.status !== "RETURNING") {
+    throw new Error("Đơn chưa ở trạng thái trả hàng");
+  }
+
+  const parsedBody = req.body || {};
+
+  const requestedInspection = tryParseJsonField(parsedBody.inspection);
+
+  const requestedSettlement = tryParseJsonField(parsedBody.settlement);
+
+  const uploadedUrls = extractUploadedUrls(req.files);
+
+  const returnDraft = await ensureDraftForReturn({
+    rentalId: rental._id,
+
+    staffId: actorId,
+
+    actorId,
+
+    session,
+  });
+
+  // Giả sử đã kiểm tra thiết bị OK (không hỏng, không forfeit deposit)
+
+  // → Payout tiền thuê cho supplier (sau trừ phí nền tảng)
+
+  const PLATFORM_FEE_RATE = 0.1; // 10% phí nền tảng
+
+  const rentAfterDiscount = rental.rentPriceTotal; // Không có discount trong confirmReturn
+
+  const platformFee = Math.round(rentAfterDiscount * PLATFORM_FEE_RATE);
+
+  const supplierReceive = rentAfterDiscount - platformFee;
+
+  // Tính số tiền escrow cần giải phóng: tiền thuê đã trừ phí (không bao gồm deliveryFee)
+
+  // deliveryFee là thu nhập của admin (đã có SHIPPING_FEE transaction riêng)
+
+  const escrowReleaseAmount = rentAfterDiscount - platformFee;
+
+  const supplierWallet = await Wallet.findOne({
+    user: rental.supplierId,
+  }).session(session);
+
+  if (!supplierWallet) throw new Error("Không tìm thấy ví supplier");
+
+  const supBefore = supplierWallet.balance;
+
+  supplierWallet.balance += supplierReceive;
+
+  await supplierWallet.save({ session });
+
+  await WalletTransaction.create(
+    [
+      {
+        wallet: supplierWallet._id,
+
+        type: "PAYOUT",
+
+        amount: supplierReceive,
+
+        balanceBefore: supBefore,
+
+        balanceAfter: supplierWallet.balance,
+
+        referenceType: "RENTAL",
+
+        referenceId: rental._id,
+
+        description: `Payout tiền thuê đơn #${rental._id
+
+          .toString()
+
+          .slice(-6)}`,
+
+        status: "SUCCESS",
+      },
+    ],
+
+    { session, ordered: true },
+  );
+
+  // Tổng cọc đã chuyển cho NCC khi admin duyệt bồi thường (REQUEST_GX_REVIEW + cọc HELD) — khớp compensationWalletSettlementService
+  const [depositCompRow] = await CompensationProposal.aggregate([
+    { $match: { rentalId: rental._id, flowStatus: "ADMIN_APPROVED" } },
+    { $group: { _id: null, total: { $sum: { $ifNull: ["$deductedFromDepositAmount", 0] } } } },
+  ]).session(session);
+  const totalDepositUsedForCompensation = Math.max(0, depositCompRow?.total || 0);
+  const depositRefundToCustomer = Math.max(
+    0,
+    rental.depositAmount - totalDepositUsedForCompensation
+  );
+  compensationAuditLog("CONFIRM_RETURN_DEPOSIT", {
+    rentalId: String(rental._id),
+    depositOnRecord: rental.depositAmount,
+    totalDepositUsedForCompensation,
+    depositRefundToCustomer,
+  });
+
+  // Hoàn cọc cho khách (nếu không forfeit) — phần còn trong escrow sau trừ bồi thường từ cọc (nếu có)
+
+  if (depositRefundToCustomer > 0) {
+    const customerWallet = await Wallet.findOne({
+      user: rental.customerId,
+    }).session(session);
+
+    if (customerWallet) {
+      const custBefore = customerWallet.balance;
+
+      customerWallet.balance += depositRefundToCustomer;
+
+      await customerWallet.save({ session });
+
+      await WalletTransaction.create(
+        [
+          {
+            wallet: customerWallet._id,
+
+            type: "DEPOSIT_REFUND",
+
+            amount: depositRefundToCustomer,
+
+            balanceBefore: custBefore,
+
+            balanceAfter: customerWallet.balance,
+
+            referenceType: "RENTAL",
+
+            referenceId: rental._id,
+
+            description:
+              totalDepositUsedForCompensation > 0
+                ? `Hoàn cọc còn lại (đã trừ bồi thường từ cọc) đơn #${rental._id.toString().slice(-6)}`
+                : `Hoàn cọc đơn #${rental._id.toString().slice(-6)}`,
+
+            status: "SUCCESS",
+          },
+        ],
+        { session, ordered: true },
+      );
+    }
+  }
+
+  // TRỪ tiền từ ví admin (escrow) để trả cho supplier và hoàn cọc khách
+
+  const adminWallet = await Wallet.findOne({ isSystem: true }).session(
+    session,
+  );
+
+  if (!adminWallet) throw new Error("Không tìm thấy ví hệ thống (admin)");
+
+  const totalDeductFromAdmin = supplierReceive + depositRefundToCustomer;
+
+  const adminBefore = adminWallet.balance;
+
+  if (adminWallet.balance < totalDeductFromAdmin) {
+    throw new Error("Số dư ví admin không đủ để thực hiện thanh toán");
+  }
+
+  adminWallet.balance -= totalDeductFromAdmin;
+
+  await adminWallet.save({ session });
+
+  // Ví hệ thống: một dòng giải phóng escrow tiền thuê (net sau phí) + một dòng giải phóng cọc.
+  // Không ghi thêm PAYOUT trên ví admin: tiền đó đã rời escrow ở ESCROW_RELEASE; PAYOUT (+) chỉ trên ví supplier.
+  const afterEscrow = adminBefore - escrowReleaseAmount;
+
+  await WalletTransaction.create(
+    [
+      {
+        wallet: adminWallet._id,
+
+        type: "ESCROW_RELEASE",
+
+        amount: -escrowReleaseAmount,
+
+        balanceBefore: adminBefore,
+
+        balanceAfter: afterEscrow,
+
+        referenceType: "RENTAL",
+
+        referenceId: rental._id,
+
+        description: `Giải phóng tiền thuê tạm giữ (trả NCC) đơn #${rental._id.toString().slice(-6)}`,
+
+        status: "SUCCESS",
+      },
+
+      {
+        wallet: adminWallet._id,
+
+        type: "DEPOSIT_RELEASE",
+
+        amount: -depositRefundToCustomer,
+
+        balanceBefore: afterEscrow,
+
+        balanceAfter: adminWallet.balance,
+
+        referenceType: "RENTAL",
+
+        referenceId: rental._id,
+
+        description:
+          totalDepositUsedForCompensation > 0
+            ? `Giải phóng tiền cọc còn lại (đã chuyển bồi thường) đơn #${rental._id.toString().slice(-6)}`
+            : `Giải phóng tiền cọc đơn #${rental._id.toString().slice(-6)}`,
+
+        status: "SUCCESS",
+      },
+    ],
+    { session, ordered: true },
+  );
+
+  // Platform fee và Shipping fee đã ở lại trong ví admin (không cần chuyển đi đâu)
+
+  // Update PLATFORM_FEE transaction to mark as earned
+
+  await WalletTransaction.updateOne(
+    {
+      wallet: adminWallet._id,
+
+      type: "PLATFORM_FEE",
+
+      referenceType: "RENTAL",
+
+      referenceId: rental._id,
+    },
+
+    {
+      $set: {
+        rentalStatus: "COMPLETED",
+
+        isEarned: true,
+      },
+    },
+
+    { session },
+  );
+
+  // Update SHIPPING_FEE transaction to mark as earned
+
+  await WalletTransaction.updateOne(
+    {
+      wallet: adminWallet._id,
+
+      type: "SHIPPING_FEE",
+
+      referenceType: "RENTAL",
+
+      referenceId: rental._id,
+    },
+
+    {
+      $set: {
+        rentalStatus: "COMPLETED",
+
+        isEarned: true,
+      },
+    },
+
+    { session },
+  );
+
+  // Cập nhật trạng thái cuối
+
+  rental.status = "COMPLETED";
+
+  rental.depositStatus = "REFUNDED";
+
+  rental.supplierPayoutStatus = "PAID";
+
+  rental.escrowStatus = "RELEASED";
+
+  // Gán paymentBreakdown để tránh validation error
+
+  rental.paymentBreakdown = {
+    rentAmount: rental.rentPriceTotal,
+
+    depositAmount: rental.depositAmount,
+
+    platformFee: platformFee,
+
+    supplierReceive: supplierReceive,
+  };
+
+  await rental.save({ session });
+
+  // Cập nhật trạng thái DeviceItems sang AVAILABLE
+
+  const rentalItems = await RentalItem.find({ rentalId: rental._id }).session(
+    session,
+  );
+
+  for (const rItem of rentalItems) {
+    if (rItem.deviceItemIds && rItem.deviceItemIds.length > 0) {
+      await DeviceItem.updateMany(
+        { _id: { $in: rItem.deviceItemIds } },
+
+        { $set: { status: "AVAILABLE" } },
+
+        { session },
+      );
+    }
+  }
+
+  const settlementPayload = requireApprovedCompensation
+    ? {
+        depositOutcome:
+          rental.depositAmount > 0
+            ? totalDepositUsedForCompensation > 0
+              ? "REFUND_PARTIAL"
+              : "REFUND_FULL"
+            : undefined,
+        deductedAmount: totalDepositUsedForCompensation,
+        disputeReason: "",
+        operatorNote: "Hoàn tất thu hồi sau khi admin đã chốt bồi thường (đóng case).",
+        ...(requestedSettlement || {}),
+      }
+    : {
+        depositOutcome: rental.depositAmount > 0 ? "REFUND_FULL" : undefined,
+        deductedAmount: 0,
+        disputeReason: "",
+        operatorNote: "Hoàn tất thu hồi - không phát hiện bất thường.",
+        ...(requestedSettlement || {}),
+      };
+
+  await completeReturn({
+    returnRecordId: returnDraft._id,
+
+    inspection: {
+      ...(returnDraft?.inspection || {}),
+
+      ...(requestedInspection || {}),
+
+      actualReturnedAt: requestedInspection?.actualReturnedAt || new Date(),
+
+      evidenceUrls: [
+        ...(Array.isArray(requestedInspection?.evidenceUrls)
+          ? requestedInspection.evidenceUrls
+          : []),
+
+        ...uploadedUrls,
+      ],
+    },
+
+    settlement: settlementPayload,
+
+    staffId: actorId,
+
+    actorId,
+
+    session,
+  });
+
+  return {
+    rental,
+    returnDraft,
+    supplierReceive,
+    depositRefundToCustomer,
+    totalDepositUsedForCompensation,
+    actorId,
+    requireApprovedCompensation,
+  };
+}
+
 exports.turn = exports.confirmReturn = async (req, res) => {
   const session = await mongoose.startSession();
 
   session.startTransaction();
 
   try {
-    const { rentalId } = req.params;
-
-    const rental = await Rental.findById(rentalId).session(session);
-
-    const actorId = req.user?.id;
-
-    const actorRole = req.user?.role;
-
-    if (!rental) throw new Error("Không tìm thấy đơn thuê");
-
-    if (actorRole === "OPERATION_STAFF") {
-      if (!rental.assignedOperationStaffId) {
-        throw new Error("Đơn chưa có staff được phân công");
-      }
-
-      if (String(rental.assignedOperationStaffId) !== String(actorId)) {
-        throw new Error("Đơn đang được lock cho staff khác");
-      }
-    }
-
-    if (rental.status !== "RETURNING") {
-      throw new Error("Đơn chưa ở trạng thái trả hàng");
-    }
-
-    const parsedBody = req.body || {};
-
-    const requestedInspection = tryParseJsonField(parsedBody.inspection);
-
-    const requestedSettlement = tryParseJsonField(parsedBody.settlement);
-
-    const uploadedUrls = extractUploadedUrls(req.files);
-
-    const returnDraft = await ensureDraftForReturn({
-      rentalId: rental._id,
-
-      staffId: actorId,
-
-      actorId,
-
-      session,
+    const out = await executeConfirmReturnSettlement(session, req, {
+      requireApprovedCompensation: false,
     });
-
-    // Giả sử đã kiểm tra thiết bị OK (không hỏng, không forfeit deposit)
-
-    // → Payout tiền thuê cho supplier (sau trừ phí nền tảng)
-
-    const PLATFORM_FEE_RATE = 0.1; // 10% phí nền tảng
-
-    const rentAfterDiscount = rental.rentPriceTotal; // Không có discount trong confirmReturn
-
-    const platformFee = Math.round(rentAfterDiscount * PLATFORM_FEE_RATE);
-
-    const supplierReceive = rentAfterDiscount - platformFee;
-
-    // Tính số tiền escrow cần giải phóng: tiền thuê đã trừ phí (không bao gồm deliveryFee)
-
-    // deliveryFee là thu nhập của admin (đã có SHIPPING_FEE transaction riêng)
-
-    const escrowReleaseAmount = rentAfterDiscount - platformFee;
-
-    const supplierWallet = await Wallet.findOne({
-      user: rental.supplierId,
-    }).session(session);
-
-    if (!supplierWallet) throw new Error("Không tìm thấy ví supplier");
-
-    const supBefore = supplierWallet.balance;
-
-    supplierWallet.balance += supplierReceive;
-
-    await supplierWallet.save({ session });
-
-    await WalletTransaction.create(
-      [
-        {
-          wallet: supplierWallet._id,
-
-          type: "PAYOUT",
-
-          amount: supplierReceive,
-
-          balanceBefore: supBefore,
-
-          balanceAfter: supplierWallet.balance,
-
-          referenceType: "RENTAL",
-
-          referenceId: rental._id,
-
-          description: `Payout tiền thuê đơn #${rental._id
-
-            .toString()
-
-            .slice(-6)}`,
-
-          status: "SUCCESS",
-        },
-      ],
-
-      { session, ordered: true },
-    );
-
-    // Hoàn cọc cho khách (nếu không forfeit)
-
-    if (rental.depositAmount > 0) {
-      const customerWallet = await Wallet.findOne({
-        user: rental.customerId,
-      }).session(session);
-
-      if (customerWallet) {
-        const custBefore = customerWallet.balance;
-
-        customerWallet.balance += rental.depositAmount;
-
-        await customerWallet.save({ session });
-
-        await WalletTransaction.create(
-          [
-            {
-              wallet: customerWallet._id,
-
-              type: "DEPOSIT_REFUND",
-
-              amount: rental.depositAmount,
-
-              balanceBefore: custBefore,
-
-              balanceAfter: customerWallet.balance,
-
-              referenceType: "RENTAL",
-
-              referenceId: rental._id,
-
-              description: `Hoàn cọc đơn #${rental._id.toString().slice(-6)}`,
-
-              status: "SUCCESS",
-            },
-          ],
-          { session, ordered: true },
-        );
-      }
-    }
-
-    // TRỪ tiền từ ví admin (escrow) để trả cho supplier và hoàn cọc khách
-
-    const adminWallet = await Wallet.findOne({ isSystem: true }).session(
-      session,
-    );
-
-    if (!adminWallet) throw new Error("Không tìm thấy ví hệ thống (admin)");
-
-    const totalDeductFromAdmin = supplierReceive + rental.depositAmount;
-
-    const adminBefore = adminWallet.balance;
-
-    if (adminWallet.balance < totalDeductFromAdmin) {
-      throw new Error("Số dư ví admin không đủ để thực hiện thanh toán");
-    }
-
-    adminWallet.balance -= totalDeductFromAdmin;
-
-    await adminWallet.save({ session });
-
-    // Tạo transactions giảm ESCROW_HOLD và DEPOSIT_HOLD riêng biệt
-    // Chỉ tạo 2 transactions tương ứng với số tiền thực tế bị trừ
-
-    let currentBalance = adminBefore;
-
-    const transactions = [];
-
-    // ESCROW_RELEASE: giải phóng tiền thuê cho supplier
-    if (supplierReceive > 0) {
-      const tx = {
-        wallet: adminWallet._id,
-        type: "ESCROW_RELEASE",
-        amount: -supplierReceive,
-        balanceBefore: currentBalance,
-        balanceAfter: currentBalance - supplierReceive,
-        referenceType: "RENTAL",
-        referenceId: rental._id,
-        description: `Giải phóng tiền thuê tạm giữ đơn #${rental._id.toString().slice(-6)}`,
-        status: "SUCCESS",
-      };
-      transactions.push(tx);
-      currentBalance -= supplierReceive;
-    }
-
-    // DEPOSIT_RELEASE: giải phóng tiền cọc để hoàn cho khách
-    if (rental.depositAmount > 0) {
-      const tx = {
-        wallet: adminWallet._id,
-        type: "DEPOSIT_RELEASE",
-        amount: -rental.depositAmount,
-        balanceBefore: currentBalance,
-        balanceAfter: currentBalance - rental.depositAmount,
-        referenceType: "RENTAL",
-        referenceId: rental._id,
-        description: `Giải phóng tiền cọc đơn #${rental._id.toString().slice(-6)}`,
-        status: "SUCCESS",
-      };
-      transactions.push(tx);
-      currentBalance -= rental.depositAmount;
-    }
-
-    if (transactions.length > 0) {
-      await WalletTransaction.create(transactions, { session, ordered: true });
-    }
-
-    // Platform fee và Shipping fee đã ở lại trong ví admin (không cần chuyển đi đâu)
-
-    // Update tất cả PLATFORM_FEE transactions của rental này để mark as earned
-    // (bao gồm cả PLATFORM_FEE từ extension nếu có)
-
-    await WalletTransaction.updateMany(
-      {
-        wallet: adminWallet._id,
-        type: "PLATFORM_FEE",
-        referenceType: "RENTAL",
-        referenceId: rental._id,
-      },
-      {
-        $set: {
-          rentalStatus: "COMPLETED",
-          isEarned: true,
-        },
-      },
-      { session }
-    );
-
-    // Update SHIPPING_FEE transaction to mark as earned
-
-    await WalletTransaction.updateOne(
-      {
-        wallet: adminWallet._id,
-
-        type: "SHIPPING_FEE",
-
-        referenceType: "RENTAL",
-
-        referenceId: rental._id,
-      },
-
-      {
-        $set: {
-          rentalStatus: "COMPLETED",
-
-          isEarned: true,
-        },
-      },
-
-      { session },
-    );
-
-    // Cập nhật trạng thái cuối
-
-    rental.status = "COMPLETED";
-
-    rental.depositStatus = "REFUNDED";
-
-    rental.supplierPayoutStatus = "PAID";
-
-    rental.escrowStatus = "RELEASED";
-
-    // Gán paymentBreakdown để tránh validation error
-
-    rental.paymentBreakdown = {
-      rentAmount: rental.rentPriceTotal,
-
-      depositAmount: rental.depositAmount,
-
-      platformFee: platformFee,
-
-      supplierReceive: supplierReceive,
-    };
-
-    await rental.save({ session });
-
-    // Cập nhật trạng thái DeviceItems sang AVAILABLE
-
-    const rentalItems = await RentalItem.find({ rentalId: rental._id }).session(
-      session,
-    );
-
-    for (const rItem of rentalItems) {
-      if (rItem.deviceItemIds && rItem.deviceItemIds.length > 0) {
-        await DeviceItem.updateMany(
-          { _id: { $in: rItem.deviceItemIds } },
-
-          { $set: { status: "AVAILABLE" } },
-
-          { session },
-        );
-      }
-    }
-
-    await completeReturn({
-      returnRecordId: returnDraft._id,
-
-      inspection: {
-        ...(returnDraft?.inspection || {}),
-
-        ...(requestedInspection || {}),
-
-        actualReturnedAt: requestedInspection?.actualReturnedAt || new Date(),
-
-        evidenceUrls: [
-          ...(Array.isArray(requestedInspection?.evidenceUrls)
-            ? requestedInspection.evidenceUrls
-            : []),
-
-          ...uploadedUrls,
-        ],
-      },
-
-      settlement: {
-        depositOutcome: rental.depositAmount > 0 ? "REFUND_FULL" : undefined,
-
-        deductedAmount: 0,
-
-        disputeReason: "",
-
-        operatorNote: "Hoàn tất thu hồi - không phát hiện bất thường.",
-
-        ...(requestedSettlement || {}),
-      },
-
-      staffId: actorId,
-
-      actorId,
-
-      session,
-    });
-
-    // Gửi thông báo
+    const { rental, returnDraft, supplierReceive } = out;
+    const actorId = out.actorId;
 
     await sendRentalNotification(
       rental,
@@ -4227,6 +4424,84 @@ exports.turn = exports.confirmReturn = async (req, res) => {
       .status(400)
 
       .json({ message: err.message || "Xác nhận trả hàng thất bại" });
+  } finally {
+    session.endSession();
+  }
+};
+
+/** Giống confirm-return nhưng bắt buộc đã có bồi thường admin duyệt — dùng khi muốn “đóng case” rõ ràng sau bồi thường. */
+exports.confirmReturnAfterCompensation = async (req, res) => {
+  const session = await mongoose.startSession();
+
+  session.startTransaction();
+
+  try {
+    const out = await executeConfirmReturnSettlement(session, req, {
+      requireApprovedCompensation: true,
+    });
+    const { rental, returnDraft, supplierReceive, totalDepositUsedForCompensation } = out;
+    const actorId = out.actorId;
+
+    const customerBody =
+      totalDepositUsedForCompensation > 0
+        ? `Thiết bị đã thu hồi. Phần cọc còn lại (sau bồi thường admin đã duyệt) đã hoàn về ví. Cảm ơn bạn!`
+        : `Thiết bị đã được thu hồi thành công. Cọc đã được hoàn về ví của bạn. Cảm ơn bạn!`;
+
+    await sendRentalNotification(
+      rental,
+
+      "CUSTOMER",
+
+      "Đơn thuê đã hoàn thành (sau bồi thường)",
+
+      customerBody,
+    );
+
+    await sendRentalNotification(
+      rental,
+
+      "SUPPLIER",
+
+      "Đơn hoàn tất - Đã nhận tiền thuê",
+
+      `Bạn đã nhận được ${supplierReceive.toLocaleString(
+        "vi-VN",
+      )}₫ tiền thuê từ đơn #${rental._id.toString().slice(-6)}.`,
+    );
+
+    await session.commitTransaction();
+
+    emitOperationStaffUpdate({
+      action: "RETURN_COMPLETED",
+
+      message: "Hoàn tất thu hồi (đóng case sau bồi thường).",
+
+      rentalId: String(rental._id),
+
+      actorId: String(actorId),
+    });
+
+    res.status(200).json({
+      message: "Đã đóng case: quyết toán thu hồi sau khi admin duyệt bồi thường.",
+
+      rentalId: rental._id,
+
+      status: "COMPLETED",
+
+      returnRecordId: returnDraft._id,
+
+      afterCompensationClosure: true,
+    });
+  } catch (err) {
+    await session.abortTransaction();
+
+    console.error("Confirm Return After Compensation Error:", err);
+
+    res
+
+      .status(400)
+
+      .json({ message: err.message || "Đóng case sau bồi thường thất bại" });
   } finally {
     session.endSession();
   }
@@ -4551,3 +4826,4 @@ exports.repaySingleRental = async (req, res) => {
 // Export helper function for cron jobs
 
 exports.sendRentalNotification = sendRentalNotification;
+exports.executeConfirmReturnSettlement = executeConfirmReturnSettlement;

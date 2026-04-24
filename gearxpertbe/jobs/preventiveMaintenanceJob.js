@@ -10,9 +10,9 @@ const NotificationConfig = require("../configs/NotificationConfig");
  * Scan các DeviceItem đến lịch bảo trì và tạo MaintenanceReminder cho Supplier
  */
 const startPreventiveMaintenanceJob = () => {
-  // Chạy thực tế 2:00 AM: '0 2 * * *'
+  // Chạy thực tế 2:00 AM: '0 2 * * *' || '* * * * *' để test nhanh
   // Để test thủ công: gọi runPreventiveMaintenanceJob() trực tiếp
-  cron.schedule("0 2 * * *", async () => {
+  cron.schedule("* * * * *", async () => {
     await runPreventiveMaintenanceJob();
   });
 
@@ -59,9 +59,15 @@ const runPreventiveMaintenanceJob = async () => {
     console.log(`[PreventiveMaintenance] Tìm thấy ${candidates.length} DeviceItem cần bảo trì`);
 
     for (const item of candidates) {
+      if (!item.deviceId) {
+        console.warn(`[PreventiveMaintenance] DeviceItem ${item._id} liên kết tới Device không tồn tại (orphan record), bỏ qua`);
+        skippedCount++;
+        continue;
+      }
+
       const supplierId = item.deviceId?.supplierId;
       if (!supplierId) {
-        console.warn(`[PreventiveMaintenance] DeviceItem ${item._id} không có supplierId, bỏ qua`);
+        console.warn(`[PreventiveMaintenance] DeviceItem ${item._id} có Device cha (${item.deviceId._id}) nhưng không có supplierId, bỏ qua`);
         skippedCount++;
         continue;
       }

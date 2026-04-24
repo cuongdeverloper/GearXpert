@@ -23,7 +23,14 @@ export const ApiMarkMessagesAsSeen = async (conversationId) => {
   }
 };
 
-export const ApiSendMessage = async (receiverId, text, conversationId = null, image = "", type = "text") => {
+export const ApiSendMessage = async (
+  receiverId,
+  text,
+  conversationId = null,
+  image = "",
+  type = "text",
+  payload = null
+) => {
   try {
     const token = Cookies.get("accessToken");
 
@@ -39,7 +46,8 @@ export const ApiSendMessage = async (receiverId, text, conversationId = null, im
           text, 
           conversationId, 
           image,
-          type
+          type,
+          payload
       }, 
       {
         headers: {

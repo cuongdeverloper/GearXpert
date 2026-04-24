@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { getConversationApi, ApiGetUserByUserId } from '../ApiMessage'; 
 import { openChatWindow } from '../../../redux/reducer/chatWindowReducer';
+import { getChatDisplayProfile } from '../chatDisplay';
 
 const MessengerPopup = ({ setIsDropdownOpen }) => {
   const { t } = useTranslation();
@@ -53,7 +54,7 @@ const MessengerPopup = ({ setIsDropdownOpen }) => {
 
   // 2. Logic lọc danh sách dựa trên tên hiển thị hoặc username
   const filteredConversations = conversations.filter((c) => {
-    const friendName = c.friendInfo?.fullName || c.friendInfo?.username || "";
+    const friendName = getChatDisplayProfile(c.friendInfo).name || "";
     return friendName.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
@@ -106,13 +107,13 @@ const MessengerPopup = ({ setIsDropdownOpen }) => {
                         <div className="relative w-12 h-12 flex-shrink-0">
                             {c.friendInfo?.avatar || c.friendInfo?.image ? (
                                 <img 
-                                    src={c.friendInfo?.avatar || c.friendInfo?.image} 
+                                    src={getChatDisplayProfile(c.friendInfo).avatar} 
                                     alt="Avt" 
                                     className="w-full h-full rounded-full object-cover border border-slate-200"
                                 />
                             ) : (
                                 <div className="w-full h-full rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
-                                    {c.friendInfo?.username?.charAt(0).toUpperCase() || "U"}
+                                    {getChatDisplayProfile(c.friendInfo).name?.charAt(0).toUpperCase() || "U"}
                                 </div>
                             )}
                         </div>
@@ -120,7 +121,7 @@ const MessengerPopup = ({ setIsDropdownOpen }) => {
                         <div className="flex-1 min-w-0">
                             <h4 className="font-semibold text-slate-900 text-sm truncate">
                                 {/* Highlight từ khóa tìm kiếm (nếu muốn nâng cao), hiện tại hiển thị bình thường */}
-                                {c.friendInfo?.fullName || c.friendInfo?.username || t('messenger.user')}
+                                {getChatDisplayProfile(c.friendInfo).name || t('messenger.user')}
                             </h4>
                             <p className="text-xs text-slate-500 truncate mt-0.5">
                                 {t('messenger.click_to_view')}

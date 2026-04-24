@@ -3,6 +3,7 @@ import { useDispatch } from "react-redux";
 import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
 import { FiSearch, FiCheck, FiX, FiLock, FiUnlock, FiEye, FiMoreVertical } from "react-icons/fi";
 import { getAdminUsers, toggleUserStatus } from "../../service/ApiService/AdminUserApi";
+import { confirmDialog } from "../../utils/confirmDialog";
 import { toast } from "react-toastify";
 import UserDetailModal from "../../components/admin/UserDetailModal";
 
@@ -36,8 +37,17 @@ export default function UsersPage() {
     fetchUsers();
   }, [fetchUsers]);
   const handleToggleStatus = async (user) => {
-    const action = user.status === "ACTIVE" ? "khóa" : "mở khóa";
-    if (!window.confirm(`Bạn có chắc chắn muốn ${action} người dùng này?`)) return;
+    const isBlocking = user.status === "ACTIVE";
+    const action = isBlocking ? "khóa" : "mở khóa";
+    const result = await confirmDialog({
+      title: `Xác nhận ${action} tài khoản?`,
+      text: `Bạn có chắc chắn muốn ${action} người dùng này?`,
+      icon: isBlocking ? "warning" : "question",
+      confirmText: isBlocking ? "Khóa" : "Mở khóa",
+      cancelText: "Hủy",
+      confirmColor: isBlocking ? "#dc2626" : "#16a34a",
+    });
+    if (!result.isConfirmed) return;
 
     try {
       const response = await toggleUserStatus(user._id);
