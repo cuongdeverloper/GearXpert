@@ -35,5 +35,6 @@ router.post('/change-password', checkAccessToken, authController.changePassword)
 router.get('/me', checkAccessToken, authController.getCurrentUser);
 
 router.put('/update-profile', checkAccessToken, authController.updateProfile);
+router.post('/save-signature', checkAccessToken, authController.apiSaveSignature);
 
 module.exports = router;

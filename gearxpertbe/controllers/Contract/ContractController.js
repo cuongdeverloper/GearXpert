@@ -7,6 +7,7 @@ const fs = require("fs/promises");
 const path = require("path");
 
 const fontkit = require("@pdf-lib/fontkit");
+const axios = require("axios");
 
 
 
@@ -45,6 +46,35 @@ const TEMPLATE_PATH = path.resolve(__dirname, "../../templatesContract/template_
 const DOCX_TEMPLATE_PATH = path.resolve(__dirname, "../../templatesContract/template_contract.docx");
 
 const FONT_PATH = path.resolve(__dirname, "../../fonts/DejaVuSans.ttf");
+
+// Helper to get image buffer from base64 or URL
+async function getSignatureImageBuffer(sigUrl) {
+  if (!sigUrl) {
+    console.log("[CONTRACT SIGNATURE] No signature URL provided");
+    return null;
+  }
+
+  if (sigUrl.startsWith("data:image")) {
+    console.log("[CONTRACT SIGNATURE] Handling base64 signature");
+    const base64Data = sigUrl.replace(/^data:image\/\w+;base64,/, "");
+    return Buffer.from(base64Data, "base64");
+  }
+
+  if (sigUrl.startsWith("http")) {
+    try {
+      console.log(`[CONTRACT SIGNATURE] Downloading signature from: ${sigUrl}`);
+      const response = await axios.get(sigUrl, { responseType: 'arraybuffer' });
+      console.log(`[CONTRACT SIGNATURE] Download success, size: ${response.data.length} bytes`);
+      return Buffer.from(response.data);
+    } catch (error) {
+      console.error("[CONTRACT SIGNATURE] Failed to download signature from URL:", error.message);
+      return null;
+    }
+  }
+
+  console.log("[CONTRACT SIGNATURE] Unknown signature format:", sigUrl.substring(0, 50));
+  return null;
+}
 
 
 
@@ -655,21 +685,24 @@ const generatePdfBuffer = async (rental) => {
 
   // ====================== MERGE CHỮ KÝ ======================
 
-  if (rental.signatureData || rental.customerSignature) {
+  const sigUrl = rental.signatureData || rental.customerSignature;
+
+  if (sigUrl) {
 
     try {
 
-      const signatureDataUrl = rental.signatureData || rental.customerSignature;
+      const signatureBytes = await getSignatureImageBuffer(sigUrl);
 
-      const base64Data = signatureDataUrl.replace(/^data:image\/\w+;base64,/, "");
+      if (!signatureBytes) throw new Error("Could not get signature bytes");
 
-      const signatureBytes = Buffer.from(base64Data, "base64");
-
-
-
-      // Embed PNG signature
-
-      const signatureImage = await pdfDoc.embedPng(signatureBytes);
+      // Detect image type and embed
+      let signatureImage;
+      try {
+        signatureImage = await pdfDoc.embedPng(signatureBytes);
+      } catch (pngError) {
+        // Fallback to JPG
+        signatureImage = await pdfDoc.embedJpg(signatureBytes);
+      }
 
 
 
@@ -799,8 +832,9 @@ const generateDocxBufferFromData = async (data) => {
       getImage: function (tagValue, tagName) {
         console.log("[DEBUG] getImage called - tagName:", tagName, "hasValue:", !!tagValue);
         if (tagValue && tagValue.startsWith("data:image")) {
-          console.log("[DEBUG] getImage: Returning image buffer");
-          return base64DataURLToArrayBuffer(tagValue);
+          const base64Regex = /^data:image\/(png|jpg|jpeg|svg|svg\+xml);base64,/;
+          const stringBase64 = tagValue.replace(base64Regex, "");
+          return Buffer.from(stringBase64, "base64");
         }
         console.log("[DEBUG] getImage: Returning empty buffer");
         return Buffer.from("");
@@ -876,13 +910,21 @@ const generateDocxBufferFromData = async (data) => {
     // Render data - exactly like supplier contract
 
     console.log("[DEBUG] ========== RENDERING ==========");
-    console.log("[DEBUG] signatureImage value:", data.signatureDataUrl ? "SET" : "EMPTY");
+    
+    // Ensure signature is base64 for docxtemplater
+    let finalSignature = data.signatureDataUrl;
+    if (finalSignature && finalSignature.startsWith("http")) {
+       const buffer = await getSignatureImageBuffer(finalSignature);
+       if (buffer) {
+         finalSignature = `data:image/png;base64,${buffer.toString("base64")}`;
+       }
+    }
 
     doc.render({
 
       ...data,
 
-      signatureImage: data.signatureDataUrl, // Map to {%signatureImage} in template
+      signatureImage: finalSignature, // Map to {%signatureImage} in template
 
     });
 
@@ -946,16 +988,7 @@ const generateDocxBuffer = async (rental, items = null) => {
   // Add signature if provided - same as supplier contract
 
   const sigUrl = rental.signatureData || rental.customerSignature;
-
-  if (sigUrl && sigUrl.startsWith("data:image")) {
-
-    data.signatureDataUrl = sigUrl;
-
-  } else {
-
-    data.signatureDataUrl = "";
-
-  }
+  data.signatureDataUrl = sigUrl || "";
 
 
 
@@ -1002,8 +1035,9 @@ const generateDocxBuffer = async (rental, items = null) => {
       getImage: function (tagValue, tagName) {
         console.log("[DEBUG] getImage called - tagName:", tagName, "hasValue:", !!tagValue);
         if (tagValue && tagValue.startsWith("data:image")) {
-          console.log("[DEBUG] getImage: Returning image buffer");
-          return base64DataURLToArrayBuffer(tagValue);
+          const base64Regex = /^data:image\/(png|jpg|jpeg|svg|svg\+xml);base64,/;
+          const stringBase64 = tagValue.replace(base64Regex, "");
+          return Buffer.from(stringBase64, "base64");
         }
         console.log("[DEBUG] getImage: Returning empty buffer");
         return Buffer.from("");
@@ -1099,14 +1133,19 @@ const generateDocxBuffer = async (rental, items = null) => {
 
 
 
+    // Ensure signature is base64 for docxtemplater
+    let finalSignature = data.signatureDataUrl;
+    if (finalSignature && finalSignature.startsWith("http")) {
+       const buffer = await getSignatureImageBuffer(finalSignature);
+       if (buffer) {
+         finalSignature = `data:image/png;base64,${buffer.toString("base64")}`;
+       }
+    }
+
     // Render data - exactly like supplier contract
-
     doc.render({
-
       ...data,
-
-      signatureImage: data.signatureDataUrl, // Map to {%signatureImage} in template
-
+      signatureImage: finalSignature, // Map to {%signatureImage} in template
     });
 
 
@@ -1164,15 +1203,7 @@ const generatePreviewContract = async (req, res) => {
     const rentalData = req.body;
     const data = await buildPreviewContractData(rentalData);
     // Add signature if provided
-
-    if (rentalData.customerSignature && rentalData.customerSignature.startsWith("data:image")) {
-
-      data.signatureDataUrl = rentalData.customerSignature;
-    } else {
-
-      data.signatureDataUrl = "";
-
-    }
+    data.signatureDataUrl = rentalData.customerSignature || "";
 
     const buf = await generateDocxBufferFromData(data);
 

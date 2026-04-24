@@ -25,7 +25,8 @@ const doLogin = (response) => {
             walletBalance: data?.walletBalance || 0,
             rewardPoints: data?.rewardPoints || 0,
             isVerified: data?.isVerified || '',
-            isVerifiedEkyc: data?.isVerifiedEkyc || ''
+            isVerifiedEkyc: data?.isVerifiedEkyc || '',
+            signatureUrl: data?.signatureUrl || ''
         }
     };
 };
@@ -50,7 +51,8 @@ const doLoginWGoogle = (response, access_token, refresh_token) => {
             walletBalance: response?.walletBalance || 0,
             rewardPoints: response?.rewardPoints || 0,
             isVerified: response?.isVerified || '',
-            isVerifiedEkyc: response?.isVerifiedEkyc || ''
+            isVerifiedEkyc: response?.isVerifiedEkyc || '',
+            signatureUrl: response?.signatureUrl || ''
         }
     };
 };

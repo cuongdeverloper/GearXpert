@@ -285,7 +285,7 @@ exports.getSupplierStorefront = async (req, res) => {
     const deviceCount = await Device.countDocuments({ supplierId: objectId });
 
     const ratingAgg = await Device.aggregate([
-      { $match: { supplierId: objectId } },
+      { $match: { supplierId: objectId, reviewCount: { $gt: 0 } } },
       {
         $group: {
           _id: null,

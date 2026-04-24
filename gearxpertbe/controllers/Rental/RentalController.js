@@ -1301,9 +1301,10 @@ exports.checkoutRental = async (req, res) => {
     // 10. PayOS cho BANK (giữ nguyên, orderCode dùng chung cho group)
 
     let paymentLink = null;
+    let orderCode = null;
 
     if (paymentMethod === "BANK") {
-      const orderCode = Number(String(Date.now()).slice(-9));
+      orderCode = Number(String(Date.now()).slice(-9));
 
       const representativeRentalId = createdRentals[0].rental._id.toString();
 
@@ -1351,11 +1352,15 @@ exports.checkoutRental = async (req, res) => {
       totalAmount: grandTotalAmount,
     });
   } catch (err) {
-    await session.abortTransaction();
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
 
     console.error("CHECKOUT ERROR:", err.stack);
 
-    res.status(400).json({ message: err.message || "Thanh toán thất bại" });
+    if (!res.headersSent) {
+      res.status(400).json({ message: err.message || "Thanh toán thất bại" });
+    }
   } finally {
     session.endSession();
   }
@@ -2500,7 +2505,7 @@ exports.getSupplierRevenue = async (req, res) => {
     });
 
     const avgRatingResult = await Device.aggregate([
-      { $match: { supplierId: supplierObjectId } },
+      { $match: { supplierId: supplierObjectId, reviewCount: { $gt: 0 } } },
 
       { $group: { _id: null, avgRating: { $avg: "$ratingAvg" } } },
     ]);

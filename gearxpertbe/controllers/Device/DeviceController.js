@@ -668,7 +668,7 @@ exports.getDeviceDetail = async (req, res) => {
 
     // 4.2 Tính toán rating trung bình của supplier từ tất cả thiết bị
     const supplierRatingAgg = await Device.aggregate([
-      { $match: { supplierId: device.supplierId._id } },
+      { $match: { supplierId: device.supplierId._id, reviewCount: { $gt: 0 } } },
       {
         $group: {
           _id: null,
