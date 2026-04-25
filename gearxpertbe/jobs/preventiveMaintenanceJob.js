@@ -15,17 +15,14 @@ const startPreventiveMaintenanceJob = () => {
   cron.schedule("* * * * *", async () => {
     await runPreventiveMaintenanceJob();
   });
-
-  console.log("✅ Preventive Maintenance cron job scheduled at 2:00 AM daily");
 };
 
 const runPreventiveMaintenanceJob = async () => {
   if (mongoose.connection.readyState !== 1) {
-    console.warn("[PreventiveMaintenance] DB chưa kết nối, bỏ qua lần chạy này");
+    // console.warn("[PreventiveMaintenance] DB chưa kết nối, bỏ qua lần chạy này");
     return;
   }
 
-  console.log("🔧 [PreventiveMaintenance] Bắt đầu quét DeviceItem cần bảo trì...");
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -56,18 +53,15 @@ const runPreventiveMaintenanceJob = async () => {
       .populate("deviceId", "supplierId name")
       .lean();
 
-    console.log(`[PreventiveMaintenance] Tìm thấy ${candidates.length} DeviceItem cần bảo trì`);
 
     for (const item of candidates) {
       if (!item.deviceId) {
-        console.warn(`[PreventiveMaintenance] DeviceItem ${item._id} liên kết tới Device không tồn tại (orphan record), bỏ qua`);
         skippedCount++;
         continue;
       }
 
       const supplierId = item.deviceId?.supplierId;
       if (!supplierId) {
-        console.warn(`[PreventiveMaintenance] DeviceItem ${item._id} có Device cha (${item.deviceId._id}) nhưng không có supplierId, bỏ qua`);
         skippedCount++;
         continue;
       }
@@ -124,10 +118,6 @@ const runPreventiveMaintenanceJob = async () => {
         console.error(`[PreventiveMaintenance] Lỗi gửi notification cho ${supplierId}:`, notifyErr.message);
       }
     }
-
-    console.log(
-      `✅ [PreventiveMaintenance] Hoàn tất: tạo ${createdCount} reminder mới, bỏ qua ${skippedCount}`
-    );
   } catch (err) {
     console.error("[PreventiveMaintenance] Lỗi cron job:", err);
   }
