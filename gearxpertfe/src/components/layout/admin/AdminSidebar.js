@@ -94,7 +94,7 @@ export default function AdminSidebar({ collapsed, onToggleCollapsed }) {
     const fetchPendingCount = async () => {
       try {
         const res = await getBlogs({ status: "pending", limit: 1 });
-        setPendingBlogsCount(res.data.total);
+        setPendingBlogsCount(res.total || 0);
       } catch (error) {
         console.error("Lỗi khi lấy số lượng blog chờ duyệt:", error);
       }
