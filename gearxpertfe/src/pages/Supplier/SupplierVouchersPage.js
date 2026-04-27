@@ -3,7 +3,8 @@ import { createPortal } from "react-dom";
 import {
     getVouchersBySupplier,
     createVoucherBySupplier,
-    updateVoucherStatusBySupplier
+    updateVoucherStatusBySupplier,
+    deleteVoucherBySupplier
 } from "../../service/ApiService/VoucherApi";
 import { toast } from "react-toastify";
 import { 
@@ -19,7 +20,8 @@ import {
     FiDollarSign, 
     FiHash, 
     FiFileText, 
-    FiX 
+    FiX,
+    FiTrash2
 } from "react-icons/fi";
 
 export default function SupplierVouchersPage() {
@@ -40,8 +42,10 @@ export default function SupplierVouchersPage() {
         minOrderValue: 0,
         maxDiscount: "",
         usageLimit: 1,
-        expiredAt: ""
+        expiredAt: "",
+        scheduledStartDate: ""
     });
+    const [isScheduled, setIsScheduled] = useState(false);
 
     useEffect(() => {
         fetchVouchers();
@@ -86,6 +90,21 @@ export default function SupplierVouchersPage() {
         }
     };
 
+    const handleDelete = async (id) => {
+        if (!window.confirm("Bạn có chắc chắn muốn xóa voucher này? Thao tác này không thể hoàn tác.")) return;
+        try {
+            const response = await deleteVoucherBySupplier(id);
+            if (response && response.success) {
+                toast.success("Xóa voucher thành công");
+                setVouchers(vouchers.filter(v => v._id !== id));
+            }
+        } catch (error) {
+            toast.error("Lỗi khi xóa voucher");
+        } finally {
+            setActiveDropdown(null);
+        }
+    };
+
     const handleOpenCreate = () => {
         setFormData({
             code: "",
@@ -95,15 +114,27 @@ export default function SupplierVouchersPage() {
             minOrderValue: 0,
             maxDiscount: "",
             usageLimit: 1,
-            expiredAt: ""
+            expiredAt: "",
+            scheduledStartDate: ""
         });
+        setIsScheduled(false);
         setIsModalOpen(true);
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const response = await createVoucherBySupplier(formData);
+            const submitData = { ...formData };
+            if (!isScheduled) {
+                submitData.scheduledStartDate = null;
+            } else if (submitData.scheduledStartDate) {
+                if (new Date(submitData.scheduledStartDate) <= new Date()) {
+                    toast.error("Thời gian bắt đầu phải lớn hơn thời gian hiện tại");
+                    return;
+                }
+            }
+
+            const response = await createVoucherBySupplier(submitData);
             if (response && response.success) {
                 toast.success("Tạo voucher thành công");
                 setIsModalOpen(false);
@@ -243,6 +274,18 @@ export default function SupplierVouchersPage() {
                                                     {voucher.status === "ACTIVE" ? <FiEyeOff size={16} /> : <FiEye size={16} />}
                                                     {voucher.status === "ACTIVE" ? "Tạm ngưng" : "Kích hoạt lại"}
                                                 </button>
+
+                                                {new Date(voucher.expiredAt) < new Date() && (
+                                                    <>
+                                                        <div className="h-px bg-slate-100 my-1 mx-2"></div>
+                                                        <button
+                                                            onClick={() => handleDelete(voucher._id)}
+                                                            className="w-full px-4 py-2.5 text-left text-sm text-red-500 hover:bg-red-50 flex items-center gap-3 transition-colors"
+                                                        >
+                                                            <FiTrash2 size={16} /> Xóa voucher
+                                                        </button>
+                                                    </>
+                                                )}
                                             </div>
                                         )}
                                     </td>
@@ -416,6 +459,39 @@ export default function SupplierVouchersPage() {
                                         value={formData.minOrderValue}
                                         onChange={(e) => setFormData({ ...formData, minOrderValue: Math.max(0, parseFloat(e.target.value) || 0) })}
                                     />
+                                </div>
+
+                                {/* Scheduling Section */}
+                                <div className="pt-2">
+                                    <div className="flex items-center justify-between p-4 bg-white/50 rounded-2xl border-2 border-dashed border-indigo-100/50">
+                                        <div>
+                                            <label className="text-xs font-black text-slate-800 mb-1 block">Hẹn giờ kích hoạt</label>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Voucher sẽ tự động khả dụng vào ngày này</p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsScheduled(!isScheduled)}
+                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 focus:outline-none ${isScheduled ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                                        >
+                                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 ${isScheduled ? 'translate-x-6' : 'translate-x-1'}`} />
+                                        </button>
+                                    </div>
+
+                                    {isScheduled && (
+                                        <div className="mt-4 space-y-2 animate-in slide-in-from-top-2 duration-300">
+                                            <label className="flex items-center gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">
+                                                <FiCalendar size={12} /> Thời điểm bắt đầu
+                                            </label>
+                                            <input
+                                                required
+                                                type="datetime-local"
+                                                className="w-full px-4 py-3.5 bg-white border-2 border-transparent rounded-[18px] focus:border-indigo-500/20 outline-none transition-all font-bold text-slate-700 shadow-sm"
+                                                value={formData.scheduledStartDate}
+                                                onChange={(e) => setFormData({ ...formData, scheduledStartDate: e.target.value })}
+                                                min={new Date().toISOString().slice(0, 16)}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

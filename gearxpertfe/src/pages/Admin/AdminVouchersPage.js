@@ -33,8 +33,10 @@ export default function AdminVouchersPage() {
         maxDiscount: "",
         usageLimit: 1,
         expiredAt: "",
-        applicableRank: null // Thêm trường này: null cho Global, string cho Rank
+        applicableRank: null, // Thêm trường này: null cho Global, string cho Rank
+        scheduledStartDate: ""
     });
+    const [isScheduled, setIsScheduled] = useState(false);
 
     useEffect(() => {
         fetchVouchers();
@@ -105,8 +107,10 @@ export default function AdminVouchersPage() {
             maxDiscount: voucher.maxDiscount || "",
             usageLimit: voucher.usageLimit,
             expiredAt: voucher.expiredAt ? new Date(voucher.expiredAt).toISOString().split('T')[0] : "",
-            applicableRank: voucher.applicableRank || null
+            applicableRank: voucher.applicableRank || null,
+            scheduledStartDate: voucher.scheduledStartDate ? new Date(voucher.scheduledStartDate).toISOString().slice(0, 16) : ""
         });
+        setIsScheduled(!!voucher.scheduledStartDate);
         setIsModalOpen(true);
         setActiveDropdown(null);
     };
@@ -122,8 +126,10 @@ export default function AdminVouchersPage() {
             maxDiscount: "",
             usageLimit: 1,
             expiredAt: "",
-            applicableRank: null
+            applicableRank: null,
+            scheduledStartDate: ""
         });
+        setIsScheduled(false);
         setIsModalOpen(true);
     };
 
@@ -137,6 +143,16 @@ export default function AdminVouchersPage() {
             if (submitData.applicableRank) {
                 if (!submitData.expiredAt) submitData.expiredAt = "2099-12-31";
                 if (!submitData.usageLimit || submitData.usageLimit <= 1) submitData.usageLimit = 999999;
+            }
+
+            if (!isScheduled) {
+                submitData.scheduledStartDate = null;
+            } else if (submitData.scheduledStartDate) {
+                // Kiểm tra nếu là ngày trong quá khứ khi tạo mới
+                if (!editingVoucher && new Date(submitData.scheduledStartDate) <= new Date()) {
+                    toast.error("Thời gian bắt đầu phải lớn hơn thời gian hiện tại");
+                    return;
+                }
             }
 
             if (editingVoucher) {
@@ -491,6 +507,7 @@ export default function AdminVouchersPage() {
                                             className="w-full px-4 py-3.5 bg-slate-50 border-2 border-transparent rounded-[20px] focus:bg-white focus:border-indigo-500/20 outline-none transition-all font-bold text-slate-700 focus:ring-4 ring-indigo-500/5 shadow-sm"
                                             value={formData.expiredAt}
                                             onChange={(e) => setFormData({ ...formData, expiredAt: e.target.value })}
+                                            min={new Date().toISOString().split('T')[0]}
                                         />
                                     </div>
                                 )}
@@ -602,6 +619,39 @@ export default function AdminVouchersPage() {
                                         value={formData.minOrderValue}
                                         onChange={(e) => setFormData({ ...formData, minOrderValue: Math.max(0, parseFloat(e.target.value) || 0) })}
                                     />
+                                </div>
+
+                                {/* Scheduling Section */}
+                                <div className="pt-2">
+                                    <div className="flex items-center justify-between p-4 bg-white/50 rounded-2xl border-2 border-dashed border-indigo-100/50">
+                                        <div>
+                                            <label className="text-xs font-black text-slate-800 mb-1 block">Hẹn giờ kích hoạt</label>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Voucher sẽ tự động khả dụng vào ngày này</p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsScheduled(!isScheduled)}
+                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 focus:outline-none ${isScheduled ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                                        >
+                                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 ${isScheduled ? 'translate-x-6' : 'translate-x-1'}`} />
+                                        </button>
+                                    </div>
+
+                                    {isScheduled && (
+                                        <div className="mt-4 space-y-2 animate-in slide-in-from-top-2 duration-300">
+                                            <label className="flex items-center gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">
+                                                <FiCalendar size={12} /> Thời điểm bắt đầu
+                                            </label>
+                                            <input
+                                                required
+                                                type="datetime-local"
+                                                className="w-full px-4 py-3.5 bg-white border-2 border-transparent rounded-[18px] focus:border-indigo-500/20 outline-none transition-all font-bold text-slate-700 shadow-sm"
+                                                value={formData.scheduledStartDate}
+                                                onChange={(e) => setFormData({ ...formData, scheduledStartDate: e.target.value })}
+                                                min={new Date().toISOString().slice(0, 16)}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
