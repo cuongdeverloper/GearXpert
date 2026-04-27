@@ -81,6 +81,11 @@ exports.validateVoucher = async (req, res) => {
     return res.status(400).json({ message: "Voucher đã hết hạn" });
   }
 
+  // 3.1 Kiểm tra ngày bắt đầu (Scheduling)
+  if (voucher.scheduledStartDate && voucher.scheduledStartDate > new Date()) {
+    return res.status(400).json({ message: "Voucher chưa đến thời gian áp dụng" });
+  }
+
   // 3. Kiểm tra giới hạn sử dụng (Bỏ qua nếu là voucher Rank)
   if (!voucher.applicableRank && voucher.usageLimit !== undefined && voucher.usageLimit !== null) {
     if (voucher.usageLimit <= 0 || voucher.usedCount >= voucher.usageLimit) {
@@ -179,10 +184,14 @@ exports.getAllVouchers = async (req, res) => {
       }
     }
 
-    // Lọc theo điều kiện: Active, chưa hết hạn
+    // Lọc theo điều kiện: Active, chưa hết hạn và đã đến ngày bắt đầu (nếu có)
     let query = {
       status: "ACTIVE",
-      expiredAt: { $gt: currentDate }
+      expiredAt: { $gt: currentDate },
+      $or: [
+        { scheduledStartDate: null },
+        { scheduledStartDate: { $lte: currentDate } }
+      ]
     };
 
     if (userRank) {
@@ -273,7 +282,8 @@ exports.createVoucherByAdmin = async (req, res) => {
       maxDiscount,
       usageLimit,
       expiredAt,
-      applicableRank // Thêm trường này vào body
+      applicableRank, // Thêm trường này vào body
+      scheduledStartDate
     } = req.body;
 
     if (discountValue < 0 || minOrderValue < 0 || (maxDiscount !== undefined && maxDiscount < 0)) {
@@ -302,7 +312,8 @@ exports.createVoucherByAdmin = async (req, res) => {
       usageLimit,
       expiredAt,
       status: "ACTIVE",
-      applicableRank // Lưu hạng áp dụng vào DB
+      applicableRank, // Lưu hạng áp dụng vào DB
+      scheduledStartDate: scheduledStartDate ? new Date(scheduledStartDate) : null
     });
 
     await newVoucher.save();
@@ -377,6 +388,36 @@ exports.deleteVoucher = async (req, res) => {
     });
   } catch (error) {
     console.error("Delete voucher error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi xóa voucher"
+    });
+  }
+};
+
+exports.deleteVoucherBySupplier = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const supplierId = req.user.id;
+
+    // Tìm voucher và kiểm tra quyền sở hữu
+    const voucher = await Voucher.findOne({ _id: id, supplierId });
+
+    if (!voucher) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy voucher hoặc bạn không có quyền xóa"
+      });
+    }
+
+    await Voucher.findByIdAndDelete(id);
+
+    res.status(200).json({
+      success: true,
+      message: "Xóa voucher thành công"
+    });
+  } catch (error) {
+    console.error("Delete voucher by supplier error:", error);
     res.status(500).json({
       success: false,
       message: "Lỗi server khi xóa voucher"
@@ -509,7 +550,8 @@ exports.createVoucherBySupplier = async (req, res) => {
       minOrderValue,
       maxDiscount,
       usageLimit,
-      expiredAt
+      expiredAt,
+      scheduledStartDate
     } = req.body;
 
     if (discountValue < 0 || minOrderValue < 0 || (maxDiscount !== undefined && maxDiscount < 0)) {
@@ -537,7 +579,8 @@ exports.createVoucherBySupplier = async (req, res) => {
       maxDiscount,
       usageLimit,
       expiredAt,
-      status: "ACTIVE"
+      status: "ACTIVE",
+      scheduledStartDate: scheduledStartDate ? new Date(scheduledStartDate) : null
     });
 
     await newVoucher.save();
@@ -637,7 +680,11 @@ exports.getBestVoucherForCart = async (req, res) => {
     const currentDate = new Date();
     const vouchers = await Voucher.find({
       status: "ACTIVE",
-      expiredAt: { $gt: currentDate }
+      expiredAt: { $gt: currentDate },
+      $or: [
+        { scheduledStartDate: null },
+        { scheduledStartDate: { $lte: currentDate } }
+      ]
     });
 
     // Lấy hạng của user để kiểm tra điều kiện mã Rank
@@ -825,6 +872,10 @@ exports.getAvailableVouchersForCart = async (req, res) => {
       status: "ACTIVE",
       expiredAt: { $gt: currentDate },
       $or: [
+        { scheduledStartDate: null },
+        { scheduledStartDate: { $lte: currentDate } }
+      ],
+      $or: [
         { applicableRank: { $ne: null } },
         { $expr: { $lt: ["$usedCount", "$usageLimit"] } }
       ],
@@ -992,6 +1043,10 @@ exports.autoApplyBestVoucher = async (req, res) => {
     const vouchers = await Voucher.find({
       status: "ACTIVE",
       expiredAt: { $gt: currentDate },
+      $or: [
+        { scheduledStartDate: null },
+        { scheduledStartDate: { $lte: currentDate } }
+      ],
       $or: [
         { applicableRank: { $ne: null } },
         { $expr: { $lt: ["$usedCount", "$usageLimit"] } }

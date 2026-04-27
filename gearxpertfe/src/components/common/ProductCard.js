@@ -163,7 +163,7 @@ export default function ProductCard({
 
 
           {/* Favorite + Compare Buttons - Stack vertically */}
-          <div className="absolute top-3 right-3 z-10 flex flex-col gap-2">
+          <div className="absolute top-3 right-3 z-40 flex flex-col gap-2">
             {isAuthenticated && (
               <button
                 onClick={handleToggleFavorite}
@@ -267,7 +267,7 @@ export default function ProductCard({
           )}
 
           {/* Favorite + Compare - Stack vertically */}
-          <div className="absolute top-3 right-3 z-10 flex flex-col gap-2">
+          <div className="absolute top-3 right-3 z-40 flex flex-col gap-2">
             {isAuthenticated && (
               <button
                 onClick={handleToggleFavorite}
