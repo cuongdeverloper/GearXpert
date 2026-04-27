@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import * as rentalService from "../../service/ApiService/RentalApi";
 import { getMyWallet } from "../../service/ApiService/WalletApi";
+import { customerConfirmCompensationProposal } from "../../service/ApiService/ReportApi";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
 import ConfirmationModal from "../../components/my-rentals/modals/ConfirmationModal";
@@ -50,6 +51,7 @@ export default function RentalDetail() {
   const [reviewSelectedItems, setReviewSelectedItems] = useState([]);
   const [showTrackingModal, setShowTrackingModal] = useState(false);
   const [walletBalance, setWalletBalance] = useState(0);
+  const [confirmingProposalId, setConfirmingProposalId] = useState(null);
 
   const rentalsListPath =
     account?.role === "SUPPLIER" ? "/supplier/rental-requests" : "/user/myrental";
@@ -154,11 +156,6 @@ export default function RentalDetail() {
       const msg = err?.response?.data?.message || err?.message || "Không thể thanh toán";
       toast.error(msg);
     }
-  };
-
-  const handleTrack = () => {
-    if (!rentalId) return;
-    setShowTrackingModal(true);
   };
 
   const handleExtend = () => {
@@ -325,6 +322,36 @@ export default function RentalDetail() {
     navigate(`/device/${rental.items[0].deviceId._id}`);
   };
 
+  const handleCustomerProposalDecision = async (proposal, decision) => {
+    const issueId = proposal?.issueId;
+    if (!issueId || confirmingProposalId) return;
+    try {
+      setConfirmingProposalId(String(proposal._id || issueId));
+      const res = await customerConfirmCompensationProposal(issueId, { decision });
+      const data = res?.data ?? res;
+      if (data?.noChange) {
+        toast.info(data?.message || "Trạng thái đã được cập nhật trước đó");
+        await fetchRentalDetail({ silent: true });
+        return;
+      }
+      toast.success(
+        decision === "ACCEPTED"
+          ? "Đã xác nhận đề xuất bồi thường"
+          : "Đã từ chối đề xuất bồi thường"
+      );
+      await fetchRentalDetail({ silent: true });
+    } catch (err) {
+      toast.error(
+        err?.response?.data?.message ||
+          (decision === "ACCEPTED"
+            ? "Không thể xác nhận đề xuất"
+            : "Không thể từ chối đề xuất")
+      );
+    } finally {
+      setConfirmingProposalId(null);
+    }
+  };
+
   if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -353,6 +380,90 @@ export default function RentalDetail() {
       </div>
     );
   }
+
+  const isIncidentHandling = ["INSPECTING", "PENDING_RESOLUTION"].includes(rental.status);
+  const hadIncidentInFlow = Boolean(rental.inspectedContext) || isIncidentHandling;
+  const incidentFlowMessage =
+    rental.status === "INSPECTING"
+      ? "Đơn đang được kiểm tra thiết bị do phát sinh sự cố."
+      : rental.status === "PENDING_RESOLUTION"
+      ? "Đơn đang ở giai đoạn giải quyết sự cố giữa các bên."
+      : "";
+
+  const resolutionLabelMap = {
+    CUSTOMER_PAY: "Khách hàng đền bù",
+    SUPPLIER_BEAR: "Shop tự chịu",
+    REQUEST_GX_REVIEW: "Nhờ GearXpert đánh giá",
+  };
+  const flowStatusLabelMap = {
+    PROPOSED: "Đã gửi đề xuất",
+    CUSTOMER_ACCEPTED: "Khách đã chấp nhận",
+    CUSTOMER_REJECTED: "Khách đã từ chối",
+    SUPPLIER_REJECTED: "Shop đã từ chối",
+    PENDING_ADMIN_REVIEW: "Chờ admin duyệt",
+    ADMIN_APPROVED: "Admin đã duyệt",
+    ADMIN_REJECTED: "Admin đã từ chối",
+  };
+  const decisionLabelMap = {
+    PENDING: "Chờ quyết định",
+    ACCEPTED: "Đồng ý",
+    REJECTED: "Từ chối",
+    APPROVED: "Đã duyệt",
+  };
+  const getDecisionClass = (decision) => {
+    if (decision === "ACCEPTED" || decision === "APPROVED") {
+      return "bg-emerald-50 text-emerald-700 border-emerald-200";
+    }
+    if (decision === "REJECTED") {
+      return "bg-rose-50 text-rose-700 border-rose-200";
+    }
+    return "bg-amber-50 text-amber-700 border-amber-200";
+  };
+  const compensationProposals = (() => {
+    const rows = [];
+    for (const item of rental.items || []) {
+      const itemName = item.deviceId?.name || item.deviceSnapshot?.name || "Thiết bị";
+      const deliveryIssues = Array.isArray(item.deliveryIssues) ? item.deliveryIssues : [];
+      const damageReports = Array.isArray(item.damageReports) ? item.damageReports : [];
+
+      for (const issue of deliveryIssues) {
+        if (!issue?.compensationProposal?._id) continue;
+        rows.push({
+          ...issue.compensationProposal,
+          issueId: issue._id,
+          issueType: "DELIVERY",
+          issueStatus: issue.status,
+          itemName,
+        });
+      }
+      for (const issue of damageReports) {
+        if (!issue?.compensationProposal?._id) continue;
+        rows.push({
+          ...issue.compensationProposal,
+          issueId: issue._id,
+          issueType: "DAMAGE",
+          issueStatus: issue.status,
+          itemName,
+        });
+      }
+    }
+
+    const deduped = new Map();
+    for (const row of rows) {
+      const key = String(row._id || `${row.issueType}-${row.issueId}`);
+      if (!deduped.has(key)) deduped.set(key, row);
+    }
+
+    return Array.from(deduped.values()).sort(
+      (a, b) => new Date(b.submittedAt || b.createdAt || 0) - new Date(a.submittedAt || a.createdAt || 0)
+    );
+  })();
+  const hasIncidentReports = (rental.items || []).some(
+    (item) =>
+      (Array.isArray(item.deliveryIssues) && item.deliveryIssues.length > 0) ||
+      (Array.isArray(item.damageReports) && item.damageReports.length > 0)
+  );
+  const showCompensationSection = isIncidentHandling || hasIncidentReports || compensationProposals.length > 0;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans pb-20">
@@ -414,6 +525,20 @@ export default function RentalDetail() {
                     </span>
                   </button>
                 )}
+
+                {["DELIVERING", "RENTING", "RETURNING"].includes(rental.status) && (
+                  <button
+                    type="button"
+                    onClick={() => setShowTrackingModal(true)}
+                    className="px-6 py-4 rounded-2xl flex flex-col items-center justify-center border-2 border-slate-200 bg-white hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
+                    <span className="text-sm font-bold text-slate-400">VẬN CHUYỂN</span>
+                    <span className="text-sm font-black text-slate-800 flex items-center gap-1">
+                      <Truck size={16} />
+                      Theo dõi
+                    </span>
+                  </button>
+                )}
               </div>
 
               {/* Progress Steps */}
@@ -433,12 +558,154 @@ export default function RentalDetail() {
                   active={["RENTING", "RETURNING", "INSPECTING", "PENDING_RESOLUTION", "COMPLETED"].includes(rental.status)}
                 />
                 <Step
+                  icon={<AlertCircle size={18} />}
+                  label="Xử lý sự cố"
+                  active={hadIncidentInFlow}
+                />
+                <Step
                   icon={<CheckCircle2 size={18} />}
                   label="Hoàn tất"
                   active={rental.status === "COMPLETED"}
                 />
               </div>
+              {incidentFlowMessage && (
+                <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+                  {incidentFlowMessage}
+                </div>
+              )}
             </div>
+
+            {showCompensationSection && (
+              <section className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 space-y-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                      <AlertCircle className="text-amber-500" size={20} />
+                      Chi tiết đề xuất bồi thường
+                    </h3>
+                    <p className="text-sm text-slate-500 mt-1">
+                      Tổng hợp các đề xuất bồi thường liên quan đến đơn thuê này.
+                    </p>
+                  </div>
+                  <span className="text-xs font-bold px-3 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200">
+                    {compensationProposals.length} đề xuất
+                  </span>
+                </div>
+
+                {compensationProposals.length > 0 ? (
+                  <div className="space-y-4">
+                    {compensationProposals.map((proposal) => (
+                      <article
+                        key={String(proposal._id || proposal.issueId)}
+                        className="rounded-2xl border border-slate-200 bg-slate-50 p-5 space-y-3"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-bold text-slate-900">{proposal.itemName}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              Mã sự cố: #{String(proposal.issueId || "").slice(-6).toUpperCase()} •{" "}
+                              {proposal.issueType === "DAMAGE" ? "Sự cố hư hỏng" : "Sự cố giao nhận"}
+                            </p>
+                          </div>
+                          <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            {flowStatusLabelMap[proposal.flowStatus] || proposal.flowStatus || "Đang xử lý"}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <div className="rounded-xl border border-slate-200 bg-white p-3">
+                            <p className="text-[11px] text-slate-500 font-bold uppercase">Mức đề xuất</p>
+                            <p className="text-base font-black text-slate-900 mt-1">
+                              {Number(proposal.amount || 0).toLocaleString("vi-VN")} VND
+                            </p>
+                          </div>
+                          <div className="rounded-xl border border-slate-200 bg-white p-3">
+                            <p className="text-[11px] text-slate-500 font-bold uppercase">Phương án</p>
+                            <p className="text-sm font-bold text-slate-800 mt-1">
+                              {resolutionLabelMap[proposal.suggestedResolution] || proposal.suggestedResolution || "—"}
+                            </p>
+                          </div>
+                          <div className="rounded-xl border border-slate-200 bg-white p-3">
+                            <p className="text-[11px] text-slate-500 font-bold uppercase">Admin duyệt</p>
+                            {(proposal.adminDecision === "APPROVED" || proposal.flowStatus === "ADMIN_APPROVED") ? (
+                              <p className="text-sm font-black text-emerald-700 mt-1">
+                                {Number(proposal.approvedCompensationAmount || 0).toLocaleString("vi-VN")} VND
+                              </p>
+                            ) : proposal.adminDecision === "REJECTED" || proposal.flowStatus === "ADMIN_REJECTED" ? (
+                              <p className="text-sm font-bold text-rose-700 mt-1">Từ chối duyệt</p>
+                            ) : (
+                              <p className="text-sm font-bold text-slate-500 mt-1">Chưa duyệt</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {proposal.reason && (
+                          <p className="text-sm text-slate-700">
+                            <span className="font-semibold">Lý do:</span> {proposal.reason}
+                          </p>
+                        )}
+                        {proposal.explanation && (
+                          <p className="text-sm text-slate-700 whitespace-pre-wrap">
+                            <span className="font-semibold">Giải thích:</span> {proposal.explanation}
+                          </p>
+                        )}
+
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          <span className={`px-2 py-1 rounded-lg border text-xs font-bold ${getDecisionClass(proposal.customerDecision)}`}>
+                            Khách: {decisionLabelMap[proposal.customerDecision] || proposal.customerDecision || "PENDING"}
+                          </span>
+                          <span className={`px-2 py-1 rounded-lg border text-xs font-bold ${getDecisionClass(proposal.supplierDecision)}`}>
+                            Shop: {decisionLabelMap[proposal.supplierDecision] || proposal.supplierDecision || "PENDING"}
+                          </span>
+                          <span className={`px-2 py-1 rounded-lg border text-xs font-bold ${getDecisionClass(proposal.adminDecision)}`}>
+                            Admin: {decisionLabelMap[proposal.adminDecision] || proposal.adminDecision || "PENDING"}
+                          </span>
+                        </div>
+
+                        {proposal.customerDecision === "PENDING" && proposal.issueId && (
+                          <div className="rounded-xl border border-slate-200 bg-white p-3">
+                            <p className="text-[11px] font-bold uppercase text-slate-500 mb-2">Hành động của bạn</p>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleCustomerProposalDecision(proposal, "ACCEPTED")}
+                                disabled={confirmingProposalId === String(proposal._id || proposal.issueId)}
+                                className="inline-flex items-center justify-center rounded-lg border border-emerald-600 text-emerald-700 bg-white px-3 py-1.5 text-xs font-bold hover:bg-emerald-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                              >
+                                {confirmingProposalId === String(proposal._id || proposal.issueId)
+                                  ? "Đang xác nhận..."
+                                  : "Xác nhận đề xuất"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleCustomerProposalDecision(proposal, "REJECTED")}
+                                disabled={confirmingProposalId === String(proposal._id || proposal.issueId)}
+                                className="inline-flex items-center justify-center rounded-lg border border-rose-600 text-rose-700 bg-white px-3 py-1.5 text-xs font-bold hover:bg-rose-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                              >
+                                {confirmingProposalId === String(proposal._id || proposal.issueId)
+                                  ? "Đang xử lý..."
+                                  : "Từ chối đề xuất"}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        <p className="text-xs text-slate-500">
+                          Gửi lúc: {proposal.submittedAt ? new Date(proposal.submittedAt).toLocaleString("vi-VN") : "—"}
+                        </p>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5">
+                    <p className="text-sm font-semibold text-slate-700">Chưa có đề xuất bồi thường</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Case sự cố đã được ghi nhận, hiện đang chờ shop gửi đề xuất bồi thường.
+                    </p>
+                  </div>
+                )}
+              </section>
+            )}
 
             {/* 2. Danh sách thiết bị - Mỗi item có ngày riêng */}
             <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100">
@@ -1024,40 +1291,6 @@ export default function RentalDetail() {
 
 /* Sub Components */
 const StatusBadge = ({ status }) => {
-  const getStatusConfig = (rental) => {
-    const status = rental?.status;
-    switch (status) {
-      case "PENDING":
-        return { label: "Chờ xử lý", class: "bg-amber-100 text-amber-700 border-amber-200" };
-      case "REJECTED":
-        return { label: "Bị từ chối", class: "bg-rose-100 text-rose-700 border-rose-200" };
-      case "DELIVERING": {
-        if (rental?.pickedUpAt) {
-          return { label: "Đang giao đến bạn", class: "bg-indigo-100 text-indigo-700 border-indigo-200" };
-        }
-        if (rental?.assignedOperationStaffId) {
-          return { label: "Staff đang lấy hàng", class: "bg-blue-100 text-blue-700 border-blue-200" };
-        }
-        return { label: "Chờ staff nhận đơn", class: "bg-amber-100 text-amber-700 border-amber-200" };
-      }
-      case "RENTING":
-        return { label: "Đang thuê", class: "bg-emerald-100 text-emerald-700 border-emerald-200" };
-      case "RETURNING":
-        return { label: "Đang trả", class: "bg-purple-100 text-purple-700 border-purple-200" };
-      case "INSPECTING":
-        return { label: "Đang kiểm tra", class: "bg-slate-100 text-slate-700 border-slate-200" };
-      case "PENDING_RESOLUTION":
-        return { label: "Chờ giải quyết", class: "bg-orange-100 text-orange-700 border-orange-200" };
-      case "COMPLETED":
-        return { label: "Hoàn tất", class: "bg-slate-100 text-slate-700 border-slate-200" };
-      case "CANCELLED":
-        return { label: "Đã hủy", class: "bg-rose-100 text-rose-700 border-rose-200" };
-      default:
-        return { label: status || "—", class: "bg-slate-100 text-slate-700 border-slate-200" };
-    }
-  };
-
-  // For backward compatibility
   const configs = {
     PENDING: { label: "Chờ xử lý", class: "bg-amber-100 text-amber-700 border-amber-200" },
     REJECTED: { label: "Bị từ chối", class: "bg-rose-100 text-rose-700 border-rose-200" },

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { getDevices, getDeviceDetail } from "../../service/ApiService/DeviceApi";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
@@ -10,6 +11,7 @@ import { Dialog, Transition, Popover } from "@headlessui/react";
 import { Fragment } from "react";
 
 export default function ProductsPage() {
+  const { t, i18n } = useTranslation();
   const [searchParams] = useSearchParams();
   const categoryFromUrl = searchParams.get("category");
 
@@ -68,32 +70,32 @@ export default function ProductsPage() {
   }, [notifyChatbotSearch, searchQuery, selectedCategory]);
 
   const categories = [
-    { name: "Tất cả thiết bị", id: null, icon: "grid_view" },
-    { name: "Máy ảnh", id: "CAMERA", icon: "videocam" },
-    { name: "Ánh sáng", id: "LIGHTING", icon: "lightbulb" },
-    { name: "Âm thanh", id: "AUDIO", icon: "mic" },
-    { name: "Văn phòng", id: "OFFICE", icon: "business_center" },
-    { name: "Trò chơi", id: "GAMING", icon: "sports_esports" },
-    { name: "Phụ kiện", id: "ACCESSORY", icon: "handyman" },
-    { name: "Flycam", id: "DRONE", icon: "flight" },
-    { name: "Khác", id: "OTHER", icon: "category" },
+    { name: t("products.all_devices"), id: null, icon: "grid_view" },
+    { name: t("categories.CAMERA"), id: "CAMERA", icon: "videocam" },
+    { name: t("categories.LIGHTING"), id: "LIGHTING", icon: "lightbulb" },
+    { name: t("categories.AUDIO"), id: "AUDIO", icon: "mic" },
+    { name: t("categories.OFFICE"), id: "OFFICE", icon: "business_center" },
+    { name: t("categories.GAMING"), id: "GAMING", icon: "sports_esports" },
+    { name: t("categories.ACCESSORY"), id: "ACCESSORY", icon: "handyman" },
+    { name: t("categories.DRONE"), id: "DRONE", icon: "flight" },
+    { name: t("categories.OTHER"), id: "OTHER", icon: "category" },
   ];
 
   const sortOptions = [
-    { id: "featured", label: "Nổi bật", icon: "auto_awesome" },
-    { id: "newest", label: "Hàng mới về", icon: "new_releases" },
-    { id: "price_asc", label: "Giá: Thấp → Cao", icon: "trending_up" },
-    { id: "price_desc", label: "Giá: Cao → Thấp", icon: "trending_down" },
-    { id: "rating_desc", label: "Đánh giá cao nhất", icon: "star" },
+    { id: "featured", label: t("products.sort.featured"), icon: "auto_awesome" },
+    { id: "newest", label: t("products.sort.newest"), icon: "new_releases" },
+    { id: "price_asc", label: t("products.sort.price_asc"), icon: "trending_up" },
+    { id: "price_desc", label: t("products.sort.price_desc"), icon: "trending_down" },
+    { id: "rating_desc", label: t("products.sort.rating_desc"), icon: "star" },
   ];
 
   const ratingOptions = [
-    { value: 0, label: "Tất cả đánh giá" },
-    { value: 5, label: "5 sao" },
-    { value: 4, label: "4 sao trở lên" },
-    { value: 3, label: "3 sao trở lên" },
-    { value: 2, label: "2 sao trở lên" },
-    { value: 1, label: "1 sao trở lên" },
+    { value: 0, label: t("products.all_ratings") },
+    { value: 5, label: `5 ${t("products.stars")}` },
+    { value: 4, label: `4 ${t("products.stars")} ${t("products.and_up")}` },
+    { value: 3, label: `3 ${t("products.stars")} ${t("products.and_up")}` },
+    { value: 2, label: `2 ${t("products.stars")} ${t("products.and_up")}` },
+    { value: 1, label: `1 ${t("products.stars")} ${t("products.and_up")}` },
   ];
 
   const fetchDevices = useCallback(async () => {
@@ -201,7 +203,7 @@ export default function ProductsPage() {
       setSelectedForCompare((prev) => prev.filter((id) => id !== device._id));
     } else {
       if (selectedForCompare.length >= 2) {
-        setCompareError("You can compare up to 2 devices only.");
+        setCompareError(t("products.error_max_compare"));
         return;
       }
 
@@ -209,7 +211,7 @@ export default function ProductsPage() {
         const firstId = selectedForCompare[0];
         const firstDevice = devices.find((d) => d._id === firstId);
         if (firstDevice && firstDevice.category !== device.category) {
-          setCompareError("Only devices in the same category can be compared.");
+          setCompareError(t("products.error_same_category"));
           return;
         }
       }
@@ -234,7 +236,7 @@ export default function ProductsPage() {
       setIsCompareModalOpen(true);
     } catch (err) {
       console.error("Compare fetch error:", err);
-      setCompareError("Failed to load comparison data. Please try again.");
+      setCompareError(t("products.error_load_compare"));
     } finally {
       setLoadingCompare(false);
     }
@@ -276,10 +278,10 @@ export default function ProductsPage() {
 
           <div className="relative z-10 max-w-[1200px] mx-auto px-4 lg:px-8 text-center">
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 font-display tracking-tight">
-              Danh mục <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-cyan to-indigo-400">Thiết bị chuyên nghiệp</span>
+              {t("products.title")} <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-cyan to-indigo-400">{t("products.subtitle")}</span>
             </h1>
             <p className="text-base md:text-lg text-slate-300 max-w-2xl mx-auto font-light mb-6">
-              Trang bị cho tầm nhìn của bạn những máy ảnh, ống kính và ánh sáng tiêu chuẩn công nghiệp.
+              {t("products.hero_desc")}
             </p>
 
             <div className="max-w-xl mx-auto relative group">
@@ -288,7 +290,7 @@ export default function ProductsPage() {
                 <span className="material-symbols-outlined text-white/50 ml-2 mr-2 text-xl">search</span>
                 <input
                   type="text"
-                  placeholder="Tìm kiếm 'Sony FX3', 'Aputure', 'Ronin'..."
+                  placeholder={t("products.search_placeholder")}
                   className="flex-1 bg-transparent border-none text-white placeholder-white/50 focus:ring-0 text-base h-10"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -302,7 +304,7 @@ export default function ProductsPage() {
                   onClick={triggerAIFromCurrentFilters}
                   className="px-4 py-2 bg-white text-slate-900 font-bold rounded-lg hover:bg-indigo-50 transition-colors text-sm"
                 >
-                  Tìm kiếm
+                  {t("products.search_btn")}
                 </button>
               </div>
             </div>
@@ -314,7 +316,7 @@ export default function ProductsPage() {
             {/* Sidebar - giữ nguyên */}
             <aside className="w-full lg:w-64 flex-shrink-0">
               <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-5 shadow-lg border border-white/60 sticky top-20">
-                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">Lọc theo danh mục</h3>
+                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">{t("products.filter_category")}</h3>
                 
                 <Popover as="div" className="relative">
                   <Popover.Button className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-slate-900 shadow-lg shadow-slate-200/50 text-white transition-all hover:bg-slate-800">
@@ -323,7 +325,7 @@ export default function ProductsPage() {
                         {categories.find(c => c.id === selectedCategory)?.icon || "grid_view"}
                       </span>
                       <span className="font-bold tracking-tight">
-                        {categories.find(c => c.id === selectedCategory)?.name || "Tất cả thiết bị"}
+                        {categories.find(c => c.id === selectedCategory)?.name || t("products.all_devices")}
                       </span>
                     </div>
                     <span className="material-symbols-outlined text-slate-400">unfold_more</span>
@@ -374,8 +376,8 @@ export default function ProductsPage() {
 
                 <div className="mt-6 border-t border-slate-100 pt-6">
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Khoảng giá</h3>
-                    <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">VNĐ / Ngày</span>
+                    <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{t("products.price_range")}</h3>
+                    <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">{t("products.price_unit")}</span>
                   </div>
                   
                   <div className="px-2">
@@ -417,15 +419,15 @@ export default function ProductsPage() {
                     
                     <div className="flex justify-between items-center gap-4">
                       <div className="flex-1">
-                        <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Giá thấp nhất</p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">{t("products.min_price")}</p>
                         <div className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700">
-                          {priceRange[0].toLocaleString('vi-VN')}đ
+                          {priceRange[0].toLocaleString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')}đ
                         </div>
                       </div>
                       <div className="flex-1 text-right">
-                        <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Giá cao nhất</p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">{t("products.max_price")}</p>
                         <div className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700">
-                          {priceRange[1].toLocaleString('vi-VN')}đ
+                          {priceRange[1].toLocaleString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')}đ
                         </div>
                       </div>
                     </div>
@@ -435,10 +437,10 @@ export default function ProductsPage() {
 
                 <div className="mt-6 p-4 bg-gradient-to-br from-indigo-600 to-purple-700 rounded-xl text-white relative overflow-hidden" data-theme="dark">
                   <div className="absolute -right-4 -top-4 w-16 h-16 bg-white/10 rounded-full blur-xl"></div>
-                  <h4 className="font-bold font-display text-sm mb-1 relative z-10">Combo giảm 15%</h4>
-                  <p className="text-[10px] text-indigo-100 mb-3 relative z-10 leading-relaxed">Thuê trọn bộ máy ảnh chuyên nghiệp.</p>
+                  <h4 className="font-bold font-display text-sm mb-1 relative z-10">{t("products.combo_title")}</h4>
+                  <p className="text-[10px] text-indigo-100 mb-3 relative z-10 leading-relaxed">{t("products.combo_desc")}</p>
                   <button className="px-3 py-1.5 bg-white text-indigo-700 text-[11px] font-bold rounded-md hover:bg-indigo-50 transition-colors w-full shadow-md relative z-10">
-                    Xem gói thuê
+                    {t("products.view_combo")}
                   </button>
                 </div>
               </div>
@@ -529,10 +531,10 @@ export default function ProductsPage() {
                                         star
                                       </span>
                                     ))}
-                                    <span className="ml-1 text-slate-500">trở lên</span>
+                                    <span className="ml-1 text-slate-500">{t("products.and_up")}</span>
                                   </div>
                                 ) : (
-                                  <span>Tất cả đánh giá</span>
+                                  <span>{t("products.all_ratings")}</span>
                                 )}
                               </button>
                             ))}
@@ -552,7 +554,7 @@ export default function ProductsPage() {
                     />
                     <span className="text-xs text-slate-700 font-medium flex items-center gap-1">
                       <span className="material-symbols-outlined text-[14px] text-indigo-500">inventory_2</span>
-                      Còn hàng
+                      {t("products.in_stock")}
                     </span>
                   </label>
 
@@ -563,7 +565,7 @@ export default function ProductsPage() {
                       {/* Start Date Button */}
                       <Popover className="relative">
                         <Popover.Button className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-slate-200/60 rounded-xl text-xs text-slate-700 font-medium cursor-pointer hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 w-[100px] justify-between shadow-sm">
-                          {rentalStartDate ? new Date(rentalStartDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : 'Nhận'}
+                          {rentalStartDate ? new Date(rentalStartDate).toLocaleDateString(i18n.language === 'vi' ? 'vi-VN' : 'en-US', { day: '2-digit', month: '2-digit' }) : t("products.rent")}
                           <span className="material-symbols-outlined text-[12px] text-slate-400">calendar_today</span>
                         </Popover.Button>
                         <Transition
@@ -592,7 +594,7 @@ export default function ProductsPage() {
                       {/* End Date Button */}
                       <Popover className="relative">
                         <Popover.Button className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-slate-200/60 rounded-xl text-xs text-slate-700 font-medium cursor-pointer hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 w-[100px] justify-between shadow-sm">
-                          {rentalEndDate ? new Date(rentalEndDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : 'Trả'}
+                          {rentalEndDate ? new Date(rentalEndDate).toLocaleDateString(i18n.language === 'vi' ? 'vi-VN' : 'en-US', { day: '2-digit', month: '2-digit' }) : t("products.return")}
                           <span className="material-symbols-outlined text-[12px] text-slate-400">event</span>
                         </Popover.Button>
                         <Transition
@@ -623,7 +625,7 @@ export default function ProductsPage() {
                           setRentalEndDate("");
                         }}
                         className="ml-1 p-1 text-emerald-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
-                        title="Xóa ngày"
+                        title={t("products.clear_date")}
                       >
                         <span className="material-symbols-outlined text-[14px]">close</span>
                       </button>
@@ -635,7 +637,7 @@ export default function ProductsPage() {
               {/* Controls Bar */}
               <div className="bg-white/50 backdrop-blur-md rounded-xl p-3 mb-5 flex flex-wrap items-center justify-between gap-3 border border-white/60 shadow-sm">
                 <h2 className="text-sm font-bold text-slate-700">
-                  Đang hiển thị <span className="text-slate-900">{filteredDevices.length}</span> kết quả
+                  {t("products.showing")} <span className="text-slate-900">{filteredDevices.length}</span> {t("products.results")}
                 </h2>
 
                 <div className="flex items-center gap-3">
@@ -671,7 +673,7 @@ export default function ProductsPage() {
                           : "bg-slate-300 cursor-not-allowed"
                       }`}
                     >
-                      {loadingCompare ? "Đang tải..." : "So sánh"}
+                      {loadingCompare ? t("products.comparing") : t("products.compare")}
                     </button>
                     {compareError && <p className="text-red-600 text-[9px] mt-0.5 font-bold">{compareError}</p>}
                   </div>
@@ -685,7 +687,7 @@ export default function ProductsPage() {
                     type="text"
                     value={compareSearchQuery}
                     onChange={(e) => setCompareSearchQuery(e.target.value)}
-                    placeholder="Tìm kiếm sản phẩm tương tự để so sánh..."
+                    placeholder={t("products.compare_placeholder")}
                     className="w-full px-4 py-3 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm mb-4"
                   />
 
@@ -704,14 +706,14 @@ export default function ProductsPage() {
                           />
                           <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl">
                             <span className="text-white font-bold text-lg bg-indigo-600 px-6 py-3 rounded-xl shadow-lg">
-                              Chọn để so sánh
+                              {t("products.select_to_compare")}
                             </span>
                           </div>
                         </div>
                       ))
                     ) : (
                       <p className="text-slate-500 col-span-full text-center py-8">
-                        Không tìm thấy sản phẩm phù hợp trong danh mục này.
+                        {t("products.no_compare_candidates")}
                       </p>
                     )}
                   </div>
@@ -742,16 +744,16 @@ export default function ProductsPage() {
                   <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mb-6">
                     <span className="material-symbols-outlined text-5xl text-slate-300">manage_search</span>
                   </div>
-                  <h3 className="text-2xl font-bold text-slate-900 mb-2 font-display">Không tìm thấy kết quả</h3>
+                  <h3 className="text-2xl font-bold text-slate-900 mb-2 font-display">{t("products.no_results")}</h3>
                   <p className="text-slate-500 max-w-md mx-auto mb-8">
-                    Chúng tôi không tìm thấy kết quả nào phù hợp với tìm kiếm "{searchQuery}". Hãy thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm của bạn.
+                    {t("products.no_results_desc", { query: searchQuery })}
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3">
                     <button
                       onClick={triggerAIFromCurrentFilters}
                       className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors cursor-pointer"
                     >
-                      Hỏi GearXpert AI
+                      {t("products.ask_ai")}
                     </button>
                     <button
                       onClick={() => {
@@ -766,7 +768,7 @@ export default function ProductsPage() {
                       }}
                       className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-primary transition-colors cursor-pointer"
                     >
-                      Xóa bộ lọc
+                      {t("products.clear_filters")}
                     </button>
                   </div>
                 </div>
@@ -807,7 +809,7 @@ export default function ProductsPage() {
                 <Dialog.Panel className="w-full max-w-6xl transform overflow-hidden rounded-2xl bg-white text-left align-middle shadow-2xl transition-all">
                   <div className="p-6 border-b flex justify-between items-center">
                     <Dialog.Title as="h3" className="text-2xl font-bold text-slate-900">
-                      So sánh thiết bị
+                      {t("products.compare_modal_title")}
                     </Dialog.Title>
                     <button
                       onClick={() => setIsCompareModalOpen(false)}
@@ -820,14 +822,14 @@ export default function ProductsPage() {
                   {loadingCompare ? (
                     <div className="p-12 text-center">
                       <div className="inline-block w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                      <p className="text-slate-600">Đang tải dữ liệu so sánh...</p>
+                      <p className="text-slate-600">{t("products.compare_loading")}</p>
                     </div>
                   ) : (
                     <div className="p-6 overflow-x-auto max-h-[70vh]">
                       <table className="w-full min-w-[800px] border-collapse text-sm">
                         <thead className="sticky top-0 bg-white z-10">
                           <tr className="bg-slate-50">
-                            <th className="border p-4 text-left font-semibold w-1/4">Đặc tính</th>
+                            <th className="border p-4 text-left font-semibold w-1/4">{t("products.feature")}</th>
                             <th className="border p-4 text-center font-semibold">{compareData.device1?.name}</th>
                             <th className="border p-4 text-center font-semibold">{compareData.device2?.name}</th>
                           </tr>
@@ -850,15 +852,15 @@ export default function ProductsPage() {
                             };
 
                             const rows = [
-                              { label: "Danh mục", v1: d1?.category, v2: d2?.category, type: "text" },
-                              { label: "Thuê theo ngày", v1: d1?.rentPrice?.perDay, v2: d2?.rentPrice?.perDay, type: "lower" },
-                              { label: "Thuê theo tuần", v1: d1?.rentPrice?.perWeek, v2: d2?.rentPrice?.perWeek, type: "lower" },
-                              { label: "Thuê theo tháng", v1: d1?.rentPrice?.perMonth, v2: d2?.rentPrice?.perMonth, type: "lower" },
-                              { label: "Tiền cọc", v1: d1?.depositAmount, v2: d2?.depositAmount, type: "lower" },
-                              { label: "Tổng kho", v1: d1?.stockQuantity, v2: d2?.stockQuantity, type: "higher" },
-                              { label: "Có sẵn", v1: d1?.availableQuantity, v2: d2?.availableQuantity, type: "higher" },
-                              { label: "Đánh giá", v1: d1?.ratingAvg, v2: d2?.ratingAvg, type: "higher" },
-                              { label: "Mô tả", v1: d1?.description || "—", v2: d2?.description || "—", type: "text", full: true },
+                              { label: t("products.specs.category"), v1: t(`categories.${d1?.category}`), v2: t(`categories.${d2?.category}`), type: "text" },
+                              { label: t("products.specs.rent_day"), v1: d1?.rentPrice?.perDay, v2: d2?.rentPrice?.perDay, type: "lower" },
+                              { label: t("products.specs.rent_week"), v1: d1?.rentPrice?.perWeek, v2: d2?.rentPrice?.perWeek, type: "lower" },
+                              { label: t("products.specs.rent_month"), v1: d1?.rentPrice?.perMonth, v2: d2?.rentPrice?.perMonth, type: "lower" },
+                              { label: t("products.specs.deposit"), v1: d1?.depositAmount, v2: d2?.depositAmount, type: "lower" },
+                              { label: t("products.specs.stock"), v1: d1?.stockQuantity, v2: d2?.stockQuantity, type: "higher" },
+                              { label: t("products.specs.available"), v1: d1?.availableQuantity, v2: d2?.availableQuantity, type: "higher" },
+                              { label: t("products.specs.rating"), v1: d1?.ratingAvg, v2: d2?.ratingAvg, type: "higher" },
+                              { label: t("products.specs.description"), v1: d1?.description || "—", v2: d2?.description || "—", type: "text", full: true },
                             ];
 
                             return rows.map((row, i) => {
@@ -927,7 +929,7 @@ export default function ProductsPage() {
                       onClick={() => setIsCompareModalOpen(false)}
                       className="px-8 py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition"
                     >
-                      Đóng
+                      {t("products.close")}
                     </button>
                   </div>
                 </Dialog.Panel>

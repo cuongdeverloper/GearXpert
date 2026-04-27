@@ -4,6 +4,7 @@ const uploadCloud = require("../configs/cloudinaryConfig");
 const { checkAccessToken, checkAdmin, checkSupplier } = require("../middleware/JWTAction");
 
 const deliveryCtrl = require("../controllers/Report/deliveryIssueController");
+const adminCompensationProposalCtrl = require("../controllers/Report/AdminCompensationProposalController");
 const damageCtrl = require("../controllers/Report/damageReportController");
 const shopReportCtrl = require("../controllers/Report/shopReportController");
 
@@ -100,6 +101,64 @@ ReportRouter.patch(
 );
 
 ReportRouter.post(
+  "/supplier-issues/:issueId/compensation-proposal",
+  checkAccessToken,
+  checkSupplier,
+  uploadCloud.array("images", 8),
+  deliveryCtrl.supplierSubmitCompensationProposal
+);
+
+ReportRouter.post(
+  "/customer-issues/:issueId/compensation-proposal/confirm",
+  checkAccessToken,
+  deliveryCtrl.customerConfirmCompensationProposal
+);
+
+ReportRouter.post(
+  "/supplier-issues/:issueId/compensation-proposal/confirm",
+  checkAccessToken,
+  checkSupplier,
+  deliveryCtrl.supplierConfirmCompensationProposal
+);
+
+ReportRouter.post(
+  "/admin/issues/:issueId/compensation-proposal/approve",
+  checkAccessToken,
+  checkAdmin,
+  adminCompensationProposalCtrl.adminApproveCompensationProposal
+);
+
+ReportRouter.post(
+  "/admin/issues/:issueId/compensation-proposal/reject",
+  checkAccessToken,
+  checkAdmin,
+  adminCompensationProposalCtrl.adminRejectCompensationProposal
+);
+
+/** Legacy: body gồm `decision` + optional `approvedAmount`, `note` */
+ReportRouter.post(
+  "/admin/issues/:issueId/compensation-proposal/review",
+  checkAccessToken,
+  checkAdmin,
+  adminCompensationProposalCtrl.adminReviewCompensationProposal
+);
+
+ReportRouter.get(
+  "/admin/compensation-proposals",
+  checkAccessToken,
+  checkAdmin,
+  deliveryCtrl.adminGetCompensationProposals
+);
+
+/** Admin: tạm tính dòng tiền khi xem trước khi duyệt (query: approvedAmount tùy chọn) */
+ReportRouter.get(
+  "/admin/compensation-proposals/:proposalId/settlement-preview",
+  checkAccessToken,
+  checkAdmin,
+  adminCompensationProposalCtrl.getCompensationSettlementPreview
+);
+
+ReportRouter.post(
   "/supplier-issues/:issueId/cancel-refund",
   checkAccessToken,
   checkSupplier,
@@ -112,6 +171,20 @@ ReportRouter.post(
   checkSupplier,
   uploadCloud.array("images", 5),
   deliveryCtrl.supplierAdditionalDelivery
+);
+
+ReportRouter.post(
+  "/supplier-issues/:issueId/escalate",
+  checkAccessToken,
+  checkSupplier,
+  deliveryCtrl.supplierEscalateIssue
+);
+
+ReportRouter.post(
+  "/supplier-issues/:issueId/close-no-compensation",
+  checkAccessToken,
+  checkSupplier,
+  deliveryCtrl.supplierCloseIssueNoCompensation
 );
 
 module.exports = ReportRouter;

@@ -74,6 +74,10 @@ const voucherSchema = new mongoose.Schema(
       type: String,
       enum: ["SILVER", "GOLD", "PLATINUM", "DIAMOND"],
       default: null
+    },
+    scheduledStartDate: {
+      type: Date,
+      default: null
     }
   },
   { timestamps: true }

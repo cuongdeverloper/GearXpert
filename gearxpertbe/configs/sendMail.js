@@ -13,12 +13,12 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const sendMail = async (to, subject, html) => {
     try {
         console.log(`[Resend] Đang gửi email tới: ${to}`);
-        
+
         // Lưu ý: Nếu chưa verify domain trên Resend, bạn chỉ có thể gửi từ 'onboarding@resend.dev'
         // và người nhận phải là email bạn đã đăng ký với Resend.
         // Sau khi verify domain, hãy đổi địa chỉ 'from' thành email của domain đó (vđ: info@gearxpert.vn)
         const { data, error } = await resend.emails.send({
-            from: 'GearXpert <onboarding@resend.dev>', // Đổi thành 'GearXpert <your-email@your-domain.com>' sau khi verify
+            from: 'GearXpert <no-reply@gearxpert.online>', // Đổi thành 'GearXpert <your-email@your-domain.com>' sau khi verify
             to: [to],
             subject: subject,
             html: html,

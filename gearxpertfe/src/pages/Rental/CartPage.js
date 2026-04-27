@@ -15,6 +15,7 @@ import {
   updateCartItem,
 } from "../../service/ApiService/CartApi";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import DatePicker from "react-datepicker";
@@ -23,6 +24,7 @@ import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
 
 const CartPage = () => {
+  const { t, i18n } = useTranslation();
   const [groupedBySupplier, setGroupedBySupplier] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingBooking, setEditingBooking] = useState(null);
@@ -50,7 +52,7 @@ const CartPage = () => {
         const supplierId = item.deviceId?.supplierId?._id;
         const supplierName =
           item.deviceId?.supplierId?.fullName ||
-          `Cửa hàng #${supplierId?.slice(-6) || "unknown"}`;
+          `${t('cart.shop_prefix')} #${supplierId?.slice(-6) || "unknown"}`;
 
         if (!supplierId) return acc;
 
@@ -109,13 +111,13 @@ const CartPage = () => {
       if (res.cleaned) {
         toast.warning(
           res.message ||
-            "Một số sản phẩm trong giỏ đã hết hàng và bị tự động xóa!",
+            t('cart.auto_removed'),
           { autoClose: 5000 }
         );
       }
     } catch (err) {
       console.error("Error fetching cart", err);
-      toast.error("Không thể tải giỏ hàng");
+      toast.error(t('cart.load_error'));
     } finally {
       setLoading(false);
     }
@@ -133,12 +135,12 @@ const CartPage = () => {
     if (!deleteConfirm) return;
     try {
       await removeCartItem(deleteConfirm.itemId);
-      toast.success(`Đã xóa lịch thuê của ${deleteConfirm.deviceName}!`);
+      toast.success(t('cart.remove_success', { name: deleteConfirm.deviceName }));
       fetchCartData();
    
       window.dispatchEvent(new Event('cartUpdated'));
     } catch (err) {
-      toast.error("Không thể xóa. Vui lòng thử lại!");
+      toast.error(t('cart.remove_error'));
     } finally {
       setDeleteConfirm(null);
     }
@@ -168,24 +170,24 @@ const CartPage = () => {
       };
 
       await updateCartItem(editingBooking.id, payload);
-      toast.success("Đã cập nhật lịch thuê thành công!");
+      toast.success(t('cart.update_success'));
       setEditingBooking(null);
       fetchCartData(); // reload giỏ hàng
     } catch (err) {
       console.error("Update cart item error:", err);
       toast.error(
         err.response?.data?.message ||
-          "Không thể cập nhật lịch. Vui lòng thử lại!"
+          t('cart.update_error')
       );
     }
   };
 
   const handleCheckout = () => {
     if (!groupedBySupplier || groupedBySupplier.length === 0) {
-      toast.warn("Giỏ hàng của bạn đang trống!");
+      toast.warn(t('cart.empty_warn'));
       return;
     }
-    toast.info("Đang chuyển đến trang thanh toán...");
+    toast.info(t('cart.checkout_loading'));
     setTimeout(() => {
       navigate("/rental/checkout");
     }, 1500);
@@ -219,7 +221,7 @@ const CartPage = () => {
   if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center">
-        Loading...
+        {t('cart.loading')}
       </div>
     );
 
@@ -237,11 +239,11 @@ const CartPage = () => {
               className="flex items-center gap-2 text-slate-600 hover:text-indigo-600 transition-colors font-semibold"
             >
               <ArrowLeft className="w-5 h-5" />
-              Quay lại cửa hàng
+              {t('cart.back_to_shop')}
             </button>
             <div className="hidden md:flex items-center gap-4">
               <span className="text-sm font-medium text-slate-400">
-                Trang chủ / Giỏ hàng của bạn
+                {t('cart.breadcrumb')}
               </span>
             </div>
           </div>
@@ -266,7 +268,7 @@ const CartPage = () => {
                         {supplierGroup.supplierName}
                       </h2>
                       <p className="text-xs text-slate-500">
-                        Nhà cung cấp thiết bị
+                        {t('cart.supplier')}
                       </p>
                     </div>
                   </div>
@@ -286,7 +288,7 @@ const CartPage = () => {
                               <div className="w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl overflow-hidden border-2 border-white shadow-lg flex-shrink-0 group-hover:scale-105 transition-transform duration-300">
                                 <div className="relative group">
                                   <div 
-                                    onClick={() => navigate(`/device/${deviceGroup.device?._id}`)}
+                                    onClick={() => navigate(`/device/${deviceGroup.device?.slug}`)}
                                     className="cursor-pointer"
                                   >
                                     <img
@@ -303,17 +305,17 @@ const CartPage = () => {
                             </div>
                             <div className="flex-1 min-w-0">
                               <h3 
-                                onClick={() => navigate(`/device/${deviceGroup.device?._id}`)}
+                                onClick={() => navigate(`/device/${deviceGroup.device?.slug}`)}
                                 className="font-bold text-slate-900 text-lg mb-2 leading-tight group-hover:text-indigo-600 transition-colors cursor-pointer hover:underline"
                               >
                                 {deviceGroup.device?.name}
                               </h3>
                               <div className="flex items-center gap-3">
                                 <span className="inline-flex items-center px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full">
-                                  {deviceGroup.bookings.length} lịch thuê
+                                  {deviceGroup.bookings.length} {t('cart.rent_schedules')}
                                 </span>
                                 <span className="inline-flex items-center px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full">
-                                  Còn hàng
+                                  {t('cart.in_stock')}
                                 </span>
                               </div>
                             </div>
@@ -350,21 +352,21 @@ const CartPage = () => {
                                         #{index + 1}
                                       </span>
                                       <span className="text-sm font-semibold text-slate-900">
-                                        {booking.startDate.toLocaleDateString("vi-VN")}
+                                        {booking.startDate.toLocaleDateString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')}
                                       </span>
                                       <span className="text-slate-300">-</span>
                                       <span className="text-sm font-semibold text-slate-900">
-                                        {booking.endDate.toLocaleDateString("vi-VN")}
+                                        {booking.endDate.toLocaleDateString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')}
                                       </span>
                                     </div>
                                     <div className="flex items-center gap-4 text-xs text-slate-500">
                                       <span className="flex items-center gap-1">
                                         <span className="w-2 h-2 bg-indigo-400 rounded-full"></span>
-                                        {booking.totalDays} ngày
+                                        {booking.totalDays} {t('cart.days')}
                                       </span>
                                       <span className="flex items-center gap-1">
                                         <span className="w-2 h-2 bg-emerald-400 rounded-full"></span>
-                                        SL: {booking.quantity}
+                                        {t('cart.quantity_short')}: {booking.quantity}
                                       </span>
                                     </div>
                                   </div>
@@ -410,7 +412,7 @@ const CartPage = () => {
                                             <span className="text-sm font-semibold text-slate-400">d</span>
                                           </div>
                                           <div className="text-xs text-slate-500">
-                                            {effectivePrice.toLocaleString()}d × {booking.totalDays} ngày × {booking.quantity} SL
+                                            {effectivePrice.toLocaleString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')}đ × {booking.totalDays} {t('cart.days')} × {booking.quantity} {t('cart.quantity_short')}
                                           </div>
                                         </div>
                                       );
@@ -428,7 +430,7 @@ const CartPage = () => {
                   {/* TỔNG CỦA SUPPLIER */}
                   <div className="mt-6 pt-4 border-t border-slate-100 text-right">
                     <p className="text-sm font-medium text-slate-600">
-                      Tạm tính supplier:
+                      {t('cart.supplier_subtotal')}
                       <span className="font-bold text-indigo-600 ml-2">
                         {Object.values(supplierGroup.devices)
                           .reduce((sum, d) => {
@@ -441,7 +443,7 @@ const CartPage = () => {
                               )
                             );
                           }, 0)
-                          .toLocaleString()}
+                          .toLocaleString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')}
                         đ
                       </span>
                     </p>
@@ -454,16 +456,16 @@ const CartPage = () => {
                   <ShoppingBag size={40} className="text-slate-300" />
                 </div>
                 <h2 className="text-2xl font-bold text-slate-900 mb-2">
-                  Giỏ hàng trống
+                  {t('cart.empty')}
                 </h2>
                 <p className="text-slate-500 mb-8">
-                  Hãy chọn cho mình những thiết bị Gear đỉnh nhất.
+                  {t('cart.empty_subtitle')}
                 </p>
                 <button
                   onClick={() => navigate("/products")}
                   className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold hover:bg-indigo-600 transition-all active:scale-95"
                 >
-                  Khám phá ngay
+                  {t('cart.explore_now')}
                 </button>
               </div>
             )}
@@ -473,30 +475,30 @@ const CartPage = () => {
           <div className="lg:col-span-4">
             <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-xl sticky top-28">
               <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter mb-6">
-                Chi tiết thanh toán
+                {t('cart.summary')}
               </h2>
 
               <div className="space-y-4 mb-8">
                 <div className="flex justify-between text-slate-600 font-medium">
-                  <span>Tổng tiền thuê</span>
-                  <span>{totals.rent.toLocaleString()}đ</span>
+                  <span>{t('cart.sub_total')}</span>
+                  <span>{totals.rent.toLocaleString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')}đ</span>
                 </div>
                 <div className="flex justify-between text-slate-600 font-medium">
-                  <span>Tổng tiền cọc</span>
-                  <span>{totals.deposit.toLocaleString()}đ</span>
+                  <span>{t('cart.total_deposit')}</span>
+                  <span>{totals.deposit.toLocaleString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')}đ</span>
                 </div>
                 <div className="flex justify-between text-slate-500 text-sm italic">
-                  <span>Phí dịch vụ</span>
-                  <span>Miễn phí</span>
+                  <span>{t('cart.service_fee')}</span>
+                  <span>{t('cart.free')}</span>
                 </div>
                 <div className="pt-4 border-t border-slate-100 flex justify-between items-end">
-                  <span className="font-bold text-slate-900">Tổng cộng</span>
+                  <span className="font-bold text-slate-900">{t('cart.total')}</span>
                   <div className="text-right">
                     <p className="text-3xl font-black text-indigo-600 leading-none">
-                      {(totals.rent + totals.deposit).toLocaleString()}đ
+                      {(totals.rent + totals.deposit).toLocaleString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')}đ
                     </p>
                     <p className="text-[10px] text-slate-400 uppercase font-bold mt-2">
-                      Đã bao gồm tiền cọc
+                      {t('cart.including_deposit')}
                     </p>
                   </div>
                 </div>
@@ -508,8 +510,7 @@ const CartPage = () => {
                   size={20}
                 />
                 <p className="text-xs text-indigo-700 leading-relaxed font-medium">
-                  Tiền cọc sẽ được hoàn trả 100% sau khi thiết bị được kiểm tra
-                  và thu hồi thành công.
+                  {t('cart.refund_policy')}
                 </p>
               </div>
 
@@ -517,7 +518,7 @@ const CartPage = () => {
                 onClick={handleCheckout}
                 className="w-full bg-slate-900 text-white py-5 rounded-[24px] font-black text-lg uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-indigo-600 transition-all shadow-lg shadow-indigo-100 active:scale-[0.98]"
               >
-                Thanh toán ngay <ArrowRight size={20} />
+                {t('cart.checkout')} <ArrowRight size={20} />
               </button>
             </div>
           </div>
@@ -529,13 +530,13 @@ const CartPage = () => {
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl">
             <h3 className="text-xl font-bold text-slate-900 mb-6">
-              Chỉnh sửa lịch thuê
+              {t('cart.edit_schedule')}
             </h3>
 
             <div className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Ngày bắt đầu
+                  {t('cart.start_date')}
                 </label>
                 <DatePicker
                   selected={editingBooking.startDate}
@@ -553,7 +554,7 @@ const CartPage = () => {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Ngày kết thúc
+                  {t('cart.end_date')}
                 </label>
                 <DatePicker
                   selected={editingBooking.endDate}
@@ -571,7 +572,7 @@ const CartPage = () => {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Số lượng
+                  {t('cart.quantity')}
                 </label>
                 <div className="flex items-center gap-3">
                   <button
@@ -618,13 +619,13 @@ const CartPage = () => {
                 onClick={() => setEditingBooking(null)}
                 className="px-6 py-2.5 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition"
               >
-                Hủy
+                {t('cart.cancel')}
               </button>
               <button
                 onClick={handleSaveEdit}
                 className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium"
               >
-                Lưu thay đổi
+                {t('cart.save')}
               </button>
             </div>
           </div>
@@ -640,14 +641,10 @@ const CartPage = () => {
                 <Trash2 className="text-red-600" size={24} />
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">
-                Xác nhận xóa
+                {t('cart.delete_confirm_title')}
               </h3>
               <p className="text-slate-500">
-                Bạn có chắc muốn xóa lịch thuê của{" "}
-                <span className="font-semibold text-slate-700">
-                  {deleteConfirm.deviceName}
-                </span>
-                ?
+                {t('cart.delete_confirm_desc', { name: deleteConfirm.deviceName })}
               </p>
             </div>
 
@@ -656,13 +653,13 @@ const CartPage = () => {
                 onClick={cancelDelete}
                 className="flex-1 px-6 py-2.5 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition"
               >
-                Hủy
+                {t('cart.cancel')}
               </button>
               <button
                 onClick={confirmDelete}
                 className="flex-1 px-6 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium"
               >
-                Xóa
+                {t('cart.delete')}
               </button>
             </div>
           </div>

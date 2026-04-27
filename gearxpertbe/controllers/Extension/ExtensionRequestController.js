@@ -5,6 +5,8 @@ const Wallet = require("../../models/Wallet");
 const WalletTransaction = require("../../models/WalletTransaction");
 const mongoose = require("mongoose");
 
+const PLATFORM_FEE_RATE = 0.1; // 10% platform fee
+
 // Middleware to check if user is the supplier of the rental
 const checkSupplierPermission = async (req, res, next) => {
   try {
@@ -137,16 +139,17 @@ const approveExtension = async (req, res) => {
     
     // Update payment amounts
     const extraAmount = extensionRequest.proposedExtraAmount;
-    const PLATFORM_FEE_RATE = 0.1; // 10%
     
     rental.rentPriceTotal += extraAmount;
     rental.totalAmount += extraAmount;
     
     // Update payment breakdown
     rental.paymentBreakdown.rentAmount += extraAmount;
-    const platformFee = Math.round(rental.paymentBreakdown.rentAmount * PLATFORM_FEE_RATE);
-    rental.paymentBreakdown.platformFee = platformFee;
-    rental.paymentBreakdown.supplierReceive = rental.paymentBreakdown.rentAmount - platformFee;
+    const platformFee = Math.round(extraAmount * PLATFORM_FEE_RATE);
+    const supplierReceive = extraAmount - platformFee;
+    
+    rental.paymentBreakdown.platformFee += platformFee;
+    rental.paymentBreakdown.supplierReceive += supplierReceive;
     
     // Update rental items end dates
     const startDate = rental.rentalStartDate || rental.items?.[0]?.rentalStartDate || rental.createdAt;
@@ -160,6 +163,50 @@ const approveExtension = async (req, res) => {
       },
       { session }
     );
+
+    // === XỬ LÝ THANH TOÁN KHI DUYỆT GIA HẠN ===
+    if (extensionRequest.paymentStatus === "PAID" && extraAmount > 0) {
+      // Khi request extension, tiền đã được cộng vào admin wallet (PAYOUT lump sum)
+      // Khi approve extension: Tạo PLATFORM_FEE transaction để ghi nhận phí nền tảng
+      // Tiền supplierReceive được giữ trong escrow và sẽ release khi rental complete
+      
+      const systemWallet = await Wallet.findOne({ isSystem: true }).session(session);
+      if (!systemWallet) {
+        throw new Error("Không tìm thấy ví hệ thống");
+      }
+      
+      // Tạo PLATFORM_FEE transaction cho phần extension (không thay đổi balance, chỉ để tracking)
+      // Platform fee được giữ lại trong admin wallet
+      if (platformFee > 0) {
+        await WalletTransaction.create(
+          [
+            {
+              wallet: systemWallet._id,
+              type: "PLATFORM_FEE",
+              amount: platformFee,
+              balanceBefore: systemWallet.balance,
+              balanceAfter: systemWallet.balance, // Không thay đổi balance vì tiền đã ở trong wallet
+              referenceType: "RENTAL",
+              referenceId: rental._id,
+              description: `Thu phí nền tảng gia hạn đơn #${rental._id.toString().slice(-6)}`,
+              status: "SUCCESS",
+              isEarned: true, // Platform fee được coi là earned ngay khi approve
+              rentalStatus: rental.status,
+              metadata: {
+                extensionRequestId: extensionRequest._id,
+                isExtension: true
+              }
+            },
+          ],
+          { session }
+        );
+      }
+      
+      // Update escrow status nếu cần (đảm bảo tiền gia hạn được giữ trong escrow)
+      if (rental.escrowStatus === "RELEASED" || rental.escrowStatus === "PARTIAL_REFUND") {
+        rental.escrowStatus = "HOLDING";
+      }
+    }
 
     await rental.save({ session });
 
@@ -239,7 +286,7 @@ const rejectExtension = async (req, res) => {
         );
       }
 
-      // Trừ tiền từ ví admin
+      // Trừ tiền từ ví admin (hoàn tác PAYOUT đã cộng khi request)
       const adminWallet = await Wallet.findOne({ isSystem: true }).session(session);
       if (adminWallet) {
         const adminBalanceBefore = adminWallet.balance;
@@ -250,7 +297,7 @@ const rejectExtension = async (req, res) => {
           [
             {
               wallet: adminWallet._id,
-              type: "PLATFORM_FEE_REFUND",
+              type: "PAYOUT_REFUND",
               amount: -refundAmount,
               balanceBefore: adminBalanceBefore,
               balanceAfter: adminWallet.balance,
@@ -258,6 +305,7 @@ const rejectExtension = async (req, res) => {
               referenceId: extensionRequest.rentalId,
               description: `Hoàn tiền gia hạn bị từ chối - đơn thuê #${extensionRequest.rentalId.toString().slice(-6)}`,
               status: "SUCCESS",
+              metadata: { extensionRequestId: extensionRequest._id }
             },
           ],
           { session }

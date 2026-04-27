@@ -68,6 +68,13 @@ const deliveryIssueReportSchema = new mongoose.Schema(
       default: "OPEN",
     },
 
+    /** Mức bồi thường admin duyệt (đồng bộ hợp thức với DamageReport khi chốt đề xuất) */
+    compensationAmount: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+
     resolutionNote: String,
 
     // Admin assignment

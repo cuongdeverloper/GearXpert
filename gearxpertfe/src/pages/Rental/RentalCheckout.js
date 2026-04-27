@@ -39,7 +39,7 @@ import {
   Check,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import SignatureCanvas from "react-signature-canvas";
@@ -54,6 +54,8 @@ import {
 } from "../../service/ApiService/VoucherApi.js";
 import { checkout, previewContractWithData } from "../../service/ApiService/RentalApi";
 import { getMyWallet } from "../../service/ApiService/WalletApi";
+import { getCurrentUser } from "../../service/ApiService/AuthApi";
+import { doLogin } from "../../redux/action/userAction";
 import axios from "../../service/AxiosCustomize";
 
 // --- MAP IMPORTS ---
@@ -73,7 +75,7 @@ let DefaultIcon = L.icon({
 L.Marker.prototype.options.icon = DefaultIcon;
 
 // --- CONSTANTS ---
-const FPT_COORDS = { lat: 15.9753, lng: 108.2524 };
+const FPT_COORDS = { lat: 16.0445, lng: 108.2475 };
 const MIN_DELIVERY_FEE = 10000;
 const FEE_PER_KM = 5000;
 
@@ -96,6 +98,7 @@ export default function CheckoutPage() {
   const { account } = useSelector((state) => state.user);
   const navigate = useNavigate();
   const location = useLocation();
+  const dispatch = useDispatch();
   const CART_TYPE = location.state?.cartType || "NORMAL";
 
   // Current step: 1=Cart, 2=Info, 3=Payment, 4=Complete
@@ -133,6 +136,39 @@ export default function CheckoutPage() {
   const [mapPosition, setMapPosition] = useState([FPT_COORDS.lat, FPT_COORDS.lng]);
   const [distance, setDistance] = useState(0);
   const [deliveryFee, setDeliveryFee] = useState(0);
+  const [useSavedSignature, setUseSavedSignature] = useState(false);
+
+  // Initialize signature from account
+  useEffect(() => {
+    if (account?.signatureUrl) {
+      setSignatureDataUrl(account.signatureUrl);
+      setUseSavedSignature(true);
+    }
+  }, [account?.signatureUrl]);
+
+  // Refresh user data to get latest signature
+  useEffect(() => {
+    const refreshData = async () => {
+      try {
+        const res = await getCurrentUser();
+        if (res.errorCode === 0) {
+          dispatch(doLogin({ 
+            data: { 
+              ...res.data, 
+              access_token: account.access_token, 
+              refresh_token: account.refresh_token 
+            } 
+          }));
+        }
+      } catch (err) {
+        console.error("Error refreshing user data:", err);
+      }
+    };
+    
+    if (currentStep === 3) {
+      refreshData();
+    }
+  }, [currentStep, dispatch, account?.access_token, account?.refresh_token]);
 
   // Fetch cart data and auto-apply best voucher
   useEffect(() => {
@@ -345,9 +381,15 @@ export default function CheckoutPage() {
       return false;
     }
     // Check if shipping fee has been calculated (unless pickup at warehouse)
-    if (address.street !== "Kho GearXpert" && distance === 0) {
-      toast.error("Vui lòng kiểm tra địa chỉ và tính phí vận chuyển trước khi tiếp tục");
-      return false;
+    if (address.street !== "Kho GearXpert") {
+      if (distance === 0) {
+        toast.error("Vui lòng kiểm tra địa chỉ và tính phí vận chuyển trước khi tiếp tục");
+        return false;
+      }
+      if (deliveryFee === 0) {
+        toast.error("Phí vận chuyển chưa được tính. Vui lòng kiểm tra lại địa chỉ.");
+        return false;
+      }
     }
     return true;
   };
@@ -1069,7 +1111,14 @@ export default function CheckoutPage() {
                           type="text"
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                           value={address.district}
-                          onChange={(e) => setAddress({ ...address, district: e.target.value })}
+                          onChange={(e) => {
+                            setAddress({ ...address, district: e.target.value });
+                            // Reset distance and delivery fee when user changes district
+                            if (distance > 0 || deliveryFee > 0) {
+                              setDistance(0);
+                              setDeliveryFee(0);
+                            }
+                          }}
                           placeholder="Nhập tên phường/xã, ví dụ: Phường Hòa Minh"
                         />
                       </div>
@@ -1085,7 +1134,14 @@ export default function CheckoutPage() {
                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                         placeholder="Số nhà + tên đường, ví dụ: 123 Nguyễn Văn Linh"
                         value={address.street}
-                        onChange={(e) => setAddress({ ...address, street: e.target.value })}
+                        onChange={(e) => {
+                          setAddress({ ...address, street: e.target.value });
+                          // Reset distance and delivery fee when user changes street
+                          if (distance > 0 || deliveryFee > 0) {
+                            setDistance(0);
+                            setDeliveryFee(0);
+                          }
+                        }}
                       />
                       <p className="text-xs text-gray-500 mt-1">Nhập số nhà và tên đường để tính phí ship chính xác</p>
                     </div>
@@ -1523,81 +1579,210 @@ export default function CheckoutPage() {
                     </div>
                   </div>
 
-                  <div className="p-8 bg-gray-50">
-                    <div className="mb-4">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Chữ ký của bạn <span className="text-red-500">*</span>
-                      </label>
-                      <div className="border-3 border-dashed border-gray-400 rounded-2xl overflow-hidden bg-white shadow-inner">
-                        <SignatureCanvas
-                          ref={sigCanvas}
-                          penColor="black"
-                          penMinWidth={2}
-                          penMaxWidth={4}
-                          canvasProps={{
-                            width: 500,
-                            height: 150,
-                            className: "w-full h-32 touch-none cursor-crosshair bg-white",
-                            style: { maxWidth: '100%', height: 'auto' }
+                  <div className="p-8 bg-gray-50 signature-step-content">
+                    {account?.signatureUrl ? (
+                      <div className="space-y-6">
+                        {/* Option 1: Use Saved Signature */}
+                        <div
+                          onClick={() => {
+                            setUseSavedSignature(true);
+                            setSignatureDataUrl(account.signatureUrl);
                           }}
-                        />
-                      </div>
-                      <p className="text-xs text-gray-500 mt-2 italic">
-                        * Ký bằng ngón tay hoặc stylus. Hãy ký rõ ràng và đầy đủ.
-                      </p>
-                    </div>
+                          className={`p-6 bg-white rounded-2xl border-2 transition-all cursor-pointer ${useSavedSignature ? 'border-indigo-600 shadow-lg ring-1 ring-indigo-500/20' : 'border-gray-200 hover:border-indigo-300 bg-gray-50/50'}`}
+                        >
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${useSavedSignature ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300 bg-white'}`}>
+                                {useSavedSignature ? <CheckCircle2 size={16} /> : <div className="w-3 h-3 bg-transparent" />}
+                              </div>
+                              <span className={`font-bold text-lg ${useSavedSignature ? 'text-gray-900' : 'text-gray-500'}`}>Sử dụng chữ ký từ hồ sơ</span>
+                            </div>
+                            {useSavedSignature && (
+                              <span className="bg-indigo-100 text-indigo-700 text-xs font-black px-3 py-1 rounded-full uppercase tracking-widest">
+                                Đã chọn
+                              </span>
+                            )}
+                          </div>
 
-                    <div className="flex gap-4">
-                      <button
-                        onClick={() => {
-                          if (sigCanvas.current) {
-                            sigCanvas.current.clear();
-                            setSignatureDataUrl(null);
-                            toast.info("Đã xóa chữ ký, vui lòng ký lại");
-                          }
-                        }}
-                        className="flex-1 py-4 bg-red-50 text-red-600 rounded-xl font-semibold hover:bg-red-100 transition-all border-2 border-red-200"
-                      >
-                        <div className="flex items-center justify-center gap-2">
-                          <Trash2 size={18} />
-                          Xóa & Ký lại
+                          <div className={`p-4 rounded-xl border flex justify-center transition-all ${useSavedSignature ? 'bg-indigo-50/50 border-indigo-100' : 'bg-gray-100/50 border-gray-200 grayscale'}`}>
+                            <img
+                              src={account.signatureUrl}
+                              alt="Saved Signature"
+                              className="max-h-24 object-contain"
+                              referrerPolicy="no-referrer"
+                            />
+                          </div>
                         </div>
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
-                            let canvasToUse;
-                            try {
-                              canvasToUse = sigCanvas.current.getTrimmedCanvas();
-                            } catch (err) {
-                              console.warn("getTrimmedCanvas failed, fallback to full canvas:", err);
-                              canvasToUse = sigCanvas.current.getCanvas();
+
+                        {/* Option 2: Sign Manually */}
+                        <div
+                          onClick={() => {
+                            if (useSavedSignature) {
+                              setUseSavedSignature(false);
+                              setSignatureDataUrl(null);
                             }
-                            const dataUrl = canvasToUse.toDataURL("image/png");
-                            setSignatureDataUrl(dataUrl);
-                            toast.success("Đã lưu chữ ký thành công!");
-                          } else {
-                            toast.warning("Vui lòng ký vào ô trước khi lưu");
-                          }
-                        }}
-                        className="flex-1 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg"
-                      >
-                        <div className="flex items-center justify-center gap-2">
-                          <CheckCircle2 size={18} />
-                          Lưu chữ ký
-                        </div>
-                      </button>
-                    </div>
+                          }}
+                          className={`p-6 bg-white rounded-2xl border-2 transition-all cursor-pointer ${!useSavedSignature ? 'border-indigo-600 shadow-lg ring-1 ring-indigo-500/20' : 'border-gray-200 hover:border-indigo-300 bg-gray-50/50'}`}
+                        >
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${!useSavedSignature ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300 bg-white'}`}>
+                              {!useSavedSignature ? <CheckCircle2 size={16} /> : <div className="w-3 h-3 bg-transparent" />}
+                            </div>
+                            <span className={`font-bold text-lg ${!useSavedSignature ? 'text-gray-900' : 'text-gray-500'}`}>Ký tên thủ công cho đơn này</span>
+                          </div>
 
-                    {signatureDataUrl && (
+                          {!useSavedSignature && (
+                            <div className="space-y-4 animate-fade-in mt-4 border-t pt-6">
+                              <div className="mb-4">
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                  Vẽ chữ ký của bạn <span className="text-red-500">*</span>
+                                </label>
+                                <div className="border-3 border-dashed border-gray-400 rounded-2xl overflow-hidden bg-white shadow-inner">
+                                  <SignatureCanvas
+                                    ref={sigCanvas}
+                                    penColor="black"
+                                    penMinWidth={2}
+                                    penMaxWidth={4}
+                                    canvasProps={{
+                                      width: 500,
+                                      height: 150,
+                                      className: "w-full h-32 touch-none cursor-crosshair bg-white",
+                                      style: { maxWidth: '100%', height: 'auto' }
+                                    }}
+                                  />
+                                </div>
+                                <p className="text-xs text-gray-500 mt-2 italic">
+                                  * Ký bằng ngón tay hoặc stylus. Hãy ký rõ ràng và đầy đủ.
+                                </p>
+                              </div>
+
+                              <div className="flex gap-4">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (sigCanvas.current) {
+                                      sigCanvas.current.clear();
+                                      setSignatureDataUrl(null);
+                                      toast.info("Đã xóa chữ ký");
+                                    }
+                                  }}
+                                  className="flex-1 py-4 bg-red-50 text-red-600 rounded-xl font-semibold hover:bg-red-100 transition-all border-2 border-red-200"
+                                >
+                                  <div className="flex items-center justify-center gap-2">
+                                    <Trash2 size={18} />
+                                    Xóa
+                                  </div>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
+                                      let canvasToUse;
+                                      try {
+                                        canvasToUse = sigCanvas.current.getTrimmedCanvas();
+                                      } catch (err) {
+                                        canvasToUse = sigCanvas.current.getCanvas();
+                                      }
+                                      const dataUrl = canvasToUse.toDataURL("image/png");
+                                      setSignatureDataUrl(dataUrl);
+                                      toast.success("Đã xác nhận chữ ký!");
+                                    } else {
+                                      toast.warning("Vui lòng ký trước khi xác nhận");
+                                    }
+                                  }}
+                                  className="flex-1 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg"
+                                >
+                                  <div className="flex items-center justify-center gap-2">
+                                    <CheckCircle2 size={18} />
+                                    Xác nhận
+                                  </div>
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="animate-fade-in">
+                        <div className="mb-4">
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Chữ ký của bạn <span className="text-red-500">*</span>
+                          </label>
+                          <div className="border-3 border-dashed border-gray-400 rounded-2xl overflow-hidden bg-white shadow-inner">
+                            <SignatureCanvas
+                              ref={sigCanvas}
+                              penColor="black"
+                              penMinWidth={2}
+                              penMaxWidth={4}
+                              canvasProps={{
+                                width: 500,
+                                height: 150,
+                                className: "w-full h-32 touch-none cursor-crosshair bg-white",
+                                style: { maxWidth: '100%', height: 'auto' }
+                              }}
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500 mt-2 italic">
+                            * Ký bằng ngón tay hoặc stylus. Hãy ký rõ ràng và đầy đủ.
+                          </p>
+                        </div>
+
+                        <div className="flex gap-4">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (sigCanvas.current) {
+                                sigCanvas.current.clear();
+                                setSignatureDataUrl(null);
+                                toast.info("Đã xóa chữ ký");
+                              }
+                            }}
+                            className="flex-1 py-4 bg-red-50 text-red-600 rounded-xl font-semibold hover:bg-red-100 transition-all border-2 border-red-200"
+                          >
+                            <div className="flex items-center justify-center gap-2">
+                              <Trash2 size={18} />
+                              Xóa & Ký lại
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
+                                let canvasToUse;
+                                try {
+                                  canvasToUse = sigCanvas.current.getTrimmedCanvas();
+                                } catch (err) {
+                                  canvasToUse = sigCanvas.current.getCanvas();
+                                }
+                                const dataUrl = canvasToUse.toDataURL("image/png");
+                                setSignatureDataUrl(dataUrl);
+                                toast.success("Đã ghi nhận chữ ký!");
+                              } else {
+                                toast.warning("Vui lòng ký trước khi lưu");
+                              }
+                            }}
+                            className="flex-1 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg"
+                          >
+                            <div className="flex items-center justify-center gap-2">
+                              <CheckCircle2 size={18} />
+                              Lưu chữ ký
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {signatureDataUrl && !useSavedSignature && (
                       <div className="mt-6 p-5 bg-green-50 rounded-2xl border-2 border-green-200">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-green-600 rounded-2xl flex items-center justify-center">
                             <CheckCircle2 size={20} className="text-white" />
                           </div>
                           <div>
-                            <span className="font-bold text-green-700 text-lg">Chữ ký đã được lưu</span>
-                            <p className="text-green-600 text-sm">Bạn có thể tiếp tục thanh toán</p>
+                            <span className="font-bold text-green-700 text-lg">Chữ ký thủ công đã sẵn sàng</span>
+                            <p className="text-green-600 text-sm">Bạn có thể tiếp tục tiến hành đặt hàng</p>
                           </div>
                         </div>
                         <div className="mt-3 p-3 bg-white rounded-lg border border-green-200">
@@ -1928,11 +2113,22 @@ export default function CheckoutPage() {
             </div>
 
             <div className="h-[400px]">
-              <MapContainer center={mapPosition} zoom={14} style={{ height: "100%", width: "100%" }}>
+              <MapContainer center={mapPosition} zoom={14} style={{ height: "100%", width: "100%", cursor: "crosshair" }}>
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                {/* Always show warehouse marker */}
                 <Marker position={[FPT_COORDS.lat, FPT_COORDS.lng]}>
-                  <Popup>Kho GearXpert</Popup>
+                  <Popup>
+                    <div className="font-bold text-blue-600">🏭 Kho GearXpert</div>
+                  </Popup>
                 </Marker>
+                {/* Show selected position marker when user clicks */}
+                {mapPosition[0] !== FPT_COORDS.lat || mapPosition[1] !== FPT_COORDS.lng ? (
+                  <Marker position={mapPosition}>
+                    <Popup>
+                      <div className="font-bold text-red-600">📍 Vị trí giao hàng</div>
+                    </Popup>
+                  </Marker>
+                ) : null}
                 <MapEventsHandler />
               </MapContainer>
             </div>

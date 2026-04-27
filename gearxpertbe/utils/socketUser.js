@@ -2,11 +2,13 @@ let users = [];
 
 // Add a user (or update socketId if they reconnect)
 const addUser = (userId, socketId) => {
-  const existing = users.find((user) => user.userId === userId);
+  const id = String(userId);
+  const existing = users.find((user) => String(user.userId) === id);
   if (existing) {
     existing.socketId = socketId;
+    existing.userId = id;
   } else {
-    users.push({ userId, socketId });
+    users.push({ userId: id, socketId });
   }
 };
 
@@ -15,9 +17,11 @@ const removeUser = (socketId) => {
   users = users.filter((user) => user.socketId !== socketId);
 };
 
-// Get a user by userId
+// Get a user by userId (so sánh theo chuỗi — tránh lệch string vs ObjectId)
 const getUser = (userId) => {
-  return users.find((user) => user.userId === userId);
+  if (userId == null) return undefined;
+  const id = String(userId);
+  return users.find((user) => String(user.userId) === id);
 };
 
 // Get all users (optional)
