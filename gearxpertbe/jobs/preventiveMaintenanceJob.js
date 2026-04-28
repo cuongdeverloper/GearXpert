@@ -12,7 +12,7 @@ const NotificationConfig = require("../configs/NotificationConfig");
 const startPreventiveMaintenanceJob = () => {
   // Chạy thực tế 2:00 AM: '0 2 * * *' || '* * * * *' để test nhanh
   // Để test thủ công: gọi runPreventiveMaintenanceJob() trực tiếp
-  cron.schedule("* * * * *", async () => {
+  cron.schedule("0 2 * * *", async () => {
     await runPreventiveMaintenanceJob();
   });
 };
