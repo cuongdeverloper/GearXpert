@@ -1,6 +1,7 @@
 const { createJWT, createRefreshToken, verifyAccessToken, createJWTResetPassword, createJWTVerifyEmail, createJWTOtp } = require('../../middleware/JWTAction');
 const bcrypt = require('bcryptjs');
 const uploadCloud = require('../../configs/cloudinaryConfig');
+const cloudinary = require('cloudinary').v2;
 const { sendMail } = require('../../configs/sendMail');
 const { registrationTemplate, passwordResetTemplate, otpPasswordChangeTemplate } = require('../../utils/EmailTemplates');
 
@@ -60,7 +61,8 @@ const apiLogin = async (req, res) => {
                 walletBalance: walletBalance,
                 rewardPoints: userRecord.rewardPoints,
                 isVerified: userRecord.isVerified,
-                isVerifiedEkyc: userRecord.isVerifiedEkyc
+                isVerifiedEkyc: userRecord.isVerifiedEkyc,
+                signatureUrl: userRecord.signatureUrl
             }
         });
     } catch (error) {
@@ -71,76 +73,94 @@ const apiLogin = async (req, res) => {
 
 const apiRegister = async (req, res) => {
     try {
-        uploadCloud.single('avatar')(req, res, async (err) => {
-            if (err) return res.status(400).json({ errorCode: 4, message: `Upload Error: ${err.message}` });
-
-            const { fullName, email, password, phone, role, street, district, city } = req.body;
-            const avatar = req.file ? req.file.path : "";
-
-            if (!fullName || !email || !password || !phone) {
-                return res.status(203).json({ errorCode: 1, message: 'Required fields are missing' });
-            }
-
-            if (!/^\d{10}$/.test(phone)) {
-                return res.status(200).json({ errorCode: 6, message: 'Phone number must be exactly 10 digits' });
-            }
-
-            const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{6,}$/;
-            if (!passwordRegex.test(password)) {
-                return res.status(200).json({
-                    errorCode: 7,
-                    message: 'Mật khẩu phải có ít nhất 6 ký tự, bao gồm chữ hoa, số và ký tự đặc biệt'
-                });
-            }
-
-            const existingUser = await User.findOne({ email });
-            if (existingUser) return res.status(200).json({ errorCode: 2, message: 'Email already exists' });
-
-            const newUser = new User({
-                fullName, email, password, phone, avatar,
-                role: role || 'CUSTOMER',
-                address: { street, district, city, fullAddress: `${street}, ${district}, ${city}` }
-            });
-
-            await newUser.save();
-
-            // Tự động tạo ví cho người dùng mới
-            await ensureUserWallet(newUser._id);
-
-            // Tạo Token xác thực
-            const verifyToken = createJWTVerifyEmail({ id: newUser._id, email: newUser.email });
-            const verifyLink = `${process.env.FRONTEND_URL}/verify-account?token=${verifyToken}`;
-
-            const emailContent = registrationTemplate(fullName, verifyLink);
-
-            // Gửi mail bất đồng bộ để tránh làm treo response
-            sendMail(email, 'Xác thực tài khoản GearXpert', emailContent)
-                .then(info => {
-                    if (info) console.log(`[Register] Verification email sent to ${email}`);
-                    else console.error(`[Register] Failed to send verification email to ${email}`);
-                })
-                .catch(err => console.error(`[Register] Email service error:`, err));
-
-            setTimeout(async () => {
+        await new Promise((resolve) => {
+            uploadCloud.single('avatar')(req, res, async (err) => {
                 try {
-                    const userCheck = await User.findById(newUser._id);
-                    if (userCheck && !userCheck.isVerified) {
-                        await User.findByIdAndDelete(newUser._id);
-                        console.log(`🧹 [Register] Deleted unverified user: ${email} (expired 15m)`);
+                    if (err) {
+                        res.status(400).json({ errorCode: 4, message: `Upload Error: ${err.message}` });
+                        return resolve();
                     }
-                } catch (err) {
-                    console.error(`[Register] Cleanup error for ${email}:`, err);
-                }
-            }, 15 * 60 * 1000);
 
-            return res.status(201).json({
-                errorCode: 0,
-                message: 'Register success. Check email to verify.',
-                data: { id: newUser._id, email: newUser.email }
+                    const { fullName, email, password, phone, role, street, district, city } = req.body;
+                    const avatar = req.file ? req.file.path : "";
+
+                    if (!fullName || !email || !password || !phone) {
+                        res.status(203).json({ errorCode: 1, message: 'Required fields are missing' });
+                        return resolve();
+                    }
+
+                    if (!/^\d{10}$/.test(phone)) {
+                        res.status(200).json({ errorCode: 6, message: 'Phone number must be exactly 10 digits' });
+                        return resolve();
+                    }
+
+                    const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{6,}$/;
+                    if (!passwordRegex.test(password)) {
+                        res.status(200).json({
+                            errorCode: 7,
+                            message: 'Mật khẩu phải có ít nhất 6 ký tự, bao gồm chữ hoa, số và ký tự đặc biệt'
+                        });
+                        return resolve();
+                    }
+
+                    const existingUser = await User.findOne({ email });
+                    if (existingUser) {
+                        res.status(200).json({ errorCode: 2, message: 'Email already exists' });
+                        return resolve();
+                    }
+
+                    const newUser = new User({
+                        fullName, email, password, phone, avatar,
+                        role: role || 'CUSTOMER',
+                        address: { street, district, city, fullAddress: `${street}, ${district}, ${city}` }
+                    });
+
+                    await newUser.save();
+
+                    // Tự động tạo ví cho người dùng mới
+                    await ensureUserWallet(newUser._id);
+
+                    // Tạo Token xác thực
+                    const verifyToken = createJWTVerifyEmail({ id: newUser._id, email: newUser.email });
+                    const verifyLink = `${process.env.FRONTEND_URL}/verify-account?token=${verifyToken}`;
+
+                    const emailContent = registrationTemplate(fullName, verifyLink);
+
+                    // Gửi mail bất đồng bộ để tránh làm treo response
+                    sendMail(email, 'Xác thực tài khoản GearXpert', emailContent)
+                        .then(info => {
+                            if (info) console.log(`[Register] Verification email sent to ${email}`);
+                            else console.error(`[Register] Failed to send verification email to ${email}`);
+                        })
+                        .catch(err => console.error(`[Register] Email service error:`, err));
+
+                    setTimeout(async () => {
+                        try {
+                            const userCheck = await User.findById(newUser._id);
+                            if (userCheck && !userCheck.isVerified) {
+                                await User.findByIdAndDelete(newUser._id);
+                                console.log(`🧹 [Register] Deleted unverified user: ${email} (expired 15m)`);
+                            }
+                        } catch (err) {
+                            console.error(`[Register] Cleanup error for ${email}:`, err);
+                        }
+                    }, 15 * 60 * 1000);
+
+                    res.status(201).json({
+                        errorCode: 0,
+                        message: 'Register success. Check email to verify.',
+                        data: { id: newUser._id, email: newUser.email }
+                    });
+                    resolve();
+                } catch (innerError) {
+                    console.error('[Register] Inner Error:', innerError);
+                    res.status(500).json({ errorCode: 5, message: 'Registration error' });
+                    resolve();
+                }
             });
         });
     } catch (error) {
-        console.error('[Register] Error:', error);
+        console.error('[Register] Outer Error:', error);
         return res.status(500).json({ errorCode: 5, message: 'Registration error' });
     }
 };
@@ -337,7 +357,8 @@ const getCurrentUser = async (req, res) => {
                 walletBalance: walletBalance,
                 rewardPoints: userRecord.rewardPoints,
                 isVerified: userRecord.isVerified,
-                isVerifiedEkyc: userRecord.isVerifiedEkyc
+                isVerifiedEkyc: userRecord.isVerifiedEkyc,
+                signatureUrl: userRecord.signatureUrl
             }
         });
     } catch (error) {
@@ -347,64 +368,113 @@ const getCurrentUser = async (req, res) => {
 
 const updateProfile = async (req, res) => {
     try {
-        uploadCloud.single('avatar')(req, res, async (err) => {
-            if (err) return res.status(400).json({ errorCode: 4, message: `Upload Error: ${err.message}` });
+        await new Promise((resolve) => {
+            uploadCloud.single('avatar')(req, res, async (err) => {
+                try {
+                    if (err) {
+                        res.status(400).json({ errorCode: 4, message: `Upload Error: ${err.message}` });
+                        return resolve();
+                    }
 
-            const userId = req.user.id;
-            const { fullName, phone, street, district, city } = req.body;
-            const avatar = req.file ? req.file.path : undefined;
+                    const userId = req.user.id;
+                    const { fullName, phone, street, district, city } = req.body;
+                    const avatar = req.file ? req.file.path : undefined;
 
-            const userRecord = await User.findById(userId);
-            if (!userRecord) return res.status(404).json({ errorCode: 2, message: 'User not found' });
+                    const userRecord = await User.findById(userId);
+                    if (!userRecord) {
+                        res.status(404).json({ errorCode: 2, message: 'User not found' });
+                        return resolve();
+                    }
 
-            // Update fields
-            if (fullName) userRecord.fullName = fullName;
-            if (phone) userRecord.phone = phone;
-            if (avatar) userRecord.avatar = avatar;
+                    // Update fields
+                    if (fullName) userRecord.fullName = fullName;
+                    if (phone) userRecord.phone = phone;
+                    if (avatar) userRecord.avatar = avatar;
 
-            // Update address
-            if (street || district || city) {
-                userRecord.address = {
-                    street: street || userRecord.address?.street || '',
-                    district: district || userRecord.address?.district || '',
-                    city: city || userRecord.address?.city || '',
-                    fullAddress: `${street || userRecord.address?.street || ''}, ${district || userRecord.address?.district || ''}, ${city || userRecord.address?.city || ''}`.trim().replace(/^,\s*|,\s*$/g, '')
-                };
-            }
+                    // Update address
+                    if (street || district || city) {
+                        userRecord.address = {
+                            street: street || userRecord.address?.street || '',
+                            district: district || userRecord.address?.district || '',
+                            city: city || userRecord.address?.city || '',
+                            fullAddress: `${street || userRecord.address?.street || ''}, ${district || userRecord.address?.district || ''}, ${city || userRecord.address?.city || ''}`.trim().replace(/^,\s*|,\s*$/g, '')
+                        };
+                    }
 
-            await userRecord.save();
+                    await userRecord.save();
 
-            // Fetch wallet balance
-            const wallet = await Wallet.findOne({ user: userId });
-            const walletBalance = wallet ? wallet.balance : 0;
+                    // Fetch wallet balance
+                    const wallet = await Wallet.findOne({ user: userId });
+                    const walletBalance = wallet ? wallet.balance : 0;
 
-            return res.status(200).json({
-                errorCode: 0,
-                message: 'Profile updated successfully',
-                data: {
-                    id: userRecord._id,
-                    fullName: userRecord.fullName,
-                    email: userRecord.email,
-                    phone: userRecord.phone,
-                    avatar: userRecord.avatar,
-                    type: userRecord.type,
-                    role: userRecord.role,
-                    address: userRecord.address || {},
-                    rank: userRecord.rank,
-                    walletBalance: walletBalance,
-                    rewardPoints: userRecord.rewardPoints,
-                    isVerified: userRecord.isVerified,
-                    isVerifiedEkyc: userRecord.isVerifiedEkyc
+                    res.status(200).json({
+                        errorCode: 0,
+                        message: 'Profile updated successfully',
+                        data: {
+                            id: userRecord._id,
+                            fullName: userRecord.fullName,
+                            email: userRecord.email,
+                            phone: userRecord.phone,
+                            avatar: userRecord.avatar,
+                            type: userRecord.type,
+                            role: userRecord.role,
+                            address: userRecord.address || {},
+                            rank: userRecord.rank,
+                            walletBalance: walletBalance,
+                            rewardPoints: userRecord.rewardPoints,
+                            isVerified: userRecord.isVerified,
+                            isVerifiedEkyc: userRecord.isVerifiedEkyc,
+                            signatureUrl: userRecord.signatureUrl
+                        }
+                    });
+                    resolve();
+                } catch (innerError) {
+                    console.error('[Update Profile] Inner Error:', innerError);
+                    res.status(500).json({ errorCode: 5, message: 'Update profile error' });
+                    resolve();
                 }
             });
         });
     } catch (error) {
+        console.error('[Update Profile] Outer Error:', error);
         return res.status(500).json({ errorCode: 5, message: 'Update profile error' });
+    }
+};
+
+const apiSaveSignature = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { signatureDataUrl } = req.body;
+
+        if (!signatureDataUrl) {
+            return res.status(400).json({ errorCode: 1, message: 'Signature data is required' });
+        }
+
+        // Upload to Cloudinary
+        const uploadResponse = await cloudinary.uploader.upload(signatureDataUrl, {
+            folder: 'gearxpert/signatures',
+            public_id: `sig-${userId}-${Date.now()}`,
+            resource_type: 'image'
+        });
+
+        const signatureUrl = uploadResponse.secure_url;
+
+        // Update user
+        const user = await User.findByIdAndUpdate(userId, { signatureUrl }, { new: true });
+
+        return res.status(200).json({
+            errorCode: 0,
+            message: 'Signature saved successfully',
+            data: { signatureUrl: user.signatureUrl }
+        });
+    } catch (error) {
+        console.error('Save Signature Error:', error);
+        return res.status(500).json({ errorCode: 5, message: 'Failed to save signature' });
     }
 };
 
 module.exports = {
     apiLogin, apiRegister,
     requestPasswordReset, resetPassword, changePassword, verifyAccountByLink,
-    getCurrentUser, updateProfile, sendOTPForPasswordChange
+    getCurrentUser, updateProfile, sendOTPForPasswordChange, apiSaveSignature
 };

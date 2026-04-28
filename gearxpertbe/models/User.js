@@ -54,6 +54,7 @@ const userSchema = new mongoose.Schema({
     faceMatchScore: { type: Number },
     verifiedAt: { type: Date }       
   },
+  signatureUrl: { type: String, default: "" },
 }, { timestamps: true });
 
 userSchema.pre('save', async function (next) {

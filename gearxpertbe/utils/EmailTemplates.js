@@ -350,6 +350,110 @@ const shopReportNotificationForSupplierTemplate = (supplierName, shopName, repor
     `);
 };
 
+/**
+ * Order Confirmation Template
+ * Used for both Wallet and Bank Checkout
+ */
+const orderConfirmationTemplate = (fullName, rentals, orderCode) => {
+    const safeName = escapeHtml(fullName || "Quý khách");
+    const baseUrl = (process.env.FRONTEND_URL || "").replace(/\/$/, "");
+    
+    let totalAll = 0;
+    let itemsHtml = "";
+
+    rentals.forEach((rental, idx) => {
+        totalAll += rental.totalAmount || 0;
+        
+        // Header for each shop/supplier if multiple
+        if (rentals.length > 1) {
+            itemsHtml += `
+            <div style="margin-top: 20px; padding: 10px; background: #f8fafc; border-radius: 8px; font-weight: bold; color: #1a1a1a; font-size: 14px;">
+                Cửa hàng #${idx + 1}: ${escapeHtml(rental.supplierName || 'Nhà cung cấp')}
+            </div>`;
+        }
+
+        itemsHtml += `
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+            <thead>
+                <tr style="border-bottom: 2px solid #f1f1f1; text-align: left;">
+                    <th style="padding: 12px 8px; font-size: 12px; color: #666; text-transform: uppercase;">Thiết bị</th>
+                    <th style="padding: 12px 8px; font-size: 12px; color: #666; text-transform: uppercase; text-align: center;">SL</th>
+                    <th style="padding: 12px 8px; font-size: 12px; color: #666; text-transform: uppercase; text-align: right;">Thành tiền</th>
+                </tr>
+            </thead>
+            <tbody>
+        `;
+
+        rental.items.forEach(item => {
+            const itemName = escapeHtml(item.name || "Thiết bị");
+            const itemPrice = (item.totalAmount || item.rentPrice || 0).toLocaleString('vi-VN');
+            itemsHtml += `
+                <tr style="border-bottom: 1px solid #f9f9f9;">
+                    <td style="padding: 12px 8px;">
+                        <div style="font-weight: 600; color: #333;">${itemName}</div>
+                        <div style="font-size: 11px; color: #999;">Từ ngày ${new Date(item.rentalStartDate).toLocaleDateString('vi-VN')}</div>
+                    </td>
+                    <td style="padding: 12px 8px; text-align: center; color: #666;">${item.quantity}</td>
+                    <td style="padding: 12px 8px; text-align: right; font-weight: 600; color: #1a1a1a;">${itemPrice}đ</td>
+                </tr>
+            `;
+        });
+
+        itemsHtml += `
+            </tbody>
+        </table>
+        `;
+        
+        // Subtotal for this rental
+        itemsHtml += `
+        <div style="text-align: right; padding: 10px 8px; font-size: 13px; color: #666;">
+            Cọc & Phí: <span style="color: #333;">${((rental.depositAmount || 0) + (rental.deliveryFee || 0)).toLocaleString('vi-VN')}đ</span>
+        </div>
+        `;
+    });
+
+    return baseTemplate(`
+        <div style="text-align: center; margin-bottom: 30px;">
+            <div style="display: inline-block; padding: 8px 16px; border-radius: 50px; background: #16a34a15; color: #16a34a; font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">
+                ✓ Đã thanh toán
+            </div>
+            <h2 style="color: #1a1a1a; margin: 15px 0 5px; font-size: 24px;">Cảm ơn bạn đã đặt hàng!</h2>
+            <p style="color: #666; margin: 0; font-size: 14px;">Mã đơn hàng: <strong style="color: #1a1a1a;">${orderCode || 'GXP-' + Date.now()}</strong></p>
+        </div>
+        
+        <p>Xin chào <strong>${safeName}</strong>,</p>
+        <p style="color: #4b5563;">Đơn hàng của bạn đã được xác nhận thành công. Dưới đây là tóm tắt thông tin thuê thiết bị của bạn:</p>
+        
+        ${itemsHtml}
+        
+        <div style="margin-top: 30px; padding: 20px; background: #1a1a1a; border-radius: 12px; color: #ffffff;">
+            <table style="width: 100%;">
+                <tr>
+                    <td style="font-size: 14px; opacity: 0.8;">Tổng cộng thanh toán</td>
+                    <td style="text-align: right; font-size: 22px; font-weight: 800;">${totalAll.toLocaleString('vi-VN')}đ</td>
+                </tr>
+            </table>
+        </div>
+
+        <div style="text-align: center; margin: 35px 0;">
+            <a href="${rentals.length === 1 ? `${baseUrl}/my-rentals/${rentals[0]._id}` : `${baseUrl}/my-rentals`}" style="background: #e67e22; color: #ffffff; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block;">Quản lý đơn thuê</a>
+        </div>
+
+        <div style="background-color: #f8fafc; padding: 20px; border-radius: 12px; margin-top: 25px; border: 1px solid #e2e8f0;">
+            <p style="margin: 0; font-weight: bold; color: #1a1a1a; font-size: 14px;">Lưu ý quan trọng:</p>
+            <ul style="margin: 10px 0 0; padding-left: 20px; font-size: 13px; color: #4b5563; line-height: 1.6;">
+                <li>Nhà cung cấp sẽ xác nhận đơn hàng trong vòng 24h.</li>
+                <li>Hợp đồng điện tử đã được tạo và lưu trữ trên hệ thống.</li>
+                <li>Vui lòng giữ điện thoại để nhân viên giao hàng liên lạc.</li>
+            </ul>
+        </div>
+        
+        <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #f3f4f6; font-size: 13px; color: #9ca3af; text-align: center;">
+            Nếu bạn có bất kỳ thắc mắc nào, vui lòng liên hệ hotline 1900 8888 hoặc email support@gearxpert.online
+        </p>
+    `);
+};
+
 module.exports = {
     registrationTemplate,
     passwordResetTemplate,
@@ -360,5 +464,6 @@ module.exports = {
     blogStatusTemplate,
     commentDeletedTemplate,
     shopReportStatusTemplate,
-    shopReportNotificationForSupplierTemplate
+    shopReportNotificationForSupplierTemplate,
+    orderConfirmationTemplate
 };

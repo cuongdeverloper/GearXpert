@@ -42,6 +42,42 @@ export const getSupplierIssues = () =>
 export const patchSupplierIssueStatus = (issueId, data) =>
   axios.patch(`/api/reports/supplier-issues/${issueId}`, data);
 
+/** Supplier: gửi đề xuất bồi thường cho case sự cố */
+export const supplierSubmitCompensationProposal = (issueId, payload) =>
+  payload instanceof FormData
+    ? axios.post(`/api/reports/supplier-issues/${issueId}/compensation-proposal`, payload, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+    : axios.post(`/api/reports/supplier-issues/${issueId}/compensation-proposal`, payload);
+
+/** Customer: xác nhận / từ chối đề xuất bồi thường */
+export const customerConfirmCompensationProposal = (issueId, data = {}) =>
+  axios.post(`/api/reports/customer-issues/${issueId}/compensation-proposal/confirm`, data);
+
+/** Supplier: xác nhận đề xuất sau khi customer đã đồng ý để chuyển admin duyệt */
+export const supplierConfirmCompensationProposal = (issueId, data = {}) =>
+  axios.post(`/api/reports/supplier-issues/${issueId}/compensation-proposal/confirm`, data);
+
+/** Admin: duyệt đề xuất (body: approvedAmount?, note?) */
+export const adminApproveCompensationProposal = (issueId, data = {}) =>
+  axios.post(`/api/reports/admin/issues/${issueId}/compensation-proposal/approve`, data);
+
+/** Admin: từ chối đề xuất (body: note?) */
+export const adminRejectCompensationProposal = (issueId, data = {}) =>
+  axios.post(`/api/reports/admin/issues/${issueId}/compensation-proposal/reject`, data);
+
+/** Legacy: body { decision, approvedAmount?, note? } */
+export const adminReviewCompensationProposal = (issueId, data = {}) =>
+  axios.post(`/api/reports/admin/issues/${issueId}/compensation-proposal/review`, data);
+
+/** Admin: lấy danh sách đề xuất bồi thường để duyệt */
+export const adminGetCompensationProposals = (params = {}) =>
+  axios.get("/api/reports/admin/compensation-proposals", { params });
+
+/** Admin: tạm tính dòng tiền (xem trước khi duyệt). params: { approvedAmount? } */
+export const adminGetCompensationSettlementPreview = (proposalId, params = {}) =>
+  axios.get(`/api/reports/admin/compensation-proposals/${proposalId}/settlement-preview`, { params });
+
 /** Supplier: Xử lý giao thiếu - Hủy đơn (Hoàn tiền) */
 export const supplierIssueCancelRefund = (issueId) =>
   axios.post(`/api/reports/supplier-issues/${issueId}/cancel-refund`);
@@ -51,4 +87,12 @@ export const supplierIssueAdditionalDelivery = (issueId, formData) =>
   axios.post(`/api/reports/supplier-issues/${issueId}/additional-delivery`, formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
+
+/** Supplier: Nhờ GearXpert can thiệp xử lý case */
+export const supplierEscalateIssue = (issueId, data = {}) =>
+  axios.post(`/api/reports/supplier-issues/${issueId}/escalate`, data);
+
+/** Supplier: chấp nhận mức hư hỏng, không bồi thường — đóng sự cố, thông báo khách + admin */
+export const supplierCloseIssueNoCompensation = (issueId, data = {}) =>
+  axios.post(`/api/reports/supplier-issues/${issueId}/close-no-compensation`, data);
 

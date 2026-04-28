@@ -566,7 +566,7 @@ export default function BlogPage() {
                                                                 <div className="relative" ref={activeMenuId === blog._id ? menuRef : null}>
                                                                     <button
                                                                         onClick={(e) => toggleMenu(e, blog._id)}
-                                                                        className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 backdrop-blur-md text-white hover:bg-white/40 transition-all"
+                                                                        className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900/40 backdrop-blur-md text-white hover:bg-slate-900/60 shadow-lg transition-all border border-white/10"
                                                                     >
                                                                         <span className="material-symbols-outlined text-xl">more_horiz</span>
                                                                     </button>
@@ -600,10 +600,10 @@ export default function BlogPage() {
                                                             ) : (
                                                                 <button
                                                                     onClick={(e) => handleSaveBlog(e, blog._id)}
-                                                                    className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition-all ${
+                                                                    className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition-all shadow-lg border border-white/10 ${
                                                                         blog.savedBy?.includes(currentUser.username || currentUser.email)
                                                                             ? "bg-amber-500 text-white"
-                                                                            : "bg-white/20 text-white hover:bg-white/40"
+                                                                            : "bg-slate-900/40 text-white hover:bg-slate-900/60"
                                                                     }`}
                                                                 >
                                                                     <span className={`material-symbols-outlined text-xl ${
@@ -699,7 +699,7 @@ export default function BlogPage() {
                                                                 <div className="relative" ref={activeMenuId === blog._id ? menuRef : null}>
                                                                     <button
                                                                         onClick={(e) => toggleMenu(e, blog._id)}
-                                                                        className="flex h-7 w-7 items-center justify-center rounded-full bg-black/20 backdrop-blur-md text-white hover:bg-black/40 transition-all"
+                                                                        className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900/40 backdrop-blur-md text-white hover:bg-slate-900/60 shadow-lg transition-all border border-white/10"
                                                                     >
                                                                         <span className="material-symbols-outlined text-lg">more_horiz</span>
                                                                     </button>
@@ -733,10 +733,10 @@ export default function BlogPage() {
                                                             ) : (
                                                                 <button
                                                                     onClick={(e) => handleSaveBlog(e, blog._id)}
-                                                                    className={`flex h-7 w-7 items-center justify-center rounded-full backdrop-blur-md transition-all ${
+                                                                    className={`flex h-7 w-7 items-center justify-center rounded-full backdrop-blur-md transition-all shadow-lg border border-white/10 ${
                                                                         blog.savedBy?.includes(currentUser.username || currentUser.email)
                                                                             ? "bg-amber-500 text-white"
-                                                                            : "bg-black/20 text-white hover:bg-black/40"
+                                                                            : "bg-slate-900/40 text-white hover:bg-slate-900/60"
                                                                     }`}
                                                                 >
                                                                     <span className={`material-symbols-outlined text-lg ${

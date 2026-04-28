@@ -113,6 +113,14 @@ const rentalSchema = new mongoose.Schema(
     isRemindedTomorrow: { type: Boolean, default: false },
     isExtended: { type: Boolean, default: false },
     extendedEndDate: Date,
+
+    /** ID các đề xuất bồi thường đã được admin duyệt (tiện tổng hợp trừ/hoàn cọc theo đơn). */
+    compensationProposalIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "CompensationProposal",
+      },
+    ],
   },
   {
     timestamps: true,
@@ -132,6 +140,13 @@ rentalSchema.virtual("extensionRequests", {
   ref: "ExtensionRequest",
   localField: "_id",
   foreignField: "rentalId",
+  justOne: false,
+});
+
+rentalSchema.virtual("compensationProposals", {
+  ref: "CompensationProposal",
+  localField: "compensationProposalIds",
+  foreignField: "_id",
   justOne: false,
 });
 

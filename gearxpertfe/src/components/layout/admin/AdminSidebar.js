@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useSocket } from "../../../SocketContext";
 import { getBlogs } from "../../../service/ApiService/BlogApi";
-import { toast } from "react-toastify";
 import {
   FiHome,
   FiUsers,
@@ -62,6 +61,7 @@ const navGroups = [
         ]
       },
       { to: "/admin/reports", label: "Báo cáo", icon: FiBarChart2 },
+      { to: "/admin/compensation-proposals", label: "Duyệt bồi thường", icon: FiAlertTriangle },
       { to: "/admin/notifications", label: "Thông báo hệ thống", icon: FiBell },
       { to: "/admin/wallet", label: "Ví Admin", icon: FiCreditCard },
       { to: "/admin/withdrawals", label: "Duyệt rút tiền", icon: FiDollarSign },
@@ -94,7 +94,7 @@ export default function AdminSidebar({ collapsed, onToggleCollapsed }) {
     const fetchPendingCount = async () => {
       try {
         const res = await getBlogs({ status: "pending", limit: 1 });
-        setPendingBlogsCount(res.data.total);
+        setPendingBlogsCount(res.total || 0);
       } catch (error) {
         console.error("Lỗi khi lấy số lượng blog chờ duyệt:", error);
       }

@@ -16,6 +16,11 @@ const navGroups = [
       { to: "/admin/devices", label: "Thiết bị", description: "Kiểm duyệt danh sách thiết bị" },
       { to: "/admin/rentals", label: "Đơn thuê", description: "Theo dõi các giao dịch đơn thuê" },
       { to: "/admin/reports", label: "Báo cáo", description: "Xem báo cáo hệ thống" },
+      {
+        to: "/admin/compensation-proposals",
+        label: "Duyệt bồi thường",
+        description: "Duyệt hoặc từ chối đề xuất bồi thường sự cố",
+      },
     ],
   },
   {

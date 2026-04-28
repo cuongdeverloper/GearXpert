@@ -173,6 +173,29 @@ describe('AuthController Unit Tests', () => {
             uploadCloud.single.mockImplementationOnce(() => (req, res, callback) => callback(new Error('Upload failed')));
             await apiRegister(req, res);
             expect(res.status).toHaveBeenCalledWith(400);
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ errorCode: 4 }));
+        });
+
+        it('should handle database error during save', async () => {
+            req.body = { fullName: 'A', email: 'db@err.com', password: 'Password123!', phone: '0123456789' };
+            User.findOne.mockResolvedValue(null);
+            User.prototype.save = jest.fn().mockRejectedValue(new Error('Save failed'));
+            
+            await apiRegister(req, res);
+            
+            expect(res.status).toHaveBeenCalledWith(500);
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ errorCode: 5 }));
+        });
+
+        it('should handle wallet creation failure', async () => {
+            req.body = { fullName: 'A', email: 'wallet@err.com', password: 'Password123!', phone: '0123456789' };
+            User.findOne.mockResolvedValue(null);
+            User.prototype.save = jest.fn().mockResolvedValue({ _id: 'u1' });
+            ensureUserWallet.mockRejectedValue(new Error('Wallet failed'));
+
+            await apiRegister(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(500);
         });
 
         it('should handle interval cleanup (timeout usage)', async () => {
@@ -187,12 +210,15 @@ describe('AuthController Unit Tests', () => {
             
             await apiRegister(req, res);
             
+            // Advance timers to trigger setTimeout
             jest.advanceTimersByTime(15 * 60 * 1000);
-            // Since the timeout callback is async, we need to wait for the promise queue to flush
-            await Promise.resolve(); // findById
-            await Promise.resolve(); // findByIdAndDelete
-            await Promise.resolve(); // the extra ones just in case
             
+            // Flush all promises in the microtask queue
+            for (let i = 0; i < 10; i++) {
+                await Promise.resolve();
+            }
+            
+            expect(User.findById).toHaveBeenCalledWith('temp_user');
             expect(User.findByIdAndDelete).toHaveBeenCalledWith('temp_user');
             jest.useRealTimers();
         });
@@ -408,6 +434,7 @@ describe('AuthController Unit Tests', () => {
             User.findById.mockRejectedValue(new Error('E'));
             await updateProfile(req, res);
             expect(res.status).toHaveBeenCalledWith(500);
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ errorCode: 5 }));
         });
     });
 });

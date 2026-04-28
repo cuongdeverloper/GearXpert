@@ -15,3 +15,6 @@ export const changePassword = (data) =>
 
 export const sendOTPForPasswordChange = (oldPassword) =>
   axios.post(`/api/auths/send-otp-change-password`, { oldPassword });
+
+export const saveSignature = (signatureDataUrl) =>
+  axios.post(`/api/auths/save-signature`, { signatureDataUrl });
