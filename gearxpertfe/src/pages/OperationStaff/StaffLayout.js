@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector } from 'react-redux';
-import { LayoutDashboard, ShieldAlert, QrCode, Bell, User, History, ClipboardCheck } from 'lucide-react';
+import { LayoutDashboard, ShieldAlert, Bell, User, History, ClipboardCheck } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useSocket } from '../../SocketContext';
 import { OPERATION_STAFF_SOCKET_ROOM } from './operationStaffSocketConstants';import logo from '../../assets/logoGearXpert.png';
 import TasksTab from './tabs/TasksTab';
-import QRTab from './tabs/QRTab';
 import ReportsTab from './tabs/ReportsTab';
 import HistoryTab from './tabs/HistoryTab';
 import ProfileTab from './tabs/ProfileTab';
@@ -79,7 +78,6 @@ export default function StaffLayout() {
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">          {[
             { id: 'tasks', label: 'Nhiệm vụ', icon: LayoutDashboard },
             { id: 'handover', label: 'Biên bản', icon: ClipboardCheck },
-            { id: 'qr', label: 'Quét mã QR', icon: QrCode },
             { id: 'reports', label: 'Báo cáo sự cố', icon: ShieldAlert },
             { id: 'history', label: 'Lịch sử hoạt động', icon: History },
             { id: 'profile', label: 'Tài khoản', icon: User },
@@ -88,7 +86,7 @@ export default function StaffLayout() {
               key={item.id}
               onClick={() => setActiveMenu(item.id)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors ${
-                activeMenu === item.id ? 'bg-primary/10 text-primary' : 'text-slate-600 hover:bg-slate-50'
+                activeMenu === item.id ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'
               }`}
             >
               <item.icon size={20} /> {item.label}
@@ -108,7 +106,6 @@ export default function StaffLayout() {
             <h1 className="font-bold text-[15px] tracking-wide text-slate-800 leading-none truncate">      
               {activeMenu === 'tasks' && 'Nhiệm vụ'}
               {activeMenu === 'handover' && 'Biên bản'}
-              {activeMenu === 'qr' && 'Quét mã'}
               {activeMenu === 'reports' && 'Sự cố'}
               {activeMenu === 'profile' && 'Tài khoản'}
               {activeMenu === 'history' && 'Lịch sử'}
@@ -142,7 +139,6 @@ export default function StaffLayout() {
                 realtimeTick={realtimeTick}
               />
             )}
-            {activeMenu === 'qr' && <QRTab />}
             {activeMenu === 'reports' && <ReportsTab realtimeTick={realtimeTick} />}
             {activeMenu === 'history' && (
               <HistoryTab setActiveMenu={setActiveMenu} realtimeTick={realtimeTick} />
@@ -157,7 +153,6 @@ export default function StaffLayout() {
             {[
               { id: 'tasks', label: 'Nhiệm vụ', icon: LayoutDashboard },
               { id: 'handover', label: 'Biên bản', icon: ClipboardCheck },
-              { id: 'qr', label: 'Quét mã', icon: QrCode },
               { id: 'reports', label: 'Sự cố', icon: ShieldAlert },
               { id: 'profile', label: 'Tài khoản', icon: User },
             ].map(item => (
@@ -165,14 +160,14 @@ export default function StaffLayout() {
                 key={item.id}
                 onClick={() => setActiveMenu(item.id)}
                 className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${
-                  activeMenu === item.id ? 'text-primary' : 'text-slate-400 hover:text-slate-600'
+                  activeMenu === item.id ? 'text-indigo-700' : 'text-slate-400 hover:text-slate-600'
                 }`}
               >
                 <item.icon size={22} className={activeMenu === item.id ? 'stroke-[2.5px]' : 'stroke-2'} />
                 <span className={`text-[10px] font-medium ${activeMenu === item.id ? 'font-bold' : ''}`}>
                   {item.label}
                 </span>
-                <div className={`w-1 h-1 rounded-full transition-all ${activeMenu === item.id ? 'bg-primary' : 'bg-transparent'}`}></div>
+                <div className={`w-1 h-1 rounded-full transition-all ${activeMenu === item.id ? 'bg-indigo-700' : 'bg-transparent'}`}></div>
               </button>
             ))}
           </div>

@@ -12,7 +12,7 @@ import {
   FiAlertTriangle,
   FiTool,
 } from "react-icons/fi";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import logo from "../../../assets/logoGearXpert.png";
 
 const sections = [
@@ -82,17 +82,6 @@ const sections = [
     ],
   },
   {
-    id: "delivery",
-    title: "Giao hàng",
-    icon: FiTruck,
-    items: [
-      { to: "/supplier/issues?tab=DELIVERY", label: "Báo cáo sự cố (giao hàng)" },
-      { label: "Lịch lấy hàng & giao hàng", muted: true },
-      { label: "Danh sách bàn giao", muted: true },
-      { label: "Ảnh hiện trạng (trước / sau)", muted: true },
-    ],
-  },
-  {
     id: "finance",
     title: "Tài chính",
     icon: FiDollarSign,
@@ -122,6 +111,7 @@ function classNames(...xs) {
 }
 
 export default function SupplierMobileDrawer({ open, onClose }) {
+  const location = useLocation();
   const [openSections, setOpenSections] = useState({
     dashboard: true,
     alerts: true,
@@ -130,7 +120,6 @@ export default function SupplierMobileDrawer({ open, onClose }) {
     bookings: true,
     issues: true,
     maintenance: true,
-    delivery: false,
     finance: true,
     verification: true,
   });
@@ -202,15 +191,28 @@ export default function SupplierMobileDrawer({ open, onClose }) {
                               key={item.to}
                               to={item.to}
                               end={!!item.end}
+                              state={{ timestamp: Date.now() }}
                               onClick={onClose}
-                              className={({ isActive }) =>
-                                classNames(
+                              className={() => {
+                                let isActive = false;
+                                if (item.to.includes("?")) {
+                                  isActive = location.pathname + location.search === item.to;
+                                  if (location.pathname === "/supplier/maintenance" && !location.search && item.to.includes("tab=reminders")) {
+                                    isActive = true;
+                                  }
+                                  if (location.pathname === "/supplier/issues" && !location.search && item.to.includes("tab=DELIVERY")) {
+                                    isActive = true;
+                                  }
+                                } else {
+                                  isActive = location.pathname === item.to.split("?")[0];
+                                }
+                                return classNames(
                                   "block rounded-lg px-3 py-1.5 text-sm font-medium transition-all",
                                   isActive
                                     ? "bg-primary/10 text-primary"
                                     : "text-slate-600 hover:bg-slate-100"
-                                )
-                              }
+                                );
+                              }}
                             >
                               {item.label}
                             </NavLink>

@@ -210,14 +210,14 @@ export default function HistoryTab({ setActiveMenu, realtimeTick = 0 }) {
             >
               <X size={20} />
             </button>
-            <h2 className="text-2xl font-bold flex items-center gap-2 text-slate-900">
-              <History className="text-primary hidden md:block" /> Lịch sử hoạt động
+            <h2 className="text-3xl font-bold flex items-center gap-2 text-slate-900">
+              <History className="text-indigo-600 hidden md:block" /> Lịch sử hoạt động
             </h2>
           </div>
           <button
             onClick={fetchLogs}
             title="Làm mới"
-            className="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
           >
             <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
           </button>
@@ -226,7 +226,7 @@ export default function HistoryTab({ setActiveMenu, realtimeTick = 0 }) {
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary mb-3"></div>
+              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-600 mb-3"></div>
               <p className="text-sm font-medium">Đang tải lịch sử...</p>
             </div>
           ) : error ? (
@@ -235,7 +235,7 @@ export default function HistoryTab({ setActiveMenu, realtimeTick = 0 }) {
               <p className="text-sm font-medium text-red-500">{error}</p>
               <button
                 onClick={fetchLogs}
-                className="mt-3 px-4 py-2 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition-colors"
+                className="mt-3 px-4 py-2 text-sm font-semibold text-indigo-600 border border-indigo-200 rounded-xl hover:bg-indigo-50 transition-colors"
               >
                 Thử lại
               </button>
@@ -262,7 +262,7 @@ export default function HistoryTab({ setActiveMenu, realtimeTick = 0 }) {
                     <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-white ${STATUS_CLASS[config.status] || 'bg-blue-500'}`}></div>
 
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-1 md:gap-4 mb-1">
-                      <h3 className="font-bold text-slate-900 flex items-center gap-1.5">
+                      <h3 className="font-semibold text-slate-900 flex items-center gap-1.5">
                         <config.Icon size={15} className="shrink-0 opacity-70" />
                         {config.label}
                       </h3>

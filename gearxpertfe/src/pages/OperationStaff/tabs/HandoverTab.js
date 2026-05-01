@@ -306,8 +306,8 @@ export default function HandoverTab({
       <div className="bg-white border border-slate-200 rounded-2xl p-4 md:p-6 shadow-sm">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-              <ClipboardCheck size={20} className="text-primary" /> Biên bản
+            <h2 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
+              <ClipboardCheck className="text-indigo-600 w-8 h-8" /> Biên bản
             </h2>
           </div>
           <button

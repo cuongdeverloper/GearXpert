@@ -212,14 +212,14 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
       <div className="bg-white border-b border-slate-100 z-0 sticky top-0 md:top-auto">
         <div className="px-4 md:px-8 py-3 md:py-5 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <div className="hidden md:flex items-center gap-3">
-            <h2 className="text-2xl font-bold text-slate-900 font-display">Nhiệm vụ</h2>
-            <span className="text-sm font-semibold bg-primary/10 text-primary px-2.5 py-1 rounded-full">
+            <h2 className="text-3xl font-bold text-slate-900">Nhiệm vụ</h2>
+            <span className="text-sm font-semibold bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-lg">
               {tasks.length} đơn
             </span>
             <button
               onClick={fetchAllTasks}
               title="Làm mới"
-              className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
             >
               <Truck size={16} />
             </button>
@@ -234,9 +234,9 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 min-w-[90px] md:min-w-fit px-4 py-2 text-sm font-semibold rounded-lg md:rounded-full whitespace-nowrap transition-all snap-center ${
+                className={`flex-1 min-w-[90px] md:min-w-fit px-4 py-2 text-sm font-semibold rounded-xl whitespace-nowrap transition-all snap-center ${
                   activeTab === tab.id
-                    ? 'bg-white text-primary shadow-sm ring-1 ring-slate-200/50'
+                    ? 'bg-white text-indigo-700 shadow-sm border border-slate-200'
                     : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
@@ -251,7 +251,7 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
       <div className="p-4 md:p-8 flex-1">
         {loadingTasks ? (
           <div className="flex flex-col items-center justify-center h-48 text-slate-400">
-            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary mb-3"></div>
+            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-600 mb-3"></div>
             <p className="text-sm font-medium">Đang tải nhiệm vụ...</p>
           </div>
         ) : filteredTasks.length === 0 ? (
@@ -260,7 +260,7 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
             <p>Không có nhiệm vụ nào</p>
             <button
               onClick={fetchAllTasks}
-              className="mt-3 px-4 py-2 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition-colors"
+              className="mt-3 px-4 py-2 text-sm font-semibold text-indigo-600 border border-indigo-200 rounded-xl hover:bg-indigo-50 transition-colors"
             >
               Tải lại
             </button>
@@ -270,7 +270,7 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
             {filteredTasks.map(task => (
               <div
                 key={task.id}
-                className="bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-md hover:border-primary/30 transition-all flex flex-col overflow-hidden active:scale-[0.99] cursor-pointer"
+                className="bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-md hover:border-indigo-200 transition-all flex flex-col overflow-hidden active:scale-[0.99] cursor-pointer"
                 onClick={() => setSelectedTask(task)}
               >
                 <div className={`px-4 py-3 flex justify-between items-center ${
@@ -282,17 +282,17 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
                 }`}>
                   <div className="flex items-center gap-2">
                     {task.type === 'delivery' && (
-                      <span className={`flex items-center gap-1.5 text-[11px] font-extrabold uppercase px-2.5 py-1 rounded-md tracking-wide ${
+                      <span className={`flex items-center gap-1.5 text-[10px] font-bold uppercase px-2.5 py-1 rounded-lg tracking-wider ${
                         task.isAdditional 
-                          ? 'text-rose-700 bg-rose-100/70 border border-rose-200' 
-                          : 'text-blue-700 bg-blue-100/50 border border-blue-100/50'
+                          ? 'text-rose-700 bg-rose-100' 
+                          : 'text-blue-700 bg-blue-100'
                       }`}>
                         <Truck size={14} /> 
                         {task.isAdditional ? 'GIAO HÀNG BỔ SUNG' : 'GIAO HÀNG'}
                       </span>
                     )}
                     {task.type === 'return' && (
-                      <span className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase text-amber-700 bg-amber-100/50 px-2.5 py-1 rounded-md tracking-wide border border-amber-100/50">
+                      <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-amber-700 bg-amber-100 px-2.5 py-1 rounded-lg tracking-wider">
                         <PackageCheck size={14} /> THU HỒI
                       </span>
                     )}
@@ -303,7 +303,7 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
 
                 <div className="p-4 space-y-3 flex-1">
                   <div>
-                    <p className="font-bold text-slate-900 text-[15px]">{task.device}</p>
+                    <p className="font-semibold text-slate-900 text-base">{task.device}</p>
                     <p className="text-sm text-slate-500 mt-0.5 line-clamp-1">{task.customer}</p>
                   </div>
                   <div className="flex items-start gap-2 text-sm text-slate-600 bg-slate-50 p-2.5 rounded-lg">
@@ -332,7 +332,7 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
             </div>
 
             <div className="px-5 md:px-6 py-3 md:py-4 border-b border-slate-200 flex justify-between items-center bg-white md:bg-slate-50 shrink-0">
-              <h3 className="text-lg font-bold flex items-center gap-2 text-slate-900 font-display">
+              <h3 className="text-lg font-semibold flex items-center gap-2 text-slate-900">
                 <span className="hidden md:inline">Chi tiết nhiệm vụ</span>
               </h3>
               <button
@@ -358,7 +358,7 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
                   )}
                   <div>
                     <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-0.5">Loại nhiệm vụ</p>
-                    <p className="font-extrabold text-slate-900 text-[15px]">
+                    <p className="font-semibold text-slate-900 text-[15px]">
                       {selectedTask.type === 'delivery' 
                         ? (selectedTask.isAdditional ? 'GIAO HÀNG BỔ SUNG' : 'GIAO HÀNG')
                         : 'THU HỒI'}
@@ -378,32 +378,32 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
 
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
                 <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                  <User size={18} className="text-primary"/> 
-                  <h4 className="font-bold text-slate-800 text-[15px]">Thông tin khách hàng</h4>
+                  <User size={18} className="text-indigo-600"/> 
+                  <h4 className="font-semibold text-slate-900 text-[15px]">Thông tin khách hàng</h4>
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-lg text-slate-900">{selectedTask.customer}</p>
-                    <p className="font-medium text-slate-600 text-[15px] mt-0.5">{selectedTask.phone}</p>
+                    <p className="font-semibold text-base text-slate-900">{selectedTask.customer}</p>
+                    <p className="font-medium text-slate-500 text-sm mt-0.5">{selectedTask.phone}</p>
                   </div>
                   <a href={`tel:${selectedTask.phone}`} className="w-10 h-10 bg-emerald-100/80 text-emerald-700 rounded-full flex justify-center items-center hover:bg-emerald-200 transition-colors" title="Gọi khách hàng">
                     <Phone size={18} className="fill-emerald-700" />
                   </a>
                 </div>
                 <div className="bg-slate-50 border border-slate-100 rounded-xl p-3.5 flex items-start gap-3">
-                  <MapPin size={20} className="text-primary shrink-0 mt-0.5" />
-                  <p className="font-medium leading-snug text-slate-800 text-[14px]">{selectedTask.address}</p>
+                  <MapPin size={20} className="text-indigo-600 shrink-0 mt-0.5" />
+                  <p className="font-medium leading-snug text-slate-700 text-sm">{selectedTask.address}</p>
                 </div>
               </div>
 
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
                 <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                  <Laptop size={18} className="text-primary"/> 
-                  <h4 className="font-bold text-slate-800 text-[15px]">Chi tiết thiết bị</h4>
+                  <Laptop size={18} className="text-indigo-600"/> 
+                  <h4 className="font-semibold text-slate-900 text-[15px]">Chi tiết thiết bị</h4>
                 </div>
                 <div className="space-y-4">
                   <div className={`p-4 rounded-xl border ${selectedTask.isAdditional ? 'bg-rose-50/40 border-rose-100' : 'bg-indigo-50/50 border-indigo-100'}`}>
-                    <p className={`font-bold text-[16px] leading-tight ${selectedTask.isAdditional ? 'text-rose-900' : 'text-indigo-900'}`}>{selectedTask.device}</p>
+                    <p className={`font-semibold text-base leading-tight ${selectedTask.isAdditional ? 'text-rose-900' : 'text-indigo-900'}`}>{selectedTask.device}</p>
                     
                     {selectedTask.isAdditional && selectedTask.issueNotes && (
                       <div className="mt-3 bg-rose-100/50 p-3.5 rounded-lg border border-rose-200/60 shadow-sm">

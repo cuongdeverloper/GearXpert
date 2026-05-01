@@ -122,7 +122,7 @@ function ReportCard({ report, issueTypeLabels, contextColor, onOpenDetail }) {
             <span className="text-xs font-medium text-slate-400">{formatDate(report.createdAt)}</span>
           </div>
 
-          <h3 className="font-bold text-slate-900 mb-1 line-clamp-1">{deviceLabel}</h3>
+          <h3 className="font-semibold text-slate-900 mb-1 line-clamp-1">{deviceLabel}</h3>
           <p className="text-xs text-slate-500 mb-1">Khách: {customerName}</p>
           <p className="text-sm text-slate-600 mb-4 flex-1">{descriptionText}</p>
 
@@ -278,13 +278,13 @@ export default function ReportsTab({ realtimeTick = 0 }) {
   return (
     <div className="p-4 md:p-8">
       <div className="hidden md:flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold flex items-center gap-2 text-slate-900">
+        <h2 className="text-3xl font-bold flex items-center gap-2 text-slate-900">
           <ShieldAlert className="text-red-500" /> Lịch sử sự cố
         </h2>
         <button
           onClick={fetchReports}
           title="Làm mới"
-          className="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-xl transition-colors"
+          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"
         >
           <RefreshCw size={18} />
         </button>
@@ -296,7 +296,7 @@ export default function ReportsTab({ realtimeTick = 0 }) {
           onClick={() => setActiveTab('delivery')}
           className={`flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all ${
             activeTab === 'delivery'
-              ? 'bg-white text-red-600 shadow-sm ring-1 ring-slate-200/50'
+              ? 'bg-white text-red-600 shadow-sm border border-slate-200'
               : 'text-slate-500 hover:text-slate-700'
           }`}
         >
@@ -312,7 +312,7 @@ export default function ReportsTab({ realtimeTick = 0 }) {
           onClick={() => setActiveTab('return')}
           className={`flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all ${
             activeTab === 'return'
-              ? 'bg-white text-orange-600 shadow-sm ring-1 ring-slate-200/50'
+              ? 'bg-white text-orange-600 shadow-sm border border-slate-200'
               : 'text-slate-500 hover:text-slate-700'
           }`}
         >
