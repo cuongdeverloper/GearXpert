@@ -82,17 +82,6 @@ const sections = [
     ],
   },
   {
-    id: "delivery",
-    title: "Giao hàng",
-    icon: FiTruck,
-    items: [
-      { to: "/supplier/issues?tab=DELIVERY", label: "Báo cáo sự cố (giao hàng)" },
-      { label: "Lịch lấy hàng & giao hàng", muted: true },
-      { label: "Danh sách bàn giao", muted: true },
-      { label: "Ảnh hiện trạng (trước / sau)", muted: true },
-    ],
-  },
-  {
     id: "finance",
     title: "Tài chính",
     icon: FiDollarSign,
@@ -131,7 +120,6 @@ export default function SupplierMobileDrawer({ open, onClose }) {
     bookings: true,
     issues: true,
     maintenance: true,
-    delivery: false,
     finance: true,
     verification: true,
   });

@@ -88,17 +88,6 @@ const sections = [
     ],
   },
   {
-    id: "delivery",
-    title: "Giao hàng",
-    icon: FiTruck,
-    items: [
-      {
-        to: "/supplier/issues?tab=DELIVERY",
-        label: "Báo cáo sự cố",
-      },
-    ],
-  },
-  {
     id: "finance",
     title: "Tài chính",
     icon: FiDollarSign,
@@ -134,7 +123,6 @@ export default function SupplierSidebar({ collapsed, onCollapse, me }) {
     feedback: true,
     issues: true,
     maintenance: true,
-    delivery: true,
     finance: true,
     verification: true,
   });
