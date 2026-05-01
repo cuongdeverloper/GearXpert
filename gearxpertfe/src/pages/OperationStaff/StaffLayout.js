@@ -88,7 +88,7 @@ export default function StaffLayout() {
               key={item.id}
               onClick={() => setActiveMenu(item.id)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors ${
-                activeMenu === item.id ? 'bg-primary/10 text-primary' : 'text-slate-600 hover:bg-slate-50'
+                activeMenu === item.id ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'
               }`}
             >
               <item.icon size={20} /> {item.label}
@@ -165,14 +165,14 @@ export default function StaffLayout() {
                 key={item.id}
                 onClick={() => setActiveMenu(item.id)}
                 className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${
-                  activeMenu === item.id ? 'text-primary' : 'text-slate-400 hover:text-slate-600'
+                  activeMenu === item.id ? 'text-indigo-700' : 'text-slate-400 hover:text-slate-600'
                 }`}
               >
                 <item.icon size={22} className={activeMenu === item.id ? 'stroke-[2.5px]' : 'stroke-2'} />
                 <span className={`text-[10px] font-medium ${activeMenu === item.id ? 'font-bold' : ''}`}>
                   {item.label}
                 </span>
-                <div className={`w-1 h-1 rounded-full transition-all ${activeMenu === item.id ? 'bg-primary' : 'bg-transparent'}`}></div>
+                <div className={`w-1 h-1 rounded-full transition-all ${activeMenu === item.id ? 'bg-indigo-700' : 'bg-transparent'}`}></div>
               </button>
             ))}
           </div>
