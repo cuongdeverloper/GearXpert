@@ -67,7 +67,6 @@ const {
 } = require("../../utils/operationStaffSocket");
 
 const SupplierProfile = require("../../models/SupplierProfile");
-const User = require("../../models/User");
 const { sendMail } = require("../../configs/sendMail");
 const EmailTemplates = require("../../utils/EmailTemplates");
 
