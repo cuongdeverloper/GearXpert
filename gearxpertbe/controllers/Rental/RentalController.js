@@ -14,6 +14,7 @@ const RentalItem = require("../../models/RentalItem");
 const Device = require("../../models/Device");
 
 const Voucher = require("../../models/Voucher");
+const User = require("../../models/User");
 
 const Wallet = require("../../models/Wallet");
 
@@ -66,6 +67,8 @@ const {
 } = require("../../utils/operationStaffSocket");
 
 const SupplierProfile = require("../../models/SupplierProfile");
+const { sendMail } = require("../../configs/sendMail");
+const EmailTemplates = require("../../utils/EmailTemplates");
 
 const { HandoverRecord, HANDOVER_STATUS } = require("../../models/HandoverRecord");
 
@@ -753,6 +756,36 @@ exports.checkoutRental = async (req, res) => {
         appliedVoucher.usedCount >= appliedVoucher.usageLimit
       ) {
         throw new Error("Mã giảm giá đã hết lượt sử dụng");
+      }
+
+      if (appliedVoucher && appliedVoucher.applicableRank) {
+        const user = await User.findById(customerId).select("rank").session(session);
+        const userRank = (user?.rank || 'BRONZE').trim().toUpperCase();
+        const dbRank = appliedVoucher.applicableRank.trim().toUpperCase();
+        
+        const rankWeights = { BRONZE: 1, SILVER: 2, GOLD: 3, PLATINUM: 4, DIAMOND: 5 };
+        const userWeight = rankWeights[userRank] || 1;
+        const voucherWeight = rankWeights[dbRank] || 1;
+
+        if (userWeight < voucherWeight) {
+          throw new Error(`Mã này dành cho hạng ${dbRank} trở lên. Hạng hiện tại của bạn là ${userRank}.`);
+        }
+
+        // Kiểm tra giới hạn tần suất cho Voucher Rank (1 lần/tháng)
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+        const usedThisVoucher = await Rental.findOne({
+          customerId,
+          voucherCode: appliedVoucher.code,
+          status: { $nin: ['CANCELLED', 'REJECTED'] },
+          createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+        }).session(session);
+
+        if (usedThisVoucher) {
+          throw new Error(`Bạn đã sử dụng ưu đãi hạng ${dbRank} của tháng này rồi.`);
+        }
       }
 
       if (appliedVoucher) {
@@ -1464,6 +1497,45 @@ exports.checkoutRental = async (req, res) => {
 
       totalAmount: grandTotalAmount,
     });
+
+    // 11. Gửi email xác nhận (không await để trả response nhanh)
+    if (paymentMethod === "WALLET") {
+      process.nextTick(async () => {
+        try {
+          const user = await User.findById(customerId).select("fullName email");
+          if (!user?.email) return;
+
+          // Chuẩn bị dữ liệu cho template
+          const rentalsForEmail = await Promise.all(createdRentals.map(async ({ rental }) => {
+            const supplier = await User.findById(rental.supplierId).select("fullName");
+            const itemsList = await RentalItem.find({ rentalId: rental._id }).populate("deviceId", "name");
+
+            return {
+              ...rental,
+              supplierName: supplier?.fullName || "Nhà cung cấp",
+              items: itemsList.map(it => ({
+                name: it.deviceId?.name || "Thiết bị",
+                quantity: it.quantity,
+                rentalStartDate: it.rentalStartDate,
+                rentalEndDate: it.rentalEndDate,
+                totalAmount: it.rentPrice * it.quantity
+              }))
+            };
+          }));
+
+          const emailHtml = EmailTemplates.orderConfirmationTemplate(
+            user.fullName,
+            rentalsForEmail,
+            `WLT-${Date.now().toString().slice(-6)}`
+          );
+
+          await sendMail(user.email, "Xác nhận đặt thuê thiết bị thành công - GearXpert", emailHtml);
+          console.log(`[CHECKOUT] Wallet email sent to ${user.email}`);
+        } catch (mailErr) {
+          console.error("[CHECKOUT] Wallet Mail error:", mailErr);
+        }
+      });
+    }
   } catch (err) {
     if (session.inTransaction()) {
       await session.abortTransaction();
@@ -1890,175 +1962,172 @@ exports.getMyRentals = async (req, res) => {
   try {
     const customerId = req.user.id;
 
+    // ── Step 1: Fetch all rentals + populate extensionRequests (1 query) ──
     let rentals = await Rental.find({ customerId })
-
       .populate({
         path: "extensionRequests",
-
         match: { status: { $in: ["PENDING", "APPROVED", "REJECTED"] } },
-
         select:
           "requestedEndDate requestedDays proposedExtraAmount status note createdAt rentalId",
-      });
+      })
+      .lean({ virtuals: true });
 
-    // Convert to plain objects after population, preserving extensionRequests
+    if (!rentals.length) {
+      return res.json({ rentals: [] });
+    }
 
-    rentals = rentals.map((r) => {
-      const obj = r.toObject({ virtuals: true });
-      // Ensure extensionRequests are plain objects
-      obj.extensionRequests = (r.extensionRequests || []).map((er) =>
-        er.toObject ? er.toObject() : er,
-      );
-      return obj;
-    });
+    const rentalIds = rentals.map((r) => r._id);
 
-    rentals = await Promise.all(
-      rentals.map(async (rental) => {
-        const rentalItems = await RentalItem.find({ rentalId: rental._id })
+    // ── Step 2: Batch fetch ALL RentalItems for all rentals (1 query) ──
+    const allRentalItems = await RentalItem.find({
+      rentalId: { $in: rentalIds },
+    })
+      .populate([
+        {
+          path: "deviceId",
+          select: "name slug images supplierId rentPrice depositAmount",
+          populate: {
+            path: "supplierId",
+            select: "fullName avatar phone email",
+          },
+        },
+        {
+          path: "deviceItemIds",
+          select:
+            "serialNumber internalCode condition status location images lastMaintenance nextMaintenanceDue",
+        },
+      ])
+      .lean();
 
-          .populate([
-            {
-              path: "deviceId",
+    // Group items by rentalId for O(1) lookup
+    const itemsByRentalId = new Map();
+    const allItemIds = [];
+    for (const item of allRentalItems) {
+      const rid = item.rentalId.toString();
+      if (!itemsByRentalId.has(rid)) itemsByRentalId.set(rid, []);
+      itemsByRentalId.get(rid).push(item);
+      allItemIds.push(item._id);
+    }
 
-              select: "name slug images supplierId rentPrice depositAmount",
+    // ── Step 3: Batch fetch ALL reports for all items (2 queries) ──
+    const DeliveryIssueReport = mongoose.model("DeliveryIssueReport");
+    const DamageReport = mongoose.model("DamageReport");
 
-              populate: {
-                path: "supplierId",
+    const [allDeliveryIssues, allDamageReports] = await Promise.all([
+      DeliveryIssueReport.find({ rentalItemIds: { $in: allItemIds } })
+        .sort({ createdAt: -1 })
+        .select(
+          "issueType description status images resolutionNote createdAt updatedAt deviceItemIds rentalItemIds assignedAdminId",
+        )
+        .populate([
+          {
+            path: "deviceItemIds",
+            select: "serialNumber deviceId",
+            populate: { path: "deviceId", select: "name images" },
+          },
+          {
+            path: "assignedAdminId",
+            select: "fullName",
+          },
+        ])
+        .lean(),
+      DamageReport.find({ rentalItemId: { $in: allItemIds } })
+        .sort({ createdAt: -1 })
+        .select(
+          "description severity status images compensationAmount createdAt updatedAt deviceItemIds rentalItemId resolutionNote assignedAdminId",
+        )
+        .populate([
+          {
+            path: "deviceItemIds",
+            select: "serialNumber deviceId",
+            populate: { path: "deviceId", select: "name images" },
+          },
+          {
+            path: "assignedAdminId",
+            select: "fullName",
+          },
+        ])
+        .lean(),
+    ]);
 
-                select: "fullName avatar phone email",
-              },
-            },
+    // Index delivery issues by rentalItemId (many-to-many via rentalItemIds array)
+    const deliveryIssuesByItemId = new Map();
+    for (const issue of allDeliveryIssues) {
+      for (const rid of issue.rentalItemIds || []) {
+        const key = rid.toString();
+        if (!deliveryIssuesByItemId.has(key))
+          deliveryIssuesByItemId.set(key, []);
+        deliveryIssuesByItemId.get(key).push(issue);
+      }
+    }
 
-            {
-              path: "deviceItemIds", // populate mảng deviceItemIds
+    // Index damage reports by rentalItemId
+    const damageReportsByItemId = new Map();
+    for (const report of allDamageReports) {
+      const key = report.rentalItemId.toString();
+      if (!damageReportsByItemId.has(key))
+        damageReportsByItemId.set(key, []);
+      damageReportsByItemId.get(key).push(report);
+    }
 
-              select:
-                "serialNumber internalCode condition status location images lastMaintenance nextMaintenanceDue",
-            },
-          ])
-
-          .lean();
-
-        // Thêm reports cho từng RentalItem
-
-        const itemsWithReports = await Promise.all(
-          rentalItems.map(async (item) => {
-            const deliveryIssues = await mongoose
-
-              .model("DeliveryIssueReport")
-
-              .find({ rentalItemIds: { $in: [item._id] } })
-
-              .sort({ createdAt: -1 })
-
-              .select(
-                "issueType description status images resolvedNote createdAt updatedAt deviceItemIds",
-              )
-
-              .populate({
-                path: "deviceItemIds",
-
-                select: "serialNumber deviceId",
-
-                populate: {
-                  path: "deviceId",
-
-                  select: "name images",
-                },
-              })
-
-              .lean();
-
-            const damageReports = await mongoose
-
-              .model("DamageReport")
-
-              .find({ rentalItemId: item._id })
-
-              .sort({ createdAt: -1 })
-
-              .select(
-                "description severity status images compensationAmount createdAt updatedAt deviceItemIds",
-              )
-
-              .populate({
-                path: "deviceItemIds",
-
-                select: "serialNumber deviceId",
-
-                populate: {
-                  path: "deviceId",
-
-                  select: "name images",
-                },
-              })
-
-              .lean();
-
-            return {
-              ...item,
-
-              deliveryIssues,
-
-              damageReports,
-
-              // Thêm danh sách serial để frontend hiển thị
-
-              serialNumbers:
-                item.deviceItemIds?.map((d) => d.serialNumber) || [],
-
-              conditions: item.deviceItemIds?.map((d) => d.condition) || [],
-            };
-          }),
-        );
-
-        // Check if rental has been reviewed
-
-        const Review = require("../../models/Review");
-
-        const hasReview = await Review.exists({
-          rentalId: rental._id,
+    // ── Step 4: Batch check reviews (1 query instead of N) ──
+    const Review = require("../../models/Review");
+    const reviewedRentalIds = new Set(
+      (
+        await Review.distinct("rentalId", {
+          rentalId: { $in: rentalIds },
           userId: customerId,
-        });
-
-        const devicesInfo = (itemsWithReports || []).map((ri) => {
-          const deviceObj =
-            ri.deviceId && typeof ri.deviceId === "object" ? ri.deviceId : {};
-          const snapshotObj = ri.deviceSnapshot || {};
-          return {
-            name: deviceObj.name || snapshotObj.name || "Thiết bị",
-            image:
-              (deviceObj.images && deviceObj.images[0]) ||
-              (snapshotObj.images && snapshotObj.images[0]) ||
-              "",
-            quantity: ri.quantity || 1,
-          };
-        });
-
-        // Explicitly fetch extension requests to bypass potential virtual population issues
-        const extReqs = await ExtensionRequest.find({
-          rentalId: rental._id,
-          status: { $in: ["PENDING", "APPROVED", "REJECTED"] },
-        }).lean();
-
-        const enrichedExtensionRequests = (extReqs || []).map((er) => {
-          return {
-            ...er,
-            devices: devicesInfo,
-          };
-        });
-
-        return {
-          ...rental,
-          items: itemsWithReports,
-          extensionRequests: enrichedExtensionRequests,
-          isReviewed: !!hasReview,
-        };
-      }),
+        })
+      ).map((id) => id.toString()),
     );
 
-    // Enrich supplier info with SupplierProfile (businessName, businessAvatar)
+    // ── Step 5: Assemble everything using Maps (no additional queries) ──
+    rentals = rentals.map((rental) => {
+      const rentalIdStr = rental._id.toString();
+      const rentalItems = itemsByRentalId.get(rentalIdStr) || [];
 
+      // Attach reports + serial info to each item
+      const itemsWithReports = rentalItems.map((item) => {
+        const itemIdStr = item._id.toString();
+        return {
+          ...item,
+          deliveryIssues: deliveryIssuesByItemId.get(itemIdStr) || [],
+          damageReports: damageReportsByItemId.get(itemIdStr) || [],
+          serialNumbers:
+            item.deviceItemIds?.map((d) => d.serialNumber) || [],
+          conditions: item.deviceItemIds?.map((d) => d.condition) || [],
+        };
+      });
+
+      // Build devicesInfo for extension requests
+      const devicesInfo = itemsWithReports.map((ri) => {
+        const deviceObj =
+          ri.deviceId && typeof ri.deviceId === "object" ? ri.deviceId : {};
+        const snapshotObj = ri.deviceSnapshot || {};
+        return {
+          name: deviceObj.name || snapshotObj.name || "Thiết bị",
+          image:
+            (deviceObj.images && deviceObj.images[0]) ||
+            (snapshotObj.images && snapshotObj.images[0]) ||
+            "",
+          quantity: ri.quantity || 1,
+        };
+      });
+
+      // Enrich extension requests with device info (no extra query – already populated in step 1)
+      const enrichedExtensionRequests = (rental.extensionRequests || []).map(
+        (er) => ({ ...er, devices: devicesInfo }),
+      );
+
+      return {
+        ...rental,
+        items: itemsWithReports,
+        extensionRequests: enrichedExtensionRequests,
+        isReviewed: reviewedRentalIds.has(rentalIdStr),
+      };
+    });
+
+    // ── Step 6: Batch enrich supplier profiles (1 query, same as before) ──
     const allSupplierIds = [
       ...new Set(
         rentals.flatMap((r) =>
@@ -2073,31 +2142,24 @@ exports.getMyRentals = async (req, res) => {
       const supplierProfiles = await SupplierProfile.find({
         userId: { $in: allSupplierIds },
       })
-
         .select("userId businessName businessAvatar")
-
         .lean();
 
       const profileMap = {};
-
       supplierProfiles.forEach((p) => {
         profileMap[p.userId.toString()] = p;
       });
 
       rentals = rentals.map((rental) => ({
         ...rental,
-
         items: (rental.items || []).map((item) => {
           const sid = item.deviceId?.supplierId?._id?.toString();
-
           if (sid && profileMap[sid] && item.deviceId?.supplierId) {
             item.deviceId.supplierId.businessName =
               profileMap[sid].businessName;
-
             item.deviceId.supplierId.businessAvatar =
               profileMap[sid].businessAvatar;
           }
-
           return item;
         }),
       }));
@@ -2106,11 +2168,8 @@ exports.getMyRentals = async (req, res) => {
     res.json({ rentals });
   } catch (error) {
     console.error("Error getMyRentals:", error);
-
     res
-
       .status(500)
-
       .json({ message: error.message || "Lỗi lấy danh sách đơn thuê" });
   }
 };
@@ -2199,9 +2258,8 @@ exports.rejectRental = async (req, res) => {
 
       title: "Đơn thuê bị từ chối",
 
-      message: `Đơn thuê của bạn đã bị từ chối. Lý do: ${
-        reason || "Không có lý do cụ thể"
-      }${details ? " - " + details : ""}`,
+      message: `Đơn thuê của bạn đã bị từ chối. Lý do: ${reason || "Không có lý do cụ thể"
+        }${details ? " - " + details : ""}`,
 
       link: `/my-rentals/${rental._id}`,
 
@@ -2599,6 +2657,21 @@ exports.getSupplierRevenue = async (req, res) => {
       createdAt: { $gte: startMonth, $lte: now },
     });
 
+    // Last month revenue
+    const startLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    const lastMonthPaid = await sumSupplierRevenueLine({
+      supplierId: supplierObjectId,
+      paymentStatus: "PAID",
+      createdAt: { $gte: startLastMonth, $lte: endLastMonth },
+    });
+    const lastMonthRefunded = await sumSupplierRevenueLine({
+      supplierId: supplierObjectId,
+      paymentStatus: "REFUNDED",
+      createdAt: { $gte: startLastMonth, $lte: endLastMonth },
+    });
+    const lastMonthRevenue = netSupplierDisplayRevenue(lastMonthPaid, lastMonthRefunded);
+
     const activeStatuses = [
       "APPROVED",
 
@@ -2850,6 +2923,74 @@ exports.getSupplierRevenue = async (req, res) => {
       { $limit: 4 },
     ]);
 
+    const bottomDevices = await RentalItem.aggregate([
+      {
+        $lookup: {
+          from: "rentals",
+          localField: "rentalId",
+          foreignField: "_id",
+          as: "rental",
+        },
+      },
+      { $unwind: "$rental" },
+      {
+        $match: {
+          "rental.supplierId": supplierObjectId,
+          "rental.paymentStatus": "PAID",
+        },
+      },
+      {
+        $group: {
+          _id: "$deviceId",
+          revenue: { $sum: "$rentPrice" },
+          rentals: { $sum: "$quantity" },
+        },
+      },
+      {
+        $lookup: {
+          from: "devices",
+          localField: "_id",
+          foreignField: "_id",
+          as: "device",
+        },
+      },
+      { $unwind: "$device" },
+      { $project: { name: "$device.name", revenue: 1, rentals: 1 } },
+      { $sort: { rentals: 1 } },
+      { $limit: 4 },
+    ]);
+
+    // Booking Trends (Day of week & Hour)
+    const trendsAgg = await Rental.aggregate([
+      { $match: { supplierId: supplierObjectId } },
+      {
+        $group: {
+          _id: {
+            dayOfWeek: { $dayOfWeek: "$createdAt" }, // 1 (Sun) to 7 (Sat)
+            hour: { $hour: "$createdAt" },
+          },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const dailyTrends = Array(7).fill(0);
+    const hourlyTrends = Array(24).fill(0);
+
+    trendsAgg.forEach((item) => {
+      if (item._id.dayOfWeek) dailyTrends[item._id.dayOfWeek - 1] += item.count;
+      if (item._id.hour !== undefined) hourlyTrends[item._id.hour] += item.count;
+    });
+
+    // Customer Retention
+    const customerAgg = await Rental.aggregate([
+      { $match: { supplierId: supplierObjectId } },
+      { $group: { _id: "$customerId", count: { $sum: 1 } } },
+    ]);
+    const totalCustomers = customerAgg.length;
+    const returningCustomers = customerAgg.filter((c) => c.count >= 2).length;
+    const retentionRate = totalCustomers > 0 ? (returningCustomers / totalCustomers) * 100 : 0;
+
     const recentRentals = await Rental.find({
       supplierId: supplierObjectId,
 
@@ -2888,9 +3029,13 @@ exports.getSupplierRevenue = async (req, res) => {
 
         monthlyRevenue: netSupplierDisplayRevenue(monthlyPaid, monthlyRefunded),
 
+        lastMonthRevenue,
+
         activeRentals,
 
         avgRating,
+
+        retentionRate,
       },
 
       cashFlow,
@@ -2898,6 +3043,13 @@ exports.getSupplierRevenue = async (req, res) => {
       monthlyBreakdown,
 
       topDevices,
+
+      bottomDevices,
+
+      bookingTrends: {
+        daily: dailyTrends,
+        hourly: hourlyTrends,
+      },
 
       transactions,
 
@@ -4151,9 +4303,59 @@ async function executeConfirmReturnSettlement(session, req, options = {}) {
     throw new Error("Số dư ví admin không đủ để thực hiện thanh toán");
   }
 
-  adminWallet.balance -= totalDeductFromAdmin;
+  // Kinh phí admin thực nhận (Phí sàn + Phí vận chuyển)
+  const adminEarned = (platformFee || 0) + (rental.deliveryFee || 0);
+
+  // LUỒNG DI CHUYỂN TIỀN:
+  // 1. Trừ tiền payout/refund khỏi ví admin (tiền rời khỏi hệ thống)
+  // 2. Trừ phần tiền phí thắng (Phí sàn + Ship) khỏi balance (tiền không còn treo nữa)
+  // 3. Cộng phần phí đó vào availableBalance (tiền vào túi admin)
+  
+  adminWallet.balance -= (totalDeductFromAdmin + adminEarned); 
+  const oldAvailable = adminWallet.availableBalance || 0;
+  adminWallet.availableBalance = oldAvailable + adminEarned;
 
   await adminWallet.save({ session });
+
+  // Tạo các bút toán ghi nhận doanh thu thực tế vào ví khả dụng để đối soát dễ dàng
+  const revenueTransactions = [];
+  
+  if (platformFee > 0) {
+    revenueTransactions.push({
+      wallet: adminWallet._id,
+      type: "PLATFORM_FEE",
+      amount: platformFee,
+      balanceBefore: oldAvailable, // Theo dõi trên pool khả dụng
+      balanceAfter: oldAvailable + platformFee,
+      referenceType: "RENTAL",
+      referenceId: rental._id,
+      description: `Thực thu phí nền tảng (10%) đơn #${rental._id.toString().slice(-6)}`,
+      status: "SUCCESS",
+      isEarned: true,
+      metadata: { isRevenueRealization: true }
+    });
+  }
+
+  if (rental.deliveryFee > 0) {
+    const currentAvailable = oldAvailable + (platformFee > 0 ? platformFee : 0);
+    revenueTransactions.push({
+      wallet: adminWallet._id,
+      type: "SHIPPING_FEE",
+      amount: rental.deliveryFee,
+      balanceBefore: currentAvailable,
+      balanceAfter: currentAvailable + rental.deliveryFee,
+      referenceType: "RENTAL",
+      referenceId: rental._id,
+      description: `Thực thu phí vận chuyển đơn #${rental._id.toString().slice(-6)}`,
+      status: "SUCCESS",
+      isEarned: true,
+      metadata: { isRevenueRealization: true }
+    });
+  }
+
+  if (revenueTransactions.length > 0) {
+    await WalletTransaction.insertMany(revenueTransactions, { session });
+  }
 
   // Ví hệ thống: một dòng giải phóng escrow tiền thuê (net sau phí) + một dòng giải phóng cọc.
   // Không ghi thêm PAYOUT trên ví admin: tiền đó đã rời escrow ở ESCROW_RELEASE; PAYOUT (+) chỉ trên ví supplier.
@@ -4209,52 +4411,21 @@ async function executeConfirmReturnSettlement(session, req, options = {}) {
 
   // Platform fee và Shipping fee đã ở lại trong ví admin (không cần chuyển đi đâu)
 
-  // Update PLATFORM_FEE transaction to mark as earned
-
-  await WalletTransaction.updateOne(
+  // Cập nhật trạng thái đơn thuê cho các giao dịch treo cũ (Để làm lịch sử, không tính vào doanh thu thực thu ở AvailableBalance)
+  await WalletTransaction.updateMany(
     {
       wallet: adminWallet._id,
-
-      type: "PLATFORM_FEE",
-
+      type: { $in: ["PLATFORM_FEE", "SHIPPING_FEE"] },
       referenceType: "RENTAL",
-
       referenceId: rental._id,
     },
-
     {
       $set: {
         rentalStatus: "COMPLETED",
-
-        isEarned: true,
+        // isEarned giữ nguyên false để tránh duplicate với bút toán Realization ở trên
       },
     },
-
-    { session },
-  );
-
-  // Update SHIPPING_FEE transaction to mark as earned
-
-  await WalletTransaction.updateOne(
-    {
-      wallet: adminWallet._id,
-
-      type: "SHIPPING_FEE",
-
-      referenceType: "RENTAL",
-
-      referenceId: rental._id,
-    },
-
-    {
-      $set: {
-        rentalStatus: "COMPLETED",
-
-        isEarned: true,
-      },
-    },
-
-    { session },
+    { session }
   );
 
   // Cập nhật trạng thái cuối
@@ -4301,24 +4472,24 @@ async function executeConfirmReturnSettlement(session, req, options = {}) {
 
   const settlementPayload = requireApprovedCompensation
     ? {
-        depositOutcome:
-          rental.depositAmount > 0
-            ? totalDepositUsedForCompensation > 0
-              ? "REFUND_PARTIAL"
-              : "REFUND_FULL"
-            : undefined,
-        deductedAmount: totalDepositUsedForCompensation,
-        disputeReason: "",
-        operatorNote: "Hoàn tất thu hồi sau khi admin đã chốt bồi thường (đóng case).",
-        ...(requestedSettlement || {}),
-      }
+      depositOutcome:
+        rental.depositAmount > 0
+          ? totalDepositUsedForCompensation > 0
+            ? "REFUND_PARTIAL"
+            : "REFUND_FULL"
+          : undefined,
+      deductedAmount: totalDepositUsedForCompensation,
+      disputeReason: "",
+      operatorNote: "Hoàn tất thu hồi sau khi admin đã chốt bồi thường (đóng case).",
+      ...(requestedSettlement || {}),
+    }
     : {
-        depositOutcome: rental.depositAmount > 0 ? "REFUND_FULL" : undefined,
-        deductedAmount: 0,
-        disputeReason: "",
-        operatorNote: "Hoàn tất thu hồi - không phát hiện bất thường.",
-        ...(requestedSettlement || {}),
-      };
+      depositOutcome: rental.depositAmount > 0 ? "REFUND_FULL" : undefined,
+      deductedAmount: 0,
+      disputeReason: "",
+      operatorNote: "Hoàn tất thu hồi - không phát hiện bất thường.",
+      ...(requestedSettlement || {}),
+    };
 
   await completeReturn({
     returnRecordId: returnDraft._id,

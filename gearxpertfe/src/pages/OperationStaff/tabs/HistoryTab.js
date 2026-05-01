@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, History, RefreshCw, Truck, PackageCheck, CheckCircle, AlertTriangle, Info } from 'lucide-react';
+import { X, History, RefreshCw, Truck, PackageCheck, CheckCircle, AlertTriangle, Info, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getMyOperationLogs } from '../../../service/ApiService/OperationLogApi';
 import { getReturnRecordById } from '../../../service/ApiService/ReturnApi';
 import { getHandoverById } from '../../../service/ApiService/HandoverApi';
@@ -98,24 +98,30 @@ export default function HistoryTab({ setActiveMenu, realtimeTick = 0 }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [dialogDetail, setDialogDetail] = useState(null);
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const itemsPerPage = 8;
 
-  const fetchLogs = useCallback(async () => {
+  const fetchLogs = useCallback(async (page = currentPage) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await getMyOperationLogs(1, 50);
+      const res = await getMyOperationLogs(page, itemsPerPage);
       setLogs(res?.logs || []);
+      const total = res?.total || 0;
+      setTotalPages(Math.max(1, Math.ceil(total / itemsPerPage)));
     } catch (err) {
       console.error('Lỗi tải lịch sử:', err);
       setError('Không thể tải lịch sử hoạt động.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentPage, itemsPerPage]);
 
   useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs, realtimeTick]);
+    fetchLogs(currentPage);
+  }, [fetchLogs, realtimeTick, currentPage]);
 
   const openReturnFailDetail = async (log) => {
     if (log?.action !== 'RETURN_CONFIRM_FAILED') return;
@@ -210,14 +216,14 @@ export default function HistoryTab({ setActiveMenu, realtimeTick = 0 }) {
             >
               <X size={20} />
             </button>
-            <h2 className="text-2xl font-bold flex items-center gap-2 text-slate-900">
-              <History className="text-primary hidden md:block" /> Lịch sử hoạt động
+            <h2 className="text-3xl font-bold flex items-center gap-2 text-slate-900">
+              <History className="text-indigo-600 hidden md:block" /> Lịch sử hoạt động
             </h2>
           </div>
           <button
             onClick={fetchLogs}
             title="Làm mới"
-            className="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
           >
             <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
           </button>
@@ -226,7 +232,7 @@ export default function HistoryTab({ setActiveMenu, realtimeTick = 0 }) {
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary mb-3"></div>
+              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-600 mb-3"></div>
               <p className="text-sm font-medium">Đang tải lịch sử...</p>
             </div>
           ) : error ? (
@@ -235,7 +241,7 @@ export default function HistoryTab({ setActiveMenu, realtimeTick = 0 }) {
               <p className="text-sm font-medium text-red-500">{error}</p>
               <button
                 onClick={fetchLogs}
-                className="mt-3 px-4 py-2 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition-colors"
+                className="mt-3 px-4 py-2 text-sm font-semibold text-indigo-600 border border-indigo-200 rounded-xl hover:bg-indigo-50 transition-colors"
               >
                 Thử lại
               </button>
@@ -262,7 +268,7 @@ export default function HistoryTab({ setActiveMenu, realtimeTick = 0 }) {
                     <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-white ${STATUS_CLASS[config.status] || 'bg-blue-500'}`}></div>
 
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-1 md:gap-4 mb-1">
-                      <h3 className="font-bold text-slate-900 flex items-center gap-1.5">
+                      <h3 className="font-semibold text-slate-900 flex items-center gap-1.5">
                         <config.Icon size={15} className="shrink-0 opacity-70" />
                         {config.label}
                       </h3>
@@ -274,6 +280,60 @@ export default function HistoryTab({ setActiveMenu, realtimeTick = 0 }) {
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {totalPages > 1 && !loading && (
+            <div className="flex justify-center items-center gap-2 mt-10">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              
+              <div className="flex items-center gap-1">
+                {(() => {
+                  const pages = [];
+                  if (totalPages <= 7) {
+                    for (let i = 1; i <= totalPages; i++) pages.push(i);
+                  } else {
+                    if (currentPage <= 4) {
+                      pages.push(1, 2, 3, 4, 5, '...', totalPages);
+                    } else if (currentPage >= totalPages - 3) {
+                      pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+                    } else {
+                      pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+                    }
+                  }
+                  
+                  return pages.map((page, index) => (
+                    <button
+                      key={index}
+                      onClick={() => page !== '...' && setCurrentPage(page)}
+                      disabled={page === '...'}
+                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                        page === '...' 
+                          ? 'text-slate-400 cursor-default'
+                          : currentPage === page 
+                            ? 'bg-indigo-600 text-white' 
+                            : 'text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ));
+                })()}
+              </div>
+
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronRight size={20} />
+              </button>
             </div>
           )}
         </div>

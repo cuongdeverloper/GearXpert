@@ -5,6 +5,11 @@ const Wallet = require("../../models/Wallet");
 const WalletTransaction = require("../../models/WalletTransaction");
 const Payment = require("../../models/Payment");
 const Rental = require("../../models/Rental");
+const Voucher = require("../../models/Voucher");
+const RentalItem = require("../../models/RentalItem");
+const User = require("../../models/User");
+const { sendMail } = require("../../configs/sendMail");
+const EmailTemplates = require("../../utils/EmailTemplates");
 
 // Init PayOS
 const payos = new PayOS(
@@ -134,6 +139,15 @@ const processWebhook = async (body) => {
         handleContractUpload(rental);
       }
 
+      // NEW: Increment voucher usedCount for Bank payment (ONCE per order)
+      const firstWithVoucher = rentals.find(r => r.voucherCode);
+      if (firstWithVoucher) {
+        await Voucher.updateOne(
+          { code: firstWithVoucher.voucherCode },
+          { $inc: { usedCount: 1 } }
+        ).catch(err => console.error("[WEBHOOK] Voucher increment error:", err));
+      }
+
       // Create per-rental system wallet transactions (với đúng referenceId cho mỗi rental)
       const systemWallet = await Wallet.findOne({ isSystem: true });
       if (systemWallet) {
@@ -230,6 +244,43 @@ const processWebhook = async (body) => {
         }
       }
 
+      // --- SEND EMAIL CONFIRMATION ---
+      try {
+        const customerId = rentals[0].customerId;
+        const user = await User.findById(customerId).select("fullName email");
+        
+        if (user && user.email) {
+          const rentalsWithItems = await Promise.all(rentals.map(async (r) => {
+            const supplier = await User.findById(r.supplierId).select("fullName");
+            const itemsList = await RentalItem.find({ rentalId: r._id }).populate("deviceId", "name");
+            
+            return {
+              ...r.toObject(),
+              supplierName: supplier?.fullName || "Nhà cung cấp",
+              items: itemsList.map(it => ({
+                name: it.deviceId?.name || "Thiết bị",
+                quantity: it.quantity,
+                rentalStartDate: it.rentalStartDate,
+                rentalEndDate: it.rentalEndDate,
+                totalAmount: it.rentPrice * it.quantity
+              }))
+            };
+          }));
+
+          const emailHtml = EmailTemplates.orderConfirmationTemplate(
+            user.fullName,
+            rentalsWithItems,
+            orderCode
+          );
+
+          await sendMail(user.email, "Thanh toán đơn hàng thành công - GearXpert", emailHtml);
+          console.log(`[WEBHOOK] Confirmation email sent to ${user.email}`);
+        }
+      } catch (mailErr) {
+        console.error("[WEBHOOK] Error sending confirmation email:", mailErr);
+      }
+      // --- END SEND EMAIL ---
+
       return;
     }
 
@@ -244,8 +295,15 @@ const processWebhook = async (body) => {
         wallet = await Wallet.create({ user: payment.user, balance: 0 });
       }
 
-      const before = wallet.balance;
-      wallet.balance += payment.amount;
+      const before = wallet.balance + (wallet.availableBalance || 0);
+      
+      // Nếu là ví hệ thống, tiền nạp vào được tính là khả dụng ngay và không vào ví treo (balance)
+      if (wallet.isSystem) {
+        wallet.availableBalance = (wallet.availableBalance || 0) + payment.amount;
+      } else {
+        wallet.balance += payment.amount;
+      }
+
       await wallet.save();
 
       await WalletTransaction.create({

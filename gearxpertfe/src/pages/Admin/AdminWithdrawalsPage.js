@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { FiDollarSign, FiCheck, FiX, FiClock, FiFilter, FiSearch, FiEye, FiUser, FiAlertCircle, FiLoader } from "react-icons/fi";
 import { getWithdrawalRequests, approveWithdrawal, rejectWithdrawal } from "../../service/ApiService/AdminApi";
+import Pagination from "../../components/common/Pagination";
 
 export default function AdminWithdrawalsPage() {
   const [withdrawals, setWithdrawals] = useState([]);
@@ -14,6 +15,8 @@ export default function AdminWithdrawalsPage() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [notification, setNotification] = useState({ show: false, type: "", message: "" });
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   const fetchWithdrawals = useCallback(async () => {
     try {
@@ -60,6 +63,9 @@ export default function AdminWithdrawalsPage() {
   useEffect(() => {
     fetchWithdrawals();
   }, [fetchWithdrawals]);
+
+  const totalPages = Math.ceil(withdrawals.length / ITEMS_PER_PAGE);
+  const paginatedWithdrawals = withdrawals.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const showNotification = (type, message) => {
     setNotification({ show: true, type, message });
@@ -295,7 +301,7 @@ export default function AdminWithdrawalsPage() {
             <label className="text-sm text-gray-600">Trạng thái:</label>
             <select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
               className="px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
             >
               <option value="ALL">Tất cả trạng thái</option>
@@ -311,7 +317,7 @@ export default function AdminWithdrawalsPage() {
               type="text"
               placeholder="Tìm kiếm theo tên, email..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               className="w-full pl-12 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>
@@ -346,7 +352,7 @@ export default function AdminWithdrawalsPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
-              {withdrawals.map((withdrawal) => (
+              {paginatedWithdrawals.map((withdrawal) => (
                 <tr key={withdrawal._id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-4">
@@ -424,6 +430,14 @@ export default function AdminWithdrawalsPage() {
             </tbody>
           </table>
         </div>
+
+        {withdrawals.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        )}
 
         {withdrawals.length === 0 && (
           <div className="text-center py-16">

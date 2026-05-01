@@ -13,6 +13,7 @@ voucherRouter.get('/', checkUserOptional, voucherController.getAllVouchers);
 voucherRouter.get('/supplier', checkAccessToken, voucherController.getVouchersBySupplier);
 voucherRouter.post('/supplier', checkAccessToken, voucherController.createVoucherBySupplier);
 voucherRouter.patch('/supplier/:id/status', checkAccessToken, voucherController.updateVoucherStatusBySupplier);
+voucherRouter.delete('/supplier/:id', checkAccessToken, voucherController.deleteVoucherBySupplier);
 
 // Admin Routes
 voucherRouter.get('/admin', checkAccessToken, checkAdmin, voucherController.getVouchersForAdmin);

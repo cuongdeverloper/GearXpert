@@ -34,12 +34,16 @@ const EMPTY_REVENUE = {
   summary: {
     totalRevenue: 0,
     monthlyRevenue: 0,
+    lastMonthRevenue: 0,
     activeRentals: 0,
     avgRating: 0,
+    retentionRate: 0,
   },
   cashFlow: { DAY: [], MONTH: [], YEAR: [] },
   monthlyBreakdown: [],
   topDevices: [],
+  bottomDevices: [],
+  bookingTrends: { daily: Array(7).fill(0), hourly: Array(24).fill(0) },
   transactions: [],
   rentalStatusCounts: {},
   categoryBreakdown: [],
@@ -119,18 +123,22 @@ export default function SupplierDashboard() {
   const {
     summary,
     topDevices,
+    bottomDevices,
     transactions,
     cashFlow,
     monthlyBreakdown,
+    bookingTrends,
     rentalStatusCounts,
     categoryBreakdown,
   } = useMemo(
     () => ({
       summary: revenue?.summary || EMPTY_REVENUE.summary,
       topDevices: revenue?.topDevices || [],
+      bottomDevices: revenue?.bottomDevices || [],
       transactions: revenue?.transactions || [],
       cashFlow: revenue?.cashFlow || { DAY: [], MONTH: [], YEAR: [] },
       monthlyBreakdown: revenue?.monthlyBreakdown || [],
+      bookingTrends: revenue?.bookingTrends || { daily: Array(7).fill(0), hourly: Array(24).fill(0) },
       rentalStatusCounts: revenue?.rentalStatusCounts || {},
       categoryBreakdown: revenue?.categoryBreakdown || [],
     }),
@@ -356,6 +364,30 @@ export default function SupplierDashboard() {
     [recentTxChartSlice]
   );
 
+  const hourlyTrendsData = useMemo(() => ({
+    labels: Array.from({ length: 24 }, (_, i) => `${i}h`),
+    datasets: [{
+      label: "Lượt đặt theo giờ",
+      data: bookingTrends.hourly,
+      borderColor: "#6366f1",
+      backgroundColor: "rgba(99, 102, 241, 0.1)",
+      fill: true,
+      tension: 0.4,
+      pointRadius: 4,
+      pointBackgroundColor: "#6366f1"
+    }]
+  }), [bookingTrends]);
+
+  const dailyTrendsData = useMemo(() => ({
+    labels: ["CN", "T2", "T3", "T4", "T5", "T6", "T7"],
+    datasets: [{
+      label: "Lượt đặt theo ngày",
+      data: bookingTrends.daily,
+      backgroundColor: "#8b5cf6",
+      borderRadius: 6
+    }]
+  }), [bookingTrends]);
+
   const followerBarData = useMemo(
     () => ({
       labels: (followerStats.monthlyNewFollows || []).map((m) => m.label),
@@ -405,7 +437,7 @@ export default function SupplierDashboard() {
       </div>
 
       {/* KPI — thẻ trắng, có % xu hướng */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="rounded-2xl border border-violet-200/60 bg-white p-6 shadow-[0_12px_40px_-12px_rgba(124,58,237,0.28)] ring-1 ring-violet-100/80">
           <div className="flex items-start justify-between gap-2 mb-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -476,6 +508,19 @@ export default function SupplierDashboard() {
               <span className="text-slate-400"> · {stockAvailablePct}% khả dụng</span>
             )}
           </p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_10px_35px_-12px_rgba(15,23,42,0.12)]">
+          <div className="flex items-start justify-between gap-2 mb-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Tỉ lệ quay lại
+            </p>
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
+              <FiUsers size={20} className="text-indigo-600" />
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-slate-900">{(summary.retentionRate || 0).toFixed(1)}%</p>
+          <p className="text-xs text-slate-400 mt-3">Khách hàng thuê từ 2 lần trở lên</p>
         </div>
       </div>
 
@@ -639,43 +684,56 @@ export default function SupplierDashboard() {
             </div>
           )}
         </div>
-        <div className="rounded-2xl border border-white/80 bg-white/95 p-5 shadow-[0_10px_35px_-12px_rgba(15,23,42,0.1)] backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-4">
+        <div className="rounded-2xl border border-white/80 bg-white/95 p-5 shadow-[0_10px_35px_-12px_rgba(15,23,42,0.1)] backdrop-blur-sm overflow-hidden">
+          <div className="flex items-center justify-between mb-6">
             <h3 className="font-bold text-slate-900">Giao dịch gần đây</h3>
             <Link to="/supplier/revenue" className="text-xs font-semibold text-primary">
-              Xem phân tích
+              Xem tất cả
             </Link>
           </div>
           {loading ? (
-            <Skeleton h="h-52" />
+            <Skeleton rows={5} />
           ) : transactions.length === 0 ? (
             <p className="text-sm text-slate-400 py-16 text-center">Chưa có giao dịch</p>
           ) : (
-            <div className="h-52">
-              <Bar data={recentTxBarData} options={txBarOptions} />
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                    <th className="pb-3 px-2">Khách hàng</th>
+                    <th className="pb-3 px-2">Mã đơn</th>
+                    <th className="pb-3 px-2 text-right">Số tiền</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {transactions.slice(0, 5).map((item) => (
+                    <tr key={item.id} className="group hover:bg-slate-50 transition-colors">
+                      <td className="py-3 px-2">
+                        <p className="text-xs font-bold text-slate-900 truncate max-w-[120px]">{item.customerName || "Khách hàng"}</p>
+                        <p className="text-[10px] text-slate-400">{item.createdAt}</p>
+                      </td>
+                      <td className="py-3 px-2">
+                        <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                          #{String(item.rentalId || item.id).slice(-6).toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="py-3 px-2 text-right">
+                        <span className={`text-xs font-bold ${item.amount >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                          {item.amount >= 0 ? "+" : ""}{item.amount.toLocaleString("vi-VN")}đ
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
       </div>
 
-      {/* Xu hướng doanh thu + biểu đồ thiết bị */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="rounded-2xl border border-white/80 bg-white/95 p-5 shadow-[0_10px_35px_-12px_rgba(15,23,42,0.1)] backdrop-blur-sm">
-          <h3 className="font-bold text-slate-900 mb-4">Xu hướng doanh thu</h3>
-          {loading ? <Skeleton h="h-52" /> : monthlyBreakdown.length === 0 ? (
-            <p className="text-sm text-slate-400 py-16 text-center">Chưa có dữ liệu</p>
-          ) : (
-            <div className="h-52">
-              <Line data={revenueLineData} options={lineOptions} />
-            </div>
-          )}
-        </div>
-
-        <div className="rounded-2xl border border-white/80 bg-white/95 p-5 shadow-[0_10px_35px_-12px_rgba(15,23,42,0.1)] backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-slate-900">Thiết bị theo doanh thu</h3>
-            <Link to="/supplier/devices" className="text-xs font-semibold text-primary">Xem tất cả</Link>
-          </div>
+          <h3 className="font-bold text-slate-900 mb-4">Thiết bị theo doanh thu</h3>
           {loading ? <Skeleton h="h-52" /> : topDevices.length === 0 ? (
             <p className="text-sm text-slate-400 py-16 text-center">Chưa có dữ liệu</p>
           ) : (
@@ -683,6 +741,40 @@ export default function SupplierDashboard() {
               <Bar data={topDeviceBarData} options={horizontalBarOptions} />
             </div>
           )}
+        </div>
+
+        <div className="rounded-2xl border border-white/80 bg-white/95 p-5 shadow-[0_10px_35px_-12px_rgba(15,23,42,0.1)] backdrop-blur-sm">
+          <h3 className="font-bold text-slate-900 mb-4 text-red-600">Thiết bị cần cải thiện (Thuê ít)</h3>
+          {loading ? <Skeleton h="h-52" /> : bottomDevices.length === 0 ? (
+            <p className="text-sm text-slate-400 py-16 text-center">Chưa có dữ liệu</p>
+          ) : (
+            <div className="space-y-3">
+              {bottomDevices.map((device, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 bg-red-50/30 rounded-xl border border-red-100">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-red-600">!</span>
+                    <p className="text-xs font-bold text-slate-800">{device.name}</p>
+                  </div>
+                  <p className="text-[10px] text-slate-500">{device.rentals} lượt thuê</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="rounded-2xl border border-white/80 bg-white/95 p-5 shadow-[0_10px_35px_-12px_rgba(15,23,42,0.1)] backdrop-blur-sm">
+          <h3 className="font-bold text-slate-900 mb-4">Lượt đặt theo giờ</h3>
+          <div className="h-52">
+            <Line data={hourlyTrendsData} options={countOptions} />
+          </div>
+        </div>
+        <div className="rounded-2xl border border-white/80 bg-white/95 p-5 shadow-[0_10px_35px_-12px_rgba(15,23,42,0.1)] backdrop-blur-sm">
+          <h3 className="font-bold text-slate-900 mb-4">Lượt đặt theo ngày</h3>
+          <div className="h-52">
+            <Bar data={dailyTrendsData} options={countOptions} />
+          </div>
         </div>
       </div>
     </div>
@@ -776,6 +868,23 @@ const horizontalBarOptions = {
   scales: {
     x: { grid: { color: "rgba(0,0,0,0.04)" }, ticks: { font: CHART_FONT, callback: (v) => `${Number(v).toLocaleString("vi-VN")} đ` } },
     y: { grid: { display: false }, ticks: { font: { ...CHART_FONT, size: 10 } } },
+  },
+};
+
+const countOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { position: "top", align: "end", labels: { font: CHART_FONT, boxWidth: 12, padding: 12 } },
+    tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${c.raw} lượt` } },
+  },
+  scales: {
+    x: { grid: { display: false }, ticks: { font: CHART_FONT } },
+    y: {
+      beginAtZero: true,
+      ticks: { stepSize: 1, font: CHART_FONT },
+      grid: { color: "rgba(0,0,0,0.04)" },
+    },
   },
 };
 

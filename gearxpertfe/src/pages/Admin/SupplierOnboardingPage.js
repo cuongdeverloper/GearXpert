@@ -13,6 +13,7 @@ import {
   approveSupplierOnboardingRequest,
   rejectSupplierOnboardingRequest,
 } from "../../service/ApiService/AdminDashboardApi";
+import Pagination from "../../components/common/Pagination";
 
 const STATUS_LABEL = {
   PENDING: "Chờ duyệt",
@@ -43,6 +44,8 @@ export default function SupplierOnboardingPage() {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("PENDING");
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   const [selected, setSelected] = useState(null);
   const [detailRow, setDetailRow] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -85,6 +88,9 @@ export default function SupplierOnboardingPage() {
       (u.phone || "").toLowerCase().includes(q)
     );
   });
+
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginatedRequests = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const openDetail = (row) => {
     setDetailRow(row);
@@ -181,7 +187,7 @@ export default function SupplierOnboardingPage() {
               type="text"
               placeholder="Tìm theo tên, email, SĐT..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
             />
           </div>
@@ -189,7 +195,7 @@ export default function SupplierOnboardingPage() {
             <FiFilter className="text-slate-400" />
             <select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
               className="bg-transparent text-sm font-medium text-slate-800 outline-none"
             >
               <option value="PENDING">Chờ duyệt</option>
@@ -221,7 +227,7 @@ export default function SupplierOnboardingPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filtered.map((row) => {
+                {paginatedRequests.map((row) => {
                   const user = row.user;
                   const busy = actionLoading[row._id];
                   return (
@@ -301,6 +307,13 @@ export default function SupplierOnboardingPage() {
               </tbody>
             </table>
           </div>
+        )}
+        {!loading && filtered.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         )}
       </div>
 

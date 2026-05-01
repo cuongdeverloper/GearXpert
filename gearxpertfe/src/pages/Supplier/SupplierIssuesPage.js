@@ -1,5 +1,6 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { ApiCreateConversation, ApiGetUserByUserId } from "../../components/Message Socket/ApiMessage";
 import { openChatWindow } from "../../redux/reducer/chatWindowReducer";
@@ -281,6 +282,7 @@ function getSupplierActionsForIssue(issue) {
 /* ─── Component ───────────────────────────────────────────────────────────── */
 
 export default function SupplierIssuesPage() {
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [deliveryIssues, setDeliveryIssues] = useState([]);
   const [damageReports, setDamageReports] = useState([]);
@@ -289,6 +291,13 @@ export default function SupplierIssuesPage() {
     const u = (searchParams.get("tab") || "").toUpperCase();
     return VALID_TABS.includes(u) ? u : "ALL";
   });
+
+  useEffect(() => {
+    const newTab = (searchParams.get("tab") || "").toUpperCase();
+    if (newTab && VALID_TABS.includes(newTab)) {
+      setActiveTab(newTab);
+    }
+  }, [location.search]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [currentPage, setCurrentPage] = useState(1);
@@ -809,7 +818,7 @@ export default function SupplierIssuesPage() {
                 />
               </div>
               <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                ⚠️ Thiết bị sẽ chuyển sang trạng thái <strong>REPAIR</strong>.
+                 Thiết bị sẽ chuyển sang trạng thái <strong>REPAIR</strong>.
               </p>
             </div>
             <div className="flex justify-end gap-2 px-5 pb-5 pt-2">

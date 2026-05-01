@@ -1,5 +1,6 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useLocation } from "react-router-dom";
 import {
   FiTool,
   FiBell,
@@ -11,6 +12,8 @@ import {
   FiCalendar,
   FiChevronDown,
   FiChevronUp,
+  FiChevronLeft,
+  FiChevronRight,
   FiRefreshCw,
 } from "react-icons/fi";
 import { toast } from "react-toastify";
@@ -88,11 +91,19 @@ const today = () => {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function SupplierMaintenance() {
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(() => {
     const t = searchParams.get("tab");
     return ["reminders", "workorders"].includes(t) ? t : "reminders";
   });
+
+  useEffect(() => {
+    const newTab = searchParams.get("tab");
+    if (newTab && ["reminders", "workorders"].includes(newTab)) {
+      setActiveTab(newTab);
+    }
+  }, [location.search, searchParams]);
 
   // Reminders state
   const [reminders, setReminders] = useState([]);
@@ -103,6 +114,9 @@ export default function SupplierMaintenance() {
   const [woLoading, setWoLoading] = useState(false);
   const [woStatusFilter, setWoStatusFilter] = useState("ALL");
   const [woTypeFilter, setWoTypeFilter] = useState("ALL");
+  const [woCurrentPage, setWoCurrentPage] = useState(1);
+  const [woTotalPages, setWoTotalPages] = useState(1);
+  const woItemsPerPage = 5;
 
   // Modals
   const [approveModal, setApproveModal] = useState(null); // reminder object
@@ -150,28 +164,35 @@ export default function SupplierMaintenance() {
     }
   }, []);
 
-  const loadWorkOrders = useCallback(async () => {
+  const loadWorkOrders = useCallback(async (page = woCurrentPage) => {
     setWoLoading(true);
     try {
-      const params = {};
+      const params = { page, limit: woItemsPerPage };
       if (woStatusFilter !== "ALL") params.status = woStatusFilter;
       if (woTypeFilter !== "ALL") params.maintenanceType = woTypeFilter;
       const res = await getWorkOrders(params);
-      setWorkOrders(res?.data?.data || res?.data || []);
+      setWorkOrders(res?.data || []);
+      const total = res?.total || res?.data?.total || 0;
+      setWoTotalPages(Math.max(1, Math.ceil(total / woItemsPerPage)));
     } catch {
       toast.error("Không thể tải danh sách lệnh bảo trì");
     } finally {
       setWoLoading(false);
     }
-  }, [woStatusFilter, woTypeFilter]);
+  }, [woStatusFilter, woTypeFilter, woCurrentPage, woItemsPerPage]);
 
   useEffect(() => {
     loadReminders();
   }, [loadReminders]);
 
   useEffect(() => {
-    if (activeTab === "workorders") loadWorkOrders();
-  }, [activeTab, loadWorkOrders]);
+    if (activeTab === "workorders") loadWorkOrders(woCurrentPage);
+  }, [activeTab, loadWorkOrders, woCurrentPage]);
+
+  // Reset page when filter changes
+  useEffect(() => {
+    setWoCurrentPage(1);
+  }, [woStatusFilter, woTypeFilter]);
 
   const setTab = (key) => {
     setActiveTab(key);
@@ -196,15 +217,36 @@ export default function SupplierMaintenance() {
     }
   };
 
-  const handleIgnore = async (reminder) => {
-    if (!window.confirm("Bỏ qua nhắc nhở bảo trì này?")) return;
-    try {
-      await ignoreReminder(reminder._id);
-      toast.success("Đã bỏ qua");
-      loadReminders();
-    } catch (err) {
-      toast.error(err?.response?.data?.message || "Không thể bỏ qua");
-    }
+  const handleIgnore = (reminder) => {
+    const tId = toast(
+      <div>
+        <p className="font-medium text-slate-800 mb-3">Bỏ qua nhắc nhở bảo trì này?</p>
+        <div className="flex gap-2 justify-end">
+          <button 
+            className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-200 transition-colors"
+            onClick={() => toast.dismiss(tId)}
+          >
+            Hủy
+          </button>
+          <button 
+            className="px-3 py-1.5 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors"
+            onClick={async () => {
+              toast.dismiss(tId);
+              try {
+                await ignoreReminder(reminder._id);
+                toast.success("Đã bỏ qua nhắc nhở bảo trì");
+                loadReminders();
+              } catch (err) {
+                toast.error(err?.response?.data?.message || "Không thể bỏ qua");
+              }
+            }}
+          >
+            Đồng ý
+          </button>
+        </div>
+      </div>,
+      { autoClose: false, closeOnClick: false, closeButton: false }
+    );
   };
 
   // ── WorkOrder Actions ────────────────────────────────────────────
@@ -227,17 +269,41 @@ export default function SupplierMaintenance() {
     }
   };
 
-  const handleUpdateStatus = async (wo, status) => {
+  const handleUpdateStatus = (wo, status) => {
     const confirmMsg =
       status === "IN_PROGRESS" ? "Bắt đầu thực hiện lệnh bảo trì này?" : "Hủy lệnh bảo trì này?";
-    if (!window.confirm(confirmMsg)) return;
-    try {
-      await updateWorkOrderStatus(wo._id, status);
-      toast.success(status === "IN_PROGRESS" ? "Đã bắt đầu thực hiện" : "Đã hủy lệnh bảo trì");
-      loadWorkOrders();
-    } catch (err) {
-      toast.error(err?.response?.data?.message || "Không thể cập nhật");
-    }
+    
+    const tId = toast(
+      <div>
+        <p className="font-medium text-slate-800 mb-3">{confirmMsg}</p>
+        <div className="flex gap-2 justify-end">
+          <button 
+            className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-200 transition-colors"
+            onClick={() => toast.dismiss(tId)}
+          >
+            Đóng
+          </button>
+          <button 
+            className={`px-3 py-1.5 text-white rounded-md text-sm font-medium transition-colors ${
+              status === "IN_PROGRESS" ? "bg-indigo-600 hover:bg-indigo-700" : "bg-red-600 hover:bg-red-700"
+            }`}
+            onClick={async () => {
+              toast.dismiss(tId);
+              try {
+                await updateWorkOrderStatus(wo._id, status);
+                toast.success(status === "IN_PROGRESS" ? "Đã bắt đầu thực hiện lệnh bảo trì" : "Đã hủy lệnh bảo trì thành công");
+                loadWorkOrders();
+              } catch (err) {
+                toast.error(err?.response?.data?.message || "Không thể cập nhật trạng thái");
+              }
+            }}
+          >
+            Đồng ý
+          </button>
+        </div>
+      </div>,
+      { autoClose: false, closeOnClick: false, closeButton: false }
+    );
   };
 
   const handleCompleteSubmit = async () => {
@@ -406,19 +472,75 @@ export default function SupplierMaintenance() {
               desc="Bạn có thể tạo lệnh thủ công hoặc duyệt từ nhắc nhở bảo trì."
             />
           ) : (
-            filteredWOs.map((wo) => (
-              <WorkOrderCard
-                key={wo._id}
-                wo={wo}
-                onStart={() => handleUpdateStatus(wo, "IN_PROGRESS")}
-                onCancel={() => handleUpdateStatus(wo, "CANCELLED")}
-                onComplete={() => {
-                  setCompleteModal(wo);
-                  setCompleteForm({ notes: "", cost: "", imagesBefore: [], imagesAfter: [] });
-                }}
-                onImageClick={setLightboxImg}
-              />
-            ))
+            <div className="space-y-4">
+              {filteredWOs.map((wo) => (
+                <WorkOrderCard
+                  key={wo._id}
+                  wo={wo}
+                  onStart={() => handleUpdateStatus(wo, "IN_PROGRESS")}
+                  onCancel={() => handleUpdateStatus(wo, "CANCELLED")}
+                  onComplete={() => {
+                    setCompleteModal(wo);
+                    setCompleteForm({ notes: "", cost: "", imagesBefore: [], imagesAfter: [] });
+                  }}
+                  onImageClick={setLightboxImg}
+                />
+              ))}
+
+              {woTotalPages > 1 && (
+                <div className="flex justify-center items-center gap-2 mt-8 py-4">
+                  <button
+                    onClick={() => setWoCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={woCurrentPage === 1}
+                    className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <FiChevronLeft size={20} />
+                  </button>
+                  
+                  <div className="flex items-center gap-1">
+                    {(() => {
+                      const pages = [];
+                      if (woTotalPages <= 7) {
+                        for (let i = 1; i <= woTotalPages; i++) pages.push(i);
+                      } else {
+                        if (woCurrentPage <= 4) {
+                          pages.push(1, 2, 3, 4, 5, '...', woTotalPages);
+                        } else if (woCurrentPage >= woTotalPages - 3) {
+                          pages.push(1, '...', woTotalPages - 4, woTotalPages - 3, woTotalPages - 2, woTotalPages - 1, woTotalPages);
+                        } else {
+                          pages.push(1, '...', woCurrentPage - 1, woCurrentPage, woCurrentPage + 1, '...', woTotalPages);
+                        }
+                      }
+                      
+                      return pages.map((page, index) => (
+                        <button
+                          key={index}
+                          onClick={() => page !== '...' && setWoCurrentPage(page)}
+                          disabled={page === '...'}
+                          className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                            page === '...' 
+                              ? 'text-slate-400 cursor-default'
+                              : woCurrentPage === page 
+                                ? 'bg-indigo-600 text-white' 
+                                : 'text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ));
+                    })()}
+                  </div>
+
+                  <button
+                    onClick={() => setWoCurrentPage(p => Math.min(woTotalPages, p + 1))}
+                    disabled={woCurrentPage === woTotalPages}
+                    className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <FiChevronRight size={20} />
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -460,7 +582,7 @@ export default function SupplierMaintenance() {
               />
             </div>
             <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-              ⚠️ Thiết bị sẽ chuyển sang trạng thái <strong>Đang bảo trì</strong> và không thể cho thuê.
+               Thiết bị sẽ chuyển sang trạng thái <strong>Đang bảo trì</strong> và không thể cho thuê.
             </p>
           </div>
           <div className="flex justify-end gap-2 mt-5">
@@ -559,7 +681,7 @@ export default function SupplierMaintenance() {
               />
             </div>
             <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-              ⚠️ Thiết bị sẽ chuyển sang trạng thái <strong>Đang bảo trì</strong>.
+               Thiết bị sẽ chuyển sang trạng thái <strong>Đang bảo trì</strong>.
             </p>
           </div>
           <div className="flex justify-end gap-2 mt-5">

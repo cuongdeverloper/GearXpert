@@ -124,6 +124,14 @@ const StaffRoute = ({ children }) => {
   return children;
 };
 
+const AdminRoute = ({ children }) => {
+  const { account, isAuthenticated } = useSelector((state) => state.user);
+  if (!isAuthenticated) return <Navigate to="/signin" replace />;
+  if (account.role !== "ADMIN")
+    return <Navigate to="/" replace />;
+  return children;
+};
+
 const ChatWindowWrapper = () => {
   const location = useLocation();
 
@@ -243,7 +251,14 @@ export default function Layout() {
             <Route path="profile/edit" element={<SupplierProfileEdit />} />
           </Route>
 
-          <Route path="/admin" element={<AdminLayout />}>
+          <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <AdminLayout />
+              </AdminRoute>
+            }
+          >
             <Route index element={<DashboardPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="suppliers" element={<SuppliersPage />} />

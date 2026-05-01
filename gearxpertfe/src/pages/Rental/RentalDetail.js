@@ -167,7 +167,7 @@ export default function RentalDetail() {
     const quantity = rental.items?.[0]?.quantity || 1;
     const dailyPrice = rental.items?.[0]?.rentPrice || (rental.rentPriceTotal / (rental.items?.[0]?.totalDays || 1)) || 0;
     const extraAmount = Math.round(7 * dailyPrice * quantity);
-    
+
     setExtendModal({
       isOpen: true,
       currentEndDate: currentEndDate,
@@ -181,12 +181,12 @@ export default function RentalDetail() {
 
   const handleSubmitExtend = () => {
     if (!extendModal.newEndDate) return toast.warning("Vui lòng chọn ngày gia hạn mới");
-    
+
     const currentEnd = new Date(extendModal.currentEndDate);
     const newEnd = new Date(extendModal.newEndDate);
     const diffTime = newEnd - currentEnd;
     const additionalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     // Show confirmation modal
     setExtendConfirmModal({
       isOpen: true,
@@ -199,7 +199,7 @@ export default function RentalDetail() {
 
   const confirmExtend = async () => {
     try {
-      await rentalService.extendRental(rentalId, { 
+      await rentalService.extendRental(rentalId, {
         newEndDate: extendConfirmModal.newEndDate,
         requestedDays: extendConfirmModal.extensionDays,
         extraAmount: extendConfirmModal.extraAmount,
@@ -247,11 +247,11 @@ export default function RentalDetail() {
       formData.append('rentalId', rentalId);
       formData.append('description', modalData.description || damageReportModal.description);
       formData.append('rentalItemIds', JSON.stringify(damageReportModal.selectedItems || []));
-      
+
       // Append files if any
       const files = modalData.files || damageReportModal.files || [];
       files.forEach(file => formData.append('files', file));
-      
+
       await rentalService.reportDamage(formData);
       toast.success("Đã gửi báo cáo sự cố thành công!");
       setDamageReportModal({ isOpen: false });
@@ -290,11 +290,11 @@ export default function RentalDetail() {
       formData.append("rating", reviewModal.rating);
       formData.append("comment", reviewModal.comment || "");
       formData.append("rentalId", reviewModal.orderId);
-      
+
       reviewModal.files?.forEach((file) => {
         formData.append("images", file);
       });
-      
+
       let itemsToReview = reviewSelectedItems;
       if (itemsToReview.length === 0 && reviewModal.order?.items) {
         itemsToReview = reviewModal.order.items.map(item => item._id);
@@ -303,7 +303,7 @@ export default function RentalDetail() {
       itemsToReview.forEach((itemId) => {
         formData.append("rentalItemIds", itemId);
       });
-      
+
       await rentalService.submitReview(reviewModal.orderId, formData);
       toast.success("Đánh giá đã được gửi!");
       setReviewModal({ isOpen: false });
@@ -343,9 +343,9 @@ export default function RentalDetail() {
     } catch (err) {
       toast.error(
         err?.response?.data?.message ||
-          (decision === "ACCEPTED"
-            ? "Không thể xác nhận đề xuất"
-            : "Không thể từ chối đề xuất")
+        (decision === "ACCEPTED"
+          ? "Không thể xác nhận đề xuất"
+          : "Không thể từ chối đề xuất")
       );
     } finally {
       setConfirmingProposalId(null);
@@ -387,8 +387,8 @@ export default function RentalDetail() {
     rental.status === "INSPECTING"
       ? "Đơn đang được kiểm tra thiết bị do phát sinh sự cố."
       : rental.status === "PENDING_RESOLUTION"
-      ? "Đơn đang ở giai đoạn giải quyết sự cố giữa các bên."
-      : "";
+        ? "Đơn đang ở giai đoạn giải quyết sự cố giữa các bên."
+        : "";
 
   const resolutionLabelMap = {
     CUSTOMER_PAY: "Khách hàng đền bù",
@@ -526,19 +526,7 @@ export default function RentalDetail() {
                   </button>
                 )}
 
-                {["DELIVERING", "RENTING", "RETURNING"].includes(rental.status) && (
-                  <button
-                    type="button"
-                    onClick={() => setShowTrackingModal(true)}
-                    className="px-6 py-4 rounded-2xl flex flex-col items-center justify-center border-2 border-slate-200 bg-white hover:bg-slate-50 transition-colors cursor-pointer"
-                  >
-                    <span className="text-sm font-bold text-slate-400">VẬN CHUYỂN</span>
-                    <span className="text-sm font-black text-slate-800 flex items-center gap-1">
-                      <Truck size={16} />
-                      Theo dõi
-                    </span>
-                  </button>
-                )}
+
               </div>
 
               {/* Progress Steps */}
@@ -734,10 +722,9 @@ export default function RentalDetail() {
                     <div
                       key={idx}
                       className={`group relative p-6 rounded-3xl border transition-all duration-300 overflow-hidden
-                        ${
-                          isRenting && isOverdue
-                            ? "border-red-500 bg-red-50 shadow-red-100"
-                            : isRenting && isUrgent
+                        ${isRenting && isOverdue
+                          ? "border-red-500 bg-red-50 shadow-red-100"
+                          : isRenting && isUrgent
                             ? "border-orange-500 bg-orange-50 shadow-orange-100"
                             : "border-slate-100 hover:border-indigo-200 hover:bg-slate-50"
                         }`}
@@ -746,10 +733,9 @@ export default function RentalDetail() {
                       {isRenting && (
                         <div
                           className={`absolute -top-1 -right-1 px-6 py-2 rounded-bl-3xl text-sm font-black uppercase tracking-wider shadow-md
-                            ${
-                              isOverdue
-                                ? "bg-red-600 text-white animate-pulse"
-                                : isUrgent
+                            ${isOverdue
+                              ? "bg-red-600 text-white animate-pulse"
+                              : isUrgent
                                 ? "bg-orange-500 text-white"
                                 : "bg-emerald-600 text-white"
                             }`}
@@ -757,8 +743,8 @@ export default function RentalDetail() {
                           {isOverdue
                             ? `QUÁ HẠN ${Math.abs(daysLeft)} NGÀY`
                             : daysLeft === 0
-                            ? "HẾT HẠN HÔM NAY"
-                            : `CÒN ${daysLeft} NGÀY`}
+                              ? "HẾT HẠN HÔM NAY"
+                              : `CÒN ${daysLeft} NGÀY`}
                         </div>
                       )}
 
@@ -776,11 +762,10 @@ export default function RentalDetail() {
                           {isRenting && (isOverdue || isUrgent) && (
                             <div className="absolute top-3 left-3">
                               <div
-                                className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1 ${
-                                  isOverdue
+                                className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1 ${isOverdue
                                     ? "bg-red-600 text-white"
                                     : "bg-orange-500 text-white"
-                                }`}
+                                  }`}
                               >
                                 <AlertCircle size={14} />
                                 {isOverdue ? "Quá hạn" : "Sắp hết hạn"}
@@ -805,11 +790,10 @@ export default function RentalDetail() {
                               </p>
                             </div>
                             <span
-                              className={`px-3 py-1 rounded-full text-xs font-bold ${
-                                item.status === "RENTING"
+                              className={`px-3 py-1 rounded-full text-xs font-bold ${item.status === "RENTING"
                                   ? "bg-emerald-100 text-emerald-700"
                                   : "bg-slate-100 text-slate-500"
-                              }`}
+                                }`}
                             >
                               {item.status}
                             </span>
@@ -826,13 +810,12 @@ export default function RentalDetail() {
                               </p>
                             </div>
                             <div
-                              className={`p-4 rounded-2xl ${
-                                isOverdue
+                              className={`p-4 rounded-2xl ${isOverdue
                                   ? "bg-red-50 border border-red-200"
                                   : isUrgent
-                                  ? "bg-orange-50 border border-orange-200"
-                                  : "bg-emerald-50 border border-emerald-200"
-                              }`}
+                                    ? "bg-orange-50 border border-orange-200"
+                                    : "bg-emerald-50 border border-emerald-200"
+                                }`}
                             >
                               <p
                                 className="text-xs font-medium"
@@ -840,8 +823,8 @@ export default function RentalDetail() {
                                   color: isOverdue
                                     ? "#dc2626"
                                     : isUrgent
-                                    ? "#ea580c"
-                                    : "#10b981",
+                                      ? "#ea580c"
+                                      : "#10b981",
                                 }}
                               >
                                 Hạn trả
@@ -852,8 +835,8 @@ export default function RentalDetail() {
                                   color: isOverdue
                                     ? "#dc2626"
                                     : isUrgent
-                                    ? "#ea580c"
-                                    : "#10b981",
+                                      ? "#ea580c"
+                                      : "#10b981",
                                 }}
                               >
                                 {dueDate.toLocaleDateString("vi-VN")}
@@ -864,42 +847,39 @@ export default function RentalDetail() {
                           {/* Due Date Highlight Box */}
                           {isRenting && (
                             <div
-                              className={`p-5 rounded-2xl border-2 flex items-center gap-4 ${
-                                isOverdue
+                              className={`p-5 rounded-2xl border-2 flex items-center gap-4 ${isOverdue
                                   ? "border-red-300 bg-red-50"
                                   : isUrgent
-                                  ? "border-orange-300 bg-orange-50"
-                                  : "border-emerald-200 bg-emerald-50"
-                              }`}
+                                    ? "border-orange-300 bg-orange-50"
+                                    : "border-emerald-200 bg-emerald-50"
+                                }`}
                             >
                               <div
-                                className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${
-                                  isOverdue
+                                className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${isOverdue
                                     ? "bg-red-100 text-red-600"
                                     : isUrgent
-                                    ? "bg-orange-100 text-orange-600"
-                                    : "bg-emerald-100 text-emerald-600"
-                                }`}
+                                      ? "bg-orange-100 text-orange-600"
+                                      : "bg-emerald-100 text-emerald-600"
+                                  }`}
                               >
                                 <Clock size={28} />
                               </div>
                               <div>
                                 <p
-                                  className={`font-semibold ${
-                                    isOverdue
+                                  className={`font-semibold ${isOverdue
                                       ? "text-red-600"
                                       : isUrgent
-                                      ? "text-orange-600"
-                                      : "text-emerald-600"
-                                  }`}
+                                        ? "text-orange-600"
+                                        : "text-emerald-600"
+                                    }`}
                                 >
                                   {isOverdue
                                     ? `Đã quá hạn ${Math.abs(
-                                        daysLeft
-                                      )} ngày - Vui lòng trả ngay!`
+                                      daysLeft
+                                    )} ngày - Vui lòng trả ngay!`
                                     : daysLeft === 0
-                                    ? "Hôm nay là ngày cuối cùng"
-                                    : `Còn ${daysLeft} ngày để trả thiết bị`}
+                                      ? "Hôm nay là ngày cuối cùng"
+                                      : `Còn ${daysLeft} ngày để trả thiết bị`}
                                 </p>
                               </div>
                             </div>
@@ -1218,14 +1198,14 @@ export default function RentalDetail() {
           const newEndDate = new Date(newDate);
           const currentEnd = new Date(extendModal.currentEndDate);
           if (isNaN(newEndDate.getTime()) || isNaN(currentEnd.getTime())) return;
-          
+
           const diffTime = newEndDate - currentEnd;
           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
           const validDays = diffDays > 0 ? diffDays : 0;
           const dailyPrice = extendModal.dailyPrice || 0;
           const quantity = extendModal.quantity || 1;
           const extraAmount = validDays * dailyPrice * quantity;
-          
+
           setExtendModal({
             ...extendModal,
             newEndDate: newDate,
@@ -1315,18 +1295,16 @@ const StatusBadge = ({ status }) => {
 const Step = ({ icon, label, active }) => (
   <div className="flex flex-col items-center gap-2 relative z-10">
     <div
-      className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 ${
-        active
+      className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 ${active
           ? "bg-indigo-600 text-white scale-110 shadow-lg shadow-indigo-200"
           : "bg-white text-slate-300 border-2 border-slate-100"
-      }`}
+        }`}
     >
       {icon}
     </div>
     <span
-      className={`text-[11px] font-bold uppercase tracking-tighter ${
-        active ? "text-indigo-600" : "text-slate-400"
-      }`}
+      className={`text-[11px] font-bold uppercase tracking-tighter ${active ? "text-indigo-600" : "text-slate-400"
+        }`}
     >
       {label}
     </span>

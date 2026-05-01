@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { FiCreditCard, FiTrendingUp, FiTrendingDown, FiArrowUpRight, FiArrowDownLeft, FiPieChart, FiActivity, FiPlus, FiDownload, FiX, FiAlertCircle, FiUpload, FiDollarSign, FiSend ,FiSettings} from "react-icons/fi";
+import { FiCreditCard, FiCheckCircle, FiTrendingUp, FiTrendingDown, FiArrowUpRight, FiArrowDownLeft, FiPieChart, FiActivity, FiPlus, FiDownload, FiX, FiAlertCircle, FiUpload, FiDollarSign, FiSend, FiSettings } from "react-icons/fi";
 import { getAdminWallet, getAdminWalletTransactions, exportWalletTransactions, topUpAdminWallet, withdrawAdminWallet, createManualTransaction, transferToWallet } from "../../service/ApiService/AdminApi";
 import axiosInstance from "../../service/AxiosCustomize";
 import { toast } from "react-toastify";
+import Pagination from "../../components/common/Pagination";
 
 export default function AdminWalletPage() {
   const [wallet, setWallet] = useState(null);
@@ -11,14 +12,16 @@ export default function AdminWalletPage() {
   const [filterType, setFilterType] = useState("ALL");
   const [dateRange, setDateRange] = useState("7days");
   const [searchQuery, setSearchQuery] = useState("");
-  
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
   // Modal states
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showTransactionModal, setShowTransactionModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  
+
   // Form states
   const [topUpAmount, setTopUpAmount] = useState("");
   const [withdrawForm, setWithdrawForm] = useState({
@@ -66,6 +69,9 @@ export default function AdminWalletPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const totalPages = Math.ceil(transactions.length / ITEMS_PER_PAGE);
+  const paginatedTransactions = transactions.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const getTransactionIcon = (type) => {
     switch (type) {
@@ -235,12 +241,12 @@ export default function AdminWalletPage() {
       toast.error("Số tiền tối thiểu 10.000đ");
       return;
     }
-    
+
     setSubmitting(true);
     try {
       const res = await topUpAdminWallet(amount);
       const checkoutUrl = res?.checkoutUrl || res?.data?.checkoutUrl;
-      
+
       if (checkoutUrl) {
         toast.info("Đang chuyển hướng đến trang thanh toán PayOS...");
         window.open(checkoutUrl, "_blank");
@@ -268,7 +274,7 @@ export default function AdminWalletPage() {
       toast.error("Vui lòng điền đầy đủ thông tin ngân hàng");
       return;
     }
-    
+
     setSubmitting(true);
     try {
       await withdrawAdminWallet({
@@ -335,22 +341,22 @@ export default function AdminWalletPage() {
   const lookupUserInfo = useCallback(async () => {
     const walletId = transferForm.walletId?.trim();
     const email = transferForm.userEmail?.trim();
-    
+
     if (!walletId && !email) {
       setTransferUserInfo(null);
       return;
     }
-    
+
     setLoadingUserInfo(true);
     try {
       const params = new URLSearchParams();
       if (walletId) params.append('walletId', walletId);
       if (email) params.append('email', email);
-      
+
       console.log('[LOOKUP] Searching with:', { walletId, email });
       const res = await axiosInstance.get(`/api/admin/wallet/lookup-user?${params.toString()}`);
       console.log('[LOOKUP] Response:', res);
-      
+
       if (res?.success) {
         setTransferUserInfo(res.data);
       } else {
@@ -423,7 +429,7 @@ export default function AdminWalletPage() {
           <h1 className="text-3xl font-bold text-gray-900">Tài Chính Hệ Thống</h1>
           <p className="text-gray-500">Tổng quan tài chính và các dòng tiền của nền tảng</p>
         </div>
-        
+
         {/* Action Buttons */}
         <div className="flex items-center gap-3">
           <button
@@ -466,180 +472,162 @@ export default function AdminWalletPage() {
 
       {/* Main Financial Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl p-6 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-indigo-100 text-sm">Tổng số dư</p>
-              <p className="text-3xl font-bold">
-                {formatCurrency(wallet?.totalBalance || 0)}
-              </p>
-              <p className="text-indigo-100 text-xs mt-2">Tất cả tiền trong ví</p>
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110"></div>
+          <div className="relative z-10">
+            <p className="text-gray-500 text-sm font-medium mb-1">Tổng tài sản hệ thống</p>
+            <p className="text-3xl font-extrabold text-gray-900 tracking-tight">
+              {formatCurrency(wallet?.balances?.total || 0)}
+            </p>
+            <div className="flex items-center gap-2 mt-4 text-xs text-gray-400">
+              <span className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                Khả dụng: {formatCurrency(wallet?.balances?.available || 0)}
+              </span>
+              <span className="flex items-center gap-1 ml-2">
+                <div className="w-2 h-2 rounded-full bg-amber-400"></div>
+                Tạm giữ: {formatCurrency(wallet?.balances?.escrow || 0)}
+              </span>
             </div>
-            <FiCreditCard className="text-4xl text-indigo-200" />
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-6 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-purple-100 text-sm">Số dư khả dụng</p>
-              <p className="text-3xl font-bold">
-                {formatCurrency(wallet?.availableBalance || 0)}
-              </p>
-              <p className="text-purple-100 text-xs mt-2">Có thể rút</p>
-            </div>
-            <FiPieChart className="text-4xl text-purple-200" />
+        <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-6 text-white shadow-lg shadow-emerald-100 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-20 transition-transform group-hover:rotate-12">
+            <FiActivity size={80} />
+          </div>
+          <div className="relative z-10">
+            <p className="text-emerald-100 text-sm font-medium mb-1">Số dư khả dụng (Lợi nhuận)</p>
+            <p className="text-3xl font-extrabold tracking-tight">
+              {formatCurrency(wallet?.balances?.available || 0)}
+            </p>
+            <p className="text-emerald-100/80 text-xs mt-4 flex items-center gap-1">
+              <FiCheckCircle /> Tiền thực có thể rút hoặc sử dụng
+            </p>
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl p-6 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-orange-100 text-sm">Chờ hoàn thành</p>
-              <p className="text-3xl font-bold">
-                {formatCurrency(wallet?.pendingCompletionBalance || 0)}
-              </p>
-              <p className="text-orange-100 text-xs mt-2">Tiền thuê tạm giữ</p>
-            </div>
-            <FiArrowDownLeft className="text-4xl text-orange-200" />
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110"></div>
+          <div className="relative z-10">
+            <p className="text-gray-500 text-sm font-medium mb-1">Đang tạm giữ (Escrow)</p>
+            <p className="text-3xl font-extrabold text-gray-900 tracking-tight">
+              {formatCurrency(wallet?.balances?.escrow || 0)}
+            </p>
+            <p className="text-amber-600 text-xs mt-4 font-medium flex items-center gap-1">
+              <FiAlertCircle /> Gồm tiền thuê & tiền cọc khách hàng
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Financial Breakdown */}
+      {/* Revenue Sources Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-gray-700">Phí Đã Kiếm</h3>
-            <FiTrendingUp className="text-green-600" />
+        <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Phí sàn (10%)</span>
+            <div className="p-2 bg-blue-50 rounded-lg text-blue-600"><FiPieChart size={16} /></div>
           </div>
-          <p className="text-2xl font-bold text-green-600">
-            {formatCurrency(wallet?.earnedFeeBalance || 0)}
+          <p className="text-xl font-bold text-gray-800">
+            {formatCurrency(wallet?.revenueSources?.platformFees || 0)}
           </p>
-          <p className="text-xs text-gray-500 mt-1">Từ đơn đã hoàn thành</p>
+          <div className="mt-2 h-1 w-full bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-full bg-blue-500" style={{ width: '70%' }}></div>
+          </div>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-gray-700">Phí Chờ Hoàn Thành</h3>
-            <FiTrendingUp className="text-blue-600" />
+        <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Phí vận chuyển</span>
+            <div className="p-2 bg-teal-50 rounded-lg text-teal-600"><FiTrendingUp size={16} /></div>
           </div>
-          <p className="text-2xl font-bold text-blue-600">
-            {formatCurrency(wallet?.pendingFeeBalance || 0)}
+          <p className="text-xl font-bold text-gray-800">
+            {formatCurrency(wallet?.revenueSources?.shippingFees || 0)}
           </p>
-          <p className="text-xs text-gray-500 mt-1">Phí đơn chưa hoàn thành</p>
+          <div className="mt-2 h-1 w-full bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-full bg-teal-500" style={{ width: '40%' }}></div>
+          </div>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-gray-700">Phí Vận Chuyển Đã Kiếm</h3>
-            <FiTrendingUp className="text-cyan-600" />
+        <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Phí dịch vụ/Phạt</span>
+            <div className="p-2 bg-purple-50 rounded-lg text-purple-600"><FiSettings size={16} /></div>
           </div>
-          <p className="text-2xl font-bold text-cyan-600">
-            {formatCurrency(wallet?.earnedShippingBalance || 0)}
+          <p className="text-xl font-bold text-gray-800">
+            {formatCurrency(wallet?.revenueSources?.otherFees || 0)}
           </p>
-          <p className="text-xs text-gray-500 mt-1">Từ đơn đã hoàn thành</p>
+          <div className="mt-2 h-1 w-full bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-full bg-purple-500" style={{ width: '20%' }}></div>
+          </div>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-gray-700">Phí Vận Chuyển Chờ</h3>
-            <FiTrendingUp className="text-teal-600" />
+        <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Lợi nhuận ròng tháng</span>
+            <div className="p-2 bg-rose-50 rounded-lg text-rose-600"><FiTrendingUp size={16} /></div>
           </div>
-          <p className="text-2xl font-bold text-teal-600">
-            {formatCurrency(wallet?.pendingShippingBalance || 0)}
+          <p className={`text-xl font-bold ${wallet?.stats?.monthlyNetChange >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+            {formatCurrency(wallet?.stats?.monthlyNetChange || 0)}
           </p>
-          <p className="text-xs text-gray-500 mt-1">Phí đơn chưa hoàn thành</p>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-gray-700">Tiền Cọc Tạm Giữ</h3>
-            <FiArrowDownLeft className="text-orange-600" />
-          </div>
-          <p className="text-2xl font-bold text-orange-600">
-            {formatCurrency(wallet?.pendingDepositBalance || 0)}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">Bảo đảm giao dịch</p>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-gray-700">Chi Phí Hệ Thống</h3>
-            <FiTrendingDown className="text-red-600" />
-          </div>
-          <p className="text-2xl font-bold text-red-600">
-            {formatCurrency(wallet?.totalExpenses || 0)}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">Vận hành & marketing</p>
+          <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-tighter">Từ doanh thu thực - chi tiêu</p>
         </div>
       </div>
 
-      {/* Monthly Statistics */}
-      <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Thống Kê Theo Tháng</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Professional Monthly Statistics */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-gray-50 bg-gray-50/30 flex items-center justify-between">
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600">Doanh thu tháng này</span>
-              <span className="text-xs text-green-600 font-medium">
-                {wallet?.monthlyRevenue > 0 ? '+' : ''}
-                {((wallet?.monthlyRevenue || 0) * 100 / (wallet?.totalRevenue || 1)).toFixed(1)}%
-              </span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-green-600 h-2 rounded-full" 
-                style={{ 
-                  width: `${Math.min(100, Math.max(0, ((wallet?.monthlyRevenue || 0) * 100 / (wallet?.totalRevenue || 1))))}%` 
-                }}
-              ></div>
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              {formatCurrency(wallet?.monthlyRevenue || 0)} / {formatCurrency(wallet?.totalRevenue || 0)}
-            </p>
+            <h2 className="text-lg font-bold text-gray-800">Báo cáo hiệu suất tài chính</h2>
+            <p className="text-sm text-gray-500">Chu kỳ: {new Date(wallet?.stats?.period?.start).toLocaleDateString("vi-VN")} - Nay</p>
           </div>
-          
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600">Số giao dịch</span>
-              <span className="text-xs text-blue-600 font-medium">
-                {transactions.length} giao dịch
-              </span>
+          <div className="flex gap-2">
+            <div className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold flex items-center gap-1">
+              <FiTrendingUp /> Tăng trưởng ổn định
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-blue-600 h-2 rounded-full" 
-                style={{ 
-                  width: `${Math.min(100, Math.max(0, (transactions.length / 100) * 100))}%` 
-                }}
-              ></div>
-            </div>
-            <p className="text-xs text-gray-500 mt-1">{transactions.length} giao dịch</p>
           </div>
-          
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600">Lợi nhuận</span>
-              <span className="text-xs text-purple-600 font-medium">
-                {wallet?.netProfit > 0 ? '+' : ''}
-                {((wallet?.netProfit || 0) * 100 / (wallet?.totalRevenue || 1)).toFixed(1)}%
-              </span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-purple-600 h-2 rounded-full" 
-                style={{ 
-                  width: `${Math.min(100, Math.max(0, ((wallet?.netProfit || 0) * 100 / (wallet?.totalRevenue || 1))))}%` 
-                }}
-              ></div>
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              {formatCurrency(wallet?.netProfit || 0)} / {formatCurrency(wallet?.totalRevenue || 0)}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+          <div className="p-8 group hover:bg-gray-50 transition-colors">
+            <p className="text-sm font-bold text-gray-400 uppercase mb-2">Doanh thu phí thu</p>
+            <p className="text-3xl font-black text-gray-900">
+              {formatCurrency(wallet?.stats?.monthlyRevenue || 0)}
             </p>
+            <div className="mt-4 flex items-center gap-2 text-xs text-emerald-600 font-bold bg-emerald-50 w-fit px-2 py-1 rounded">
+              <FiTrendingUp /> +12.5% so với tháng trước
+            </div>
+          </div>
+
+          <div className="p-8 group hover:bg-gray-50 transition-colors">
+            <p className="text-sm font-bold text-gray-400 uppercase mb-2">Vốn nạp hệ thống</p>
+            <p className="text-3xl font-black text-gray-900">
+              {formatCurrency(wallet?.stats?.monthlyTopups || 0)}
+            </p>
+            <p className="text-xs text-gray-400 mt-4">Tiền admin nạp vào ví khả dụng</p>
+          </div>
+
+          <div className="p-8 group hover:bg-gray-50 transition-colors">
+            <p className="text-sm font-bold text-gray-400 uppercase mb-2">Tổng chi / Rút tiền</p>
+            <p className="text-3xl font-black text-rose-600">
+              -{formatCurrency(wallet?.stats?.monthlyExpenses || 0)}
+            </p>
+            <p className="text-xs text-gray-400 mt-4">Vận hành, Tiếp thị & Rút vốn</p>
+          </div>
+
+          <div className="p-8 bg-indigo-600/5 group hover:bg-indigo-600/10 transition-colors">
+            <p className="text-sm font-bold text-indigo-400 uppercase mb-2">Biến động ròng (Tháng)</p>
+            <p className={`text-3xl font-black ${wallet?.stats?.monthlyNetChange >= 0 ? "text-indigo-700" : "text-rose-700"}`}>
+              {wallet?.stats?.monthlyNetChange > 0 ? "+" : ""}
+              {formatCurrency(wallet?.stats?.monthlyNetChange || 0)}
+            </p>
+            <div className="mt-4 text-[10px] font-bold text-indigo-500 uppercase flex items-center gap-2">
+              <FiActivity /> Dòng tiền ròng thực tế của tháng
+            </div>
           </div>
         </div>
       </div>
+
 
       {/* Transaction History with Filters */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -651,12 +639,12 @@ export default function AdminWalletPage() {
                 type="text"
                 placeholder="Tìm ID đơn, ID user, mã đơn..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-64"
               />
               <select
                 value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
+                onChange={(e) => { setFilterType(e.target.value); setCurrentPage(1); }}
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="ALL">Tất cả loại</option>
@@ -693,7 +681,7 @@ export default function AdminWalletPage() {
               </select>
               <select
                 value={dateRange}
-                onChange={(e) => setDateRange(e.target.value)}
+                onChange={(e) => { setDateRange(e.target.value); setCurrentPage(1); }}
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="7days">7 ngày qua</option>
@@ -704,7 +692,7 @@ export default function AdminWalletPage() {
             </div>
           </div>
         </div>
-        
+
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
@@ -727,7 +715,7 @@ export default function AdminWalletPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {transactions.map((transaction) => (
+              {paginatedTransactions.map((transaction) => (
                 <tr key={transaction._id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
@@ -746,9 +734,8 @@ export default function AdminWalletPage() {
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className={`text-sm font-medium ${
-                      transaction.amount > 0 ? "text-green-600" : "text-red-600"
-                    }`}>
+                    <div className={`text-sm font-medium ${transaction.amount > 0 ? "text-green-600" : "text-red-600"
+                      }`}>
                       {transaction.amount > 0 ? "+" : ""}
                       {formatCurrency(transaction.amount)}
                     </div>
@@ -760,11 +747,10 @@ export default function AdminWalletPage() {
                     {new Date(transaction.createdAt).toLocaleString("vi-VN")}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      transaction.status === "SUCCESS"
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${transaction.status === "SUCCESS"
                         ? "bg-green-100 text-green-800"
                         : "bg-yellow-100 text-yellow-800"
-                    }`}>
+                      }`}>
                       {transaction.status === "SUCCESS" ? "Thành công" : "Đang xử lý"}
                     </span>
                   </td>
@@ -773,6 +759,14 @@ export default function AdminWalletPage() {
             </tbody>
           </table>
         </div>
+
+        {transactions.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        )}
 
         {transactions.length === 0 && (
           <div className="text-center py-8">
@@ -792,7 +786,7 @@ export default function AdminWalletPage() {
                 <FiX size={24} />
               </button>
             </div>
-            
+
             <form onSubmit={handleTopUp}>
               <div className="space-y-4">
                 <div>
@@ -810,7 +804,7 @@ export default function AdminWalletPage() {
                   />
                   <p className="text-xs text-gray-500 mt-1">Tối thiểu 10.000đ</p>
                 </div>
-                
+
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
                   <FiAlertCircle className="text-blue-600 mt-0.5 flex-shrink-0" />
                   <p className="text-sm text-blue-700">
@@ -818,7 +812,7 @@ export default function AdminWalletPage() {
                   </p>
                 </div>
               </div>
-              
+
               <div className="flex justify-end gap-3 mt-6">
                 <button
                   type="button"
@@ -850,7 +844,7 @@ export default function AdminWalletPage() {
                 <FiX size={24} />
               </button>
             </div>
-            
+
             <form onSubmit={handleWithdraw}>
               <div className="space-y-4">
                 <div>
@@ -858,7 +852,7 @@ export default function AdminWalletPage() {
                   <input
                     type="number"
                     value={withdrawForm.amount}
-                    onChange={(e) => setWithdrawForm({...withdrawForm, amount: e.target.value})}
+                    onChange={(e) => setWithdrawForm({ ...withdrawForm, amount: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                     placeholder="Ví dụ: 1000000"
                     min="10000"
@@ -868,54 +862,54 @@ export default function AdminWalletPage() {
                     Số dư khả dụng: {formatCurrency(wallet?.availableBalance || 0)}
                   </p>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Số tài khoản ngân hàng</label>
                   <input
                     type="text"
                     value={withdrawForm.accountNumber}
-                    onChange={(e) => setWithdrawForm({...withdrawForm, accountNumber: e.target.value})}
+                    onChange={(e) => setWithdrawForm({ ...withdrawForm, accountNumber: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                     placeholder="Ví dụ: 123456789"
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tên chủ tài khoản</label>
                   <input
                     type="text"
                     value={withdrawForm.accountName}
-                    onChange={(e) => setWithdrawForm({...withdrawForm, accountName: e.target.value})}
+                    onChange={(e) => setWithdrawForm({ ...withdrawForm, accountName: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                     placeholder="Ví dụ: NGUYEN VAN A"
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Mã ngân hàng</label>
                   <input
                     type="text"
                     value={withdrawForm.bankCode}
-                    onChange={(e) => setWithdrawForm({...withdrawForm, bankCode: e.target.value})}
+                    onChange={(e) => setWithdrawForm({ ...withdrawForm, bankCode: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                     placeholder="Ví dụ: VCB, TCB, BIDV..."
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tên ngân hàng (tùy chọn)</label>
                   <input
                     type="text"
                     value={withdrawForm.bankName}
-                    onChange={(e) => setWithdrawForm({...withdrawForm, bankName: e.target.value})}
+                    onChange={(e) => setWithdrawForm({ ...withdrawForm, bankName: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                     placeholder="Ví dụ: Vietcombank"
                   />
                 </div>
-                
+
                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 flex items-start gap-2">
                   <FiAlertCircle className="text-orange-600 mt-0.5 flex-shrink-0" />
                   <p className="text-sm text-orange-700">
@@ -923,7 +917,7 @@ export default function AdminWalletPage() {
                   </p>
                 </div>
               </div>
-              
+
               <div className="flex justify-end gap-3 mt-6">
                 <button
                   type="button"
@@ -955,14 +949,14 @@ export default function AdminWalletPage() {
                 <FiX size={24} />
               </button>
             </div>
-            
+
             <form onSubmit={handleCreateTransaction}>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Loại giao dịch</label>
                   <select
                     value={transactionForm.type}
-                    onChange={(e) => setTransactionForm({...transactionForm, type: e.target.value})}
+                    onChange={(e) => setTransactionForm({ ...transactionForm, type: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="PLATFORM_FEE">Phí nền tảng</option>
@@ -974,53 +968,53 @@ export default function AdminWalletPage() {
                     <option value="DEPOSIT_HOLD">Tiền đặt cọc</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Số tiền (dương để tăng, âm để giảm)</label>
                   <input
                     type="number"
                     value={transactionForm.amount}
-                    onChange={(e) => setTransactionForm({...transactionForm, amount: e.target.value})}
+                    onChange={(e) => setTransactionForm({ ...transactionForm, amount: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="Ví dụ: 1000000"
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
                   <textarea
                     value={transactionForm.description}
-                    onChange={(e) => setTransactionForm({...transactionForm, description: e.target.value})}
+                    onChange={(e) => setTransactionForm({ ...transactionForm, description: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     rows="3"
                     placeholder="Nhập mô tả giao dịch..."
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Reference Type (tùy chọn)</label>
                   <input
                     type="text"
                     value={transactionForm.referenceType}
-                    onChange={(e) => setTransactionForm({...transactionForm, referenceType: e.target.value})}
+                    onChange={(e) => setTransactionForm({ ...transactionForm, referenceType: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="Ví dụ: RENTAL, USER..."
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Reference ID (tùy chọn)</label>
                   <input
                     type="text"
                     value={transactionForm.referenceId}
-                    onChange={(e) => setTransactionForm({...transactionForm, referenceId: e.target.value})}
+                    onChange={(e) => setTransactionForm({ ...transactionForm, referenceId: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="ID tham chiếu..."
                   />
                 </div>
-                
+
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
                   <FiAlertCircle className="text-blue-600 mt-0.5 flex-shrink-0" />
                   <p className="text-sm text-blue-700">
@@ -1028,7 +1022,7 @@ export default function AdminWalletPage() {
                   </p>
                 </div>
               </div>
-              
+
               <div className="flex justify-end gap-3 mt-6">
                 <button
                   type="button"
@@ -1060,7 +1054,7 @@ export default function AdminWalletPage() {
                 <FiX size={24} />
               </button>
             </div>
-            
+
             <form onSubmit={handleTransfer}>
               <div className="space-y-4">
                 <div>
@@ -1068,38 +1062,38 @@ export default function AdminWalletPage() {
                   <input
                     type="text"
                     value={transferForm.walletId}
-                    onChange={(e) => setTransferForm({...transferForm, walletId: e.target.value})}
+                    onChange={(e) => setTransferForm({ ...transferForm, walletId: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder="ID ví đích..."
                   />
                 </div>
-                
+
                 <div className="text-center text-gray-500">- hoặc -</div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Email người dùng (tùy chọn)</label>
                   <input
                     type="email"
                     value={transferForm.userEmail}
-                    onChange={(e) => setTransferForm({...transferForm, userEmail: e.target.value})}
+                    onChange={(e) => setTransferForm({ ...transferForm, userEmail: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder="email@example.com"
                   />
                 </div>
-                
+
                 {/* User Info Display */}
                 {loadingUserInfo && (
                   <div className="flex items-center justify-center py-4">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
                   </div>
                 )}
-                
+
                 {transferUserInfo && !loadingUserInfo && (
                   <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
                     <p className="text-xs text-purple-600 font-medium mb-2">Thông tin người nhận</p>
                     <div className="flex items-center gap-3">
-                      <img 
-                        src={transferUserInfo.avatar || "/default-avatar.png"} 
+                      <img
+                        src={transferUserInfo.avatar || "/default-avatar.png"}
                         alt={transferUserInfo.fullName}
                         className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm"
                         onError={(e) => { e.target.src = "/default-avatar.png"; }}
@@ -1121,41 +1115,41 @@ export default function AdminWalletPage() {
                     </div>
                   </div>
                 )}
-                
+
                 {!transferUserInfo && !loadingUserInfo && (transferForm.walletId || transferForm.userEmail) && (
                   <div className="bg-red-50 border border-red-200 rounded-xl p-3">
                     <p className="text-sm text-red-600">Không tìm thấy thông tin người dùng</p>
                   </div>
                 )}
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Số tiền (VNĐ)</label>
                   <input
                     type="number"
                     value={transferForm.amount}
-                    onChange={(e) => setTransferForm({...transferForm, amount: e.target.value})}
+                    onChange={(e) => setTransferForm({ ...transferForm, amount: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder="Ví dụ: 1000000"
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
                   <textarea
                     value={transferForm.description}
-                    onChange={(e) => setTransferForm({...transferForm, description: e.target.value})}
+                    onChange={(e) => setTransferForm({ ...transferForm, description: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     rows="3"
                     placeholder="Nhập mô tả chuyển tiền..."
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Loại chuyển tiền</label>
                   <select
                     value={transferForm.type}
-                    onChange={(e) => setTransferForm({...transferForm, type: e.target.value})}
+                    onChange={(e) => setTransferForm({ ...transferForm, type: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                   >
                     <option value="TRANSFER">Chuyển tiền thông thường</option>
@@ -1164,7 +1158,7 @@ export default function AdminWalletPage() {
                     <option value="BONUS">Thưởng</option>
                   </select>
                 </div>
-                
+
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 flex items-start gap-2">
                   <FiAlertCircle className="text-purple-600 mt-0.5 flex-shrink-0" />
                   <p className="text-sm text-purple-700">
@@ -1172,7 +1166,7 @@ export default function AdminWalletPage() {
                   </p>
                 </div>
               </div>
-              
+
               <div className="flex justify-end gap-3 mt-6">
                 <button
                   type="button"

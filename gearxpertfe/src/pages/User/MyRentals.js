@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars, react-hooks/exhaustive-deps */
 import React, { useEffect, useMemo, useState } from "react";
 
 import { useNavigate } from "react-router-dom";
@@ -1293,11 +1294,11 @@ export default function MyRentals() {
 
             images: r.images || [],
 
-            resolution: r.resolution,
+            resolution: r.resolutionNote,
 
-            resolvedAt: r.resolvedAt,
+            resolvedAt: r.status === "RESOLVED" || r.status === "REJECTED" ? r.updatedAt : null,
 
-            resolvedBy: r.resolvedBy?.name,
+            resolvedBy: r.assignedAdminId?.fullName || (r.resolvedBy?.name || r.resolvedBy),
 
             rejectionReason: r.rejectionReason,
 
@@ -1343,11 +1344,11 @@ export default function MyRentals() {
 
             serialNumber: item.serialNumber,
 
-            resolution: r.resolution,
+            resolution: r.resolutionNote,
 
-            resolvedAt: r.resolvedAt,
+            resolvedAt: r.status === "RESOLVED" || r.status === "REJECTED" ? r.updatedAt : null,
 
-            resolvedBy: r.resolvedBy?.name,
+            resolvedBy: r.assignedAdminId?.fullName || (r.resolvedBy?.name || r.resolvedBy),
 
             rejectionReason: r.rejectionReason,
 

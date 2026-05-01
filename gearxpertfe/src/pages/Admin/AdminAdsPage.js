@@ -3,6 +3,7 @@ import { toast } from "react-toastify";
 import { getAllAdvertisementsForAdmin, updateAdvertisementStatus } from "../../service/ApiService/AdvertisementApi";
 import { FiCheck, FiX, FiExternalLink, FiSearch } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
+import Pagination from "../../components/common/Pagination";
 
 export default function AdminAdsPage() {
     const [ads, setAds] = useState([]);
@@ -10,6 +11,8 @@ export default function AdminAdsPage() {
     const [filterStatus, setFilterStatus] = useState("ALL");
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedAd, setSelectedAd] = useState(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 10;
 
     useEffect(() => {
         fetchAds();
@@ -54,6 +57,9 @@ export default function AdminAdsPage() {
             ad.userId?.fullName.toLowerCase().includes(searchTerm.toLowerCase());
         return matchesStatus && matchesSearch;
     });
+
+    const totalPages = Math.ceil(filteredAds.length / ITEMS_PER_PAGE);
+    const paginatedAds = filteredAds.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     const getStatusBadge = (status) => {
         switch (status) {
@@ -113,7 +119,7 @@ export default function AdminAdsPage() {
                             type="text"
                             placeholder="Tìm kiếm chiến dịch, người đăng..."
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                             className="w-full pl-12 pr-4 py-3 bg-transparent hover:bg-white/50 focus:bg-white rounded-xl outline-none transition-all placeholder:text-slate-400 font-medium"
                         />
                     </div>
@@ -122,7 +128,7 @@ export default function AdminAdsPage() {
                         {["ALL", "PENDING", "APPROVED", "REJECTED"].map((status) => (
                             <button
                                 key={status}
-                                onClick={() => setFilterStatus(status)}
+                                onClick={() => { setFilterStatus(status); setCurrentPage(1); }}
                                 className={`px-5 py-2.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${filterStatus === status
                                     ? "bg-white text-slate-900 shadow-sm ring-1 ring-black/5"
                                     : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
@@ -149,7 +155,7 @@ export default function AdminAdsPage() {
                         className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-8"
                     >
                         <AnimatePresence>
-                            {filteredAds.map((ad) => (
+                            {paginatedAds.map((ad) => (
                                 <motion.div
                                     layout
                                     initial={{ opacity: 0, scale: 0.9 }}
@@ -226,6 +232,14 @@ export default function AdminAdsPage() {
                         <h3 className="text-xl font-bold text-slate-900">Không tìm thấy kết quả</h3>
                         <p className="text-slate-500 mt-2">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
                     </div>
+                )}
+
+                {filteredAds.length > 0 && (
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={setCurrentPage}
+                    />
                 )}
             </div>
 

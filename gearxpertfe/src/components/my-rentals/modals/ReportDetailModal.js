@@ -24,12 +24,6 @@ const REPORT_TYPE_MAP = {
 export default function ReportDetailModal({ isOpen, onClose, report }) {
   if (!isOpen || !report) return null;
 
-  // Debug: log the actual report data
-  console.log("[ReportDetailModal] Report:", report);
-  console.log("[ReportDetailModal] deviceItemIds:", report.deviceItemIds);
-  console.log("[ReportDetailModal] deviceItemIds type:", typeof report.deviceItemIds);
-  console.log("[ReportDetailModal] deviceItemIds length:", report.deviceItemIds?.length);
-
   const status = STATUS_MAP[report.status] || STATUS_MAP.PENDING;
   const type = REPORT_TYPE_MAP[report.type] || { label: "Không xác định", color: "bg-gray-100", icon: FileText };
   const StatusIcon = status.icon;
@@ -86,6 +80,49 @@ export default function ReportDetailModal({ isOpen, onClose, report }) {
             </div>
           </div>
 
+          {/* Resolution Section - RIGHT UNDER STATUS */}
+          {(report.resolution || report.resolvedAt || report.resolvedBy) && (
+            <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+              <h4 className="text-sm font-black text-emerald-900 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <CheckCircle size={16} className="text-emerald-600" />
+                Thông tin xử lý
+              </h4>
+              
+              {report.resolution && (
+                <div className="mb-3">
+                  <p className="text-xs font-bold text-emerald-600 uppercase mb-1">Cách xử lý</p>
+                  <p className="text-sm text-emerald-800 leading-relaxed">{report.resolution}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                {report.resolvedAt && (
+                  <div>
+                    <p className="text-xs font-bold text-emerald-600 uppercase">Ngày xử lý</p>
+                    <p className="text-sm font-bold text-emerald-800">{formatDate(report.resolvedAt)}</p>
+                  </div>
+                )}
+                {report.resolvedBy && (
+                  <div>
+                    <p className="text-xs font-bold text-emerald-600 uppercase">Người xử lý</p>
+                    <p className="text-sm font-bold text-emerald-800">{report.resolvedBy}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Rejection Section */}
+          {report.rejectionReason && (
+            <div className="p-4 bg-rose-50 rounded-xl border border-rose-100">
+              <h4 className="text-sm font-black text-rose-900 uppercase tracking-wider mb-2 flex items-center gap-2">
+                <XCircle size={16} className="text-rose-600" />
+                Lý do từ chối
+              </h4>
+              <p className="text-sm text-rose-800 leading-relaxed">{report.rejectionReason}</p>
+            </div>
+          )}
+
           {/* Report Content - Delivery */}
           {report.type === "DELIVERY" && (
             <div className="space-y-4">
@@ -101,7 +138,7 @@ export default function ReportDetailModal({ isOpen, onClose, report }) {
                 </div>
                 <div className="p-4 bg-gray-50 rounded-xl">
                   <p className="text-xs font-bold text-gray-400 uppercase">Sản phẩm bị ảnh hưởng</p>
-                  <p className="text-sm font-bold text-gray-900 mt-1">{report.deviceItemIds?.length || 0} sản phẩm</p>
+                  <p className="text-sm font-bold text-gray-900 mt-1">{report.deviceItemIds?.length || 1} sản phẩm</p>
                 </div>
               </div>
 
@@ -214,7 +251,7 @@ export default function ReportDetailModal({ isOpen, onClose, report }) {
                 </div>
                 <div className="p-4 bg-gray-50 rounded-xl">
                   <p className="text-xs font-bold text-gray-400 uppercase">Số sản phẩm bị ảnh hưởng</p>
-                  <p className="text-sm font-bold text-gray-900 mt-1">{report.deviceItemIds?.length || 0} sản phẩm</p>
+                  <p className="text-sm font-bold text-gray-900 mt-1">{report.deviceItemIds?.length || 1} sản phẩm</p>
                 </div>
               </div>
 
@@ -330,49 +367,6 @@ export default function ReportDetailModal({ isOpen, onClose, report }) {
                   </p>
                 </div>
               )}
-            </div>
-          )}
-
-          {/* Resolution Section */}
-          {(report.resolution || report.resolvedAt || report.resolvedBy) && (
-            <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
-              <h4 className="text-sm font-black text-emerald-900 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <CheckCircle size={16} className="text-emerald-600" />
-                Thông tin xử lý
-              </h4>
-              
-              {report.resolution && (
-                <div className="mb-3">
-                  <p className="text-xs font-bold text-emerald-600 uppercase mb-1">Cách xử lý</p>
-                  <p className="text-sm text-emerald-800 leading-relaxed">{report.resolution}</p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
-                {report.resolvedAt && (
-                  <div>
-                    <p className="text-xs font-bold text-emerald-600 uppercase">Ngày xử lý</p>
-                    <p className="text-sm font-bold text-emerald-800">{formatDate(report.resolvedAt)}</p>
-                  </div>
-                )}
-                {report.resolvedBy && (
-                  <div>
-                    <p className="text-xs font-bold text-emerald-600 uppercase">Người xử lý</p>
-                    <p className="text-sm font-bold text-emerald-800">{report.resolvedBy}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Rejection Section */}
-          {report.rejectionReason && (
-            <div className="p-4 bg-rose-50 rounded-xl border border-rose-100">
-              <h4 className="text-sm font-black text-rose-900 uppercase tracking-wider mb-2 flex items-center gap-2">
-                <XCircle size={16} className="text-rose-600" />
-                Lý do từ chối
-              </h4>
-              <p className="text-sm text-rose-800 leading-relaxed">{report.rejectionReason}</p>
             </div>
           )}
         </div>

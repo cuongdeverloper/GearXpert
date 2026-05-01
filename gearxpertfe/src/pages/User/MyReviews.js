@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars, react-hooks/exhaustive-deps */
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -309,9 +310,8 @@ export default function MyReviews() {
                         initial={{ width: 0 }}
                         animate={{ width: `${percentage}%` }}
                         transition={{ duration: 0.5, delay: 0.1 * (5 - star) }}
-                        className={`h-full rounded-full ${
-                          star >= 4 ? "bg-green-500" : star >= 3 ? "bg-amber-500" : "bg-red-500"
-                        }`}
+                        className={`h-full rounded-full ${star >= 4 ? "bg-green-500" : star >= 3 ? "bg-amber-500" : "bg-red-500"
+                          }`}
                       />
                     </div>
                     <span className="text-sm text-slate-500 w-12 text-right">{count}</span>
@@ -332,11 +332,10 @@ export default function MyReviews() {
             </span>
             <button
               onClick={() => { setFilterRating(null); setPage(1); }}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
-                !filterRating
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${!filterRating
                   ? "bg-primary text-white"
                   : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50"
-              }`}
+                }`}
             >
               Tất cả
             </button>
@@ -344,11 +343,10 @@ export default function MyReviews() {
               <button
                 key={rating}
                 onClick={() => { setFilterRating(rating); setPage(1); }}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-1 ${
-                  filterRating === rating
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-1 ${filterRating === rating
                     ? "bg-primary text-white"
                     : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50"
-                }`}
+                  }`}
               >
                 {rating}★
               </button>
@@ -557,11 +555,10 @@ export default function MyReviews() {
               <button
                 key={p}
                 onClick={() => setPage(p)}
-                className={`px-4 py-2 rounded-xl font-medium transition-colors ${
-                  p === page
+                className={`px-4 py-2 rounded-xl font-medium transition-colors ${p === page
                     ? "bg-primary text-white shadow-lg shadow-primary/20"
                     : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50"
-                }`}
+                  }`}
               >
                 {p}
               </button>

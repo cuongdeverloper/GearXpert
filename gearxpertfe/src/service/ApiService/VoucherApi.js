@@ -49,3 +49,7 @@ export const createVoucherBySupplier = (data) => {
 export const updateVoucherStatusBySupplier = (id, status) => {
   return axios.patch(`/api/vouchers/supplier/${id}/status`, { status });
 };
+
+export const deleteVoucherBySupplier = (id) => {
+  return axios.delete(`/api/vouchers/supplier/${id}`);
+};
