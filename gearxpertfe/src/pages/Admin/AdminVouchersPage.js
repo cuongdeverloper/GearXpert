@@ -8,6 +8,7 @@ import {
 } from "../../service/ApiService/VoucherApi";
 import { toast } from "react-toastify";
 import { FiPlus, FiTrash2, FiClock, FiTag, FiSearch, FiEdit2, FiMoreVertical, FiEye, FiEyeOff, FiRefreshCw, FiCalendar, FiDollarSign, FiHash, FiFileText, FiX, FiLayers, FiGlobe, FiAward, FiShoppingBag } from "react-icons/fi";
+import Pagination from "../../components/common/Pagination";
 
 export default function AdminVouchersPage() {
     const [vouchers, setVouchers] = useState([]);
@@ -15,6 +16,8 @@ export default function AdminVouchersPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingVoucher, setEditingVoucher] = useState(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 10;
 
     // State for tabs
     const [activeTab, setActiveTab] = useState("ALL");
@@ -217,6 +220,9 @@ export default function AdminVouchersPage() {
         return true;
     });
 
+    const totalPages = Math.ceil(filteredVouchers.length / ITEMS_PER_PAGE);
+    const paginatedVouchers = filteredVouchers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
     return (
         <div className="space-y-6">
             {/* Header Actions */}
@@ -228,7 +234,7 @@ export default function AdminVouchersPage() {
                         placeholder="Tìm theo mã hoặc mô tả..."
                         className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm"
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                     />
                 </div>
                 <button
@@ -264,7 +270,7 @@ export default function AdminVouchersPage() {
                         return (
                             <button
                                 key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
+                                onClick={() => { setActiveTab(tab.id); setCurrentPage(1); }}
                                 className={`flex items-center gap-2 px-5 py-2.5 rounded-[16px] text-xs font-black uppercase tracking-wider transition-all duration-300 ${activeTab === tab.id
                                     ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-[0_4px_12px_rgba(0,0,0,0.05)] scale-105"
                                     : "text-slate-700 hover:text-indigo-600 dark:text-slate-300 hover:bg-white/50"
@@ -282,7 +288,7 @@ export default function AdminVouchersPage() {
                 </div>
 
                 <div 
-                    onClick={() => setOnlyShowValid(!onlyShowValid)}
+                    onClick={() => { setOnlyShowValid(!onlyShowValid); setCurrentPage(1); }}
                     className="flex items-center gap-3 px-6 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm hover:border-indigo-200 transition-all group cursor-pointer select-none"
                 >
                     <div className="relative inline-flex items-center">
@@ -323,7 +329,7 @@ export default function AdminVouchersPage() {
                                     </td>
                                 </tr>
                             ))
-                        ) : filteredVouchers.map(voucher => (
+                        ) : paginatedVouchers.map(voucher => (
                             <tr key={voucher._id} className="hover:bg-slate-50 transition-colors group">
                                 <td className="px-4 py-5">
                                     <div className="font-bold text-slate-900 mb-1">{voucher.code}</div>
@@ -411,6 +417,13 @@ export default function AdminVouchersPage() {
                         ))}
                     </tbody>
                 </table>
+                {filteredVouchers.length > 0 && (
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={setCurrentPage}
+                    />
+                )}
             </div>
 
             {/* Create / Edit Voucher Modal */}

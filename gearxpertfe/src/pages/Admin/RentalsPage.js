@@ -3,12 +3,15 @@ import { useDispatch } from "react-redux";
 import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
 import { FiSearch, FiCheckCircle, FiAlertCircle, FiClock, FiX } from "react-icons/fi";
 import { getAdminRentals } from "../../service/ApiService/AdminDashboardApi";
+import Pagination from "../../components/common/Pagination";
 
 export default function RentalsPage() {
   const dispatch = useDispatch();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [rentals, setRentals] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
     const fetchRentals = async () => {
@@ -34,6 +37,9 @@ export default function RentalsPage() {
     const matchesStatus = statusFilter === "ALL" || rental.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const totalPages = Math.ceil(filteredRentals.length / ITEMS_PER_PAGE);
+  const paginatedRentals = filteredRentals.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const getStatusColor = (status) => {
     const colors = {
@@ -83,14 +89,14 @@ export default function RentalsPage() {
               type="text"
               placeholder="Search rentals..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition"
             />
           </div>
 
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
             className="px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition bg-white"
           >
             <option value="ALL">All Status</option>
@@ -119,7 +125,7 @@ export default function RentalsPage() {
             </tr>
           </thead>
           <tbody>
-            {filteredRentals.map((rental) => (
+            {paginatedRentals.map((rental) => (
               <tr key={rental.id} className="border-b border-slate-200 hover:bg-slate-50 transition">
                 <td className="px-6 py-3 font-medium text-slate-900">{rental.id}</td>
                 <td className="px-6 py-3">
@@ -150,6 +156,14 @@ export default function RentalsPage() {
           </tbody>
         </table>
       </div>
+
+      {filteredRentals.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
+      )}
 
       {filteredRentals.length === 0 && (
         <div className="text-center py-12">

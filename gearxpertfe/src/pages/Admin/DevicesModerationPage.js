@@ -3,9 +3,9 @@ import { useDispatch } from "react-redux";
 import { getAdminDevices } from "../../service/ApiService/AdminDashboardApi";
 import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
 import ImageGalleryModal from "../../components/admin/ImageGalleryModal";
+import Pagination from "../../components/common/Pagination";
 import {
-  FiSearch, FiStar, FiCheckCircle, FiAlertCircle, FiEye,
-  FiChevronLeft, FiChevronRight,
+  FiSearch, FiStar, FiCheckCircle, FiAlertCircle, FiEye
 } from "react-icons/fi";
 
 const CATEGORIES = ["CAMERA", "AUDIO", "OFFICE", "GAMING", "ACCESSORY", "LIGHTING", "DRONE", "OTHER"];
@@ -254,58 +254,12 @@ export default function DevicesModerationPage() {
         </table>
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-slate-500">
-            Trang {page} / {totalPages}
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="p-2 rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition"
-            >
-              <FiChevronLeft size={16} />
-            </button>
-
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              let pageNum;
-              if (totalPages <= 5) {
-                pageNum = i + 1;
-              } else if (page <= 3) {
-                pageNum = i + 1;
-              } else if (page >= totalPages - 2) {
-                pageNum = totalPages - 4 + i;
-              } else {
-                pageNum = page - 2 + i;
-              }
-              return (
-                <button
-                  type="button"
-                  key={pageNum}
-                  onClick={() => setPage(pageNum)}
-                  className={`w-9 h-9 rounded-lg text-sm font-medium transition ${
-                    page === pageNum
-                      ? "bg-primary text-white"
-                      : "border border-slate-200 hover:bg-slate-50"
-                  }`}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
-
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="p-2 rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition"
-            >
-              <FiChevronRight size={16} />
-            </button>
-          </div>
-        </div>
+      {totalPages > 0 && (
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+        />
       )}
 
       {viewImageDevice && (

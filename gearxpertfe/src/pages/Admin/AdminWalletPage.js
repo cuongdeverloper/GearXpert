@@ -3,6 +3,7 @@ import { FiCreditCard, FiCheckCircle, FiTrendingUp, FiTrendingDown, FiArrowUpRig
 import { getAdminWallet, getAdminWalletTransactions, exportWalletTransactions, topUpAdminWallet, withdrawAdminWallet, createManualTransaction, transferToWallet } from "../../service/ApiService/AdminApi";
 import axiosInstance from "../../service/AxiosCustomize";
 import { toast } from "react-toastify";
+import Pagination from "../../components/common/Pagination";
 
 export default function AdminWalletPage() {
   const [wallet, setWallet] = useState(null);
@@ -11,6 +12,8 @@ export default function AdminWalletPage() {
   const [filterType, setFilterType] = useState("ALL");
   const [dateRange, setDateRange] = useState("7days");
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   // Modal states
   const [showTopUpModal, setShowTopUpModal] = useState(false);
@@ -66,6 +69,9 @@ export default function AdminWalletPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const totalPages = Math.ceil(transactions.length / ITEMS_PER_PAGE);
+  const paginatedTransactions = transactions.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const getTransactionIcon = (type) => {
     switch (type) {
@@ -633,12 +639,12 @@ export default function AdminWalletPage() {
                 type="text"
                 placeholder="Tìm ID đơn, ID user, mã đơn..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-64"
               />
               <select
                 value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
+                onChange={(e) => { setFilterType(e.target.value); setCurrentPage(1); }}
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="ALL">Tất cả loại</option>
@@ -675,7 +681,7 @@ export default function AdminWalletPage() {
               </select>
               <select
                 value={dateRange}
-                onChange={(e) => setDateRange(e.target.value)}
+                onChange={(e) => { setDateRange(e.target.value); setCurrentPage(1); }}
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="7days">7 ngày qua</option>
@@ -709,7 +715,7 @@ export default function AdminWalletPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {transactions.map((transaction) => (
+              {paginatedTransactions.map((transaction) => (
                 <tr key={transaction._id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
@@ -753,6 +759,14 @@ export default function AdminWalletPage() {
             </tbody>
           </table>
         </div>
+
+        {transactions.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        )}
 
         {transactions.length === 0 && (
           <div className="text-center py-8">

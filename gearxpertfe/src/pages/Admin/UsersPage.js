@@ -6,12 +6,15 @@ import { getAdminUsers, toggleUserStatus } from "../../service/ApiService/AdminU
 import { confirmDialog } from "../../utils/confirmDialog";
 import { toast } from "react-toastify";
 import UserDetailModal from "../../components/admin/UserDetailModal";
+import Pagination from "../../components/common/Pagination";
 
 export default function UsersPage() {
   const dispatch = useDispatch();
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
   const [menuOpenId, setMenuOpenId] = useState(null);
@@ -68,6 +71,9 @@ export default function UsersPage() {
     return matchesSearch && matchesRole;
   });
 
+  const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
+  const paginatedUsers = filteredUsers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
   const getRoleColor = (role) => {
     const colors = {
       CUSTOMER: "bg-blue-100 text-blue-700",
@@ -115,14 +121,14 @@ export default function UsersPage() {
               type="text"
               placeholder="Tìm kiếm người dùng..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition bg-white"
             />
           </div>
 
           <select
             value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
+            onChange={(e) => { setRoleFilter(e.target.value); setCurrentPage(1); }}
             className="px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition bg-white"
           >
             <option value="ALL">Tất cả vai trò</option>
@@ -157,7 +163,7 @@ export default function UsersPage() {
                   </td>
                 </tr>
               ))
-            ) : filteredUsers.map((user) => (
+            ) : paginatedUsers.map((user) => (
               <tr key={user._id} className="hover:bg-slate-50 transition">
                 <td className="px-6 py-4">
                   <div className="font-bold text-slate-900">{user.fullName}</div>
@@ -236,6 +242,13 @@ export default function UsersPage() {
             ))}
           </tbody>
         </table>
+        {!loading && filteredUsers.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        )}
       </div>
 
       {!loading && filteredUsers.length === 0 && (

@@ -5,12 +5,18 @@ import { broadcastNotification } from "../../service/ApiService/notificationApi"
 import { toast } from "react-toastify";
 import { FiSend, FiType, FiFileText, FiLink } from "react-icons/fi";
 import { HiOutlineSpeakerphone } from "react-icons/hi";
+import Pagination from "../../components/common/Pagination";
 
 export default function AdminBroadcastPage() {
   const dispatch = useDispatch();
   const [form, setForm] = useState({ title: "", message: "", link: "" });
   const [sending, setSending] = useState(false);
   const [history, setHistory] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 5;
+
+  const totalPages = Math.ceil(history.length / ITEMS_PER_PAGE);
+  const paginatedHistory = history.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const handleChange = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -129,7 +135,7 @@ export default function AdminBroadcastPage() {
         <div className="rounded-xl border border-slate-200 bg-white p-6">
           <h3 className="mb-4 text-lg font-semibold text-slate-900">Lịch sử gửi (phiên này)</h3>
           <div className="space-y-3">
-            {history.map((item, idx) => (
+            {paginatedHistory.map((item, idx) => (
               <div
                 key={idx}
                 className="flex items-start gap-3 rounded-lg border border-slate-100 bg-slate-50 p-3"
@@ -148,6 +154,15 @@ export default function AdminBroadcastPage() {
               </div>
             ))}
           </div>
+          {history.length > 0 && (
+            <div className="mt-4">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

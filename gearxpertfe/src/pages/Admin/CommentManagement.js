@@ -11,6 +11,7 @@ import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction
 import { FiSearch, FiTrash2, FiMessageSquare, FiShield, FiPlus, FiX } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { formatDate } from "../Blog/BlogConstants";
+import Pagination from "../../components/common/Pagination";
 
 export default function CommentManagement() {
     const dispatch = useDispatch();
@@ -21,6 +22,8 @@ export default function CommentManagement() {
     const [newKeyword, setNewKeyword] = useState("");
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState("comments"); // comments or keywords
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 10;
 
     const fetchData = useCallback(async (isInitial = false) => {
         try {
@@ -93,13 +96,16 @@ export default function CommentManagement() {
         c.blogTitle.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const totalPages = Math.ceil(filteredComments.length / ITEMS_PER_PAGE);
+    const paginatedComments = filteredComments.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             {/* Stats & Tabs */}
             <div className="flex flex-col md:flex-row gap-6 items-center justify-between">
                 <div className="flex gap-2 p-1 bg-slate-100 rounded-[1.5rem] w-fit">
                     <button
-                        onClick={() => setActiveTab("comments")}
+                        onClick={() => { setActiveTab("comments"); setCurrentPage(1); }}
                         className={`px-8 py-3 rounded-[1.2rem] text-xs font-black uppercase tracking-widest transition-all ${
                             activeTab === "comments" 
                                 ? "bg-white text-primary shadow-sm" 
@@ -139,7 +145,7 @@ export default function CommentManagement() {
                             type="text"
                             placeholder="Tìm bình luận, người dùng hoặc bài viết..."
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                             className="w-full pl-12 pr-4 py-4 rounded-[1.5rem] border border-slate-200 bg-white focus:ring-4 focus:ring-primary/5 transition-all outline-none"
                         />
                     </div>
@@ -163,7 +169,7 @@ export default function CommentManagement() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
-                                    {filteredComments.map((comment) => (
+                                    {paginatedComments.map((comment) => (
                                         <tr key={comment._id} className="hover:bg-slate-50/30 transition-colors group">
                                             <td className="px-6 py-6">
                                                 <div className="flex items-center gap-3">
@@ -202,6 +208,15 @@ export default function CommentManagement() {
                                 </tbody>
                             </table>
                         </div>
+
+                        {filteredComments.length > 0 && (
+                            <Pagination
+                                currentPage={currentPage}
+                                totalPages={totalPages}
+                                onPageChange={setCurrentPage}
+                            />
+                        )}
+
                         {filteredComments.length === 0 && !loading && (
                             <div className="py-20 text-center text-slate-300">
                                 <FiMessageSquare size={48} className="mx-auto mb-4 opacity-20" />

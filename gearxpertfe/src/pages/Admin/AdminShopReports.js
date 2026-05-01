@@ -5,6 +5,7 @@ import { FiSearch, FiEye, FiCheckCircle, FiXCircle, FiFilter, FiAlertTriangle, F
 import { adminGetAllShopReports } from "../../service/ApiService/ReportApi";
 import { toast } from "react-toastify";
 import ShopReportDetailModal from "../../components/admin/ShopReportDetailModal";
+import Pagination from "../../components/common/Pagination";
 
 export default function AdminShopReports() {
   const dispatch = useDispatch();
@@ -13,6 +14,8 @@ export default function AdminShopReports() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [selectedReport, setSelectedReport] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   const fetchReports = useCallback(async () => {
     try {
@@ -44,6 +47,9 @@ export default function AdminShopReports() {
     const matchesStatus = statusFilter === "ALL" || report.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const totalPages = Math.ceil(filteredReports.length / ITEMS_PER_PAGE);
+  const paginatedReports = filteredReports.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -90,7 +96,7 @@ export default function AdminShopReports() {
               type="text"
               placeholder="Tìm theo tên shop, người báo, lý do..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition bg-slate-50/50"
             />
           </div>
@@ -99,7 +105,7 @@ export default function AdminShopReports() {
             <FiFilter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
               className="pl-10 pr-8 py-2.5 rounded-xl border border-slate-200 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition bg-slate-50/50 appearance-none cursor-pointer font-medium text-slate-600 min-w-[160px]"
             >
               <option value="ALL">Tất cả trạng thái</option>
@@ -140,7 +146,7 @@ export default function AdminShopReports() {
                   </tr>
                 ))
               ) : filteredReports.length > 0 ? (
-                filteredReports.map((report) => (
+                paginatedReports.map((report) => (
                   <tr key={report._id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2 text-slate-600 font-medium">
@@ -216,6 +222,13 @@ export default function AdminShopReports() {
             </tbody>
           </table>
         </div>
+        {filteredReports.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        )}
       </div>
 
       <ShopReportDetailModal 

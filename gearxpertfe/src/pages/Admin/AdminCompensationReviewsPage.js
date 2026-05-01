@@ -8,6 +8,7 @@ import {
   adminRejectCompensationProposal,
 } from "../../service/ApiService/ReportApi";
 import { confirmDialog } from "../../utils/confirmDialog";
+import Pagination from "../../components/common/Pagination";
 
 const FLOW_STATUS_OPTIONS = [
   { value: "ALL", label: "Tất cả luồng" },
@@ -364,25 +365,13 @@ export default function AdminCompensationReviewsPage() {
             </tbody>
           </table>
         </div>
-        <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-4 py-3">
-          <button
-            onClick={() => fetchProposals(Math.max(1, page - 1))}
-            disabled={page <= 1 || loading}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-700 disabled:opacity-50"
-          >
-            Trước
-          </button>
-          <span className="text-xs text-slate-500">
-            Trang {page}/{totalPages}
-          </span>
-          <button
-            onClick={() => fetchProposals(Math.min(totalPages, page + 1))}
-            disabled={page >= totalPages || loading}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-700 disabled:opacity-50"
-          >
-            Sau
-          </button>
-        </div>
+        {proposals.length > 0 && (
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={fetchProposals}
+          />
+        )}
       </div>
 
       {selectedProposal && (
