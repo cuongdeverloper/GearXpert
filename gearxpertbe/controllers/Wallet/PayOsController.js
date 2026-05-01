@@ -285,8 +285,15 @@ const processWebhook = async (body) => {
         wallet = await Wallet.create({ user: payment.user, balance: 0 });
       }
 
-      const before = wallet.balance;
-      wallet.balance += payment.amount;
+      const before = wallet.balance + (wallet.availableBalance || 0);
+      
+      // Nếu là ví hệ thống, tiền nạp vào được tính là khả dụng ngay và không vào ví treo (balance)
+      if (wallet.isSystem) {
+        wallet.availableBalance = (wallet.availableBalance || 0) + payment.amount;
+      } else {
+        wallet.balance += payment.amount;
+      }
+
       await wallet.save();
 
       await WalletTransaction.create({
