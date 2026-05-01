@@ -204,15 +204,36 @@ export default function SupplierMaintenance() {
     }
   };
 
-  const handleIgnore = async (reminder) => {
-    if (!window.confirm("Bỏ qua nhắc nhở bảo trì này?")) return;
-    try {
-      await ignoreReminder(reminder._id);
-      toast.success("Đã bỏ qua");
-      loadReminders();
-    } catch (err) {
-      toast.error(err?.response?.data?.message || "Không thể bỏ qua");
-    }
+  const handleIgnore = (reminder) => {
+    const tId = toast(
+      <div>
+        <p className="font-medium text-slate-800 mb-3">Bỏ qua nhắc nhở bảo trì này?</p>
+        <div className="flex gap-2 justify-end">
+          <button 
+            className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-200 transition-colors"
+            onClick={() => toast.dismiss(tId)}
+          >
+            Hủy
+          </button>
+          <button 
+            className="px-3 py-1.5 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors"
+            onClick={async () => {
+              toast.dismiss(tId);
+              try {
+                await ignoreReminder(reminder._id);
+                toast.success("Đã bỏ qua nhắc nhở bảo trì");
+                loadReminders();
+              } catch (err) {
+                toast.error(err?.response?.data?.message || "Không thể bỏ qua");
+              }
+            }}
+          >
+            Đồng ý
+          </button>
+        </div>
+      </div>,
+      { autoClose: false, closeOnClick: false, closeButton: false }
+    );
   };
 
   // ── WorkOrder Actions ────────────────────────────────────────────
@@ -235,17 +256,41 @@ export default function SupplierMaintenance() {
     }
   };
 
-  const handleUpdateStatus = async (wo, status) => {
+  const handleUpdateStatus = (wo, status) => {
     const confirmMsg =
       status === "IN_PROGRESS" ? "Bắt đầu thực hiện lệnh bảo trì này?" : "Hủy lệnh bảo trì này?";
-    if (!window.confirm(confirmMsg)) return;
-    try {
-      await updateWorkOrderStatus(wo._id, status);
-      toast.success(status === "IN_PROGRESS" ? "Đã bắt đầu thực hiện" : "Đã hủy lệnh bảo trì");
-      loadWorkOrders();
-    } catch (err) {
-      toast.error(err?.response?.data?.message || "Không thể cập nhật");
-    }
+    
+    const tId = toast(
+      <div>
+        <p className="font-medium text-slate-800 mb-3">{confirmMsg}</p>
+        <div className="flex gap-2 justify-end">
+          <button 
+            className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-200 transition-colors"
+            onClick={() => toast.dismiss(tId)}
+          >
+            Đóng
+          </button>
+          <button 
+            className={`px-3 py-1.5 text-white rounded-md text-sm font-medium transition-colors ${
+              status === "IN_PROGRESS" ? "bg-indigo-600 hover:bg-indigo-700" : "bg-red-600 hover:bg-red-700"
+            }`}
+            onClick={async () => {
+              toast.dismiss(tId);
+              try {
+                await updateWorkOrderStatus(wo._id, status);
+                toast.success(status === "IN_PROGRESS" ? "Đã bắt đầu thực hiện lệnh bảo trì" : "Đã hủy lệnh bảo trì thành công");
+                loadWorkOrders();
+              } catch (err) {
+                toast.error(err?.response?.data?.message || "Không thể cập nhật trạng thái");
+              }
+            }}
+          >
+            Đồng ý
+          </button>
+        </div>
+      </div>,
+      { autoClose: false, closeOnClick: false, closeButton: false }
+    );
   };
 
   const handleCompleteSubmit = async () => {
