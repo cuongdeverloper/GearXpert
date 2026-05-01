@@ -226,6 +226,9 @@ export default function ReportsTab({ realtimeTick = 0 }) {
   const [error, setError] = useState(null);
   const [dialogDetail, setDialogDetail] = useState(null);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
+
   const fetchReports = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -248,7 +251,13 @@ export default function ReportsTab({ realtimeTick = 0 }) {
     fetchReports();
   }, [fetchReports, realtimeTick]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab]);
+
   const currentReports = activeTab === 'delivery' ? deliveryReports : returnReports;
+  const totalPages = Math.ceil(currentReports.length / itemsPerPage);
+  const paginatedReports = currentReports.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const deliveryContext = {
     badge: 'bg-red-50 text-red-600',
   };
@@ -346,7 +355,7 @@ export default function ReportsTab({ realtimeTick = 0 }) {
         </div>
       ) : (
         <div className="space-y-4 md:space-y-0 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-6">
-          {currentReports.map((report) => (
+          {paginatedReports.map((report) => (
             <ReportCard
               key={report._id}
               report={report}
@@ -357,6 +366,61 @@ export default function ReportsTab({ realtimeTick = 0 }) {
           ))}
         </div>
       )}
+
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 mt-8">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          
+          <div className="flex items-center gap-1">
+            {(() => {
+              const pages = [];
+              if (totalPages <= 7) {
+                for (let i = 1; i <= totalPages; i++) pages.push(i);
+              } else {
+                if (currentPage <= 4) {
+                  pages.push(1, 2, 3, 4, 5, '...', totalPages);
+                } else if (currentPage >= totalPages - 3) {
+                  pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+                } else {
+                  pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+                }
+              }
+              
+              return pages.map((page, index) => (
+                <button
+                  key={index}
+                  onClick={() => page !== '...' && setCurrentPage(page)}
+                  disabled={page === '...'}
+                  className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                    page === '...' 
+                      ? 'text-slate-400 cursor-default'
+                      : currentPage === page 
+                        ? 'bg-indigo-600 text-white' 
+                        : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  {page}
+                </button>
+              ));
+            })()}
+          </div>
+
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ChevronRight size={20} />
+          </button>
+        </div>
+      )}
+
       <ReturnFailureDetailDialog
         open={Boolean(dialogDetail)}
         onClose={() => setDialogDetail(null)}
