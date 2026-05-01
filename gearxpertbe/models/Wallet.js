@@ -10,6 +10,7 @@ const walletSchema = new mongoose.Schema({
     },
     isSystem: { type: Boolean, default: false },
     balance: { type: Number, default: 0 },
+    availableBalance: { type: Number, default: 0 },
     currency: { type: String, default: 'VND' },
   
     status: {

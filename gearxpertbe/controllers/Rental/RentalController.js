@@ -4209,9 +4209,59 @@ async function executeConfirmReturnSettlement(session, req, options = {}) {
     throw new Error("Số dư ví admin không đủ để thực hiện thanh toán");
   }
 
-  adminWallet.balance -= totalDeductFromAdmin;
+  // Kinh phí admin thực nhận (Phí sàn + Phí vận chuyển)
+  const adminEarned = (platformFee || 0) + (rental.deliveryFee || 0);
+
+  // LUỒNG DI CHUYỂN TIỀN:
+  // 1. Trừ tiền payout/refund khỏi ví admin (tiền rời khỏi hệ thống)
+  // 2. Trừ phần tiền phí thắng (Phí sàn + Ship) khỏi balance (tiền không còn treo nữa)
+  // 3. Cộng phần phí đó vào availableBalance (tiền vào túi admin)
+  
+  adminWallet.balance -= (totalDeductFromAdmin + adminEarned); 
+  const oldAvailable = adminWallet.availableBalance || 0;
+  adminWallet.availableBalance = oldAvailable + adminEarned;
 
   await adminWallet.save({ session });
+
+  // Tạo các bút toán ghi nhận doanh thu thực tế vào ví khả dụng để đối soát dễ dàng
+  const revenueTransactions = [];
+  
+  if (platformFee > 0) {
+    revenueTransactions.push({
+      wallet: adminWallet._id,
+      type: "PLATFORM_FEE",
+      amount: platformFee,
+      balanceBefore: oldAvailable, // Theo dõi trên pool khả dụng
+      balanceAfter: oldAvailable + platformFee,
+      referenceType: "RENTAL",
+      referenceId: rental._id,
+      description: `Thực thu phí nền tảng (10%) đơn #${rental._id.toString().slice(-6)}`,
+      status: "SUCCESS",
+      isEarned: true,
+      metadata: { isRevenueRealization: true }
+    });
+  }
+
+  if (rental.deliveryFee > 0) {
+    const currentAvailable = oldAvailable + (platformFee > 0 ? platformFee : 0);
+    revenueTransactions.push({
+      wallet: adminWallet._id,
+      type: "SHIPPING_FEE",
+      amount: rental.deliveryFee,
+      balanceBefore: currentAvailable,
+      balanceAfter: currentAvailable + rental.deliveryFee,
+      referenceType: "RENTAL",
+      referenceId: rental._id,
+      description: `Thực thu phí vận chuyển đơn #${rental._id.toString().slice(-6)}`,
+      status: "SUCCESS",
+      isEarned: true,
+      metadata: { isRevenueRealization: true }
+    });
+  }
+
+  if (revenueTransactions.length > 0) {
+    await WalletTransaction.insertMany(revenueTransactions, { session });
+  }
 
   // Ví hệ thống: một dòng giải phóng escrow tiền thuê (net sau phí) + một dòng giải phóng cọc.
   // Không ghi thêm PAYOUT trên ví admin: tiền đó đã rời escrow ở ESCROW_RELEASE; PAYOUT (+) chỉ trên ví supplier.
@@ -4267,52 +4317,21 @@ async function executeConfirmReturnSettlement(session, req, options = {}) {
 
   // Platform fee và Shipping fee đã ở lại trong ví admin (không cần chuyển đi đâu)
 
-  // Update PLATFORM_FEE transaction to mark as earned
-
-  await WalletTransaction.updateOne(
+  // Cập nhật trạng thái đơn thuê cho các giao dịch treo cũ (Để làm lịch sử, không tính vào doanh thu thực thu ở AvailableBalance)
+  await WalletTransaction.updateMany(
     {
       wallet: adminWallet._id,
-
-      type: "PLATFORM_FEE",
-
+      type: { $in: ["PLATFORM_FEE", "SHIPPING_FEE"] },
       referenceType: "RENTAL",
-
       referenceId: rental._id,
     },
-
     {
       $set: {
         rentalStatus: "COMPLETED",
-
-        isEarned: true,
+        // isEarned giữ nguyên false để tránh duplicate với bút toán Realization ở trên
       },
     },
-
-    { session },
-  );
-
-  // Update SHIPPING_FEE transaction to mark as earned
-
-  await WalletTransaction.updateOne(
-    {
-      wallet: adminWallet._id,
-
-      type: "SHIPPING_FEE",
-
-      referenceType: "RENTAL",
-
-      referenceId: rental._id,
-    },
-
-    {
-      $set: {
-        rentalStatus: "COMPLETED",
-
-        isEarned: true,
-      },
-    },
-
-    { session },
+    { session }
   );
 
   // Cập nhật trạng thái cuối
