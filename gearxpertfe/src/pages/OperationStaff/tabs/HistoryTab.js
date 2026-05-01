@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, History, RefreshCw, Truck, PackageCheck, CheckCircle, AlertTriangle, Info } from 'lucide-react';
+import { X, History, RefreshCw, Truck, PackageCheck, CheckCircle, AlertTriangle, Info, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getMyOperationLogs } from '../../../service/ApiService/OperationLogApi';
 import { getReturnRecordById } from '../../../service/ApiService/ReturnApi';
 import { getHandoverById } from '../../../service/ApiService/HandoverApi';
@@ -98,24 +98,30 @@ export default function HistoryTab({ setActiveMenu, realtimeTick = 0 }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [dialogDetail, setDialogDetail] = useState(null);
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const itemsPerPage = 8;
 
-  const fetchLogs = useCallback(async () => {
+  const fetchLogs = useCallback(async (page = currentPage) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await getMyOperationLogs(1, 50);
+      const res = await getMyOperationLogs(page, itemsPerPage);
       setLogs(res?.logs || []);
+      const total = res?.total || 0;
+      setTotalPages(Math.max(1, Math.ceil(total / itemsPerPage)));
     } catch (err) {
       console.error('Lỗi tải lịch sử:', err);
       setError('Không thể tải lịch sử hoạt động.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentPage, itemsPerPage]);
 
   useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs, realtimeTick]);
+    fetchLogs(currentPage);
+  }, [fetchLogs, realtimeTick, currentPage]);
 
   const openReturnFailDetail = async (log) => {
     if (log?.action !== 'RETURN_CONFIRM_FAILED') return;
@@ -274,6 +280,60 @@ export default function HistoryTab({ setActiveMenu, realtimeTick = 0 }) {
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {totalPages > 1 && !loading && (
+            <div className="flex justify-center items-center gap-2 mt-10">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              
+              <div className="flex items-center gap-1">
+                {(() => {
+                  const pages = [];
+                  if (totalPages <= 7) {
+                    for (let i = 1; i <= totalPages; i++) pages.push(i);
+                  } else {
+                    if (currentPage <= 4) {
+                      pages.push(1, 2, 3, 4, 5, '...', totalPages);
+                    } else if (currentPage >= totalPages - 3) {
+                      pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+                    } else {
+                      pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+                    }
+                  }
+                  
+                  return pages.map((page, index) => (
+                    <button
+                      key={index}
+                      onClick={() => page !== '...' && setCurrentPage(page)}
+                      disabled={page === '...'}
+                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                        page === '...' 
+                          ? 'text-slate-400 cursor-default'
+                          : currentPage === page 
+                            ? 'bg-indigo-600 text-white' 
+                            : 'text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ));
+                })()}
+              </div>
+
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronRight size={20} />
+              </button>
             </div>
           )}
         </div>
