@@ -32,9 +32,9 @@ export default function Footer() {
 
   return (
     <footer className="bg-white border-t border-slate-200 mt-12">
-      <div className="max-w-[1440px] mx-auto px-6 lg:px-10 py-10">
+      <div className="max-w-[1440px] mx-auto px-4 md:px-6 lg:px-10 py-10">
         {/* Top */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12">
           {/* Brand */}
           <div className="md:col-span-5">
             <div
@@ -45,10 +45,10 @@ export default function Footer() {
               onKeyDown={(e) => e.key === "Enter" && navigate("/")}
               aria-label="Go to homepage"
             >
-              <img src={logo} alt="GearXpert Logo" className="h-40 w-auto object-contain transition-transform group-hover:scale-110" />
+              <img src={logo} alt="GearXpert Logo" className="h-20 md:h-32 lg:h-40 w-auto object-contain transition-transform group-hover:scale-110" />
             </div>
 
-            <p className="mt-3 text-sm text-slate-500 leading-relaxed max-w-md">
+            <p className="mt-3 text-xs md:text-sm text-slate-500 leading-relaxed max-w-md">
               {t('footer.description')}
             </p>
 
