@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useLocation } from "react-router-dom";
 import {
   FiTool,
   FiBell,
@@ -88,11 +88,19 @@ const today = () => {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function SupplierMaintenance() {
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(() => {
     const t = searchParams.get("tab");
     return ["reminders", "workorders"].includes(t) ? t : "reminders";
   });
+
+  useEffect(() => {
+    const newTab = searchParams.get("tab");
+    if (newTab && ["reminders", "workorders"].includes(newTab)) {
+      setActiveTab(newTab);
+    }
+  }, [location.search]);
 
   // Reminders state
   const [reminders, setReminders] = useState([]);
@@ -460,7 +468,7 @@ export default function SupplierMaintenance() {
               />
             </div>
             <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-              ⚠️ Thiết bị sẽ chuyển sang trạng thái <strong>Đang bảo trì</strong> và không thể cho thuê.
+               Thiết bị sẽ chuyển sang trạng thái <strong>Đang bảo trì</strong> và không thể cho thuê.
             </p>
           </div>
           <div className="flex justify-end gap-2 mt-5">
@@ -559,7 +567,7 @@ export default function SupplierMaintenance() {
               />
             </div>
             <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-              ⚠️ Thiết bị sẽ chuyển sang trạng thái <strong>Đang bảo trì</strong>.
+               Thiết bị sẽ chuyển sang trạng thái <strong>Đang bảo trì</strong>.
             </p>
           </div>
           <div className="flex justify-end gap-2 mt-5">

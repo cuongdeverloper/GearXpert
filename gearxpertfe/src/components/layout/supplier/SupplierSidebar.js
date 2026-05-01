@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { useMemo, useState } from "react";
 import {
   FiChevronLeft,
@@ -122,6 +122,8 @@ function classNames(...xs) {
 }
 
 export default function SupplierSidebar({ collapsed, onCollapse, me }) {
+  const location = useLocation();
+
   const [openSections, setOpenSections] = useState({
     dashboard: true,
     alerts: true,
@@ -164,14 +166,17 @@ export default function SupplierSidebar({ collapsed, onCollapse, me }) {
                   key={item.to}
                   to={item.to}
                   end={!!item.end}
-                  className={({ isActive }) =>
-                    classNames(
+                  className={() => {
+                    const isActive = item.to.includes("?") 
+                      ? location.pathname + location.search === item.to 
+                      : location.pathname === item.to.split("?")[0];
+                    return classNames(
                       "flex items-center justify-center rounded-xl px-2 py-2.5 transition-all group",
                       isActive
                         ? "bg-primary/10 text-primary border border-primary/20"
                         : "text-slate-700 hover:bg-slate-100 border border-transparent hover:border-slate-200"
-                    )
-                  }
+                    );
+                  }}
                   title={item.label}
                 >
                   <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600 group-hover:bg-slate-200">
@@ -222,14 +227,27 @@ export default function SupplierSidebar({ collapsed, onCollapse, me }) {
                               key={item.to}
                               to={item.to}
                               end={!!item.end}
-                              className={({ isActive }) =>
-                                classNames(
+                              state={{ timestamp: Date.now() }}
+                              className={() => {
+                                let isActive = false;
+                                if (item.to.includes("?")) {
+                                  isActive = location.pathname + location.search === item.to;
+                                  if (location.pathname === "/supplier/maintenance" && !location.search && item.to.includes("tab=reminders")) {
+                                    isActive = true;
+                                  }
+                                  if (location.pathname === "/supplier/issues" && !location.search && item.to.includes("tab=DELIVERY")) {
+                                    isActive = true;
+                                  }
+                                } else {
+                                  isActive = location.pathname === item.to.split("?")[0];
+                                }
+                                return classNames(
                                   "block rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all",
                                   isActive
                                     ? "bg-primary/10 text-primary"
                                     : "text-slate-600 hover:bg-slate-100"
-                                )
-                              }
+                                );
+                              }}
                             >
                               {item.label}
                             </NavLink>
