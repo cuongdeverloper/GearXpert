@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
+import axios from "axios";
 import "./ChatOnlineUser.scss";
+
+const PF = process.env.REACT_APP_PUBLIC_FOLDER || "";
 
 const ChatOnlineUser =({ onlineUsers, currentId, setCurrentChat }) =>{
   const [friends, setFriends] = useState([]);

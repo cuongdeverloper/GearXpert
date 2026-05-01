@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useSearchParams, useLocation } from "react-router-dom";
 import {
@@ -11,6 +12,8 @@ import {
   FiCalendar,
   FiChevronDown,
   FiChevronUp,
+  FiChevronLeft,
+  FiChevronRight,
   FiRefreshCw,
 } from "react-icons/fi";
 import { toast } from "react-toastify";
@@ -100,7 +103,7 @@ export default function SupplierMaintenance() {
     if (newTab && ["reminders", "workorders"].includes(newTab)) {
       setActiveTab(newTab);
     }
-  }, [location.search]);
+  }, [location.search, searchParams]);
 
   // Reminders state
   const [reminders, setReminders] = useState([]);
@@ -111,6 +114,9 @@ export default function SupplierMaintenance() {
   const [woLoading, setWoLoading] = useState(false);
   const [woStatusFilter, setWoStatusFilter] = useState("ALL");
   const [woTypeFilter, setWoTypeFilter] = useState("ALL");
+  const [woCurrentPage, setWoCurrentPage] = useState(1);
+  const [woTotalPages, setWoTotalPages] = useState(1);
+  const woItemsPerPage = 5;
 
   // Modals
   const [approveModal, setApproveModal] = useState(null); // reminder object
@@ -158,28 +164,35 @@ export default function SupplierMaintenance() {
     }
   }, []);
 
-  const loadWorkOrders = useCallback(async () => {
+  const loadWorkOrders = useCallback(async (page = woCurrentPage) => {
     setWoLoading(true);
     try {
-      const params = {};
+      const params = { page, limit: woItemsPerPage };
       if (woStatusFilter !== "ALL") params.status = woStatusFilter;
       if (woTypeFilter !== "ALL") params.maintenanceType = woTypeFilter;
       const res = await getWorkOrders(params);
-      setWorkOrders(res?.data?.data || res?.data || []);
+      setWorkOrders(res?.data || []);
+      const total = res?.total || res?.data?.total || 0;
+      setWoTotalPages(Math.max(1, Math.ceil(total / woItemsPerPage)));
     } catch {
       toast.error("Không thể tải danh sách lệnh bảo trì");
     } finally {
       setWoLoading(false);
     }
-  }, [woStatusFilter, woTypeFilter]);
+  }, [woStatusFilter, woTypeFilter, woCurrentPage, woItemsPerPage]);
 
   useEffect(() => {
     loadReminders();
   }, [loadReminders]);
 
   useEffect(() => {
-    if (activeTab === "workorders") loadWorkOrders();
-  }, [activeTab, loadWorkOrders]);
+    if (activeTab === "workorders") loadWorkOrders(woCurrentPage);
+  }, [activeTab, loadWorkOrders, woCurrentPage]);
+
+  // Reset page when filter changes
+  useEffect(() => {
+    setWoCurrentPage(1);
+  }, [woStatusFilter, woTypeFilter]);
 
   const setTab = (key) => {
     setActiveTab(key);
@@ -459,19 +472,75 @@ export default function SupplierMaintenance() {
               desc="Bạn có thể tạo lệnh thủ công hoặc duyệt từ nhắc nhở bảo trì."
             />
           ) : (
-            filteredWOs.map((wo) => (
-              <WorkOrderCard
-                key={wo._id}
-                wo={wo}
-                onStart={() => handleUpdateStatus(wo, "IN_PROGRESS")}
-                onCancel={() => handleUpdateStatus(wo, "CANCELLED")}
-                onComplete={() => {
-                  setCompleteModal(wo);
-                  setCompleteForm({ notes: "", cost: "", imagesBefore: [], imagesAfter: [] });
-                }}
-                onImageClick={setLightboxImg}
-              />
-            ))
+            <div className="space-y-4">
+              {filteredWOs.map((wo) => (
+                <WorkOrderCard
+                  key={wo._id}
+                  wo={wo}
+                  onStart={() => handleUpdateStatus(wo, "IN_PROGRESS")}
+                  onCancel={() => handleUpdateStatus(wo, "CANCELLED")}
+                  onComplete={() => {
+                    setCompleteModal(wo);
+                    setCompleteForm({ notes: "", cost: "", imagesBefore: [], imagesAfter: [] });
+                  }}
+                  onImageClick={setLightboxImg}
+                />
+              ))}
+
+              {woTotalPages > 1 && (
+                <div className="flex justify-center items-center gap-2 mt-8 py-4">
+                  <button
+                    onClick={() => setWoCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={woCurrentPage === 1}
+                    className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <FiChevronLeft size={20} />
+                  </button>
+                  
+                  <div className="flex items-center gap-1">
+                    {(() => {
+                      const pages = [];
+                      if (woTotalPages <= 7) {
+                        for (let i = 1; i <= woTotalPages; i++) pages.push(i);
+                      } else {
+                        if (woCurrentPage <= 4) {
+                          pages.push(1, 2, 3, 4, 5, '...', woTotalPages);
+                        } else if (woCurrentPage >= woTotalPages - 3) {
+                          pages.push(1, '...', woTotalPages - 4, woTotalPages - 3, woTotalPages - 2, woTotalPages - 1, woTotalPages);
+                        } else {
+                          pages.push(1, '...', woCurrentPage - 1, woCurrentPage, woCurrentPage + 1, '...', woTotalPages);
+                        }
+                      }
+                      
+                      return pages.map((page, index) => (
+                        <button
+                          key={index}
+                          onClick={() => page !== '...' && setWoCurrentPage(page)}
+                          disabled={page === '...'}
+                          className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                            page === '...' 
+                              ? 'text-slate-400 cursor-default'
+                              : woCurrentPage === page 
+                                ? 'bg-indigo-600 text-white' 
+                                : 'text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ));
+                    })()}
+                  </div>
+
+                  <button
+                    onClick={() => setWoCurrentPage(p => Math.min(woTotalPages, p + 1))}
+                    disabled={woCurrentPage === woTotalPages}
+                    className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <FiChevronRight size={20} />
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}

@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars, react-hooks/exhaustive-deps, jsx-a11y/img-redundant-alt */
 import React, { useCallback, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import {

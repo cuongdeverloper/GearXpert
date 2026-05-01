@@ -18,8 +18,8 @@ export default function RecordContextSidebar({
         ) : rentals.length === 0 ? (
           <p className="text-sm text-slate-500 p-2">
             {flowContext === "DELIVERY"
-              ? "Không có đơn DELIVERING."
-              : "Không có đơn RETURNING."}
+              ? "Không có đơn."
+              : "Không có đơn."}
           </p>
         ) : (
           rentals.map((item) => (

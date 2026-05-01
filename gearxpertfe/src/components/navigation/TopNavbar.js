@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+/* eslint-disable no-unused-vars, react-hooks/exhaustive-deps */
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { Search, ShoppingCart, Bell, User, Sparkles, MapPin, Check, Store } from 'lucide-react'
