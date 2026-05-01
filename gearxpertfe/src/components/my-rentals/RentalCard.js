@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 // RentalCard.jsx
 
 import React from "react";

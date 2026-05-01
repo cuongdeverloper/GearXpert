@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState } from "react";
 import { FiX, FiUpload, FiSend, FiLoader } from "react-icons/fi";
 import { toast } from "react-toastify";

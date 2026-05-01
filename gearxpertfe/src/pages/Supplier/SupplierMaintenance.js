@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useSearchParams, useLocation } from "react-router-dom";
 import {
@@ -102,7 +103,7 @@ export default function SupplierMaintenance() {
     if (newTab && ["reminders", "workorders"].includes(newTab)) {
       setActiveTab(newTab);
     }
-  }, [location.search]);
+  }, [location.search, searchParams]);
 
   // Reminders state
   const [reminders, setReminders] = useState([]);

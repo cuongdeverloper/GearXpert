@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { useEffect, useState } from "react";
 import { getAllVouchers } from "../../service/ApiService/VoucherApi";
 import { useSelector } from "react-redux";
