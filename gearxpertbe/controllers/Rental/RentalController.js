@@ -14,6 +14,7 @@ const RentalItem = require("../../models/RentalItem");
 const Device = require("../../models/Device");
 
 const Voucher = require("../../models/Voucher");
+const User = require("../../models/User");
 
 const Wallet = require("../../models/Wallet");
 
@@ -66,7 +67,6 @@ const {
 } = require("../../utils/operationStaffSocket");
 
 const SupplierProfile = require("../../models/SupplierProfile");
-const User = require("../../models/User");
 const { sendMail } = require("../../configs/sendMail");
 const EmailTemplates = require("../../utils/EmailTemplates");
 
@@ -756,6 +756,36 @@ exports.checkoutRental = async (req, res) => {
         appliedVoucher.usedCount >= appliedVoucher.usageLimit
       ) {
         throw new Error("Mã giảm giá đã hết lượt sử dụng");
+      }
+
+      if (appliedVoucher && appliedVoucher.applicableRank) {
+        const user = await User.findById(customerId).select("rank").session(session);
+        const userRank = (user?.rank || 'BRONZE').trim().toUpperCase();
+        const dbRank = appliedVoucher.applicableRank.trim().toUpperCase();
+        
+        const rankWeights = { BRONZE: 1, SILVER: 2, GOLD: 3, PLATINUM: 4, DIAMOND: 5 };
+        const userWeight = rankWeights[userRank] || 1;
+        const voucherWeight = rankWeights[dbRank] || 1;
+
+        if (userWeight < voucherWeight) {
+          throw new Error(`Mã này dành cho hạng ${dbRank} trở lên. Hạng hiện tại của bạn là ${userRank}.`);
+        }
+
+        // Kiểm tra giới hạn tần suất cho Voucher Rank (1 lần/tháng)
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+        const usedThisVoucher = await Rental.findOne({
+          customerId,
+          voucherCode: appliedVoucher.code,
+          status: { $nin: ['CANCELLED', 'REJECTED'] },
+          createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+        }).session(session);
+
+        if (usedThisVoucher) {
+          throw new Error(`Bạn đã sử dụng ưu đãi hạng ${dbRank} của tháng này rồi.`);
+        }
       }
 
       if (appliedVoucher) {
@@ -4179,9 +4209,59 @@ async function executeConfirmReturnSettlement(session, req, options = {}) {
     throw new Error("Số dư ví admin không đủ để thực hiện thanh toán");
   }
 
-  adminWallet.balance -= totalDeductFromAdmin;
+  // Kinh phí admin thực nhận (Phí sàn + Phí vận chuyển)
+  const adminEarned = (platformFee || 0) + (rental.deliveryFee || 0);
+
+  // LUỒNG DI CHUYỂN TIỀN:
+  // 1. Trừ tiền payout/refund khỏi ví admin (tiền rời khỏi hệ thống)
+  // 2. Trừ phần tiền phí thắng (Phí sàn + Ship) khỏi balance (tiền không còn treo nữa)
+  // 3. Cộng phần phí đó vào availableBalance (tiền vào túi admin)
+  
+  adminWallet.balance -= (totalDeductFromAdmin + adminEarned); 
+  const oldAvailable = adminWallet.availableBalance || 0;
+  adminWallet.availableBalance = oldAvailable + adminEarned;
 
   await adminWallet.save({ session });
+
+  // Tạo các bút toán ghi nhận doanh thu thực tế vào ví khả dụng để đối soát dễ dàng
+  const revenueTransactions = [];
+  
+  if (platformFee > 0) {
+    revenueTransactions.push({
+      wallet: adminWallet._id,
+      type: "PLATFORM_FEE",
+      amount: platformFee,
+      balanceBefore: oldAvailable, // Theo dõi trên pool khả dụng
+      balanceAfter: oldAvailable + platformFee,
+      referenceType: "RENTAL",
+      referenceId: rental._id,
+      description: `Thực thu phí nền tảng (10%) đơn #${rental._id.toString().slice(-6)}`,
+      status: "SUCCESS",
+      isEarned: true,
+      metadata: { isRevenueRealization: true }
+    });
+  }
+
+  if (rental.deliveryFee > 0) {
+    const currentAvailable = oldAvailable + (platformFee > 0 ? platformFee : 0);
+    revenueTransactions.push({
+      wallet: adminWallet._id,
+      type: "SHIPPING_FEE",
+      amount: rental.deliveryFee,
+      balanceBefore: currentAvailable,
+      balanceAfter: currentAvailable + rental.deliveryFee,
+      referenceType: "RENTAL",
+      referenceId: rental._id,
+      description: `Thực thu phí vận chuyển đơn #${rental._id.toString().slice(-6)}`,
+      status: "SUCCESS",
+      isEarned: true,
+      metadata: { isRevenueRealization: true }
+    });
+  }
+
+  if (revenueTransactions.length > 0) {
+    await WalletTransaction.insertMany(revenueTransactions, { session });
+  }
 
   // Ví hệ thống: một dòng giải phóng escrow tiền thuê (net sau phí) + một dòng giải phóng cọc.
   // Không ghi thêm PAYOUT trên ví admin: tiền đó đã rời escrow ở ESCROW_RELEASE; PAYOUT (+) chỉ trên ví supplier.
@@ -4237,52 +4317,21 @@ async function executeConfirmReturnSettlement(session, req, options = {}) {
 
   // Platform fee và Shipping fee đã ở lại trong ví admin (không cần chuyển đi đâu)
 
-  // Update PLATFORM_FEE transaction to mark as earned
-
-  await WalletTransaction.updateOne(
+  // Cập nhật trạng thái đơn thuê cho các giao dịch treo cũ (Để làm lịch sử, không tính vào doanh thu thực thu ở AvailableBalance)
+  await WalletTransaction.updateMany(
     {
       wallet: adminWallet._id,
-
-      type: "PLATFORM_FEE",
-
+      type: { $in: ["PLATFORM_FEE", "SHIPPING_FEE"] },
       referenceType: "RENTAL",
-
       referenceId: rental._id,
     },
-
     {
       $set: {
         rentalStatus: "COMPLETED",
-
-        isEarned: true,
+        // isEarned giữ nguyên false để tránh duplicate với bút toán Realization ở trên
       },
     },
-
-    { session },
-  );
-
-  // Update SHIPPING_FEE transaction to mark as earned
-
-  await WalletTransaction.updateOne(
-    {
-      wallet: adminWallet._id,
-
-      type: "SHIPPING_FEE",
-
-      referenceType: "RENTAL",
-
-      referenceId: rental._id,
-    },
-
-    {
-      $set: {
-        rentalStatus: "COMPLETED",
-
-        isEarned: true,
-      },
-    },
-
-    { session },
+    { session }
   );
 
   // Cập nhật trạng thái cuối

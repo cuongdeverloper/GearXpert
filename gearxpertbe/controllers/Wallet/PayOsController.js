@@ -5,6 +5,7 @@ const Wallet = require("../../models/Wallet");
 const WalletTransaction = require("../../models/WalletTransaction");
 const Payment = require("../../models/Payment");
 const Rental = require("../../models/Rental");
+const Voucher = require("../../models/Voucher");
 const RentalItem = require("../../models/RentalItem");
 const User = require("../../models/User");
 const { sendMail } = require("../../configs/sendMail");
@@ -136,6 +137,15 @@ const processWebhook = async (body) => {
         rental.status = "PENDING";
         await rental.save();
         handleContractUpload(rental);
+      }
+
+      // NEW: Increment voucher usedCount for Bank payment (ONCE per order)
+      const firstWithVoucher = rentals.find(r => r.voucherCode);
+      if (firstWithVoucher) {
+        await Voucher.updateOne(
+          { code: firstWithVoucher.voucherCode },
+          { $inc: { usedCount: 1 } }
+        ).catch(err => console.error("[WEBHOOK] Voucher increment error:", err));
       }
 
       // Create per-rental system wallet transactions (với đúng referenceId cho mỗi rental)
@@ -285,8 +295,15 @@ const processWebhook = async (body) => {
         wallet = await Wallet.create({ user: payment.user, balance: 0 });
       }
 
-      const before = wallet.balance;
-      wallet.balance += payment.amount;
+      const before = wallet.balance + (wallet.availableBalance || 0);
+      
+      // Nếu là ví hệ thống, tiền nạp vào được tính là khả dụng ngay và không vào ví treo (balance)
+      if (wallet.isSystem) {
+        wallet.availableBalance = (wallet.availableBalance || 0) + payment.amount;
+      } else {
+        wallet.balance += payment.amount;
+      }
+
       await wallet.save();
 
       await WalletTransaction.create({

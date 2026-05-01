@@ -77,13 +77,14 @@ exports.adjustWalletBalance = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy ví hệ thống" });
     }
 
-    const balanceBefore = adminWallet.balance;
-    const balanceAfter = balanceBefore + parseFloat(amount);
-
-
-    // Update wallet balance
-    adminWallet.balance = balanceAfter;
+    const balanceBefore = adminWallet.balance + (adminWallet.availableBalance || 0);
+    const amountNum = parseFloat(amount);
+    
+    // Điều chỉnh thủ công luôn tác động vào ví khả dụng (availableBalance)
+    adminWallet.availableBalance = (adminWallet.availableBalance || 0) + amountNum;
     await adminWallet.save({ session });
+
+    const balanceAfter = adminWallet.balance + adminWallet.availableBalance;
 
     // Create adjustment transaction
     const transaction = await WalletTransaction.create([{
@@ -210,7 +211,12 @@ exports.createManualTransaction = async (req, res) => {
 
     // Update wallet balance if requested
     if (updateBalance) {
-      wallet.balance = balanceAfter;
+      if (wallet.isSystem) {
+        // Ví hệ thống theo model mới: adjustments đi vào ví khả dụng
+        wallet.availableBalance = (wallet.availableBalance || 0) + parsedAmount;
+      } else {
+        wallet.balance = balanceAfter;
+      }
       await wallet.save({ session });
     }
 
@@ -388,12 +394,9 @@ function getTransactionTypeLabel2(type) {
  */
 exports.getAdminWallet = async (req, res) => {
   try {
-    // Find system wallet (this is where platform fees go)
-    let adminWallet = await Wallet.findOne({ 
-      isSystem: true 
-    }).populate('user', 'fullName email');
+    // Find system wallet
+    let adminWallet = await Wallet.findOne({ isSystem: true }).populate('user', 'fullName email');
     
-    // If system wallet doesn't exist, create one
     if (!adminWallet) {
       adminWallet = new Wallet({
         isSystem: true,
@@ -403,228 +406,150 @@ exports.getAdminWallet = async (req, res) => {
         status: 'ACTIVE'
       });
       await adminWallet.save();
-      await adminWallet.populate('user', 'fullName email');
     }
 
-    // Calculate totals by transaction type using aggregation for the system wallet
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const endOfMonth = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth() + 1, 0, 23, 59, 59);
+
+    // 1. Calculate Core Balances
+    // Escrow Balance = Tiền đang treo (chưa hoàn thành)
+    // Available Balance = Tiền thực có (đã chốt phí + nạp)
+    // Total Balance = Escrow + Available
+    const escrowBalance = adminWallet.balance;
+    const availableBalance = adminWallet.availableBalance || 0;
+    const totalBalance = escrowBalance + availableBalance;
+
+    // 2. Aggregate Transactions for detailed breakdown
     const [
       platformFees,
-      platformFeeRefunds,
-      
-      escrowHolds,
-      depositHolds,
-      supplierPayouts,
-      customerRefunds,
-      
-      refunds,
-      serviceFees,
-      penaltyFees
+      shippingFees,
+      otherFees,
+      monthlyRevenue,
+      monthlyExpenses,
+      monthlyTopups,
+      pendingEscrowBreakdown
     ] = await Promise.all([
-      // Platform fees (positive amounts - revenue)
+      // Total Earned Platform Fees (order completed)
       WalletTransaction.aggregate([
-        { $match: { wallet: adminWallet._id, type: "PLATFORM_FEE", amount: { $gt: 0 } } },
+        { $match: { wallet: adminWallet._id, type: "PLATFORM_FEE", isEarned: true, status: "SUCCESS" } },
         { $group: { _id: null, total: { $sum: "$amount" } } }
       ]),
-      
-      // Platform fee refunds (negative amounts - deducted from revenue on cancellations)
+      // Total Earned Shipping Fees
       WalletTransaction.aggregate([
-        { $match: { wallet: adminWallet._id, type: "PLATFORM_FEE_REFUND", amount: { $lt: 0 } } },
-        { $group: { _id: null, total: { $sum: { $abs: "$amount" } } } }
-      ]),
-      
-      // Escrow holds (NET: ESCROW_HOLD - ESCROW_RELEASE)
-      WalletTransaction.aggregate([
-        { $match: { wallet: adminWallet._id, type: { $in: ["ESCROW_HOLD", "ESCROW_RELEASE"] } } },
+        { $match: { wallet: adminWallet._id, type: "SHIPPING_FEE", isEarned: true, status: "SUCCESS" } },
         { $group: { _id: null, total: { $sum: "$amount" } } }
       ]),
-      
-      // Deposit holds (NET: DEPOSIT_HOLD - DEPOSIT_RELEASE)
+      // Service & Penalty fees
       WalletTransaction.aggregate([
-        { $match: { wallet: adminWallet._id, type: { $in: ["DEPOSIT_HOLD", "DEPOSIT_RELEASE"] } } },
+        { $match: { wallet: adminWallet._id, type: { $in: ["SERVICE_FEE", "PENALTY_FEE"] }, status: "SUCCESS" } },
         { $group: { _id: null, total: { $sum: "$amount" } } }
       ]),
-      
-      // Supplier payouts (negative amounts - money paid out)
+      // --- Monthly Stats ---
+      // Revenue this month (Platform Fee + Shipping + Service + Penalty) marked as earned THIS month
       WalletTransaction.aggregate([
-        { $match: { wallet: adminWallet._id, type: "SUPPLIER_PAYOUT", amount: { $lt: 0 } } },
-        { $group: { _id: null, total: { $sum: { $abs: "$amount" } } } }
-      ]),
-      
-      // Customer refunds (negative amounts - money refunded)
-      WalletTransaction.aggregate([
-        { $match: { wallet: adminWallet._id, type: "CUSTOMER_REFUND", amount: { $lt: 0 } } },
-        { $group: { _id: null, total: { $sum: { $abs: "$amount" } } } }
-      ]),
-      
-      // Refunds for cancelled orders (positive amounts from system wallet perspective - money going out)
-      WalletTransaction.aggregate([
-        { $match: { wallet: adminWallet._id, type: "REFUND", amount: { $lt: 0 } } },
-        { $group: { _id: null, total: { $sum: { $abs: "$amount" } } } }
-      ]),
-      
-      // Refunds for cancelled orders (positive amounts from system wallet perspective - money going out)
-      WalletTransaction.aggregate([
-        { $match: { wallet: adminWallet._id, type: "REFUND", amount: { $lt: 0 } } },
-        { $group: { _id: null, total: { $sum: { $abs: "$amount" } } } }
-      ]),
-      
-      // Service fees (positive amounts)
-      WalletTransaction.aggregate([
-        { $match: { wallet: adminWallet._id, type: "SERVICE_FEE", amount: { $gt: 0 } } },
+        { 
+          $match: { 
+            wallet: adminWallet._id, 
+            type: { $in: ["PLATFORM_FEE", "SHIPPING_FEE", "SERVICE_FEE", "PENALTY_FEE"] },
+            status: "SUCCESS",
+            isEarned: true,
+            updatedAt: { $gte: startOfMonth, $lte: endOfMonth }
+          } 
+        },
         { $group: { _id: null, total: { $sum: "$amount" } } }
       ]),
-      
-      // Penalty fees (positive amounts)
+      // Expenses this month
       WalletTransaction.aggregate([
-        { $match: { wallet: adminWallet._id, type: "PENALTY_FEE", amount: { $gt: 0 } } },
+        { 
+          $match: { 
+            wallet: adminWallet._id, 
+            type: { $in: ["WITHDRAW", "TRANSFER", "ADJUSTMENT"] }, 
+            amount: { $lt: 0 },
+            status: "SUCCESS",
+            createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+          } 
+        },
+        { $group: { _id: null, total: { $sum: { $abs: "$amount" } } } }
+      ]),
+      // Topups this month (Including manual positive adjustments)
+      WalletTransaction.aggregate([
+        { 
+          $match: { 
+            wallet: adminWallet._id, 
+            $or: [
+              { type: "TOP_UP" },
+              { type: "ADJUSTMENT", amount: { $gt: 0 } }
+            ],
+            status: "SUCCESS",
+            createdAt: { $gte: startOfMonth, $lte: endOfMonth } 
+          } 
+        },
         { $group: { _id: null, total: { $sum: "$amount" } } }
+      ]),
+      // Pending Escrow breakdown for tooltips/details
+      WalletTransaction.aggregate([
+        { 
+          $match: { 
+            wallet: adminWallet._id, 
+            type: { $in: ["ESCROW_HOLD", "DEPOSIT_HOLD", "PLATFORM_FEE", "SHIPPING_FEE"] },
+            isEarned: false,
+            status: "SUCCESS"
+          } 
+        },
+        { $group: { _id: "$type", total: { $sum: "$amount" } } }
       ])
     ]);
 
-    // Calculate monthly revenue (current month)
-    const now = new Date();
-    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    // Format pending breakdown
+    const pendingData = {};
+    pendingEscrowBreakdown.forEach(item => {
+      pendingData[item._id] = item.total;
+    });
 
-    // Calculate monthly revenue - CHỈ tính phí nền tảng và phí dịch vụ (doanh thu thực)
-    // Không tính ESCROW_HOLD và DEPOSIT_HOLD vì đó là tiền tạm giữ, không phải doanh thu
-    // Calculate monthly revenue - CHỈ tính phí nền tảng và phí dịch vụ (doanh thu thực)
-    // Không tính ESCROW_HOLD và DEPOSIT_HOLD vì đó là tiền tạm giữ, không phải doanh thu
-    const monthlyRevenue = await WalletTransaction.aggregate([
-      {
-        $match: {
-          wallet: adminWallet._id,
-          type: { $in: ["PLATFORM_FEE", "SERVICE_FEE", "PENALTY_FEE"] },
-          amount: { $gt: 0 },
-          createdAt: { $gte: currentMonthStart, $lte: currentMonthEnd }
+    const rev = monthlyRevenue[0]?.total || 0;
+    const tops = monthlyTopups[0]?.total || 0;
+    const exps = monthlyExpenses[0]?.total || 0;
+
+    return res.status(200).json({
+      success: true,
+      balances: {
+        total: totalBalance,
+        available: availableBalance,
+        escrow: escrowBalance,
+      },
+      revenueSources: {
+        platformFees: platformFees[0]?.total || 0,
+        shippingFees: shippingFees[0]?.total || 0,
+        otherFees: otherFees[0]?.total || 0
+      },
+      stats: {
+        monthlyRevenue: rev,
+        monthlyTopups: tops,
+        monthlyExpenses: exps,
+        monthlyNetChange: (rev + tops) - exps, // Tổng dòng tiền vào - dòng tiền ra
+        period: {
+          start: startOfMonth,
+          end: endOfMonth
         }
       },
-      { $group: { _id: null, total: { $sum: "$amount" } } }
-    ]);
-
-    // Calculate total expenses (absolute values of payouts and refunds)
-    const totalExpenses = (supplierPayouts[0]?.total || 0) + 
-                          (customerRefunds[0]?.total || 0) + 
-                          (refunds[0]?.total || 0); // REFUND for cancelled orders
-
-    // Calculate total holds (escrow + deposits)
-    const totalHolds = (escrowHolds[0]?.total || 0) + (depositHolds[0]?.total || 0);
-
-    // Calculate net profit with cancellation refunds
-    const grossPlatformFees = (platformFees[0]?.total || 0);
-    const platformFeeRefundsTotal = (platformFeeRefunds[0]?.total || 0);
-    const netPlatformFees = grossPlatformFees - platformFeeRefundsTotal;
-    
-    const totalFees = netPlatformFees + (serviceFees[0]?.total || 0) + (penaltyFees[0]?.total || 0);
-    const netProfit = totalFees - totalExpenses;
-
-    // Calculate different balance types
-    const grossEscrow = (escrowHolds[0]?.total || 0);
-    const grossDeposits = (depositHolds[0]?.total || 0);
-    
-    // Tính phí nền tảng đã kiếm (isEarned: true) và đang chờ (isEarned: false)
-    const earnedPlatformFees = await WalletTransaction.aggregate([
-      { 
-        $match: { 
-          wallet: adminWallet._id, 
-          type: "PLATFORM_FEE",
-          isEarned: true
-        } 
-      },
-      { $group: { _id: null, total: { $sum: "$amount" } } }
-    ]);
-    
-    const pendingPlatformFees = await WalletTransaction.aggregate([
-      { 
-        $match: { 
-          wallet: adminWallet._id, 
-          type: "PLATFORM_FEE",
-          isEarned: false,
-          $or: [
-            { isRefunded: false },
-            { isRefunded: { $exists: false } }  // Xử lý dữ liệu cũ chưa có field
-          ]
-        } 
-      },
-      { $group: { _id: null, total: { $sum: "$amount" } } }
-    ]);
-    
-    // Tính phí vận chuyển đã kiếm (isEarned: true) và đang chờ (isEarned: false)
-    const earnedShippingFees = await WalletTransaction.aggregate([
-      { 
-        $match: { 
-          wallet: adminWallet._id, 
-          type: "SHIPPING_FEE",
-          isEarned: true
-        } 
-      },
-      { $group: { _id: null, total: { $sum: "$amount" } } }
-    ]);
-    
-    const pendingShippingFees = await WalletTransaction.aggregate([
-      { 
-        $match: { 
-          wallet: adminWallet._id, 
-          type: "SHIPPING_FEE",
-          isEarned: false,
-          $or: [
-            { isRefunded: false },
-            { isRefunded: { $exists: false } }
-          ]
-        } 
-      },
-      { $group: { _id: null, total: { $sum: "$amount" } } }
-    ]);
-    
-    const earnedFeeBalance = earnedPlatformFees[0]?.total || 0;
-    const pendingFeeBalance = pendingPlatformFees[0]?.total || 0;
-    const earnedShippingBalance = earnedShippingFees[0]?.total || 0;
-    const pendingShippingBalance = pendingShippingFees[0]?.total || 0;
-    
-    // Số dư chờ hoàn thành = Tiền thuê tạm giữ đang giữ cho đơn chưa hoàn thành
-    // grossEscrow đã là net amount (ESCROW_HOLD đã trừ platformFee)
-    const pendingCompletionBalance = Math.max(0, grossEscrow);
-    
-    // Số dư tổng = Tất cả tiền trong ví (thuê + cọc + phí)
-    const totalBalance = adminWallet.balance;
-    
-    // Số dư thực tế admin có thể dùng = Phí đã kiếm + phí vận chuyển đã kiếm + phí dịch vụ + phí phạt (không bao gồm phí đang chờ)
-    const availableBalance = Math.max(0, earnedFeeBalance + earnedShippingBalance + (serviceFees[0]?.total || 0) + (penaltyFees[0]?.total || 0));
-    
-    res.json({
-      wallet: adminWallet,
-      totalRevenue: totalFees,
-      netProfit: netProfit,
-      
-      // Các loại số dư
-      totalBalance: totalBalance, // Tổng tất cả tiền trong ví
-      availableBalance: availableBalance, // Phí đã kiếm + phí dịch vụ + phí vận chuyển (có thể rút)
-      earnedFeeBalance: earnedFeeBalance, // Phí nền tảng đã kiếm (từ đơn hoàn thành)
-      pendingFeeBalance: pendingFeeBalance, // Phí nền tảng đang chờ (đơn chưa hoàn thành)
-      earnedShippingBalance: earnedShippingBalance, // Phí vận chuyển đã kiếm (từ đơn hoàn thành)
-      pendingShippingBalance: pendingShippingBalance, // Phí vận chuyển đang chờ (đơn chưa hoàn thành)
-      pendingCompletionBalance: pendingCompletionBalance, // Tiền thuê đang tạm giữ (chờ hoàn thành đơn)
-      pendingDepositBalance: grossDeposits, // Tiền cọc đang tạm giữ
-      
-      totalPlatformFees: netPlatformFees,
-      totalPlatformFeesGross: grossPlatformFees,
-      totalPlatformFeeRefunds: platformFeeRefundsTotal,
-      totalEscrow: grossEscrow,
-      totalEscrowNet: Math.max(0, grossEscrow - netPlatformFees), // Sau khi trừ phí
-      totalDeposits: grossDeposits,
-      totalSupplierPayouts: supplierPayouts[0]?.total || 0,
-      totalCustomerRefunds: customerRefunds[0]?.total || 0,
-      totalServiceFees: serviceFees[0]?.total || 0,
-      totalPenaltyFees: penaltyFees[0]?.total || 0,
-      totalExpenses: totalExpenses,
-      monthlyRevenue: monthlyRevenue[0]?.total || 0,
-      totalHolds: pendingCompletionBalance + grossDeposits
+      // For details
+      pendingEscrow: {
+        total: escrowBalance,
+        rent: pendingData["ESCROW_HOLD"] || 0,
+        deposit: pendingData["DEPOSIT_HOLD"] || 0,
+        unearnedPlatformFees: pendingData["PLATFORM_FEE"] || 0,
+        unearnedShippingFees: pendingData["SHIPPING_FEE"] || 0
+      }
     });
   } catch (error) {
     console.error("Get admin wallet error:", error);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
+
 
 /**
  * GET /api/admin/wallet/transactions
@@ -1251,20 +1176,7 @@ exports.withdrawAdminWallet = async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy ví hệ thống' });
     }
 
-    // Calculate available balance (total - escrow holds - deposit holds)
-    const escrowHolds = await WalletTransaction.aggregate([
-      { $match: { wallet: adminWallet._id, type: { $in: ["ESCROW_HOLD", "ESCROW_RELEASE"] } } },
-      { $group: { _id: null, total: { $sum: "$amount" } } }
-    ]).session(session);
-    
-    const depositHolds = await WalletTransaction.aggregate([
-      { $match: { wallet: adminWallet._id, type: { $in: ["DEPOSIT_HOLD", "DEPOSIT_RELEASE"] } } },
-      { $group: { _id: null, total: { $sum: "$amount" } } }
-    ]).session(session);
-    
-    const pendingEscrow = Math.max(0, escrowHolds[0]?.total || 0);
-    const pendingDeposits = Math.max(0, depositHolds[0]?.total || 0);
-    const availableBalance = Math.max(0, adminWallet.balance - pendingEscrow - pendingDeposits);
+    const availableBalance = adminWallet.availableBalance || 0;
 
     // Check available balance (not total balance)
     if (availableBalance < cleanAmount) {
@@ -1272,8 +1184,6 @@ exports.withdrawAdminWallet = async (req, res) => {
       return res.status(400).json({ 
         message: 'Số dư khả dụng không đủ',
         totalBalance: adminWallet.balance,
-        pendingEscrow: pendingEscrow,
-        pendingDeposits: pendingDeposits,
         availableBalance: availableBalance,
         requestedAmount: cleanAmount
       });
@@ -1282,6 +1192,7 @@ exports.withdrawAdminWallet = async (req, res) => {
     // Deduct from wallet
     const balanceBefore = adminWallet.balance;
     adminWallet.balance -= cleanAmount;
+    adminWallet.availableBalance -= cleanAmount; // Deduct from available balance
     await adminWallet.save({ session });
 
     // Create withdrawal transaction
@@ -1410,7 +1321,6 @@ exports.transferToWallet = async (req, res) => {
       await session.abortTransaction();
       return res.status(400).json({ message: 'Số tiền không hợp lệ' });
     }
-
     // Find system wallet (source)
     let systemWallet = await Wallet.findOne({ isSystem: true }).session(session);
     if (!systemWallet) {
@@ -1434,20 +1344,7 @@ exports.transferToWallet = async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy ví đích' });
     }
 
-    // Calculate available balance (total - escrow holds - deposit holds)
-    const escrowHolds = await WalletTransaction.aggregate([
-      { $match: { wallet: systemWallet._id, type: { $in: ["ESCROW_HOLD", "ESCROW_RELEASE"] } } },
-      { $group: { _id: null, total: { $sum: "$amount" } } }
-    ]).session(session);
-
-    const depositHolds = await WalletTransaction.aggregate([
-      { $match: { wallet: systemWallet._id, type: { $in: ["DEPOSIT_HOLD", "DEPOSIT_RELEASE"] } } },
-      { $group: { _id: null, total: { $sum: "$amount" } } }
-    ]).session(session);
-
-    const pendingEscrow = Math.max(0, escrowHolds[0]?.total || 0);
-    const pendingDeposits = Math.max(0, depositHolds[0]?.total || 0);
-    const availableBalance = Math.max(0, systemWallet.balance - pendingEscrow - pendingDeposits);
+    const availableBalance = systemWallet.availableBalance || 0;
 
     // Check available balance (not total balance)
     if (availableBalance < cleanAmount) {
@@ -1455,16 +1352,14 @@ exports.transferToWallet = async (req, res) => {
       return res.status(400).json({
         message: 'Số dư khả dụng không đủ',
         totalBalance: systemWallet.balance,
-        pendingEscrow: pendingEscrow,
-        pendingDeposits: pendingDeposits,
         availableBalance: availableBalance,
         requestedAmount: cleanAmount
       });
     }
 
-    // Deduct from system wallet
-    const systemBalanceBefore = systemWallet.balance;
-    systemWallet.balance -= cleanAmount;
+    // Deduct from system wallet (Only from available pool)
+    const systemBalanceBefore = systemWallet.balance + (systemWallet.availableBalance || 0);
+    systemWallet.availableBalance -= cleanAmount; // Chuyển tiền từ số dư khả dụng
     await systemWallet.save({ session });
 
     // Add to destination wallet
@@ -1630,20 +1525,7 @@ exports.withdrawAdminWallet = async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy ví hệ thống' });
     }
 
-    // Calculate available balance (total - escrow holds - deposit holds)
-    const escrowHolds = await WalletTransaction.aggregate([
-      { $match: { wallet: adminWallet._id, type: { $in: ["ESCROW_HOLD", "ESCROW_RELEASE"] } } },
-      { $group: { _id: null, total: { $sum: "$amount" } } }
-    ]).session(session);
-    
-    const depositHolds = await WalletTransaction.aggregate([
-      { $match: { wallet: adminWallet._id, type: { $in: ["DEPOSIT_HOLD", "DEPOSIT_RELEASE"] } } },
-      { $group: { _id: null, total: { $sum: "$amount" } } }
-    ]).session(session);
-    
-    const pendingEscrow = Math.max(0, escrowHolds[0]?.total || 0);
-    const pendingDeposits = Math.max(0, depositHolds[0]?.total || 0);
-    const availableBalance = Math.max(0, adminWallet.balance - pendingEscrow - pendingDeposits);
+    const availableBalance = adminWallet.availableBalance || 0;
 
     // Check available balance (not total balance)
     if (availableBalance < cleanAmount) {
@@ -1651,16 +1533,14 @@ exports.withdrawAdminWallet = async (req, res) => {
       return res.status(400).json({ 
         message: 'Số dư khả dụng không đủ',
         totalBalance: adminWallet.balance,
-        pendingEscrow: pendingEscrow,
-        pendingDeposits: pendingDeposits,
         availableBalance: availableBalance,
         requestedAmount: cleanAmount
       });
     }
 
-    // Deduct from wallet
-    const balanceBefore = adminWallet.balance;
-    adminWallet.balance -= cleanAmount;
+    // Deduct from wallet (Only from available pool)
+    const balanceBefore = adminWallet.balance + (adminWallet.availableBalance || 0);
+    adminWallet.availableBalance -= cleanAmount; // Rút tiền từ số dư khả dụng
     await adminWallet.save({ session });
 
     // Create withdrawal transaction
@@ -1813,20 +1693,7 @@ exports.transferToWallet = async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy ví đích' });
     }
 
-    // Calculate available balance (total - escrow holds - deposit holds)
-    const escrowHolds = await WalletTransaction.aggregate([
-      { $match: { wallet: systemWallet._id, type: { $in: ["ESCROW_HOLD", "ESCROW_RELEASE"] } } },
-      { $group: { _id: null, total: { $sum: "$amount" } } }
-    ]).session(session);
-
-    const depositHolds = await WalletTransaction.aggregate([
-      { $match: { wallet: systemWallet._id, type: { $in: ["DEPOSIT_HOLD", "DEPOSIT_RELEASE"] } } },
-      { $group: { _id: null, total: { $sum: "$amount" } } }
-    ]).session(session);
-
-    const pendingEscrow = Math.max(0, escrowHolds[0]?.total || 0);
-    const pendingDeposits = Math.max(0, depositHolds[0]?.total || 0);
-    const availableBalance = Math.max(0, systemWallet.balance - pendingEscrow - pendingDeposits);
+    const availableBalance = systemWallet.availableBalance || 0;
 
     // Check available balance (not total balance)
     if (availableBalance < cleanAmount) {
@@ -1834,16 +1701,14 @@ exports.transferToWallet = async (req, res) => {
       return res.status(400).json({
         message: 'Số dư khả dụng không đủ',
         totalBalance: systemWallet.balance,
-        pendingEscrow: pendingEscrow,
-        pendingDeposits: pendingDeposits,
         availableBalance: availableBalance,
         requestedAmount: cleanAmount
       });
     }
 
-    // Deduct from system wallet
-    const systemBalanceBefore = systemWallet.balance;
-    systemWallet.balance -= cleanAmount;
+    // Deduct from system wallet (Only from available pool)
+    const systemBalanceBefore = systemWallet.balance + (systemWallet.availableBalance || 0);
+    systemWallet.availableBalance -= cleanAmount; // Chuyển tiền từ số dư khả dụng
     await systemWallet.save({ session });
 
     // Add to destination wallet
