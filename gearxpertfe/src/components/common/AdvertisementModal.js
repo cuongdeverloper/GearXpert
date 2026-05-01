@@ -75,11 +75,6 @@ export default function AdvertisementModal({ isOpen, onClose, onSuccess, presele
 
     const totalCost = days * effectiveDailyBudget;
 
-    const initialDays = Math.ceil(days / 4);
-    const initialPayment = initialDays * effectiveDailyBudget;
-    const remainingDays = days - initialDays;
-    const remainingPayment = totalCost - initialPayment;
-
     const getPriority = (budget) => {
         if (budget < 100000) return { label: 'Đồng', color: 'text-orange-400' };
         if (budget < 300000) return { label: 'Bạc', color: 'text-slate-300' };
@@ -539,13 +534,11 @@ export default function AdvertisementModal({ isOpen, onClose, onSuccess, presele
                                             </div>
                                             <div className="pt-3 border-t border-slate-700 flex justify-between items-end">
                                                 <div>
-                                                    <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mb-1">Thanh toán (1/4)</p>
-                                                    <p className="text-2xl font-bold text-white leading-none">{initialPayment.toLocaleString('vi-VN')}₫</p>
-                                                    {remainingDays > 0 && (
-                                                        <p className="text-[9px] text-slate-400 mt-2 italic font-medium">
-                                                            Sẽ thanh toán {remainingPayment.toLocaleString('vi-VN')}₫ cho {remainingDays} ngày còn lại sau {initialDays} ngày
-                                                        </p>
-                                                    )}
+                                                    <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mb-1">Thanh toán</p>
+                                                    <p className="text-2xl font-bold text-white leading-none">{totalCost.toLocaleString('vi-VN')}₫</p>
+                                                    <p className="text-[9px] text-slate-400 mt-2 italic font-medium">
+                                                        Hủy sớm sẽ được hoàn tiền các ngày chưa sử dụng
+                                                    </p>
                                                 </div>
                                                 <div className="text-right">
                                                     <p className="text-[10px] text-slate-500 font-medium">Độ ưu tiên: <span className={`${priority.color} font-bold`}>{priority.label}</span></p>

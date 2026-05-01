@@ -131,6 +131,7 @@ export default function Header({ onMenuOpen }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMessengerOpen, setIsMessengerOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const [notifications, setNotifications] = useState([]);
   const unreadCount = notifications.filter((n) => !n.isRead).length;
@@ -140,6 +141,7 @@ export default function Header({ onMenuOpen }) {
   const messengerRef = useRef(null);
   const dropdownRef = useRef(null);
   const notificationRef = useRef(null);
+  const mobileMenuRef = useRef(null);
 
   const userAccount = useSelector((state) => state.user.account);
   const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
@@ -159,7 +161,7 @@ export default function Header({ onMenuOpen }) {
     } finally {
       setLoadingNotifications(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, t]);
 
   // Fetch cart count
   const fetchCartCount = useCallback(async () => {
@@ -282,8 +284,17 @@ export default function Header({ onMenuOpen }) {
     { label: t('header.favorites'), icon: 'favorite', path: '/favorites' },
   ];
 
+  const navLinks = [
+    { label: t('header.home'), path: '/', icon: 'home' },
+    { label: t('header.devices'), path: '/products', icon: 'devices' },
+    { label: t('header.shops'), path: '/suppliers', icon: 'storefront' },
+    { label: t('header.blog'), path: '/blog', icon: 'article' },
+    { label: t('header.ai_discover'), path: '/smartgear', icon: 'auto_awesome' },
+  ];
+
   const handleRestrictedNavigation = (path) => {
     navigate(path);
+    setIsMobileMenuOpen(false);
   };
 
   const handleMenuItemClick = (path) => {
@@ -359,19 +370,19 @@ export default function Header({ onMenuOpen }) {
   const isDark = headerTheme === 'dark';
 
   // Dynamic theme classes
-  const islandClass = `glass-panel px-6 h-20 rounded-2xl shadow-xl border ring-1 transition-all duration-300 ${
+  const islandClass = `glass-panel h-16 lg:h-20 rounded-2xl shadow-xl border ring-1 transition-all duration-300 ${
     isDark 
       ? 'bg-slate-900/60 backdrop-blur-xl border-white/10 ring-white/5 shadow-black/40' 
       : 'bg-white/90 backdrop-blur-md border-white/80 ring-white/20 shadow-black/5'
   }`;
 
-  const navItemClass = (isCurrent) => `relative text-base font-bold transition-all duration-300 cursor-pointer bg-transparent border-none px-2 ${
+  const navItemClass = (isCurrent) => `relative text-sm lg:text-base font-bold transition-all duration-300 cursor-pointer bg-transparent border-none px-2 ${
     isCurrent 
       ? 'text-primary' 
       : isDark ? 'text-white/90 hover:text-white' : 'text-slate-700 hover:text-primary'
   }`;
 
-  const iconBtnClass = (isOpen) => `w-12 h-12 flex items-center justify-center rounded-xl border transition-all duration-300 ${
+  const iconBtnClass = (isOpen) => `w-10 h-10 lg:w-12 lg:h-12 flex items-center justify-center rounded-xl border transition-all duration-300 ${
     isOpen
       ? (isDark ? 'bg-white/20 text-white border-white/30' : 'bg-indigo-100 text-primary border-indigo-200')
       : (isDark ? 'bg-white/10 text-white/90 border-white/10 hover:bg-white/20 hover:text-white' : 'bg-slate-50/50 text-slate-600 border-slate-200 hover:bg-slate-100')
@@ -392,102 +403,97 @@ export default function Header({ onMenuOpen }) {
   }`;
 
   return (
-    <header className="fixed top-6 z-50 w-full px-4 lg:px-8 pointer-events-none">
-      <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-4 pointer-events-auto">
-        
-        {/* Island 1: Logo */}
-        <MagneticIsland className={islandClass}>
-          <div className="flex items-center w-full">
-            {onMenuOpen && (
+    <>
+      <header className="fixed top-4 lg:top-6 z-50 w-full px-4 lg:px-8 pointer-events-none">
+        <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-3 lg:gap-4 pointer-events-auto">
+          
+          {/* Island 1: Logo & Mobile Toggle */}
+          <MagneticIsland className={`${islandClass} px-3 lg:px-6 flex-shrink-0`}>
+            <div className="flex items-center gap-2">
               <button
-                onClick={onMenuOpen}
-                className={`lg:hidden p-2 -ml-1 rounded-xl transition-colors mr-2 ${
+                onClick={() => setIsMobileMenuOpen(true)}
+                className={`lg:hidden p-2 rounded-xl transition-colors ${
                   isDark ? 'text-white/70 hover:bg-white/10' : 'text-slate-600 hover:bg-slate-100'
                 }`}
               >
                 <span className="material-symbols-outlined text-[24px]">menu</span>
               </button>
-            )}
-            <MagneticItem distance={0.15}>
-              <div
-                className="flex items-center cursor-pointer group relative"
-                onClick={() => handleRestrictedNavigation('/')}
-              >
-                <img 
-                  src={logo} 
-                  alt="GearXpert Logo" 
-                  className="h-24 lg:h-28 w-auto object-contain transition-all duration-500 group-hover:scale-105"
-                  style={{ 
-                    filter: isDark ? 'brightness(0) invert(1)' : 'brightness(1) invert(0)',
-                    transition: 'filter 0.5s ease-in-out'
-                  }}
-                />
-                <div className="hidden sm:block w-32 lg:w-40 h-1"></div>
-              </div>
-            </MagneticItem>
-          </div>
-        </MagneticIsland>
-
-        {/* Island 2: Navigation - Desktop */}
-        <MagneticIsland className={`hidden lg:flex gap-10 items-center px-10 ${islandClass}`}>
-          {[
-            { label: t('header.home'), path: '/' },
-            { label: t('header.devices'), path: '/products' },
-            { label: t('header.shops'), path: '/suppliers' },
-            { label: t('header.blog'), path: '/blog' },
-          ].map((item) => {
-            const isCurrent = item.path === '/' 
-              ? location.pathname === '/' 
-              : location.pathname.startsWith(item.path);
-            
-            return (
-              <MagneticItem key={item.path} distance={0.25}>
-                <button
-                  className={navItemClass(isCurrent)}
-                  onClick={() => handleRestrictedNavigation(item.path)}
+              
+              <MagneticItem distance={0.15}>
+                <div
+                  className="flex items-center cursor-pointer group relative"
+                  onClick={() => handleRestrictedNavigation('/')}
                 >
-                  {item.label}
-                </button>
+                  <img 
+                    src={logo} 
+                    alt="GearXpert Logo" 
+                    className="h-16 lg:h-24 w-auto object-contain transition-all duration-500 group-hover:scale-105"
+                    style={{ 
+                      filter: isDark ? 'brightness(0) invert(1)' : 'brightness(1) invert(0)',
+                      transition: 'filter 0.5s ease-in-out'
+                    }}
+                  />
+                  <div className="hidden lg:block w-32 xl:w-40 h-1"></div>
+                </div>
               </MagneticItem>
-            );
-          })}
-          
-          <div className={`h-6 w-px mx-2 transition-colors duration-300 ${isDark ? 'bg-white/10' : 'bg-slate-200'}`}></div>
+            </div>
+          </MagneticIsland>
 
-          <MagneticItem distance={0.2}>
-            <button
-              className={`flex items-center gap-1.5 text-base font-bold px-5 py-2.5 rounded-xl border cursor-pointer transition-all duration-300 ${
-                location.pathname.startsWith('/smartgear')
-                  ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-105'
-                  : (isDark 
-                      ? 'text-primary bg-primary/10 border-primary/20 hover:bg-primary/20 hover:text-white' 
-                      : 'text-primary bg-indigo-50/50 border-indigo-100/50 hover:bg-indigo-100')
-              }`}
-              onClick={() => handleRestrictedNavigation('/smartgear')}
-            >
-              <span className={`material-symbols-outlined text-[20px] ${location.pathname.startsWith('/smartgear') ? '' : 'fill-current'}`}>
-                auto_awesome
-              </span>
-              {t('header.ai_discover')}
-            </button>
-          </MagneticItem>
-        </MagneticIsland>
+          {/* Island 2: Navigation - Desktop */}
+          <MagneticIsland className={`hidden lg:flex gap-6 xl:gap-10 items-center px-6 xl:px-10 ${islandClass}`}>
+            {navLinks.slice(0, 4).map((item) => {
+              const isCurrent = item.path === '/' 
+                ? location.pathname === '/' 
+                : location.pathname.startsWith(item.path);
+              
+              return (
+                <MagneticItem key={item.path} distance={0.25}>
+                  <button
+                    className={navItemClass(isCurrent)}
+                    onClick={() => handleRestrictedNavigation(item.path)}
+                  >
+                    {item.label}
+                  </button>
+                </MagneticItem>
+              );
+            })}
+            
+            <div className={`h-6 w-px mx-1 xl:mx-2 transition-colors duration-300 ${isDark ? 'bg-white/10' : 'bg-slate-200'}`}></div>
+
+            <MagneticItem distance={0.2}>
+              <button
+                className={`flex items-center gap-1.5 text-sm xl:text-base font-bold px-4 xl:px-5 py-2.5 rounded-xl border cursor-pointer transition-all duration-300 ${
+                  location.pathname.startsWith('/smartgear')
+                    ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-105'
+                    : (isDark 
+                        ? 'text-primary bg-primary/10 border-primary/20 hover:bg-primary/20 hover:text-white' 
+                        : 'text-primary bg-indigo-50/50 border-indigo-100/50 hover:bg-indigo-100')
+                }`}
+                onClick={() => handleRestrictedNavigation('/smartgear')}
+              >
+                <span className={`material-symbols-outlined text-[18px] xl:text-[20px] ${location.pathname.startsWith('/smartgear') ? '' : 'fill-current'}`}>
+                  auto_awesome
+                </span>
+                <span className="hidden sm:inline">{t('header.ai_discover')}</span>
+              </button>
+            </MagneticItem>
+          </MagneticIsland>
 
         {/* Island 3: Actions */}
-        <MagneticIsland className={`px-5 flex items-center gap-4 ${islandClass}`}>
-          <div className="flex items-center gap-3 h-full">
-            {/* Language Switcher */}
-            <div className="flex items-center gap-1 mr-2 px-2 py-1 rounded-lg border border-transparent hover:border-primary/20 transition-all">
+        <MagneticIsland className={`${islandClass} px-3 lg:px-5 flex items-center gap-2 lg:gap-4 flex-shrink-0`}>
+          <div className="flex items-center gap-1 lg:gap-3 h-full">
+            {/* Language Switcher - Desktop */}
+            <div className="hidden md:flex items-center gap-1 mr-1 lg:mr-2 px-2 py-1 rounded-lg border border-transparent hover:border-primary/20 transition-all">
                 <button 
                   onClick={() => i18n.changeLanguage('vi')}
-                  className={`text-xs font-bold px-1.5 py-0.5 rounded cursor-pointer transition-all ${i18n.language === 'vi' ? 'bg-primary text-white shadow-sm' : (isDark ? 'text-white/60 hover:text-white' : 'text-slate-500 hover:text-primary')}`}
+                  className={`text-[10px] lg:text-xs font-bold px-1.5 py-0.5 rounded cursor-pointer transition-all ${i18n.language === 'vi' ? 'bg-primary text-white shadow-sm' : (isDark ? 'text-white/60 hover:text-white' : 'text-slate-500 hover:text-primary')}`}
                 >
                   VI
                 </button>
                 <div className={`w-[1px] h-3 ${isDark ? 'bg-white/20' : 'bg-slate-300'}`}></div>
                 <button 
                   onClick={() => i18n.changeLanguage('en')}
-                  className={`text-xs font-bold px-1.5 py-0.5 rounded cursor-pointer transition-all ${i18n.language === 'en' ? 'bg-primary text-white shadow-sm' : (isDark ? 'text-white/60 hover:text-white' : 'text-slate-500 hover:text-primary')}`}
+                  className={`text-[10px] lg:text-xs font-bold px-1.5 py-0.5 rounded cursor-pointer transition-all ${i18n.language === 'en' ? 'bg-primary text-white shadow-sm' : (isDark ? 'text-white/60 hover:text-white' : 'text-slate-500 hover:text-primary')}`}
                 >
                   EN
                 </button>
@@ -502,7 +508,7 @@ export default function Header({ onMenuOpen }) {
                       onClick={() => setIsMessengerOpen(!isMessengerOpen)}
                       className={iconBtnClass(isMessengerOpen)}
                     >
-                      <span className={`material-symbols-outlined text-[24px] ${isMessengerOpen ? 'fill-current' : ''}`}>
+                      <span className={`material-symbols-outlined text-[20px] lg:text-[24px] ${isMessengerOpen ? 'fill-current' : ''}`}>
                         forum
                       </span>
                     </button>
@@ -514,7 +520,7 @@ export default function Header({ onMenuOpen }) {
                         initial={{ opacity: 0, scale: 0.95, y: 10 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                        className="absolute right-0 mt-2"
+                        className="fixed sm:absolute right-4 sm:right-0 mt-2 z-50"
                       >
                         <MessengerPopup setIsDropdownOpen={setIsMessengerOpen} />
                       </motion.div>
@@ -522,43 +528,42 @@ export default function Header({ onMenuOpen }) {
                   </AnimatePresence>
                 </div>
 
-                {/* Notifications */}
-                <div className="relative" ref={notificationRef}>
-                  <MagneticItem distance={0.3}>
-                    <button
-                      onClick={() => {
-                        setIsNotificationOpen(!isNotificationOpen);
-                        if (!isNotificationOpen) fetchNotifications();
-                      }}
-                      className={`relative ${iconBtnClass(isNotificationOpen)}`}
-                    >
-                      <span className="material-symbols-outlined text-[24px]">notifications</span>
-
-                      {unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 animate-pulse">
-                          {unreadCount > 99 ? '99+' : unreadCount}
-                        </span>
-                      )}
-                    </button>
-                  </MagneticItem>
-
-                  <AnimatePresence>
-                    {isNotificationOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                        className={`${dropdownClass} w-80 sm:w-96 max-h-[70vh] flex flex-col`}
+                  {/* Notifications */}
+                  <div className="relative" ref={notificationRef}>
+                    <MagneticItem distance={0.3}>
+                      <button
+                        onClick={() => {
+                          setIsNotificationOpen(!isNotificationOpen);
+                          if (!isNotificationOpen) fetchNotifications();
+                        }}
+                        className={`relative ${iconBtnClass(isNotificationOpen)}`}
                       >
+                        <span className="material-symbols-outlined text-[20px] lg:text-[24px]">notifications</span>
+                        {unreadCount > 0 && (
+                          <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[8px] lg:text-xs font-bold rounded-full min-w-[14px] lg:min-w-[18px] h-[14px] lg:h-[18px] flex items-center justify-center px-1 animate-pulse">
+                            {unreadCount > 99 ? '99+' : unreadCount}
+                          </span>
+                        )}
+                      </button>
+                    </MagneticItem>
+
+                    <AnimatePresence>
+                      {isNotificationOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                          className={`${dropdownClass} fixed sm:absolute right-4 sm:right-0 w-[calc(100vw-32px)] sm:w-80 md:w-96 max-h-[60vh] flex flex-col`}
+                        >
                         {/* Header */}
-                        <div className={`p-4 border-b flex items-center justify-between transition-colors ${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-100'}`}>
-                          <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t('header.notifications')}</h3>
-                          {unreadCount > 0 && (
-                            <button onClick={markAllAsRead} className="text-sm text-primary hover:underline font-bold">
-                              {t('header.mark_all_read')}
-                            </button>
-                          )}
-                        </div>
+                          <div className={`p-4 border-b flex items-center justify-between transition-colors ${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-100'}`}>
+                            <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t('header.notifications')}</h3>
+                            {unreadCount > 0 && (
+                              <button onClick={markAllAsRead} className="text-sm text-primary hover:underline font-bold">
+                                {t('header.mark_all_read')}
+                              </button>
+                            )}
+                          </div>
 
                           {/* Content */}
                           <div className="overflow-y-auto flex-1 custom-scrollbar">
@@ -575,8 +580,7 @@ export default function Header({ onMenuOpen }) {
                                     if (notif.link) navigate(notif.link);
                                     setIsNotificationOpen(false);
                                   }}
-                                  className={`p-4 border-b cursor-pointer transition-colors ${isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'} ${!notif.isRead ? (isDark ? 'bg-primary/10' : 'bg-indigo-50/50') : ''
-                                    }`}
+                                  className={`p-4 border-b cursor-pointer transition-colors ${isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'} ${!notif.isRead ? (isDark ? 'bg-primary/10' : 'bg-indigo-50/50') : ''}`}
                                 >
                                   <div className="flex items-start gap-3">
                                     <div
@@ -614,23 +618,23 @@ export default function Header({ onMenuOpen }) {
                             )}
                           </div>
                         </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
+                      )}
+                    </AnimatePresence>
+                  </div>
 
-                {/* Cart */}
-                <MagneticItem distance={0.3}>
-                  <button
-                    data-cart-icon
-                    onClick={() => handleRestrictedNavigation('/user/cart')}
-                    className={`${iconBtnClass(location.pathname === '/user/cart')} relative`}
-                  >
-                    <span className="material-symbols-outlined text-[24px]">shopping_bag</span>
-                    <span className={`absolute -top-1 -right-1 min-w-[18px] h-[18px] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 ${cartCount > 0 ? 'bg-red-500' : 'bg-slate-400'}`}>
-                      {cartCount > 99 ? '99+' : cartCount}
-                    </span>
-                  </button>
-                </MagneticItem>
+                  {/* Cart */}
+                  <MagneticItem distance={0.3}>
+                    <button
+                      data-cart-icon
+                      onClick={() => handleRestrictedNavigation('/user/cart')}
+                      className={`${iconBtnClass(location.pathname === '/user/cart')} relative`}
+                    >
+                      <span className="material-symbols-outlined text-[20px] lg:text-[24px]">shopping_bag</span>
+                      <span className={`absolute -top-0.5 -right-0.5 min-w-[14px] lg:min-w-[18px] h-[14px] lg:h-[18px] text-white text-[8px] lg:text-[10px] font-bold rounded-full flex items-center justify-center px-1 ${cartCount > 0 ? 'bg-red-500' : 'bg-slate-400'}`}>
+                        {cartCount > 99 ? '99+' : cartCount}
+                      </span>
+                    </button>
+                  </MagneticItem>
               </>
             )}
 
@@ -817,6 +821,87 @@ export default function Header({ onMenuOpen }) {
         </MagneticIsland>
       </div>
     </header>
+
+    {/* Mobile Menu Drawer */}
+    <AnimatePresence>
+      {isMobileMenuOpen && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100]"
+          />
+          
+          {/* Drawer */}
+          <motion.div
+            initial={{ x: '-100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '-100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className={`fixed top-0 left-0 bottom-0 w-[280px] sm:w-[320px] z-[101] shadow-2xl flex flex-col ${isDark ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'}`}
+            ref={mobileMenuRef}
+          >
+            {/* Drawer Header */}
+            <div className={`p-6 flex items-center justify-between border-b ${isDark ? 'border-white/10' : 'border-slate-100'}`}>
+              <img src={logo} alt="Logo" className="h-12 w-auto" style={{ filter: isDark ? 'brightness(0) invert(1)' : 'none' }} />
+              <button onClick={() => setIsMobileMenuOpen(false)} className={`p-2 rounded-lg ${isDark ? 'hover:bg-white/10' : 'hover:bg-slate-100'}`}>
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            {/* Drawer Nav Links */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 px-4 mb-4">{t('header.navigation')}</p>
+              {navLinks.map((item) => (
+                <button
+                  key={item.path}
+                  onClick={() => handleRestrictedNavigation(item.path)}
+                  className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl font-bold transition-all ${
+                    location.pathname === item.path 
+                      ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                      : isDark ? 'hover:bg-white/10' : 'hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[24px]">{item.icon || (item.path === '/' ? 'home' : item.path.includes('product') ? 'devices' : item.path.includes('supplier') ? 'storefront' : 'article')}</span>
+                  <span>{item.label}</span>
+                </button>
+              ))}
+
+              <div className={`my-6 border-t ${isDark ? 'border-white/10' : 'border-slate-100'}`}></div>
+              
+              <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 px-4 mb-4">{t('header.language')}</p>
+              <div className="flex gap-2 px-4">
+                <button onClick={() => i18n.changeLanguage('vi')} className={`flex-1 py-2 rounded-xl font-bold border transition-all ${i18n.language === 'vi' ? 'bg-primary text-white border-primary' : (isDark ? 'border-white/10 hover:bg-white/5' : 'border-slate-200 hover:bg-slate-50')}`}>VI</button>
+                <button onClick={() => i18n.changeLanguage('en')} className={`flex-1 py-2 rounded-xl font-bold border transition-all ${i18n.language === 'en' ? 'bg-primary text-white border-primary' : (isDark ? 'border-white/10 hover:bg-white/5' : 'border-slate-200 hover:bg-slate-50')}`}>EN</button>
+              </div>
+            </div>
+
+            {/* Drawer Footer (User Info if Auth) */}
+            {isAuthenticated && (
+              <div className={`p-6 border-t ${isDark ? 'border-white/10 bg-white/5' : 'border-slate-100 bg-slate-50'}`}>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-full overflow-hidden">
+                    {userAccount.image ? <img src={userAccount.image} alt="Avt" /> : <div className="w-full h-full bg-primary flex items-center justify-center text-white"><span className="material-symbols-outlined">person</span></div>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold truncate text-sm">{userAccount.username || userAccount.email}</p>
+                    <p className="text-xs opacity-60">{formatRank(userAccount.rank)}</p>
+                  </div>
+                </div>
+                <button onClick={handleLogout} className="w-full py-3 rounded-xl font-bold text-red-500 border border-red-500/20 hover:bg-red-500/5 transition-all flex items-center justify-center gap-2">
+                  <span className="material-symbols-outlined">logout</span>
+                  {t('header.logout')}
+                </button>
+              </div>
+            )}
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  </>
   );
 }
 

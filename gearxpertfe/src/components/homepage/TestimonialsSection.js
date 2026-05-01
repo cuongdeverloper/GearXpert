@@ -11,27 +11,27 @@ const TestimonialsSection = ({ testimonials = [] }) => {
   if (!testimonials.length) return null;
 
   return (
-    <section className="relative py-24 overflow-hidden bg-slate-900 rounded-[48px]">
+    <section className="relative py-16 md:py-24 overflow-hidden bg-slate-900 rounded-[24px] md:rounded-[48px]">
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none opacity-20">
-        <div className="absolute top-[-10%] left-[-5%] w-[40%] h-[60%] bg-indigo-500 blur-[120px] rounded-full"></div>
-        <div className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[60%] bg-cyan-400 blur-[120px] rounded-full"></div>
+        <div className="absolute top-[-10%] left-[-5%] w-[40%] h-[60%] bg-indigo-500 blur-[80px] md:blur-[120px] rounded-full"></div>
+        <div className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[60%] bg-cyan-400 blur-[80px] md:blur-[120px] rounded-full"></div>
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto">
-        <ScrollAnimation direction="up" className="text-center mb-16">
-          <h2 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tight">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-0">
+        <ScrollAnimation direction="up" className="text-center mb-10 md:mb-16">
+          <h2 className="text-2xl md:text-5xl font-black text-white uppercase tracking-tight">
             {t("homepage.testimonials_title")}
           </h2>
-          <div className="w-24 h-1.5 bg-gradient-to-r from-indigo-500 to-cyan-400 mx-auto mt-6 rounded-full"></div>
+          <div className="w-16 md:w-24 h-1 md:h-1.5 bg-gradient-to-r from-indigo-500 to-cyan-400 mx-auto mt-4 md:mt-6 rounded-full"></div>
         </ScrollAnimation>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           {testimonials.map((testi, index) => (
             <ScrollAnimation
               key={testi.id}
               direction="up"
               delay={index * 0.1}
-              className="bg-white rounded-3xl p-8 shadow-xl hover:shadow-glow-cyan/20 transition-all duration-500 hover:-translate-y-2 group"
+              className="bg-white rounded-2xl md:rounded-3xl p-6 md:p-8 shadow-xl hover:shadow-glow-cyan/20 transition-all duration-500 hover:-translate-y-2 group"
             >
               <div className="flex items-center gap-4 mb-6">
                 <div className="relative">
