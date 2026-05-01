@@ -6,6 +6,10 @@ const WalletTransaction = require("../../models/WalletTransaction");
 const Payment = require("../../models/Payment");
 const Rental = require("../../models/Rental");
 const Voucher = require("../../models/Voucher");
+const RentalItem = require("../../models/RentalItem");
+const User = require("../../models/User");
+const { sendMail } = require("../../configs/sendMail");
+const EmailTemplates = require("../../utils/EmailTemplates");
 
 // Init PayOS
 const payos = new PayOS(
@@ -239,6 +243,43 @@ const processWebhook = async (body) => {
           await WalletTransaction.insertMany(systemTxs);
         }
       }
+
+      // --- SEND EMAIL CONFIRMATION ---
+      try {
+        const customerId = rentals[0].customerId;
+        const user = await User.findById(customerId).select("fullName email");
+        
+        if (user && user.email) {
+          const rentalsWithItems = await Promise.all(rentals.map(async (r) => {
+            const supplier = await User.findById(r.supplierId).select("fullName");
+            const itemsList = await RentalItem.find({ rentalId: r._id }).populate("deviceId", "name");
+            
+            return {
+              ...r.toObject(),
+              supplierName: supplier?.fullName || "Nhà cung cấp",
+              items: itemsList.map(it => ({
+                name: it.deviceId?.name || "Thiết bị",
+                quantity: it.quantity,
+                rentalStartDate: it.rentalStartDate,
+                rentalEndDate: it.rentalEndDate,
+                totalAmount: it.rentPrice * it.quantity
+              }))
+            };
+          }));
+
+          const emailHtml = EmailTemplates.orderConfirmationTemplate(
+            user.fullName,
+            rentalsWithItems,
+            orderCode
+          );
+
+          await sendMail(user.email, "Thanh toán đơn hàng thành công - GearXpert", emailHtml);
+          console.log(`[WEBHOOK] Confirmation email sent to ${user.email}`);
+        }
+      } catch (mailErr) {
+        console.error("[WEBHOOK] Error sending confirmation email:", mailErr);
+      }
+      // --- END SEND EMAIL ---
 
       return;
     }
