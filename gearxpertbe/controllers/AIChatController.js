@@ -125,7 +125,7 @@ const searchDevicesForChat = async (queryText) => {
   const inferredCategory = inferCategory(q);
 
   const baseSelect =
-    "name rentPrice status description category specs stockQuantity rentedQuantity images location ratingAvg reviewCount supplierId createdAt";
+    "name slug rentPrice status description category specs stockQuantity rentedQuantity images location ratingAvg reviewCount supplierId createdAt";
 
   const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -148,7 +148,7 @@ const searchDevicesForChat = async (queryText) => {
         ratingAvg: p.ratingAvg ?? 0,
         reviewCount: p.reviewCount ?? 0,
         image: Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : null,
-        deviceUrl: `/device/${p._id}`,
+        deviceUrl: `/device/${p.slug || p._id}`,
         seller: supplierId
           ? {
             id: supplierId,
@@ -295,7 +295,7 @@ const handleAIChat = async (req, res) => {
       - Kho: ${(p.stockQuantity || 0) - (p.rentedQuantity || 0)} cái
       - Trạng thái: ${p.status}
       - Cấu hình: ${specsText}
-      - Link sản phẩm: [Link sản phẩm](/device/${p._id})
+      - Link sản phẩm: [Link sản phẩm](/device/${p.slug || p._id})
       ${supplierId ? `- Link người bán: [Link nhà cung cấp](/supplier/${supplierId})` : ""}
       `;
     }).join("\n");
@@ -333,7 +333,7 @@ YÊU CẦU:
 2) Nếu có: báo giá/1 ngày và số lượng còn lại.
 3) Nếu KHÔNG có: gợi ý sản phẩm gần giống trong danh sách.
 4) Trả lời ngắn gọn, thân thiện, dễ đọc, có icon.
-5) Khi đưa link, hãy dùng định dạng Markdown chính xác: [Link sản phẩm](/device/ID) và [Link nhà cung cấp](/supplier/ID).`
+5) Khi đưa link, hãy dùng định dạng Markdown chính xác: [Link sản phẩm](/device/SLUG) và [Link nhà cung cấp](/supplier/ID). Trong đó SLUG là slug của sản phẩm (ví dụ: ipad-pro-m2-12-9-inch), KHÔNG dùng _id.`
                 : `Bạn là trợ lý GearXpert.
 
 KHÁCH HỎI: "${message}"

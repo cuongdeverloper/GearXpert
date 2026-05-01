@@ -14,6 +14,7 @@ const RentalItem = require("../../models/RentalItem");
 const Device = require("../../models/Device");
 
 const Voucher = require("../../models/Voucher");
+const User = require("../../models/User");
 
 const Wallet = require("../../models/Wallet");
 
@@ -756,6 +757,36 @@ exports.checkoutRental = async (req, res) => {
         appliedVoucher.usedCount >= appliedVoucher.usageLimit
       ) {
         throw new Error("Mã giảm giá đã hết lượt sử dụng");
+      }
+
+      if (appliedVoucher && appliedVoucher.applicableRank) {
+        const user = await User.findById(customerId).select("rank").session(session);
+        const userRank = (user?.rank || 'BRONZE').trim().toUpperCase();
+        const dbRank = appliedVoucher.applicableRank.trim().toUpperCase();
+        
+        const rankWeights = { BRONZE: 1, SILVER: 2, GOLD: 3, PLATINUM: 4, DIAMOND: 5 };
+        const userWeight = rankWeights[userRank] || 1;
+        const voucherWeight = rankWeights[dbRank] || 1;
+
+        if (userWeight < voucherWeight) {
+          throw new Error(`Mã này dành cho hạng ${dbRank} trở lên. Hạng hiện tại của bạn là ${userRank}.`);
+        }
+
+        // Kiểm tra giới hạn tần suất cho Voucher Rank (1 lần/tháng)
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+        const usedThisVoucher = await Rental.findOne({
+          customerId,
+          voucherCode: appliedVoucher.code,
+          status: { $nin: ['CANCELLED', 'REJECTED'] },
+          createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+        }).session(session);
+
+        if (usedThisVoucher) {
+          throw new Error(`Bạn đã sử dụng ưu đãi hạng ${dbRank} của tháng này rồi.`);
+        }
       }
 
       if (appliedVoucher) {

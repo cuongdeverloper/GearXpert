@@ -48,16 +48,14 @@ const createAdvertisement = async (req, res) => {
         const effectiveDailyBudget = typeArray.length >= 2 ? budgetNum * 2 : budgetNum;
 
         const totalCost = effectiveDailyBudget * diffDays;
-        const initialDays = Math.ceil(diffDays / 4);
-        const requiredInitial = initialDays * effectiveDailyBudget;
 
-        // 1. Check wallet balance
+        // 1. Check wallet balance — thu TOÀN BỘ chi phí trước
         const wallet = await Wallet.findOne({ user: userId }).session(session);
-        if (!wallet || wallet.balance < requiredInitial) {
+        if (!wallet || wallet.balance < totalCost) {
             await session.abortTransaction();
             return res.status(400).json({
                 errorCode: 2, // Custom error code for insufficient balance
-                message: `Số dư ví không đủ. Bạn cần ít nhất ${requiredInitial.toLocaleString('vi-VN')}đ (1/4 tổng chi phí) để đăng quảng cáo này.`,
+                message: `Số dư ví không đủ. Bạn cần ít nhất ${totalCost.toLocaleString('vi-VN')}đ để đăng quảng cáo này.`,
             });
         }
 
@@ -71,21 +69,21 @@ const createAdvertisement = async (req, res) => {
 
         const imageUrl = req.file.path;
 
-        // 2. Deduct money from wallet
+        // 2. Deduct FULL cost from wallet
         const balanceBefore = wallet.balance;
-        wallet.balance -= requiredInitial;
+        wallet.balance -= totalCost;
         await wallet.save({ session });
 
         // 3. Create wallet transaction
         await WalletTransaction.create([{
             wallet: wallet._id,
             type: 'PAYMENT',
-            amount: -requiredInitial,
+            amount: -totalCost,
             balanceBefore: balanceBefore,
             balanceAfter: wallet.balance,
             status: 'SUCCESS',
             referenceType: 'SYSTEM',
-            description: `Thanh toán 1/4 chi phí quảng cáo: ${title}`
+            description: `Thanh toán chi phí quảng cáo: ${title}`
         }], { session, ordered: true });
 
         // 4. Create Advertisement
@@ -100,7 +98,7 @@ const createAdvertisement = async (req, res) => {
             endDate: end,
             dailyBudget: budgetNum,
             totalCost: totalCost,
-            paidAmount: requiredInitial,
+            paidAmount: totalCost,
         });
 
         await newAds.save({ session });
@@ -186,27 +184,47 @@ const updateAdvertisementStatus = async (req, res) => {
             });
         }
 
-        // Refund logic if currently PENDING and changing to REJECTED
-        if (status === 'REJECTED' && advertisement.status === 'PENDING' && advertisement.paidAmount > 0) {
-            const wallet = await Wallet.findOne({ user: advertisement.userId }).session(session);
-            if (wallet) {
-                const balanceBefore = wallet.balance;
-                wallet.balance += advertisement.paidAmount;
-                await wallet.save({ session });
+        // Refund logic khi REJECTED — hoàn tiền chưa sử dụng
+        if (status === 'REJECTED' && ['PENDING', 'APPROVED'].includes(advertisement.status) && advertisement.paidAmount > 0) {
+            let refundAmount = 0;
+            const now = new Date();
+            const start = new Date(advertisement.startDate);
 
-                await WalletTransaction.create([{
-                    wallet: wallet._id,
-                    type: 'REFUND',
-                    amount: advertisement.paidAmount,
-                    balanceBefore: balanceBefore,
-                    balanceAfter: wallet.balance,
-                    status: 'SUCCESS',
-                    referenceType: 'SYSTEM',
-                    description: `Hoàn tiền quảng cáo bị từ chối: ${advertisement.title}`
-                }], { session, ordered: true });
+            // Tính effectiveDailyBudget (x2 nếu chạy cả BANNER + POPUP)
+            const adsTypeCount = Array.isArray(advertisement.adsType) ? advertisement.adsType.length : 1;
+            const effectiveDailyBudget = adsTypeCount >= 2 ? advertisement.dailyBudget * 2 : advertisement.dailyBudget;
 
-                // Mark as refunded in the advertisement record if you have a field for it, 
-                // but here we just update status to REJECTED.
+            if (advertisement.status === 'PENDING' || now < start) {
+                // Chưa chạy ngày nào → hoàn 100%
+                refundAmount = advertisement.paidAmount;
+            } else {
+                // Đang chạy → tính số ngày đã dùng, hoàn phần còn lại
+                const diffTime = Math.abs(now - start);
+                const usedDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                const costOfUsedDays = usedDays * effectiveDailyBudget;
+                if (advertisement.paidAmount > costOfUsedDays) {
+                    refundAmount = advertisement.paidAmount - costOfUsedDays;
+                }
+            }
+
+            if (refundAmount > 0) {
+                const wallet = await Wallet.findOne({ user: advertisement.userId }).session(session);
+                if (wallet) {
+                    const balanceBefore = wallet.balance;
+                    wallet.balance += refundAmount;
+                    await wallet.save({ session });
+
+                    await WalletTransaction.create([{
+                        wallet: wallet._id,
+                        type: 'REFUND',
+                        amount: refundAmount,
+                        balanceBefore: balanceBefore,
+                        balanceAfter: wallet.balance,
+                        status: 'SUCCESS',
+                        referenceType: 'SYSTEM',
+                        description: `Hoàn tiền quảng cáo bị từ chối: ${advertisement.title}`
+                    }], { session, ordered: true });
+                }
             }
         }
 
@@ -306,6 +324,11 @@ const deleteAdvertisement = async (req, res) => {
             refundAmount = advertisement.paidAmount;
         } else if (advertisement.status === 'APPROVED') {
             const start = new Date(advertisement.startDate);
+
+            // Tính effectiveDailyBudget (x2 nếu chạy cả BANNER + POPUP)
+            const adsTypeCount = Array.isArray(advertisement.adsType) ? advertisement.adsType.length : 1;
+            const effectiveDailyBudget = adsTypeCount >= 2 ? advertisement.dailyBudget * 2 : advertisement.dailyBudget;
+
             if (now < start) {
                 // Full refund if hasn't started yet
                 refundAmount = advertisement.paidAmount;
@@ -313,7 +336,7 @@ const deleteAdvertisement = async (req, res) => {
                 // Calculate used days if already started
                 const diffTime = Math.abs(now - start);
                 const usedDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
-                const costOfUsedDays = usedDays * advertisement.dailyBudget;
+                const costOfUsedDays = usedDays * effectiveDailyBudget;
 
                 // Refund only if they paid more than what they used
                 if (advertisement.paidAmount > costOfUsedDays) {

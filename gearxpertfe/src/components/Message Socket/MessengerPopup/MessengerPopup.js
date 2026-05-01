@@ -59,7 +59,7 @@ const MessengerPopup = ({ setIsDropdownOpen }) => {
   });
 
   return (
-    <div className="w-[360px] bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50 flex flex-col">
+    <div className="w-[calc(100vw-32px)] sm:w-[360px] bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50 flex flex-col">
       <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white">
         <h3 className="font-bold text-lg text-slate-800">{t('messenger.title')}</h3>
         <div className="flex gap-2">

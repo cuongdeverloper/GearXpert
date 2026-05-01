@@ -63,7 +63,14 @@ Hệ thống sử dụng các trường dữ liệu quan trọng trong Model [De
 
 ### A. Giai đoạn Gợi ý (Transient Stage)
 - **Đặc điểm:** Không lưu vào Database để tránh "rác" dữ liệu.
-- **Xử lý:** Backend tính toán sơ bộ mức giảm (% tùy theo lượt thuê). Sau đó gửi sang Gemini AI để viết nội dung Marketing cực ngắn gọn và hấp dẫn. Dữ liệu này chỉ "sống" trong phiên làm việc hiện tại của trình duyệt.
+- **Xử lý:**
+  1. **Lọc dữ liệu (Lấy tối đa 5 sản phẩm):** Hệ thống ưu tiên quét các thiết bị có hiệu suất thuê kém nhất (lượt thuê < 5 trong 30 ngày qua).
+  2. **Chiến lược tính % Giảm Giá:** Mức giảm được tự động nội suy dựa trên số lượt thuê thực tế nhằm tối ưu hóa vòng quay vốn:
+     - Lượt thuê = **0**: Gợi ý giảm mạnh **15%** (Chiến thuật "Phá Băng" hàng tồn).
+     - Lượt thuê **1 đến 2**: Gợi ý giảm **12%** (Chiến thuật "Cú hích" leo Top).
+     - Lượt thuê **≥ 3**: Gợi ý giảm mỏng **10%** (Tăng sức cạnh tranh).
+  3. **AI Phân Tích & Viết Content:** Sau khi ra mức giá, dữ liệu gửi sang Gemini AI để phân tích đặc thù ngành hàng (Camera, Lens, Audio...) và tự động sinh ra "Lý do tiếp thị" dưới góc độ chuyên gia tài chính.
+  4. **Tính chất dữ liệu:** Các gợi ý này chỉ "sống" trên UI phiên làm việc hiện tại, hoàn toàn không lưu vào Database trừ khi Supplier ấn Chấp nhận.
 
 ### B. Giai đoạn Áp dụng (Persistent Stage)
 - **Chuyển đổi thời gian:** Khi Supplier chọn "7 ngày", Backend sẽ dùng `new Date()` cộng thêm 7 ngày để ra thời điểm hết hạn chính xác.

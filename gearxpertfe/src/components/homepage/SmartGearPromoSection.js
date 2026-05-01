@@ -24,8 +24,8 @@ export default function SmartGearPromoSection() {
   };
 
   return (
-    <section className="px-6 lg:px-10 mt-10 mb-14">
-      <div className="relative overflow-hidden rounded-[30px] border border-slate-200 bg-slate-950 shadow-2xl">
+    <section className="px-4 md:px-6 lg:px-10 mt-6 md:mt-10 mb-10 md:mb-14">
+      <div className="relative overflow-hidden rounded-[20px] md:rounded-[30px] border border-slate-200 bg-slate-950 shadow-2xl">
         {/* Background Image with Overlay */}
         <div
           className="absolute inset-0 bg-cover bg-center opacity-30"
