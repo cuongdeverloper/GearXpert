@@ -2657,6 +2657,21 @@ exports.getSupplierRevenue = async (req, res) => {
       createdAt: { $gte: startMonth, $lte: now },
     });
 
+    // Last month revenue
+    const startLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    const lastMonthPaid = await sumSupplierRevenueLine({
+      supplierId: supplierObjectId,
+      paymentStatus: "PAID",
+      createdAt: { $gte: startLastMonth, $lte: endLastMonth },
+    });
+    const lastMonthRefunded = await sumSupplierRevenueLine({
+      supplierId: supplierObjectId,
+      paymentStatus: "REFUNDED",
+      createdAt: { $gte: startLastMonth, $lte: endLastMonth },
+    });
+    const lastMonthRevenue = netSupplierDisplayRevenue(lastMonthPaid, lastMonthRefunded);
+
     const activeStatuses = [
       "APPROVED",
 
@@ -2908,6 +2923,74 @@ exports.getSupplierRevenue = async (req, res) => {
       { $limit: 4 },
     ]);
 
+    const bottomDevices = await RentalItem.aggregate([
+      {
+        $lookup: {
+          from: "rentals",
+          localField: "rentalId",
+          foreignField: "_id",
+          as: "rental",
+        },
+      },
+      { $unwind: "$rental" },
+      {
+        $match: {
+          "rental.supplierId": supplierObjectId,
+          "rental.paymentStatus": "PAID",
+        },
+      },
+      {
+        $group: {
+          _id: "$deviceId",
+          revenue: { $sum: "$rentPrice" },
+          rentals: { $sum: "$quantity" },
+        },
+      },
+      {
+        $lookup: {
+          from: "devices",
+          localField: "_id",
+          foreignField: "_id",
+          as: "device",
+        },
+      },
+      { $unwind: "$device" },
+      { $project: { name: "$device.name", revenue: 1, rentals: 1 } },
+      { $sort: { rentals: 1 } },
+      { $limit: 4 },
+    ]);
+
+    // Booking Trends (Day of week & Hour)
+    const trendsAgg = await Rental.aggregate([
+      { $match: { supplierId: supplierObjectId } },
+      {
+        $group: {
+          _id: {
+            dayOfWeek: { $dayOfWeek: "$createdAt" }, // 1 (Sun) to 7 (Sat)
+            hour: { $hour: "$createdAt" },
+          },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const dailyTrends = Array(7).fill(0);
+    const hourlyTrends = Array(24).fill(0);
+
+    trendsAgg.forEach((item) => {
+      if (item._id.dayOfWeek) dailyTrends[item._id.dayOfWeek - 1] += item.count;
+      if (item._id.hour !== undefined) hourlyTrends[item._id.hour] += item.count;
+    });
+
+    // Customer Retention
+    const customerAgg = await Rental.aggregate([
+      { $match: { supplierId: supplierObjectId } },
+      { $group: { _id: "$customerId", count: { $sum: 1 } } },
+    ]);
+    const totalCustomers = customerAgg.length;
+    const returningCustomers = customerAgg.filter((c) => c.count >= 2).length;
+    const retentionRate = totalCustomers > 0 ? (returningCustomers / totalCustomers) * 100 : 0;
+
     const recentRentals = await Rental.find({
       supplierId: supplierObjectId,
 
@@ -2946,9 +3029,13 @@ exports.getSupplierRevenue = async (req, res) => {
 
         monthlyRevenue: netSupplierDisplayRevenue(monthlyPaid, monthlyRefunded),
 
+        lastMonthRevenue,
+
         activeRentals,
 
         avgRating,
+
+        retentionRate,
       },
 
       cashFlow,
@@ -2956,6 +3043,13 @@ exports.getSupplierRevenue = async (req, res) => {
       monthlyBreakdown,
 
       topDevices,
+
+      bottomDevices,
+
+      bookingTrends: {
+        daily: dailyTrends,
+        hourly: hourlyTrends,
+      },
 
       transactions,
 
