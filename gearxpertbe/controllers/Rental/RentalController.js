@@ -203,6 +203,8 @@ const sendRentalNotification = async (
   message,
 
   linkSuffix = "",
+
+  type = "ORDER",
 ) => {
   const receiverId =
     receiverRole === "SUPPLIER" ? rental.supplierId : rental.customerId;
@@ -230,7 +232,7 @@ const sendRentalNotification = async (
 
     link,
 
-    type: "ORDER",
+    type,
   });
 };
 
@@ -3912,6 +3914,10 @@ exports.startDelivery = async (req, res) => {
       "Đơn thuê đang được giao",
 
       "Nhà cung cấp đã bắt đầu giao hàng. Vui lòng theo dõi trạng thái.",
+
+      "",
+
+      "ORDER",
     );
 
     // 2️⃣ create contract DELIVERY

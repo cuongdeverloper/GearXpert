@@ -4,6 +4,7 @@ const Rental = require('../../models/Rental');
 const RentalItem = require('../../models/RentalItem');
 const Device = require('../../models/Device');
 const uploadCloud = require('../../configs/cloudinaryConfig');  // Thêm dòng này
+const NotificationConfig = require('../../configs/NotificationConfig');
 
 /**
  * GET /api/reviews/supplier/me
@@ -217,6 +218,23 @@ exports.createReview = async (req, res) => {
         images
       });
       createdReviews.push(review._id);
+
+      // Notify supplier
+      try {
+        const device = await Device.findById(item.deviceId).select('name supplierId');
+        if (device) {
+          await NotificationConfig.sendNotification({
+            senderId: userId,
+            receiverId: device.supplierId,
+            type: 'COMMENT',
+            title: 'Đánh giá mới',
+            message: `Bạn vừa nhận được đánh giá ${rating} sao cho thiết bị "${device.name}".`,
+            link: `/supplier/reviews?deviceId=${device._id}`,
+          });
+        }
+      } catch (notifErr) {
+        console.error('Notify review error:', notifErr);
+      }
     }
 
     // Emit realtime update to the device room
