@@ -25,11 +25,10 @@ export default function ConfirmationModal({ modalConfig, onClose, onConfirm }) {
           </button>
           <button
             onClick={onConfirm}
-            className={`py-3 rounded-xl text-white font-bold text-xs uppercase shadow-lg ${
-              modalConfig.type === "CANCEL"
+            className={`py-3 rounded-xl text-white font-bold text-xs uppercase shadow-lg ${modalConfig.type === "CANCEL"
                 ? "bg-red-500 shadow-red-200"
                 : "bg-indigo-600 shadow-indigo-200"
-            }`}
+              }`}
           >
             Xác nhận
           </button>

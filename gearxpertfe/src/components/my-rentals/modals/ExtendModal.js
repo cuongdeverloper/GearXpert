@@ -79,27 +79,51 @@ export default function ExtendModal({
             <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200">
               <div className="flex items-center gap-2 mb-2">
                 <Wallet size={16} className="text-emerald-600" />
-                <span className="text-xs font-semibold text-emerald-700 uppercase">Số dư ví</span>
+                <span className="text-xs font-bold text-emerald-700 uppercase">Số dư ví hiện tại</span>
               </div>
-              <p className="text-xl font-bold text-emerald-800">
+              <p className="text-xl font-black text-emerald-800">
                 {(walletBalance || 0).toLocaleString()} ₫
               </p>
             </div>
 
-            {/* Fee Info */}
+            {/* Fee Breakdown */}
             {extendModal.extraAmount > 0 && (
-              <div className={`p-4 rounded-xl ${hasEnoughBalance ? 'bg-indigo-600' : 'bg-gray-500'} text-white`}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs opacity-80 uppercase font-medium">Số ngày gia hạn</span>
-                  <span className="font-bold">
-                    {Math.round(extendModal.extraAmount / extendModal.dailyPrice)} ngày
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs opacity-80 uppercase font-medium">Phí phát sinh</span>
-                  <span className="text-xl font-bold">
-                    {extendModal.extraAmount.toLocaleString()} ₫
-                  </span>
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">
+                  Chi tiết phí gia hạn
+                </label>
+                <div className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden">
+                  <div className="max-h-[160px] overflow-y-auto custom-scrollbar p-3 space-y-2">
+                    {extendModal.order?.items?.map((item, idx) => {
+                      const days = item.totalDays || 1;
+                      const dailyRate = Math.round(item.rentPrice / days);
+                      const extensionDays = Math.round(extendModal.extraAmount / extendModal.dailyPrice);
+                      const itemExtra = dailyRate * extensionDays;
+                      
+                      return (
+                        <div key={idx} className="flex justify-between items-center text-[11px] py-1">
+                          <div className="flex-1 min-w-0 pr-2">
+                            <p className="font-bold text-gray-800 truncate">{item.deviceId?.name}</p>
+                            <p className="text-gray-400 text-[9px]">
+                              {dailyRate.toLocaleString()} ₫/ngày x {extensionDays} ngày
+                            </p>
+                          </div>
+                          <p className="font-black text-gray-900 flex-shrink-0">
+                            {itemExtra.toLocaleString()} ₫
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  <div className={`p-4 ${hasEnoughBalance ? 'bg-indigo-600' : 'bg-rose-600'} text-white`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">Tổng thanh toán thêm</span>
+                      <span className="text-2xl font-black">
+                        {Math.round(extendModal.extraAmount).toLocaleString()} ₫
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -111,14 +135,14 @@ export default function ExtendModal({
                   <AlertCircle size={18} className="text-rose-500 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-rose-700">Số dư không đủ</p>
-                    <p className="text-xs text-rose-600 mt-1">
-                      Cần thêm {(extendModal.extraAmount - walletBalance).toLocaleString()} đ
+                    <p className="text-xs text-rose-600 mt-1 uppercase font-bold tracking-tight">
+                      Cần nạp thêm {(extendModal.extraAmount - walletBalance).toLocaleString()} ₫
                     </p>
                     <button
                       onClick={() => navigate("/wallet")}
-                      className="mt-2 w-full py-2 px-3 bg-rose-600 text-white rounded-lg text-xs font-semibold hover:bg-rose-700 transition-all flex items-center justify-center gap-1"
+                      className="mt-3 w-full py-2.5 px-3 bg-white text-rose-600 border border-rose-200 rounded-xl text-xs font-black hover:bg-rose-50 transition-all flex items-center justify-center gap-2 shadow-sm"
                     >
-                      Nạp tiền ngay <ArrowRight size={12} />
+                      Nạp tiền ngay <ArrowRight size={14} />
                     </button>
                   </div>
                 </div>

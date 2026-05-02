@@ -519,15 +519,13 @@ export default function RentalCard({
 
             <div
 
-              className={`rounded-2xl border px-4 py-3 text-sm font-bold flex items-center justify-between ${
-
-                due.color === "red"
+              className={`rounded-2xl border px-4 py-3 text-sm font-bold flex items-center justify-between ${due.color === "red"
 
                   ? "bg-rose-50 border-rose-200 text-rose-800"
 
                   : "bg-amber-50 border-amber-200 text-amber-800"
 
-              }`}
+                }`}
 
             >
 
@@ -695,15 +693,13 @@ export default function RentalCard({
 
                   }}
 
-                  className={`px-4 py-2.5 rounded-xl text-sm font-black inline-flex items-center gap-2 border ${
-
-                    order.items?.[0]?.deliveryIssues?.[0]
+                  className={`px-4 py-2.5 rounded-xl text-sm font-black inline-flex items-center gap-2 border ${order.items?.[0]?.deliveryIssues?.[0]
 
                       ? "bg-rose-50 text-rose-700 border-rose-200"
 
                       : "bg-white text-slate-800 border-slate-200 hover:bg-slate-50"
 
-                  }`}
+                    }`}
 
                 >
 

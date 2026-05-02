@@ -45,11 +45,11 @@ export default function StatusTabs({ activeTab, setActiveTab, counts = {} }) {
       {/* Main tabs - clean professional style */}
       <div className="flex gap-2">
         {MAIN_TABS.map((tab) => {
-          const isActive = tab.id === "IN_PROGRESS" 
-            ? isInProgressActive 
+          const isActive = tab.id === "IN_PROGRESS"
+            ? isInProgressActive
             : activeTab === tab.id;
-          const count = tab.id === "IN_PROGRESS" 
-            ? inProgressCount 
+          const count = tab.id === "IN_PROGRESS"
+            ? inProgressCount
             : (counts[tab.id] || 0);
 
           return (
@@ -76,10 +76,10 @@ export default function StatusTabs({ activeTab, setActiveTab, counts = {} }) {
                 </span>
               )}
               {tab.expandable && (
-                <svg 
+                <svg
                   className={`w-4 h-4 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
-                  fill="none" 
-                  stroke="currentColor" 
+                  fill="none"
+                  stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -91,7 +91,7 @@ export default function StatusTabs({ activeTab, setActiveTab, counts = {} }) {
       </div>
 
       {/* Expandable sub-tabs for IN_PROGRESS with beautiful animation */}
-      <div 
+      <div
         className={`
           overflow-hidden transition-all duration-500 ease-out
           ${isExpanded ? 'max-h-20 opacity-100 mt-3' : 'max-h-0 opacity-0 mt-0'}
@@ -124,7 +124,7 @@ export default function StatusTabs({ activeTab, setActiveTab, counts = {} }) {
                   w-2 h-2 rounded-full
                   ${subTab.id === "DELIVERING" ? "bg-blue-400" :
                     subTab.id === "RENTING" ? "bg-emerald-400" :
-                    "bg-purple-400"}
+                      "bg-purple-400"}
                 `} />
                 <span>{subTab.label}</span>
                 {subCount > 0 && (
