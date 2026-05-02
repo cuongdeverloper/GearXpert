@@ -25,13 +25,13 @@ export default function TrackingModal({ trackingModal, setTrackingModal }) {
     },
     ...(pickedUpAt
       ? [
-          {
-            label: "Đang trên đường giao đến bạn",
-            time: new Date(pickedUpAt).toLocaleString("vi-VN"),
-            done: true,
-            active: true,
-          },
-        ]
+        {
+          label: "Đang trên đường giao đến bạn",
+          time: new Date(pickedUpAt).toLocaleString("vi-VN"),
+          done: true,
+          active: true,
+        },
+      ]
       : []),
     { label: "Giao hàng thành công", time: "Dự kiến sớm nhất", done: false },
   ];
@@ -58,27 +58,24 @@ export default function TrackingModal({ trackingModal, setTrackingModal }) {
             <div key={idx} className="flex gap-4 relative">
               {idx !== arr.length - 1 && (
                 <div
-                  className={`absolute left-[11px] top-6 w-[2px] h-12 ${
-                    step.done ? "bg-indigo-600" : "bg-gray-100"
-                  }`}
+                  className={`absolute left-[11px] top-6 w-[2px] h-12 ${step.done ? "bg-indigo-600" : "bg-gray-100"
+                    }`}
                 />
               )}
               <div
-                className={`w-6 h-6 rounded-full flex items-center justify-center z-10 ${
-                  step.active
+                className={`w-6 h-6 rounded-full flex items-center justify-center z-10 ${step.active
                     ? "bg-indigo-600 ring-4 ring-indigo-100"
                     : step.done
-                    ? "bg-indigo-600"
-                    : "bg-gray-100"
-                }`}
+                      ? "bg-indigo-600"
+                      : "bg-gray-100"
+                  }`}
               >
                 <CheckCircle2 size={14} className="text-white" />
               </div>
               <div>
                 <p
-                  className={`text-[12px] font-black uppercase italic ${
-                    step.active ? "text-indigo-600" : "text-gray-900"
-                  }`}
+                  className={`text-[12px] font-black uppercase italic ${step.active ? "text-indigo-600" : "text-gray-900"
+                    }`}
                 >
                   {step.label}
                 </p>

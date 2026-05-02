@@ -198,400 +198,308 @@ export default function SupplierExtensionRequests() {
   };
 
   return (
-    <motion.div
-      className="space-y-6"
+    <motion.div 
+      className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 min-h-screen bg-slate-50/50"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.35, ease: easeOut }}
+      transition={{ duration: 0.35 }}
     >
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: easeOut }}
-      >
-        <h2 className="text-2xl font-bold text-slate-900 font-display tracking-tight">
-          Yêu cầu gia hạn
-        </h2>
-        <p className="mt-1 text-sm text-slate-600">
-          Quản lý các yêu cầu gia hạn thuê thiết bị từ khách hàng
-        </p>
-      </motion.div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="space-y-1"
         >
-          <div className="flex items-center gap-3">
-            <span className="h-12 w-12 rounded-xl bg-amber-100 text-amber-600 inline-flex items-center justify-center">
-              <FiClock size={24} />
-            </span>
-            <div>
-              <p className="text-sm text-slate-500">Chờ xử lý</p>
-              <p className="text-2xl font-bold text-slate-900">{stats.PENDING}</p>
-            </div>
+          <div className="flex items-center gap-2 text-primary font-bold text-sm tracking-widest uppercase">
+            <div className="h-1 w-8 bg-primary rounded-full" />
+            Quản lý vận hành
           </div>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tight">
+            Yêu cầu <span className="text-primary italic">Gia hạn</span>
+          </h1>
+          <p className="text-slate-500 font-medium">
+            Theo dõi và phê duyệt các yêu cầu gia hạn từ khách hàng
+          </p>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm"
-        >
-          <div className="flex items-center gap-3">
-            <span className="h-12 w-12 rounded-xl bg-emerald-100 text-emerald-600 inline-flex items-center justify-center">
-              <FiCheckCircle size={24} />
-            </span>
-            <div>
-              <p className="text-sm text-slate-500">Đã chấp nhận</p>
-              <p className="text-2xl font-bold text-slate-900">{stats.APPROVED}</p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm"
-        >
-          <div className="flex items-center gap-3">
-            <span className="h-12 w-12 rounded-xl bg-rose-100 text-rose-600 inline-flex items-center justify-center">
-              <FiXCircle size={24} />
-            </span>
-            <div>
-              <p className="text-sm text-slate-500">Đã từ chối</p>
-              <p className="text-2xl font-bold text-slate-900">{stats.REJECTED}</p>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Filter Tabs & Search */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-        <div className="p-4 border-b border-slate-100 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          {/* Tabs */}
-          <div className="inline-flex flex-wrap gap-2 rounded-xl bg-slate-50 p-1">
-            {TABS.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all duration-200 ${
-                  activeTab === tab.key
-                    ? "bg-white text-slate-900 border-slate-200 shadow-sm ring-1 ring-slate-200/80"
-                    : "bg-transparent text-slate-600 border-transparent hover:text-slate-900 hover:bg-white/70"
-                }`}
-              >
-                {tab.label}
-                <span className="ml-2 text-xs text-slate-500">
-                  {tab.key === "ALL"
-                    ? stats.PENDING + stats.APPROVED + stats.REJECTED
-                    : stats[tab.key] || 0}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          {/* Search */}
-          <div className="relative">
-            <FiSearch
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              size={18}
-            />
+        <div className="flex items-center gap-3">
+          <div className="relative group">
+            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={20} />
             <input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Tìm theo thiết bị, khách hàng..."
-              className="pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all duration-200 hover:border-slate-300 w-full lg:w-72"
+              placeholder="Tìm kiếm nhanh..."
+              className="pl-12 pr-6 py-3.5 bg-white border-none shadow-sm shadow-slate-200/60 rounded-2xl text-sm w-full md:w-80 focus:ring-2 focus:ring-primary/20 transition-all font-medium"
             />
           </div>
         </div>
+      </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-slate-500 border-b border-slate-200 bg-slate-50/80">
-              <tr className="text-left">
-                <th className="px-4 py-3 font-semibold">Thông tin yêu cầu</th>
-                <th className="px-4 py-3 font-semibold">Thiết bị</th>
-                <th className="px-4 py-3 font-semibold">Khách hàng</th>
-                <th className="px-4 py-3 font-semibold">Thời gian gia hạn</th>
-                <th className="px-4 py-3 font-semibold">Đơn giá thuê</th>
-                <th className="px-4 py-3 font-semibold">Phí gia hạn</th>
-                <th className="px-4 py-3 font-semibold">Trạng thái</th>
-                <th className="px-4 py-3 font-semibold text-right">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {pagedRequests.map((request, index) => {
-                const device = getPrimaryDevice(request);
-                const item = getPrimaryItem(request);
-                const statusConfig = STATUS_CONFIG[request.status];
-                const StatusIcon = statusConfig.icon;
-                const currentEndDate = item?.rentalEndDate;
-                const newEndDate = request.requestedEndDate;
+      {/* Stats Summary */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: "Tổng yêu cầu", value: stats.PENDING + stats.APPROVED + stats.REJECTED, color: "text-slate-900", bg: "bg-slate-100", icon: FiHash },
+          { label: "Chờ xử lý", value: stats.PENDING, color: "text-amber-600", bg: "bg-amber-100/50", icon: FiClock },
+          { label: "Đã duyệt", value: stats.APPROVED, color: "text-emerald-600", bg: "bg-emerald-100/50", icon: FiCheckCircle },
+          { label: "Từ chối", value: stats.REJECTED, color: "text-rose-600", bg: "bg-rose-100/50", icon: FiXCircle },
+        ].map((s, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+            className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4"
+          >
+            <div className={`h-12 w-12 rounded-2xl ${s.bg} ${s.color} flex items-center justify-center`}>
+              <s.icon size={24} />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{s.label}</p>
+              <p className={`text-xl font-black ${s.color}`}>{s.value}</p>
+            </div>
+          </motion.div>
+        ))}
+      </div>
 
-                return (
-                  <motion.tr
-                    key={request._id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className="group/row border-b border-slate-50 hover:bg-slate-50/50 transition-colors"
-                  >
-                    {/* Request Info */}
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-2">
-                        <FiHash size={14} className="text-slate-400" />
-                        <span className="text-xs text-slate-500">
-                          {request._id.slice(-8).toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="text-xs text-slate-400 mt-1">
-                        {new Date(request.createdAt).toLocaleDateString("vi-VN")}
-                      </div>
-                      {request.note && (
-                        <div className="flex items-center gap-1 mt-1 text-xs text-slate-500">
-                          <FiMessageSquare size={12} />
-                          <span className="truncate max-w-[150px]">{request.note}</span>
-                        </div>
-                      )}
-                    </td>
-
-                    {/* Device */}
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-3">
-                        {device?.images?.[0] ? (
-                          <img
-                            src={device.images[0]}
-                            alt={device.name}
-                            className="w-10 h-10 rounded-lg object-cover"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
-                            <FiPackage size={16} className="text-slate-400" />
-                          </div>
-                        )}
-                        <div>
-                          <p className="font-medium text-slate-900 line-clamp-1 max-w-[150px]">
-                            {device?.name || "Thiết bị"}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            Đơn #{request.rentalId?._id?.slice(-6)}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Customer */}
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-2">
-                        {request.customerId?.avatar ? (
-                          <img
-                            src={request.customerId.avatar}
-                            alt={request.customerId.fullName}
-                            className="w-8 h-8 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
-                            <FiUser size={14} className="text-slate-400" />
-                          </div>
-                        )}
-                        <div>
-                          <p className="font-medium text-slate-900 text-sm">
-                            {request.customerId?.fullName || "Khách hàng"}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {request.customerId?.phoneNumber || "—"}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Extension Duration */}
-                    <td className="px-4 py-4">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2 text-sm">
-                          <span className="text-slate-500">Kết thúc hiện tại:</span>
-                          <span className="text-slate-700">{formatDate(currentEndDate)}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <FiArrowRight size={14} className="text-primary" />
-                          <span className="text-slate-500">Gia hạn đến:</span>
-                          <span className="font-medium text-slate-900">
-                            {formatDate(newEndDate)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1 text-xs text-primary">
-                          <FiCalendar size={12} />
-                          <span>+{request.requestedDays} ngày</span>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Rent Price */}
-                    <td className="px-4 py-4">
-                      <div className="font-medium text-slate-900">
-                        {formatMoney(item?.rentPrice || device?.rentPrice?.perDay || 0)} ₫
-                        <span className="text-xs text-slate-500">/ngày</span>
-                      </div>
-                      <div className="text-xs text-slate-400 mt-1">
-                        Số lượng: {item?.quantity || 1} x {formatMoney(item?.rentPrice || device?.rentPrice?.perDay || 0)} ₫
-                      </div>
-                    </td>
-
-                    {/* Fee */}
-                    <td className="px-4 py-4">
-                      <div className="font-semibold text-slate-900">
-                        {formatMoney(request.proposedExtraAmount || 0)} ₫
-                      </div>
-                      {request.proposedExtraAmount > 0 && request.requestedDays > 0 && (
-                        <div className="text-xs text-slate-500 mt-1">
-                          {request.requestedDays} ngày × {formatMoney(Math.round(request.proposedExtraAmount / request.requestedDays))} ₫/ngày
-                        </div>
-                      )}
-                      {request.approvedExtraAmount > 0 && (
-                        <div className="text-xs text-emerald-600 mt-1">
-                          Đã duyệt: {formatMoney(request.approvedExtraAmount)} ₫
-                        </div>
-                      )}
-                    </td>
-
-                    {/* Status */}
-                    <td className="px-4 py-4">
-                      <span
-                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold border ${statusConfig.bgColor} ${statusConfig.textColor} ${statusConfig.borderColor}`}
-                      >
-                        <StatusIcon size={12} />
-                        {statusConfig.label}
-                      </span>
-                      {request.status === "APPROVED" && request.approvedAt && (
-                        <div className="text-xs text-slate-500 mt-1">
-                          {formatDate(request.approvedAt)}
-                        </div>
-                      )}
-                      {request.status === "REJECTED" && request.rejectedAt && (
-                        <div className="text-xs text-slate-500 mt-1">
-                          {formatDate(request.rejectedAt)}
-                        </div>
-                      )}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="px-4 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() =>
-                            navigate(`/supplier/rental-requests/${request.rentalId?._id}`)
-                          }
-                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-all"
-                        >
-                          Xem đơn
-                          <FiChevronRight size={14} />
-                        </button>
-
-                        {request.status === "PENDING" && (
-                          <>
-                            <button
-                              onClick={() => handleApprove(request)}
-                              className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 transition-all"
-                            >
-                              <FiCheckCircle size={14} />
-                              Chấp nhận
-                            </button>
-                            <button
-                              onClick={() => handleReject(request)}
-                              className="inline-flex items-center gap-1 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700 transition-all"
-                            >
-                              <FiXCircle size={14} />
-                              Từ chối
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </motion.tr>
-                );
-              })}
-
-              {!loading && filteredRequests.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-4 py-16 text-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
-                        <FiCalendar size={32} className="text-slate-300" />
-                      </div>
-                      <div>
-                        <p className="text-slate-500 font-medium">Không có yêu cầu gia hạn nào</p>
-                        <p className="text-xs text-slate-400 mt-1">
-                          Các yêu cầu gia hạn từ khách hàng sẽ xuất hiện ở đây
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              )}
-
-              {loading && (
-                <tr>
-                  <td colSpan={8} className="px-4 py-16 text-center">
-                    <div className="flex items-center justify-center gap-3">
-                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
-                      <span className="text-slate-500">Đang tải...</span>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      {/* Main Content Area */}
+      <div className="space-y-6">
+        {/* Tabs Filter */}
+        <div className="flex items-center gap-2 p-1.5 bg-white rounded-2xl border border-slate-100 shadow-sm w-fit">
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-5 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${
+                activeTab === tab.key
+                  ? "bg-slate-900 text-white shadow-lg shadow-slate-200"
+                  : "text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        {/* Pagination */}
-        {filteredRequests.length > 0 && (
-          <div className="flex items-center justify-between px-4 py-4 border-t border-slate-100 text-sm text-slate-600">
-            <span>
-              Hiển thị {(page - 1) * pageSize + 1}-
-              {Math.min(page * pageSize, filteredRequests.length)} /{" "}
-              {filteredRequests.length}
+        {/* Dynamic Card Grid */}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-pulse">
+            {[1, 2, 3, 4].map(i => <div key={i} className="h-64 bg-slate-200/50 rounded-3xl" />)}
+          </div>
+        ) : pagedRequests.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-6">
+            {pagedRequests.map((request, idx) => {
+              const device = getPrimaryDevice(request);
+              const item = getPrimaryItem(request);
+              const statusConfig = STATUS_CONFIG[request.status];
+              const StatusIcon = statusConfig.icon;
+              
+              return (
+                <motion.div
+                  key={request._id}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: idx * 0.05 }}
+                  className="group bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300 overflow-hidden flex flex-col"
+                >
+                  {/* Card Header */}
+                  <div className="px-6 py-4 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
+                    <div className="flex items-center gap-3">
+                      <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter flex items-center gap-1.5 ${statusConfig.bgColor} ${statusConfig.textColor} border ${statusConfig.borderColor}`}>
+                        <StatusIcon size={12} />
+                        {statusConfig.label}
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        #{request._id.slice(-8).toUpperCase()}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-400">
+                      {new Date(request.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} • {formatDate(request.createdAt)}
+                    </span>
+                  </div>
+
+                  {/* Card Body */}
+                  <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-6 flex-1">
+                    {/* Left: Device & Customer */}
+                    <div className="space-y-4 border-r border-slate-50 pr-2">
+                      <div className="flex gap-4">
+                        <div className="relative h-16 w-16 flex-shrink-0 group-hover:scale-105 transition-transform duration-500">
+                          {device?.images?.[0] ? (
+                            <img src={device.images[0]} alt="" className="h-full w-full object-cover rounded-2xl shadow-md" />
+                          ) : (
+                            <div className="h-full w-full bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400">
+                              <FiPackage size={24} />
+                            </div>
+                          )}
+                          <div className="absolute -bottom-1 -right-1 h-6 w-6 bg-white rounded-full shadow-sm flex items-center justify-center border border-slate-50">
+                            <FiPackage size={12} className="text-primary" />
+                          </div>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-black text-slate-800 truncate leading-tight">
+                            {device?.name || "Thiết bị không xác định"}
+                          </p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Đơn hàng #{request.rentalId?._id?.slice(-6)}</p>
+                          <div className="mt-2 flex items-center gap-1.5">
+                            <img src={request.customerId?.avatar || "https://ui-avatars.com/api/?name=User"} className="h-5 w-5 rounded-full ring-2 ring-white" />
+                            <span className="text-xs font-bold text-slate-600 truncate">{request.customerId?.fullName}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {request.note && (
+                        <div className="bg-slate-50 p-3 rounded-2xl relative">
+                          <FiMessageSquare size={12} className="text-slate-300 absolute top-2 right-2" />
+                          <p className="text-[11px] text-slate-500 italic leading-relaxed line-clamp-2 pr-4 italic">
+                            "{request.note}"
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right: Duration & Financials */}
+                    <div className="space-y-4">
+                      {/* Timeline */}
+                      <div className="flex items-center gap-3">
+                        <div className="flex flex-col items-center">
+                          <div className="h-2 w-2 rounded-full bg-slate-300" />
+                          <div className="h-4 w-px bg-slate-200 my-1" />
+                          <div className="h-2 w-2 rounded-full bg-primary" />
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-bold text-slate-400 leading-none">THỜI HẠN GIA HẠN</p>
+                          <div className="text-xs font-black text-slate-800 tracking-tight">
+                            <span className="text-slate-400 font-medium">{formatDate(item?.rentalEndDate)}</span>
+                            <FiChevronRight className="inline mx-1 text-slate-300" />
+                            <span>{formatDate(request.requestedEndDate)}</span>
+                            <div className="mt-1 text-primary text-[10px] tracking-widest font-black uppercase">
+                              +{request.requestedDays} ngày thêm
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Financial Detail Card */}
+                      <div className="bg-slate-900 rounded-2xl p-4 text-white shadow-lg shadow-slate-200">
+                        <div className="flex justify-between items-center mb-1 opacity-70">
+                          <span className="text-[9px] font-bold uppercase tracking-widest">Phí gia hạn dự kiến</span>
+                          <span className="text-[9px] font-bold">{formatMoney(Math.round(request.proposedExtraAmount / (request.requestedDays || 1)))} ₫ / ngày</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xl font-black">{formatMoney(request.proposedExtraAmount)} ₫</span>
+                          <div className="h-7 w-7 rounded-lg bg-white/10 flex items-center justify-center">
+                            <FiDollarSign size={16} className="text-emerald-400" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card Footer: Actions */}
+                  <div className="px-6 py-4 bg-slate-50/50 flex items-center justify-between gap-3">
+                    <button 
+                      onClick={() => navigate(`/supplier/rental-requests/${request.rentalId?._id}`)}
+                      className="text-[10px] font-black uppercase text-slate-400 hover:text-primary transition-colors flex items-center gap-1.5"
+                    >
+                      Chi tiết đơn <FiArrowRight size={14} />
+                    </button>
+
+                    {request.status === "PENDING" && (
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => handleReject(request)}
+                          className="h-10 px-5 rounded-xl text-xs font-black text-rose-600 hover:bg-rose-50 transition-all active:scale-95"
+                        >
+                          Từ chối
+                        </button>
+                        <button
+                          onClick={() => handleApprove(request)}
+                          className="h-10 px-8 rounded-xl bg-slate-900 text-white text-xs font-black hover:bg-slate-800 shadow-xl shadow-slate-200 active:scale-95 flex items-center gap-2"
+                        >
+                          <FiCheckCircle size={14} />
+                          Chấp nhận
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="py-20 bg-white rounded-[3rem] border border-slate-100 text-center flex flex-col items-center">
+            <div className="h-24 w-24 rounded-full bg-slate-50 flex items-center justify-center mb-4">
+              <FiCalendar size={48} className="text-slate-200" />
+            </div>
+            <h3 className="text-xl font-black text-slate-900">Không có dữ liệu</h3>
+            <p className="text-slate-400 mt-1 max-w-xs text-sm">Hiện tại không có yêu cầu gia hạn nào khớp với bộ lọc của bạn.</p>
+          </div>
+        )}
+
+        {/* Pagination Section */}
+        {filteredRequests.length > pageSize && (
+          <div className="flex items-center justify-between pt-8 border-t border-slate-100">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+              Hiển thị {pagedRequests.length} / {filteredRequests.length} yêu cầu
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <button
-                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                 disabled={page === 1}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-slate-50"
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                className="h-10 w-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:border-primary hover:text-primary disabled:opacity-30 disabled:hover:border-slate-200 transition-all font-bold"
               >
-                <FiChevronLeft size={16} />
+                <FiChevronLeft size={20} />
               </button>
-              <span className="text-slate-500">
-                Trang {page} / {totalPages}
-              </span>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }).map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setPage(i + 1)}
+                    className={`h-10 w-10 rounded-xl text-xs font-black transition-all ${
+                      page === i + 1 ? "bg-primary text-white shadow-lg shadow-primary/30" : "text-slate-400 hover:bg-slate-50"
+                    }`}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
               <button
-                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
                 disabled={page === totalPages}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-slate-50"
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                className="h-10 w-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:border-primary hover:text-primary disabled:opacity-30 disabled:hover:border-slate-200 transition-all font-bold"
               >
-                <FiChevronRight size={16} />
+                <FiChevronRight size={20} />
               </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Info Note */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
-        <FiInfo className="text-blue-500 mt-0.5 flex-shrink-0" size={20} />
-        <div className="text-sm text-blue-700">
-          <p className="font-medium">Lưu ý về gia hạn:</p>
-          <ul className="mt-1 space-y-1 text-blue-600 text-xs">
-            <li>• Khi chấp nhận gia hạn, ngày kết thúc của đơn thuê sẽ được cập nhật tự động</li>
-            <li>• Phí gia hạn sẽ được thu từ khách hàng khi trả thiết bị</li>
-            <li>• Bạn có thể xem chi tiết đơn thuê bằng cách nhấn "Xem đơn"</li>
-          </ul>
+      {/* Guide Note - Floating Style */}
+      <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-2xl shadow-indigo-200">
+        <div className="absolute top-0 right-0 h-48 w-48 bg-white/10 rounded-full -translate-y-24 translate-x-12 blur-3xl" />
+        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <h4 className="text-2xl font-black tracking-tight flex items-center gap-2">
+              <FiInfo className="text-indigo-300" /> Lưu ý vận hành
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-indigo-100 text-sm">
+              <div className="flex gap-2">
+                <div className="h-1.5 w-1.5 rounded-full bg-indigo-300 mt-1.5 flex-shrink-0" />
+                <p>Khi <b>Chấp nhận</b>, ngày kết thúc đơn thuê sẽ tự động lùi lại theo số ngày gia hạn.</p>
+              </div>
+              <div className="flex gap-2">
+                <div className="h-1.5 w-1.5 rounded-full bg-indigo-300 mt-1.5 flex-shrink-0" />
+                <p>Phí gia hạn sẽ được hệ thống thanh toán cho bạn sau khi đơn hàng hoàn tất.</p>
+              </div>
+            </div>
+          </div>
+          <button 
+            onClick={() => window.open('/help/extension', '_blank')}
+            className="px-6 py-3 bg-white text-indigo-600 rounded-2xl font-black text-xs hover:bg-indigo-50 transition-all shrink-0"
+          >
+            Tìm hiểu thêm
+          </button>
         </div>
       </div>
     </motion.div>

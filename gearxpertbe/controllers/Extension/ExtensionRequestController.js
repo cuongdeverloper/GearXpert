@@ -151,23 +151,31 @@ const approveExtension = async (req, res) => {
     rental.paymentBreakdown.platformFee += platformFee;
     rental.paymentBreakdown.supplierReceive += supplierReceive;
     
-    // Update rental items end dates
-    const startDate = rental.rentalStartDate || rental.items?.[0]?.rentalStartDate || rental.createdAt;
-    const totalDays = Math.ceil((new Date(extensionRequest.requestedEndDate) - new Date(startDate)) / (1000 * 60 * 60 * 24));
-    await RentalItem.updateMany(
-      { rentalId: rental._id },
-      { 
-        rentalEndDate: extensionRequest.requestedEndDate,
-        totalDays: totalDays > 0 ? totalDays : extensionRequest.requestedDays,
-        isExtended: true
-      },
-      { session }
-    );
+    // Update individual rental items to keep rentPrice and totalDays consistent
+    const rentalItems = await RentalItem.find({ rentalId: rental._id }).session(session);
+    const extensionDays = extensionRequest.requestedDays;
+
+    for (const item of rentalItems) {
+      // Calculate original daily rate for this item block
+      const originalDays = item.totalDays || 1;
+      const unitDailyRate = (item.rentPrice || 0) / originalDays;
+      
+      // Calculate extra rent for this item
+      const itemExtraRent = Math.round(unitDailyRate * extensionDays);
+      
+      // Update item
+      item.rentPrice += itemExtraRent;
+      item.totalDays += extensionDays;
+      item.rentalEndDate = extensionRequest.requestedEndDate;
+      item.isExtended = true;
+      
+      await item.save({ session });
+    }
 
     // === XỬ LÝ THANH TOÁN KHI DUYỆT GIA HẠN ===
     if (extensionRequest.paymentStatus === "PAID" && extraAmount > 0) {
       // Khi request extension, tiền đã được cộng vào admin wallet (PAYOUT lump sum)
-      // Khi approve extension: Tạo PLATFORM_FEE transaction để ghi nhận phí nền tảng
+      // Khi approve extension: Cộng tiền vào ví admin và tạo PLATFORM_FEE transaction
       // Tiền supplierReceive được giữ trong escrow và sẽ release khi rental complete
       
       const systemWallet = await Wallet.findOne({ isSystem: true }).session(session);
@@ -175,8 +183,37 @@ const approveExtension = async (req, res) => {
         throw new Error("Không tìm thấy ví hệ thống");
       }
       
-      // Tạo PLATFORM_FEE transaction cho phần extension (không thay đổi balance, chỉ để tracking)
-      // Platform fee được giữ lại trong admin wallet
+      const adminBalanceBefore = systemWallet.balance;
+      systemWallet.balance += extraAmount;
+      await systemWallet.save({ session });
+
+      const RATE = typeof PLATFORM_FEE_RATE !== 'undefined' ? PLATFORM_FEE_RATE : 0.1;
+
+      // 1. Ghi nhận tiền thuê được giữ (Supplier's share in Escrow)
+      await WalletTransaction.create(
+        [
+          {
+            wallet: systemWallet._id,
+            type: "ESCROW_HOLD",
+            amount: supplierReceive,
+            balanceBefore: adminBalanceBefore,
+            balanceAfter: adminBalanceBefore + supplierReceive,
+            referenceType: "RENTAL",
+            referenceId: rental._id,
+            description: `Giữ tiền thuê gia hạn (phần NCC) đơn #${rental._id.toString().slice(-6)}`,
+            status: "SUCCESS",
+            isEarned: false,
+            rentalStatus: "RENTING",
+            metadata: {
+              extensionRequestId: extensionRequest._id,
+              isExtension: true
+            }
+          },
+        ],
+        { session }
+      );
+
+      // 2. Ghi nhận phí nền tảng treo (System's share in Escrow)
       if (platformFee > 0) {
         await WalletTransaction.create(
           [
@@ -184,17 +221,18 @@ const approveExtension = async (req, res) => {
               wallet: systemWallet._id,
               type: "PLATFORM_FEE",
               amount: platformFee,
-              balanceBefore: systemWallet.balance,
-              balanceAfter: systemWallet.balance, // Không thay đổi balance vì tiền đã ở trong wallet
+              balanceBefore: adminBalanceBefore + supplierReceive,
+              balanceAfter: systemWallet.balance,
               referenceType: "RENTAL",
               referenceId: rental._id,
-              description: `Thu phí nền tảng gia hạn đơn #${rental._id.toString().slice(-6)}`,
+              description: `Phí nền tảng gia hạn (tạm giữ) đơn #${rental._id.toString().slice(-6)}`,
               status: "SUCCESS",
-              isEarned: true, // Platform fee được coi là earned ngay khi approve
-              rentalStatus: rental.status,
+              isEarned: false, // Sẽ được chuyển sang true khi confirmReturn
+              rentalStatus: "RENTING",
               metadata: {
                 extensionRequestId: extensionRequest._id,
-                isExtension: true
+                isExtension: true,
+                feeRate: RATE
               }
             },
           ],
@@ -280,32 +318,6 @@ const rejectExtension = async (req, res) => {
               referenceId: extensionRequest.rentalId,
               description: `Hoàn tiền gia hạn bị từ chối - đơn thuê #${extensionRequest.rentalId.toString().slice(-6)}`,
               status: "SUCCESS",
-            },
-          ],
-          { session }
-        );
-      }
-
-      // Trừ tiền từ ví admin (hoàn tác PAYOUT đã cộng khi request)
-      const adminWallet = await Wallet.findOne({ isSystem: true }).session(session);
-      if (adminWallet) {
-        const adminBalanceBefore = adminWallet.balance;
-        adminWallet.balance -= refundAmount;
-        await adminWallet.save({ session });
-
-        await WalletTransaction.create(
-          [
-            {
-              wallet: adminWallet._id,
-              type: "PAYOUT_REFUND",
-              amount: -refundAmount,
-              balanceBefore: adminBalanceBefore,
-              balanceAfter: adminWallet.balance,
-              referenceType: "RENTAL",
-              referenceId: extensionRequest.rentalId,
-              description: `Hoàn tiền gia hạn bị từ chối - đơn thuê #${extensionRequest.rentalId.toString().slice(-6)}`,
-              status: "SUCCESS",
-              metadata: { extensionRequestId: extensionRequest._id }
             },
           ],
           { session }

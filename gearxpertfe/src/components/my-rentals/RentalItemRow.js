@@ -34,10 +34,10 @@ export default function RentalItemRow({
     ? isActiveReport
       ? "Processing"
       : reportStatus === "RESOLVED"
-      ? "Resolved"
-      : reportStatus === "REJECTED"
-      ? "Rejected"
-      : "Reported"
+        ? "Resolved"
+        : reportStatus === "REJECTED"
+          ? "Rejected"
+          : "Reported"
     : null;
 
   return (
@@ -45,13 +45,12 @@ export default function RentalItemRow({
       onClick={() =>
         navigate(`/device/${item.deviceId?.slug || item.deviceId?._id}`)
       }
-      className={`group/item flex gap-5 p-5 rounded-3xl border transition-all hover:shadow-md cursor-pointer ${
-        hasReport
+      className={`group/item flex gap-5 p-5 rounded-3xl border transition-all hover:shadow-md cursor-pointer ${hasReport
           ? isActiveReport
             ? "bg-red-50 border-red-200"
             : "bg-emerald-50 border-emerald-200"
           : "bg-gray-50 border-gray-100 hover:border-indigo-200"
-      }`}
+        }`}
     >
       {/* Device Image */}
       <div className="relative w-20 h-20 flex-shrink-0 rounded-2xl overflow-hidden border border-gray-100 shadow-sm group-hover/item:scale-105 transition-transform duration-300">
@@ -65,9 +64,8 @@ export default function RentalItemRow({
         />
         {hasReport && (
           <div
-            className={`absolute -top-1 -right-1 p-1.5 rounded-full shadow ${
-              isActiveReport ? "bg-red-500" : "bg-emerald-500"
-            }`}
+            className={`absolute -top-1 -right-1 p-1.5 rounded-full shadow ${isActiveReport ? "bg-red-500" : "bg-emerald-500"
+              }`}
           >
             <AlertCircle size={18} className="text-white" />
           </div>
@@ -99,11 +97,10 @@ export default function RentalItemRow({
 
         {hasReport && reportStatusLabel && (
           <span
-            className={`mt-3 inline-block px-3 py-1 text-[10px] font-bold rounded-full border ${
-              isActiveReport
+            className={`mt-3 inline-block px-3 py-1 text-[10px] font-bold rounded-full border ${isActiveReport
                 ? "bg-red-100 text-red-700 border-red-200"
                 : "bg-emerald-100 text-emerald-700 border-emerald-200"
-            }`}
+              }`}
           >
             {reportStatusLabel}
           </span>
@@ -133,15 +130,14 @@ export default function RentalItemRow({
                 }
               }
             }}
-            className={`self-start mt-1 px-5 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm ${
-              hasReport
+            className={`self-start mt-1 px-5 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm ${hasReport
                 ? reportType === "delivery"
                   ? "bg-blue-600 hover:bg-blue-700 text-white"
                   : "bg-orange-600 hover:bg-orange-700 text-white"
                 : reportType === "delivery"
-                ? "bg-amber-100 hover:bg-amber-200 text-amber-800"
-                : "bg-red-100 hover:bg-red-200 text-red-700"
-            }`}
+                  ? "bg-amber-100 hover:bg-amber-200 text-amber-800"
+                  : "bg-red-100 hover:bg-red-200 text-red-700"
+              }`}
           >
             {hasReport ? (
               <>

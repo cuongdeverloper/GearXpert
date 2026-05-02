@@ -1025,6 +1025,8 @@ exports.checkoutRental = async (req, res) => {
 
         notes,
 
+        rentalStartDate: data.items[0]?.rentalStartDate,
+        rentalEndDate: data.items[0]?.rentalEndDate,
         customerSignature,
       };
 
@@ -3600,6 +3602,17 @@ exports.extendRental = async (req, res) => {
       throw new Error("Số ngày gia hạn phải lớn hơn 0");
     }
 
+    // Tự động tính tiền gia hạn dựa trên đơn giá/ngày của các sản phẩm trong đơn
+    // (Đảm bảo chuẩn xác thay vì tin tưởng hoàn toàn vào extraAmount từ frontend gửi lên)
+    const dailyRate = (rental.items || []).reduce((sum, item) => {
+      const days = item.totalDays || 1;
+      const unitDailyRate = (item.rentPrice || 0) / days;
+      return sum + unitDailyRate;
+    }, 0);
+
+    const calculatedExtraAmount = Math.round(dailyRate * actualRequestedDays);
+    const extraAmountNum = calculatedExtraAmount;
+
     // Kiểm tra báo cáo trùng lặp - đã có yêu cầu gia hạn đang xử lý cho đơn này chưa
 
     const existingRequest = await ExtensionRequest.findOne({
@@ -3615,8 +3628,6 @@ exports.extendRental = async (req, res) => {
     }
 
     // === XỬ LÝ THANH TOÁN TỪ VÍ ===
-
-    const extraAmountNum = Number(extraAmount) || 0;
 
     let customerWalletTxId = null;
 
@@ -3679,52 +3690,6 @@ exports.extendRental = async (req, res) => {
 
       customerWalletTxId = custTx[0]._id;
 
-      // Cộng tiền vào ví admin
-
-      const adminWallet = await Wallet.findOne({ isSystem: true }).session(
-        session,
-      );
-
-      if (!adminWallet) {
-        throw new Error("Không tìm thấy ví hệ thống (admin)");
-      }
-
-      const adminBalanceBefore = adminWallet.balance;
-
-      adminWallet.balance += extraAmountNum;
-
-      await adminWallet.save({ session });
-
-      // Tạo giao dịch cộng tiền admin
-
-      const adminTx = await WalletTransaction.create(
-        [
-          {
-            wallet: adminWallet._id,
-
-            type: "PAYOUT",
-
-            amount: extraAmountNum,
-
-            balanceBefore: adminBalanceBefore,
-
-            balanceAfter: adminWallet.balance,
-
-            referenceType: "RENTAL",
-
-            referenceId: rental._id,
-
-            description: `Nhận phí gia hạn đơn thuê #${rental._id.toString().slice(-6)} (chờ duyệt)`,
-
-            status: "SUCCESS",
-          },
-        ],
-
-        { session },
-      );
-
-      adminWalletTxId = adminTx[0]._id;
-
       paymentStatus = "PAID";
     }
 
@@ -3780,7 +3745,7 @@ exports.extendRental = async (req, res) => {
 
       message: `Khách hàng yêu cầu gia hạn thêm ${actualRequestedDays} ngày đến ${proposedEnd.toLocaleDateString(
         "vi-VN",
-      )}. Phí đề xuất: ${Number(extraAmount).toLocaleString()}đ`,
+      )}. Phí đề xuất: ${extraAmountNum.toLocaleString()}đ`,
 
       link: `/supplier/orders/${rental._id}`,
 
@@ -4176,19 +4141,13 @@ async function executeConfirmReturnSettlement(session, req, options = {}) {
 
   // → Payout tiền thuê cho supplier (sau trừ phí nền tảng)
 
-  const PLATFORM_FEE_RATE = 0.1; // 10% phí nền tảng
+  // Lấy dữ liệu tài chính từ breakdown (đã bao gồm các khoản gia hạn nếu có)
+  const platformFee = rental.paymentBreakdown?.platformFee || Math.round(rental.rentPriceTotal * 0.1);
+  const rentAmountTotal = rental.rentPriceTotal;
+  const supplierReceive = rental.paymentBreakdown?.supplierReceive || (rentAmountTotal - platformFee);
 
-  const rentAfterDiscount = rental.rentPriceTotal; // Không có discount trong confirmReturn
-
-  const platformFee = Math.round(rentAfterDiscount * PLATFORM_FEE_RATE);
-
-  const supplierReceive = rentAfterDiscount - platformFee;
-
-  // Tính số tiền escrow cần giải phóng: tiền thuê đã trừ phí (không bao gồm deliveryFee)
-
-  // deliveryFee là thu nhập của admin (đã có SHIPPING_FEE transaction riêng)
-
-  const escrowReleaseAmount = rentAfterDiscount - platformFee;
+  // Tính số tiền escrow cần giải phóng (không bao gồm deliveryFee)
+  const escrowReleaseAmount = rentAmountTotal - platformFee;
 
   const supplierWallet = await Wallet.findOne({
     user: rental.supplierId,
@@ -4199,6 +4158,7 @@ async function executeConfirmReturnSettlement(session, req, options = {}) {
   const supBefore = supplierWallet.balance;
 
   supplierWallet.balance += supplierReceive;
+  supplierWallet.availableBalance = (supplierWallet.availableBalance || 0) + supplierReceive;
 
   await supplierWallet.save({ session });
 
@@ -4260,6 +4220,7 @@ async function executeConfirmReturnSettlement(session, req, options = {}) {
       const custBefore = customerWallet.balance;
 
       customerWallet.balance += depositRefundToCustomer;
+      customerWallet.availableBalance = (customerWallet.availableBalance || 0) + depositRefundToCustomer;
 
       await customerWallet.save({ session });
 
@@ -4362,6 +4323,23 @@ async function executeConfirmReturnSettlement(session, req, options = {}) {
   if (revenueTransactions.length > 0) {
     await WalletTransaction.insertMany(revenueTransactions, { session });
   }
+
+  // Cập nhật các bút toán treo cũ thành đã thực thu để Dashboard Admin không bị lệch
+  await WalletTransaction.updateMany(
+    { 
+      referenceType: "RENTAL", 
+      referenceId: rental._id, 
+      type: { $in: ["PLATFORM_FEE", "SHIPPING_FEE", "ESCROW_HOLD"] },
+      isEarned: false 
+    },
+    { 
+      $set: { 
+        isEarned: true, 
+        rentalStatus: "COMPLETED" 
+      } 
+    },
+    { session }
+  );
 
   // Ví hệ thống: một dòng giải phóng escrow tiền thuê (net sau phí) + một dòng giải phóng cọc.
   // Không ghi thêm PAYOUT trên ví admin: tiền đó đã rời escrow ở ESCROW_RELEASE; PAYOUT (+) chỉ trên ví supplier.

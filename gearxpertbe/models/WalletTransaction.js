@@ -60,7 +60,7 @@ const walletTransactionSchema = new mongoose.Schema({
     }, // true = platform fee refunded (order cancelled)
     rentalStatus: {
       type: String,
-      enum: ['PENDING', 'COMPLETED', 'CANCELLED'],
+      enum: ['PENDING', 'APPROVED', 'DELIVERING', 'DELIVERED', 'RENTING', 'RETURNING', 'COMPLETED', 'CANCELLED'],
       default: null
     } // Track rental status for platform fee transactions
   }, { timestamps: true });
