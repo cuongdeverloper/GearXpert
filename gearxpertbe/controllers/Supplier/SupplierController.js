@@ -250,36 +250,36 @@ exports.getSupplierStorefront = async (req, res) => {
 
     // Automated re-activation and Penalty Record RESET (after 30 days of clean record)
     if (profile) {
-       const now = new Date();
-       
-       // Handle auto-reactivation from suspension
-       if (profile.status === 'SUSPENDED' && !profile.isPermanentlyHidden && profile.suspendedUntil && profile.suspendedUntil < now) {
+      const now = new Date();
+
+      // Handle auto-reactivation from suspension
+      if (profile.status === 'SUSPENDED' && !profile.isPermanentlyHidden && profile.suspendedUntil && profile.suspendedUntil < now) {
+        profile.status = 'ACTIVE';
+        await profile.save();
+      }
+
+      // Handle 30-day "Grace Period" reset (if no new reports for 30 days since last resolve/suspension)
+      if (!profile.isPermanentlyHidden) {
+        const referenceDate = (profile.suspendedUntil && profile.suspendedUntil > profile.lastResolvedReportAt)
+          ? profile.suspendedUntil
+          : (profile.lastResolvedReportAt || profile.createdAt);
+
+        if ((now - referenceDate) / (1000 * 60 * 60 * 24) > 30) {
+          profile.resolvedReportCount = 0;
+          profile.penaltyStage = 0;
           profile.status = 'ACTIVE';
           await profile.save();
-       }
-
-       // Handle 30-day "Grace Period" reset (if no new reports for 30 days since last resolve/suspension)
-       if (!profile.isPermanentlyHidden) {
-          const referenceDate = (profile.suspendedUntil && profile.suspendedUntil > profile.lastResolvedReportAt) 
-                                ? profile.suspendedUntil 
-                                : (profile.lastResolvedReportAt || profile.createdAt);
-          
-          if ((now - referenceDate) / (1000 * 60 * 60 * 24) > 30) {
-             profile.resolvedReportCount = 0;
-             profile.penaltyStage = 0;
-             profile.status = 'ACTIVE';
-             await profile.save();
-          }
-       }
+        }
+      }
     }
 
     // Hide if still suspended or permanently hidden
     if (profile && (profile.status === 'SUSPENDED' || profile.isPermanentlyHidden)) {
-       return res.status(403).json({
-          success: false,
-          errorCode: 403,
-          message: profile.isPermanentlyHidden ? "Shop này đã bị dừng hoạt động vĩnh viễn" : `Shop này đang bị tạm ẩn cho đến ${profile.suspendedUntil.toLocaleDateString("vi-VN")}`
-       });
+      return res.status(403).json({
+        success: false,
+        errorCode: 403,
+        message: profile.isPermanentlyHidden ? "Shop này đã bị dừng hoạt động vĩnh viễn" : `Shop này đang bị tạm ẩn cho đến ${profile.suspendedUntil.toLocaleDateString("vi-VN")}`
+      });
     }
 
     const deviceCount = await Device.countDocuments({ supplierId: objectId });
@@ -519,7 +519,7 @@ exports.toggleFollowStore = async (req, res) => {
           });
         }
       });
-    }).catch(() => {});
+    }).catch(() => { });
 
     res.status(200).json({
       success: true,
@@ -802,8 +802,8 @@ exports.getPublicSuppliers = async (req, res) => {
 
     // 2. Chỉ lấy các Shop ACTIVE, không bị ẩn vĩnh viễn và không đang trong thời gian phạt
     const profileQuery = {
-       status: 'ACTIVE',
-       isPermanentlyHidden: { $ne: true }
+      status: 'ACTIVE',
+      isPermanentlyHidden: { $ne: true }
     };
 
     if (district) {
@@ -830,7 +830,7 @@ exports.getPublicSuppliers = async (req, res) => {
         supplierId: profile.userId._id,
         status: "AVAILABLE"
       });
-      
+
       return {
         ...profile,
         deviceCount: deviceCount
@@ -844,9 +844,9 @@ exports.getPublicSuppliers = async (req, res) => {
 
   } catch (error) {
     console.error("getPublicSuppliers internal error:", error);
-    return res.status(500).json({ 
-      success: false, 
-      message: "Lỗi hệ thống khi tải danh sách đối tác" 
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi hệ thống khi tải danh sách đối tác"
     });
   }
 };

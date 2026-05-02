@@ -10,6 +10,7 @@ const RentalItem = require("../../models/RentalItem");
 const User = require("../../models/User");
 const { sendMail } = require("../../configs/sendMail");
 const EmailTemplates = require("../../utils/EmailTemplates");
+const NotificationConfig = require("../../configs/NotificationConfig");
 
 // Init PayOS
 const payos = new PayOS(
@@ -137,6 +138,26 @@ const processWebhook = async (body) => {
         rental.status = "PENDING";
         await rental.save();
         handleContractUpload(rental);
+
+        // ✅ Notify Customer
+        await NotificationConfig.sendNotification({
+          senderId: rental.supplierId,
+          receiverId: rental.customerId,
+          type: "PAYMENT",
+          title: "Thanh toán thành công",
+          message: `Đơn hàng #${rental._id.toString().slice(-6)} đã được thanh toán thành công.`,
+          link: `/my-rentals/${rental._id}`,
+        });
+
+        // ✅ Notify Supplier
+        await NotificationConfig.sendNotification({
+          senderId: rental.customerId,
+          receiverId: rental.supplierId,
+          type: "ORDER",
+          title: "Đơn thuê mới",
+          message: `Bạn có một đơn thuê mới #${rental._id.toString().slice(-6)} đang chờ xử lý.`,
+          link: `/supplier/rental-requests?rental=${rental._id}`,
+        });
       }
 
       // NEW: Increment voucher usedCount for Bank payment (ONCE per order)

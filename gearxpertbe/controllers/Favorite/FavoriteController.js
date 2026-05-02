@@ -2,6 +2,7 @@ const Favorite = require('../../models/Favorite');
 const Device = require('../../models/Device');
 const DeviceItem = require('../../models/DeviceItem');
 const mongoose = require('mongoose');
+const NotificationConfig = require('../../configs/NotificationConfig');
 
 /**
  * POST /api/favorites/toggle
@@ -43,6 +44,21 @@ exports.toggleFavorite = async (req, res) => {
         } else {
             // Add favorite
             const newFavorite = await Favorite.create({ userId, deviceId });
+
+            // Notify supplier
+            try {
+                await NotificationConfig.sendNotification({
+                    senderId: userId,
+                    receiverId: device.supplierId,
+                    type: 'LIKE',
+                    title: 'Yêu thích mới',
+                    message: `Một người dùng đã yêu thích thiết bị "${device.name}" của bạn.`,
+                    link: `/products/${device.slug}`,
+                });
+            } catch (notifErr) {
+                console.error('Notify like error:', notifErr);
+            }
+
             return res.json({
                 isFavorited: true,
                 favorite: newFavorite
