@@ -314,17 +314,17 @@ export default function SupplierPublicProfile() {
   const filteredVouchers = React.useMemo(() => {
     if (!vouchers || vouchers.length === 0) return [];
     const rankWeights = { BRONZE: 1, SILVER: 2, GOLD: 3, PLATINUM: 4, DIAMOND: 5 };
-    
+
     return vouchers.filter((v) => {
       if (userAccount?.id === supplier?.userId?._id) return true;
       if (!v.applicableRank) return true;
-      
+
       const userRank = (userAccount?.rank || 'BRONZE').toUpperCase();
       const dbRank = v.applicableRank.toUpperCase();
-      
+
       const userWeight = rankWeights[userRank] || 1;
       const voucherWeight = rankWeights[dbRank] || 1;
-      
+
       return userWeight >= voucherWeight;
     });
   }, [vouchers, userAccount, supplier]);
@@ -437,19 +437,19 @@ export default function SupplierPublicProfile() {
                 {/* Modern Report & Follow Toggles - Hidden for owner */}
                 {userAccount?.id !== supplier?.userId?._id && (
                   <button
-                      onClick={() => {
-                          if(!isAuthenticated) {
-                              toast.info("Vui lòng đăng nhập để báo cáo cửa hàng");
-                              navigate("/signin");
-                              return;
-                          }
-                          setShowReportModal(true);
-                      }}
-                      className="ml-auto hidden sm:flex items-center gap-2.5 px-5 py-2.5 bg-white/10 hover:bg-red-500/80 backdrop-blur-md rounded-2xl border border-white/20 text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-xl active:scale-95 group"
-                      title="Báo cáo vi phạm"
+                    onClick={() => {
+                      if (!isAuthenticated) {
+                        toast.info("Vui lòng đăng nhập để báo cáo cửa hàng");
+                        navigate("/signin");
+                        return;
+                      }
+                      setShowReportModal(true);
+                    }}
+                    className="ml-auto hidden sm:flex items-center gap-2.5 px-5 py-2.5 bg-white/10 hover:bg-red-500/80 backdrop-blur-md rounded-2xl border border-white/20 text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-xl active:scale-95 group"
+                    title="Báo cáo vi phạm"
                   >
-                      <AlertCircle size={16} className="group-hover:scale-110 transition-transform" />
-                      <span>Báo cáo</span>
+                    <AlertCircle size={16} className="group-hover:scale-110 transition-transform" />
+                    <span>Báo cáo</span>
                   </button>
                 )}
               </div>
@@ -955,10 +955,10 @@ export default function SupplierPublicProfile() {
           )}
         </div>
         <ShopReportModal
-            isOpen={showReportModal}
-            onClose={() => setShowReportModal(false)}
-            shopId={supplier._id}
-            shopName={supplier.businessName}
+          isOpen={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          shopId={supplier._id}
+          shopName={supplier.businessName}
         />
       </main>
 

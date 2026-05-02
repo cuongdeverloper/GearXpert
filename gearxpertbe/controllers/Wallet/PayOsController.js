@@ -1,5 +1,6 @@
 const { createHmac } = require("crypto");
 const { PayOS } = require("@payos/node");
+const axios = require("axios");
 
 const Wallet = require("../../models/Wallet");
 const WalletTransaction = require("../../models/WalletTransaction");
@@ -12,12 +13,19 @@ const { sendMail } = require("../../configs/sendMail");
 const EmailTemplates = require("../../utils/EmailTemplates");
 const NotificationConfig = require("../../configs/NotificationConfig");
 
-// Init PayOS
+// Init PayOS (Collection)
 const payos = new PayOS(
   process.env.PAYOS_CLIENT_ID,
   process.env.PAYOS_API_KEY,
   process.env.PAYOS_CHECKSUM_KEY
 );
+
+// Init PayOS (Payout/Transfer)
+const payosPayout = {
+  clientId: process.env.PAYOS_PAYOUT_CLIENT_ID,
+  apiKey: process.env.PAYOS_PAYOUT_API_KEY,
+  checksumKey: process.env.PAYOS_PAYOUT_CHECKSUM_KEY
+};
 
 /**
  * ================= HELPER =================
@@ -123,7 +131,7 @@ const processWebhook = async (body) => {
 
     const rentals = await Rental.find({ orderCode });
     console.log("[WEBHOOK] Found rentals:", rentals.length);
-    
+
     if (rentals.length > 0) {
       console.log("[WEBHOOK] Rental status:", rentals[0].paymentStatus);
     }
@@ -269,12 +277,12 @@ const processWebhook = async (body) => {
       try {
         const customerId = rentals[0].customerId;
         const user = await User.findById(customerId).select("fullName email");
-        
+
         if (user && user.email) {
           const rentalsWithItems = await Promise.all(rentals.map(async (r) => {
             const supplier = await User.findById(r.supplierId).select("fullName");
             const itemsList = await RentalItem.find({ rentalId: r._id }).populate("deviceId", "name");
-            
+
             return {
               ...r.toObject(),
               supplierName: supplier?.fullName || "Nhà cung cấp",
@@ -317,7 +325,7 @@ const processWebhook = async (body) => {
       }
 
       const before = wallet.balance + (wallet.availableBalance || 0);
-      
+
       // Nếu là ví hệ thống, tiền nạp vào được tính là khả dụng ngay và không vào ví treo (balance)
       if (wallet.isSystem) {
         wallet.availableBalance = (wallet.availableBalance || 0) + payment.amount;
@@ -418,6 +426,105 @@ exports.createRentalPaymentLink = async (newRental) => {
     return resPay;
   } catch (err) {
     console.error("Create PayOS Error:", err);
+    throw err;
+  }
+};
+
+/**
+ * ================= TRANSFER MONEY (PAYOUT) =================
+ * Uses PayOS Payout V1 API
+ */
+
+
+/** ================= HELPERS ================= **/
+
+function normalizeDescription(desc) {
+  return (desc || "Chuyen tien GearXpert")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .substring(0, 25);
+}
+
+/**
+ * ⚠️ PAYOS PAYOUT REQUIRE FIXED ORDER (VERY IMPORTANT)
+ */
+function buildRawString(body) {
+  return [
+    `amount=${body.amount}`,
+    `description=${encodeURIComponent(body.description)}`,
+    `referenceId=${body.referenceId}`,
+    `toAccountNumber=${body.toAccountNumber}`,
+    `toBin=${body.toBin}`,
+  ].join("&");
+}
+
+/** ================= MAIN FUNCTION ================= **/
+
+exports.transferMoney = async (data) => {
+  try {
+    const checksumKey = process.env.PAYOS_PAYOUT_CHECKSUM_KEY;
+    const clientId = process.env.PAYOS_PAYOUT_CLIENT_ID;
+    const apiKey = process.env.PAYOS_PAYOUT_API_KEY;
+
+    // 🔥 CHECK ENV
+    if (!checksumKey) throw new Error("Missing PAYOS_PAYOUT_CHECKSUM_KEY");
+    if (!clientId || !apiKey)
+      throw new Error("Missing PAYOS_PAYOUT_CLIENT_ID or PAYOS_PAYOUT_API_KEY");
+
+    const referenceId = data.referenceId || `payout_${Date.now()}`;
+
+    const body = {
+      referenceId,
+      amount: Number(data.amount),
+      description: normalizeDescription(data.description),
+      toBin: String(data.bankCode),
+      toAccountNumber: String(data.accountNumber),
+    };
+
+    // 🔥 BUILD RAW STRING (IMPORTANT FIX)
+    const rawString = buildRawString(body);
+
+    console.log("========== PAYOUT DEBUG ==========");
+    console.log("[BODY]", body);
+    console.log("[RAW STRING]", rawString);
+    console.log("==================================");
+
+    // 🔥 SIGNATURE (IMPORTANT FIX)
+    const signature = createHmac("sha256", checksumKey)
+      .update(Buffer.from(rawString, "utf8"))
+      .digest("hex");
+
+    console.log("[SIGNATURE]", signature);
+
+    // 🚀 CALL PAYOS
+    const response = await axios.post(
+      "https://api-merchant.payos.vn/v1/payouts",
+      body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-client-id": clientId,
+          "x-api-key": apiKey,
+          "x-signature": signature,
+          "x-idempotency-key": referenceId,
+        },
+        timeout: 15000,
+      }
+    );
+
+    console.log("========== PAYOUT RESPONSE ==========");
+    console.log(JSON.stringify(response.data, null, 2));
+    console.log("=====================================");
+
+    return response.data;
+  } catch (err) {
+    console.error(
+      "❌ PAYOUT ERROR:",
+      err.response?.data || err.message
+    );
     throw err;
   }
 };
