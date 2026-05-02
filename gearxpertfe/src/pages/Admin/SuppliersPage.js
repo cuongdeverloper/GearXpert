@@ -3,11 +3,14 @@ import { useDispatch } from "react-redux";
 import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
 import { FiSearch, FiEdit2, FiTrash2, FiCheck, FiX } from "react-icons/fi";
 import { getAdminSuppliers } from "../../service/ApiService/AdminDashboardApi";
+import Pagination from "../../components/common/Pagination";
 
 export default function SuppliersPage() {
   const dispatch = useDispatch();
   const [searchTerm, setSearchTerm] = useState("");
   const [suppliers, setSuppliers] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
     const fetchSuppliers = async () => {
@@ -31,6 +34,9 @@ export default function SuppliersPage() {
       supplier.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
   });
+
+  const totalPages = Math.ceil(filteredSuppliers.length / ITEMS_PER_PAGE);
+  const paginatedSuppliers = filteredSuppliers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const getRankColor = (rank) => {
     const colors = {
@@ -60,7 +66,7 @@ export default function SuppliersPage() {
               type="text"
               placeholder="Tìm kiếm nhà cung cấp..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition"
             />
           </div>
@@ -69,7 +75,7 @@ export default function SuppliersPage() {
 
       {/* Cards Grid */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filteredSuppliers.map((supplier) => (
+        {paginatedSuppliers.map((supplier) => (
           <div
             key={supplier.id}
             className="rounded-xl border border-slate-200 bg-white p-4 hover:shadow-md transition"
@@ -140,6 +146,14 @@ export default function SuppliersPage() {
           </div>
         ))}
       </div>
+
+      {filteredSuppliers.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
+      )}
 
       {filteredSuppliers.length === 0 && (
         <div className="text-center py-12">

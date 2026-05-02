@@ -196,10 +196,10 @@ export default function ProfileTab({ setActiveMenu }) {
                 <User size={40} className="text-slate-400" />
               )}
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 text-center">
+            <h2 className="text-3xl font-bold text-slate-900 text-center">
               {formData.fullName || 'Nhân viên vận hành'}
             </h2>
-            <p className="text-sm text-slate-500 mt-1">{userAccount.email || '-'}</p>
+            <p className="text-sm font-medium text-slate-500 mt-1">{userAccount.email || '-'}</p>
             <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 mt-2 bg-emerald-50 px-3 py-1 rounded-full">
               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
               Đang làm việc
@@ -219,7 +219,7 @@ export default function ProfileTab({ setActiveMenu }) {
 
           <button
             onClick={() => setIsEditing((prev) => !prev)}
-            className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl bg-slate-900 text-white py-2.5 font-semibold hover:bg-slate-800 transition-colors"
+            className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-slate-700 py-2.5 font-semibold hover:bg-slate-50 transition-colors shadow-sm"
           >
             <Pencil size={16} /> {isEditing ? 'Đóng chỉnh sửa' : 'Chỉnh sửa hồ sơ'}
           </button>
@@ -232,7 +232,7 @@ export default function ProfileTab({ setActiveMenu }) {
                 value={formData.fullName}
                 onChange={handleInputChange}
                 placeholder="Họ và tên"
-                className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-primary"
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition bg-white"
                 required
               />
               <input
@@ -241,7 +241,7 @@ export default function ProfileTab({ setActiveMenu }) {
                 value={formData.phone}
                 onChange={handleInputChange}
                 placeholder="Số điện thoại"
-                className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-primary"
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition bg-white"
               />
               <input
                 type="text"
@@ -249,7 +249,7 @@ export default function ProfileTab({ setActiveMenu }) {
                 value={formData.street}
                 onChange={handleInputChange}
                 placeholder="Số nhà, đường"
-                className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-primary"
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition bg-white"
               />
               <div className="grid grid-cols-2 gap-3">
                 <input
@@ -258,7 +258,7 @@ export default function ProfileTab({ setActiveMenu }) {
                   value={formData.district}
                   onChange={handleInputChange}
                   placeholder="Quận/Huyện"
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-primary"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition bg-white"
                 />
                 <input
                   type="text"
@@ -266,7 +266,7 @@ export default function ProfileTab({ setActiveMenu }) {
                   value={formData.city}
                   onChange={handleInputChange}
                   placeholder="Tỉnh/Thành phố"
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-primary"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition bg-white"
                 />
               </div>
               <input
@@ -295,19 +295,19 @@ export default function ProfileTab({ setActiveMenu }) {
             onClick={() => setActiveMenu('history')}
             className="p-5 border-b border-slate-100 flex items-center gap-4 text-slate-700 hover:bg-slate-50 active:bg-slate-100 cursor-pointer transition-colors"
           >
-            <div className="p-2 bg-slate-100 rounded-lg">
-              <History size={20} className="text-slate-600" />
+            <div className="p-2 bg-slate-100 rounded-lg text-slate-600">
+              <History size={20} />
             </div>
-            <span className="font-bold flex-1">Lịch sử hoạt động</span>
+            <span className="font-semibold flex-1">Lịch sử hoạt động</span>
           </div>
           <div
             onClick={handleLogout}
             className="p-5 flex items-center gap-4 text-red-600 hover:bg-red-50 active:bg-red-100 cursor-pointer transition-colors"
           >
-            <div className="p-2 bg-red-100 rounded-lg">
-              <LogOut size={20} className="text-red-600" />
+            <div className="p-2 bg-red-100 rounded-lg text-red-600">
+              <LogOut size={20} />
             </div>
-            <span className="font-bold flex-1">Đăng xuất</span>
+            <span className="font-semibold flex-1">Đăng xuất</span>
           </div>
         </div>
       </div>

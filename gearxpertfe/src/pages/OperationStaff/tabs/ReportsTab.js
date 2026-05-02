@@ -122,7 +122,7 @@ function ReportCard({ report, issueTypeLabels, contextColor, onOpenDetail }) {
             <span className="text-xs font-medium text-slate-400">{formatDate(report.createdAt)}</span>
           </div>
 
-          <h3 className="font-bold text-slate-900 mb-1 line-clamp-1">{deviceLabel}</h3>
+          <h3 className="font-semibold text-slate-900 mb-1 line-clamp-1">{deviceLabel}</h3>
           <p className="text-xs text-slate-500 mb-1">Khách: {customerName}</p>
           <p className="text-sm text-slate-600 mb-4 flex-1">{descriptionText}</p>
 
@@ -226,6 +226,9 @@ export default function ReportsTab({ realtimeTick = 0 }) {
   const [error, setError] = useState(null);
   const [dialogDetail, setDialogDetail] = useState(null);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
+
   const fetchReports = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -248,7 +251,13 @@ export default function ReportsTab({ realtimeTick = 0 }) {
     fetchReports();
   }, [fetchReports, realtimeTick]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab]);
+
   const currentReports = activeTab === 'delivery' ? deliveryReports : returnReports;
+  const totalPages = Math.ceil(currentReports.length / itemsPerPage);
+  const paginatedReports = currentReports.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const deliveryContext = {
     badge: 'bg-red-50 text-red-600',
   };
@@ -278,13 +287,13 @@ export default function ReportsTab({ realtimeTick = 0 }) {
   return (
     <div className="p-4 md:p-8">
       <div className="hidden md:flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold flex items-center gap-2 text-slate-900">
+        <h2 className="text-3xl font-bold flex items-center gap-2 text-slate-900">
           <ShieldAlert className="text-red-500" /> Lịch sử sự cố
         </h2>
         <button
           onClick={fetchReports}
           title="Làm mới"
-          className="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-xl transition-colors"
+          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"
         >
           <RefreshCw size={18} />
         </button>
@@ -296,7 +305,7 @@ export default function ReportsTab({ realtimeTick = 0 }) {
           onClick={() => setActiveTab('delivery')}
           className={`flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all ${
             activeTab === 'delivery'
-              ? 'bg-white text-red-600 shadow-sm ring-1 ring-slate-200/50'
+              ? 'bg-white text-red-600 shadow-sm border border-slate-200'
               : 'text-slate-500 hover:text-slate-700'
           }`}
         >
@@ -312,7 +321,7 @@ export default function ReportsTab({ realtimeTick = 0 }) {
           onClick={() => setActiveTab('return')}
           className={`flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all ${
             activeTab === 'return'
-              ? 'bg-white text-orange-600 shadow-sm ring-1 ring-slate-200/50'
+              ? 'bg-white text-orange-600 shadow-sm border border-slate-200'
               : 'text-slate-500 hover:text-slate-700'
           }`}
         >
@@ -346,7 +355,7 @@ export default function ReportsTab({ realtimeTick = 0 }) {
         </div>
       ) : (
         <div className="space-y-4 md:space-y-0 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-6">
-          {currentReports.map((report) => (
+          {paginatedReports.map((report) => (
             <ReportCard
               key={report._id}
               report={report}
@@ -357,6 +366,61 @@ export default function ReportsTab({ realtimeTick = 0 }) {
           ))}
         </div>
       )}
+
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 mt-8">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          
+          <div className="flex items-center gap-1">
+            {(() => {
+              const pages = [];
+              if (totalPages <= 7) {
+                for (let i = 1; i <= totalPages; i++) pages.push(i);
+              } else {
+                if (currentPage <= 4) {
+                  pages.push(1, 2, 3, 4, 5, '...', totalPages);
+                } else if (currentPage >= totalPages - 3) {
+                  pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+                } else {
+                  pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+                }
+              }
+              
+              return pages.map((page, index) => (
+                <button
+                  key={index}
+                  onClick={() => page !== '...' && setCurrentPage(page)}
+                  disabled={page === '...'}
+                  className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                    page === '...' 
+                      ? 'text-slate-400 cursor-default'
+                      : currentPage === page 
+                        ? 'bg-indigo-600 text-white' 
+                        : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  {page}
+                </button>
+              ));
+            })()}
+          </div>
+
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ChevronRight size={20} />
+          </button>
+        </div>
+      )}
+
       <ReturnFailureDetailDialog
         open={Boolean(dialogDetail)}
         onClose={() => setDialogDetail(null)}

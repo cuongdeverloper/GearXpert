@@ -6,6 +6,7 @@ import { FiSearch, FiCheckCircle, FiXCircle, FiEye, FiTrash2, FiClock, FiFileTex
 import { toast } from "react-toastify";
 import { CATEGORY_MAP, formatDate } from "../Blog/BlogConstants";
 import { useSocket } from "../../SocketContext";
+import Pagination from "../../components/common/Pagination";
 
 export default function BlogManagement() {
     const dispatch = useDispatch();
@@ -14,6 +15,8 @@ export default function BlogManagement() {
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("pending");
     const [loading, setLoading] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 10;
     const { socket } = useSocket();
     
     // Reason Modal States
@@ -187,6 +190,9 @@ export default function BlogManagement() {
         return badges[status] || "bg-slate-50 text-slate-600 border-slate-100";
     };
 
+    const totalPages = Math.ceil(blogs.length / ITEMS_PER_PAGE);
+    const paginatedBlogs = blogs.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             {/* Header section with Stats */}
@@ -228,7 +234,7 @@ export default function BlogManagement() {
                         type="text"
                         placeholder="Tìm kiếm bài viết..."
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                         className="w-full pl-12 pr-4 py-4 rounded-[1.5rem] border border-slate-200 bg-white focus:ring-4 focus:ring-primary/5 transition-all outline-none"
                     />
                 </div>
@@ -236,7 +242,7 @@ export default function BlogManagement() {
                     {['pending', 'approved', 'rejected', 'ALL'].map((status) => (
                         <button
                             key={status}
-                            onClick={() => setStatusFilter(status)}
+                            onClick={() => { setStatusFilter(status); setCurrentPage(1); }}
                             className={`px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
                                 statusFilter === status 
                                     ? "bg-primary text-white shadow-lg shadow-primary/20" 
@@ -271,7 +277,7 @@ export default function BlogManagement() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
-                            {blogs.map((blog) => (
+                            {paginatedBlogs.map((blog) => (
                                 <tr key={blog._id} className="hover:bg-slate-50/30 transition-colors group">
                                     <td className="px-4 py-6">
                                         <div className="flex items-center gap-4">
@@ -432,6 +438,15 @@ export default function BlogManagement() {
                         </tbody>
                     </table>
                 </div>
+
+                {blogs.length > 0 && (
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={setCurrentPage}
+                    />
+                )}
+
                 {blogs.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-24 text-slate-300">
                         <FiFileText size={64} className="mb-4 opacity-20" />
