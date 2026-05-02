@@ -67,9 +67,9 @@ export default function SupplierListPage() {
   const [currentPageSidebar, setCurrentPageSidebar] = useState(1);
   const ITEMS_PER_PAGE_MAIN = 6;
   const ITEMS_PER_PAGE_SIDEBAR = 3;
-  
+
   const [sidebarSearchTerm, setSidebarSearchTerm] = useState('');
-  
+
   const [isLocating, setIsLocating] = useState(false);
   const [routeData, setRouteData] = useState(null);
   const [isLocatingError, setIsLocatingError] = useState(false);
@@ -104,12 +104,12 @@ export default function SupplierListPage() {
     let result = suppliers.map((s) => {
       const lat = s.warehouseAddress?.lat || (16.04 + (parseInt(s._id.substring(0, 8), 16) % 100) / 2000);
       const lng = s.warehouseAddress?.lng || (108.20 + (parseInt(s._id.substring(8, 16), 16) % 100) / 2000);
-      
+
       let distance = null;
       if (userLocation) {
         distance = calculateDistance(userLocation.latitude, userLocation.longitude, lat, lng);
       }
-      
+
       return { ...s, coords: { latitude: lat, longitude: lng }, distance };
     });
 
@@ -130,14 +130,14 @@ export default function SupplierListPage() {
 
   const nearbyFilteredSuppliers = useMemo(() => {
     let result = [...filteredAndSortedSuppliers].sort((a, b) => (a.distance || 9999) - (b.distance || 9999));
-    
+
     if (sidebarSearchTerm) {
-      result = result.filter(s => 
+      result = result.filter(s =>
         s.businessName.toLowerCase().includes(sidebarSearchTerm.toLowerCase()) ||
         s.warehouseAddress?.district?.toLowerCase().includes(sidebarSearchTerm.toLowerCase())
       );
     }
-    
+
     return result;
   }, [filteredAndSortedSuppliers, sidebarSearchTerm]);
 
@@ -350,14 +350,14 @@ export default function SupplierListPage() {
 
                   {/* Sidebar Search */}
                   <div className="relative mb-4">
-                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                     <input 
-                       type="text"
-                       placeholder="Lọc nhanh cửa hàng..."
-                       value={sidebarSearchTerm}
-                       onChange={(e) => setSidebarSearchTerm(e.target.value)}
-                       className="w-full bg-slate-50 border border-slate-100 rounded-xl py-2 pl-9 pr-4 text-[10px] font-bold text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 transition-all shadow-sm"
-                     />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                    <input
+                      type="text"
+                      placeholder="Lọc nhanh cửa hàng..."
+                      value={sidebarSearchTerm}
+                      onChange={(e) => setSidebarSearchTerm(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-100 rounded-xl py-2 pl-9 pr-4 text-[10px] font-bold text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 transition-all shadow-sm"
+                    />
                   </div>
 
                   <div className="space-y-3 min-h-[200px]">
@@ -400,23 +400,23 @@ export default function SupplierListPage() {
 
                   {totalPagesSidebar > 1 && (
                     <div className="mt-4 flex items-center justify-between px-1">
-                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Trang {currentPageSidebar}/{totalPagesSidebar}</span>
-                       <div className="flex gap-1">
-                          <button 
-                            disabled={currentPageSidebar === 1}
-                            onClick={() => setCurrentPageSidebar(prev => prev - 1)}
-                            className={`w-7 h-7 rounded-lg flex items-center justify-center border transition-all ${currentPageSidebar === 1 ? 'text-slate-200 border-slate-50' : 'text-slate-600 border-slate-200 hover:border-indigo-500 hover:text-indigo-500'}`}
-                          >
-                            <ChevronRight size={14} className="rotate-180" />
-                          </button>
-                          <button 
-                            disabled={currentPageSidebar === totalPagesSidebar}
-                            onClick={() => setCurrentPageSidebar(prev => prev + 1)}
-                            className={`w-7 h-7 rounded-lg flex items-center justify-center border transition-all ${currentPageSidebar === totalPagesSidebar ? 'text-slate-200 border-slate-50' : 'text-slate-600 border-slate-200 hover:border-indigo-500 hover:text-indigo-500'}`}
-                          >
-                            <ChevronRight size={14} />
-                          </button>
-                       </div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Trang {currentPageSidebar}/{totalPagesSidebar}</span>
+                      <div className="flex gap-1">
+                        <button
+                          disabled={currentPageSidebar === 1}
+                          onClick={() => setCurrentPageSidebar(prev => prev - 1)}
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center border transition-all ${currentPageSidebar === 1 ? 'text-slate-200 border-slate-50' : 'text-slate-600 border-slate-200 hover:border-indigo-500 hover:text-indigo-500'}`}
+                        >
+                          <ChevronRight size={14} className="rotate-180" />
+                        </button>
+                        <button
+                          disabled={currentPageSidebar === totalPagesSidebar}
+                          onClick={() => setCurrentPageSidebar(prev => prev + 1)}
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center border transition-all ${currentPageSidebar === totalPagesSidebar ? 'text-slate-200 border-slate-50' : 'text-slate-600 border-slate-200 hover:border-indigo-500 hover:text-indigo-500'}`}
+                        >
+                          <ChevronRight size={14} />
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -522,9 +522,9 @@ export default function SupplierListPage() {
                               <span className="text-xs font-bold text-slate-800">{shop.supplierRating?.toFixed(1) || '0.0'}</span>
                             </div>
                             {shop.distance !== null && (
-                               <div className="absolute bottom-4 right-4 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-xl text-white text-[10px] font-bold border border-white/10">
-                                  {shop.distance < 1 ? `${(shop.distance * 1000).toFixed(0)}m` : `${shop.distance.toFixed(1)}km`}
-                               </div>
+                              <div className="absolute bottom-4 right-4 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-xl text-white text-[10px] font-bold border border-white/10">
+                                {shop.distance < 1 ? `${(shop.distance * 1000).toFixed(0)}m` : `${shop.distance.toFixed(1)}km`}
+                              </div>
                             )}
                           </div>
                           <div className="p-6 flex-grow flex flex-col">
@@ -537,15 +537,15 @@ export default function SupplierListPage() {
                                 <span className="text-xs font-medium">{shop.warehouseAddress?.district || 'Đà Nẵng'}</span>
                               </div>
                             </div>
-                            
+
                             <div className="mt-auto pt-6 border-t border-slate-50 flex justify-between items-center text-sm font-bold">
-                               <div className="flex items-center gap-2 text-slate-600">
-                                  <Store size={18} className="text-indigo-500" />
-                                  <span>{shop.deviceCount} sản phẩm</span>
-                               </div>
-                               <div className="w-10 h-10 rounded-full border border-slate-100 flex items-center justify-center text-slate-300 group-hover:bg-indigo-600 group-hover:text-white transition-all">
-                                  <ChevronRight size={18} />
-                               </div>
+                              <div className="flex items-center gap-2 text-slate-600">
+                                <Store size={18} className="text-indigo-500" />
+                                <span>{shop.deviceCount} sản phẩm</span>
+                              </div>
+                              <div className="w-10 h-10 rounded-full border border-slate-100 flex items-center justify-center text-slate-300 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                                <ChevronRight size={18} />
+                              </div>
                             </div>
                           </div>
                         </motion.div>
@@ -561,31 +561,31 @@ export default function SupplierListPage() {
 
                   {!loading && totalPagesMain > 1 && (
                     <div className="mt-12 flex justify-center items-center gap-2">
-                       <button
-                         disabled={currentPageMain === 1}
-                         onClick={() => setCurrentPageMain(prev => prev - 1)}
-                         className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-all ${currentPageMain === 1 ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-600 hover:text-indigo-600 shadow-sm'}`}
-                       >
-                         <ChevronRight size={20} className="rotate-180" />
-                       </button>
+                      <button
+                        disabled={currentPageMain === 1}
+                        onClick={() => setCurrentPageMain(prev => prev - 1)}
+                        className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-all ${currentPageMain === 1 ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-600 hover:text-indigo-600 shadow-sm'}`}
+                      >
+                        <ChevronRight size={20} className="rotate-180" />
+                      </button>
 
-                       {Array.from({ length: totalPagesMain }, (_, i) => i + 1).map(pageNum => (
-                         <button
-                           key={pageNum}
-                           onClick={() => setCurrentPageMain(pageNum)}
-                           className={`w-12 h-12 rounded-2xl font-bold text-sm transition-all border ${currentPageMain === pageNum ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200' : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-400 hover:text-indigo-500'}`}
-                         >
-                           {pageNum}
-                         </button>
-                       ))}
+                      {Array.from({ length: totalPagesMain }, (_, i) => i + 1).map(pageNum => (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPageMain(pageNum)}
+                          className={`w-12 h-12 rounded-2xl font-bold text-sm transition-all border ${currentPageMain === pageNum ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200' : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-400 hover:text-indigo-500'}`}
+                        >
+                          {pageNum}
+                        </button>
+                      ))}
 
-                       <button
-                         disabled={currentPageMain === totalPagesMain}
-                         onClick={() => setCurrentPageMain(prev => prev + 1)}
-                         className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-all ${currentPageMain === totalPagesMain ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-600 hover:text-indigo-600 shadow-sm'}`}
-                       >
-                         <ChevronRight size={20} />
-                       </button>
+                      <button
+                        disabled={currentPageMain === totalPagesMain}
+                        onClick={() => setCurrentPageMain(prev => prev + 1)}
+                        className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-all ${currentPageMain === totalPagesMain ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-600 hover:text-indigo-600 shadow-sm'}`}
+                      >
+                        <ChevronRight size={20} />
+                      </button>
                     </div>
                   )}
                 </div>
