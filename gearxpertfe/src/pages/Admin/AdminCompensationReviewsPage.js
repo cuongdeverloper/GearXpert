@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { FiCheckCircle, FiEye, FiSearch, FiXCircle } from "react-icons/fi";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { FiArrowLeft, FiCheckCircle, FiEye, FiSearch, FiXCircle } from "react-icons/fi";
 import { toast } from "react-toastify";
 import {
   adminApproveCompensationProposal,
@@ -9,10 +10,13 @@ import {
 } from "../../service/ApiService/ReportApi";
 import { confirmDialog } from "../../utils/confirmDialog";
 import Pagination from "../../components/common/Pagination";
+import AdminGxMediationForm from "../../components/admin/AdminGxMediationForm";
 
 const FLOW_STATUS_OPTIONS = [
   { value: "ALL", label: "Tất cả luồng" },
   { value: "PENDING_ADMIN_REVIEW", label: "Chờ admin duyệt" },
+  { value: "PENDING_PARTY_REVIEW", label: "Chờ 2 bên (GX)" },
+  { value: "SUPPLIER_ACCEPTED", label: "Shop đã OK — chờ khách" },
   { value: "ADMIN_APPROVED", label: "Đã duyệt" },
   { value: "ADMIN_REJECTED", label: "Đã từ chối" },
   { value: "CUSTOMER_ACCEPTED", label: "Khách đã xác nhận" },
@@ -23,8 +27,10 @@ const FLOW_STATUS_OPTIONS = [
 
 const FLOW_STATUS_META = {
   PROPOSED: "bg-slate-100 text-slate-700 border-slate-200",
+  PENDING_PARTY_REVIEW: "bg-sky-100 text-sky-800 border-sky-200",
   CUSTOMER_ACCEPTED: "bg-blue-100 text-blue-700 border-blue-200",
   CUSTOMER_REJECTED: "bg-rose-100 text-rose-700 border-rose-200",
+  SUPPLIER_ACCEPTED: "bg-violet-100 text-violet-800 border-violet-200",
   SUPPLIER_REJECTED: "bg-rose-100 text-rose-700 border-rose-200",
   PENDING_ADMIN_REVIEW: "bg-amber-100 text-amber-700 border-amber-200",
   ADMIN_APPROVED: "bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -33,8 +39,10 @@ const FLOW_STATUS_META = {
 
 const FLOW_STATUS_LABEL = {
   PROPOSED: "Mới tạo",
+  PENDING_PARTY_REVIEW: "Chờ khách & shop (GX)",
   CUSTOMER_ACCEPTED: "Khách đã xác nhận",
   CUSTOMER_REJECTED: "Khách đã từ chối",
+  SUPPLIER_ACCEPTED: "Shop OK — chờ khách",
   SUPPLIER_REJECTED: "Supplier đã từ chối",
   PENDING_ADMIN_REVIEW: "Chờ admin duyệt",
   ADMIN_APPROVED: "Admin đã duyệt",
@@ -63,6 +71,7 @@ function getApiErrorMessage(err, fallback) {
 }
 
 export default function AdminCompensationReviewsPage() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [proposals, setProposals] = useState([]);
   const [page, setPage] = useState(1);
@@ -78,6 +87,10 @@ export default function AdminCompensationReviewsPage() {
   });
   const [settlementPreview, setSettlementPreview] = useState(null);
   const [settlementLoading, setSettlementLoading] = useState(false);
+  const gxFormCardRef = useRef(null);
+  const [searchParams] = useSearchParams();
+
+  const queryIssueIdEarly = searchParams.get("issueId")?.trim() || "";
 
   const fetchProposals = useCallback(
     async (targetPage = 1) => {
@@ -108,10 +121,26 @@ export default function AdminCompensationReviewsPage() {
     fetchProposals(1);
   }, [fetchProposals]);
 
+  useEffect(() => {
+    const q = searchParams.get("issueId");
+    if (!q || !/^[a-fA-F0-9]{24}$/.test(q.trim())) return;
+    requestAnimationFrame(() => {
+      gxFormCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    toast.info("Đã điền mã sự cố — hoàn thành form và gửi đề xuất trung gian.");
+  }, [searchParams]);
+
   const pendingCount = useMemo(
     () => proposals.filter((item) => item?.flowStatus === "PENDING_ADMIN_REVIEW").length,
     [proposals]
   );
+
+  const queryIssueId = queryIssueIdEarly;
+  const queryReferenceModel = searchParams.get("referenceModel")?.trim() || "";
+  const investigationBackLink =
+    queryIssueId && /^[a-fA-F0-9]{24}$/.test(queryIssueId) && ["DeliveryIssueReport", "DamageReport"].includes(queryReferenceModel)
+      ? `/admin/issue-investigation/${encodeURIComponent(queryIssueId)}?referenceModel=${encodeURIComponent(queryReferenceModel)}`
+      : null;
 
   const handleOpenReview = (proposal) => {
     setSelectedProposal(proposal);
@@ -245,6 +274,33 @@ export default function AdminCompensationReviewsPage() {
 
   return (
     <div className="space-y-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
+        >
+          <FiArrowLeft size={18} aria-hidden />
+          Trang trước
+        </button>
+        <Link
+          to="/admin/pending-issue-reviews"
+          className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-900 shadow-sm hover:bg-indigo-100"
+        >
+          <FiArrowLeft size={18} aria-hidden />
+          Sự cố chờ xử lý
+        </Link>
+        {investigationBackLink ? (
+          <Link
+            to={investigationBackLink}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-100"
+          >
+            <FiArrowLeft size={18} aria-hidden />
+            Hồ sơ điều tra
+          </Link>
+        ) : null}
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Duyệt đề xuất bồi thường</h2>
@@ -252,6 +308,19 @@ export default function AdminCompensationReviewsPage() {
             {total.toLocaleString("vi-VN")} đề xuất, hiện có {pendingCount} đề xuất chờ duyệt.
           </p>
         </div>
+      </div>
+
+      <div ref={gxFormCardRef}>
+        <AdminGxMediationForm
+          key={queryIssueId || "gx-manual"}
+          initialIssueId={queryIssueId}
+          referenceModel={queryReferenceModel || null}
+          issueIdReadOnly={false}
+          onSuccess={() => {
+            setFlowStatus("PENDING_PARTY_REVIEW");
+            fetchProposals(1);
+          }}
+        />
       </div>
 
       <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
@@ -338,6 +407,17 @@ export default function AdminCompensationReviewsPage() {
                       >
                         {FLOW_STATUS_LABEL[proposal.flowStatus] || proposal.flowStatus}
                       </span>
+                      {proposal.origin === "ADMIN_GX" ? (
+                        <p className="text-[11px] text-sky-800 font-medium mt-1">Đề xuất GX (admin)</p>
+                      ) : null}
+                      {proposal.directGearXpertReview ? (
+                        <p className="text-[11px] text-violet-700 font-medium mt-1">Nộp thẳng GX</p>
+                      ) : null}
+                      {proposal.handledByAdmin?.fullName ? (
+                        <p className="text-[11px] text-slate-600 mt-0.5">
+                          Phụ trách: {proposal.handledByAdmin.fullName}
+                        </p>
+                      ) : null}
                     </td>
                     <td className="px-4 py-3 align-top text-xs text-slate-500">
                       <p>Gửi: {formatDate(proposal.submittedAt)}</p>
@@ -398,15 +478,31 @@ export default function AdminCompensationReviewsPage() {
                   <p className="mt-2 text-xs text-slate-600">
                     Cách xử lý gợi ý:{" "}
                     <span className="font-medium text-slate-800">
-                      {selectedProposal.suggestedResolution === "CUSTOMER_PAY" && "Khách trả"}
-                      {selectedProposal.suggestedResolution === "SUPPLIER_BEAR" && "NCC chịu"}
-                      {selectedProposal.suggestedResolution === "REQUEST_GX_REVIEW" && "Phối hợp / GX"}
-                      {!["CUSTOMER_PAY", "SUPPLIER_BEAR", "REQUEST_GX_REVIEW"].includes(
+                      {selectedProposal.suggestedResolution === "CUSTOMER_PAY" && "Khách đền bù"}
+                      {selectedProposal.suggestedResolution === "SUPPLIER_BEAR" && "NCC chịu trách nhiệm"}
+                      {selectedProposal.suggestedResolution === "REQUEST_GX_REVIEW" && "Điều phối từ cọc (GX)"}
+                      {selectedProposal.suggestedResolution === "PLATFORM_LIABILITY" &&
+                        "Hệ thống đền bù thiệt hại"}
+                      {!["CUSTOMER_PAY", "SUPPLIER_BEAR", "REQUEST_GX_REVIEW", "PLATFORM_LIABILITY"].includes(
                         selectedProposal.suggestedResolution
                       ) && selectedProposal.suggestedResolution}
                     </span>
                   </p>
                 )}
+                {selectedProposal?.directGearXpertReview ? (
+                  <p className="mt-2 text-xs text-violet-800 bg-violet-50 border border-violet-200 rounded-lg px-2 py-1.5">
+                    Luồng nộp thẳng GearXpert: hai bên được coi chờ GX xử; admin duyệt &amp; quyết toán theo luồng hiện tại.
+                  </p>
+                ) : null}
+                {selectedProposal?.handledByAdmin?.fullName ? (
+                  <p className="mt-2 text-xs text-slate-600">
+                    Admin phụ trách:{" "}
+                    <span className="font-medium text-slate-800">{selectedProposal.handledByAdmin.fullName}</span>
+                    {selectedProposal.handledByAdmin.email
+                      ? ` · ${selectedProposal.handledByAdmin.email}`
+                      : ""}
+                  </p>
+                ) : null}
               </div>
 
               <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3">
@@ -514,7 +610,11 @@ export default function AdminCompensationReviewsPage() {
             <div className="px-5 py-4 border-t border-slate-200 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
               {selectedProposal.flowStatus !== "PENDING_ADMIN_REVIEW" && (
                 <p className="w-full sm:mr-auto text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  Đề xuất này không còn chờ duyệt. Chỉ xem thông tin — không thể Duyệt / Từ chối lại ở đây.
+                  {selectedProposal.flowStatus === "PENDING_PARTY_REVIEW"
+                    ? "Đề xuất đang chờ khách và shop xác nhận — chưa thể Duyệt / Từ chối quyết toán ví tại đây."
+                    : selectedProposal.flowStatus === "SUPPLIER_ACCEPTED"
+                    ? "Shop đã đồng ý; chờ khách xác nhận trước khi vào bước admin duyệt ví."
+                    : "Đề xuất này không còn chờ duyệt. Chỉ xem thông tin — không thể Duyệt / Từ chối lại ở đây."}
                 </p>
               )}
               <button

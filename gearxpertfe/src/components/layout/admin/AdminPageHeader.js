@@ -17,6 +17,11 @@ const navGroups = [
       { to: "/admin/rentals", label: "Đơn thuê", description: "Theo dõi các giao dịch đơn thuê" },
       { to: "/admin/reports", label: "Báo cáo", description: "Xem báo cáo hệ thống" },
       {
+        to: "/admin/pending-issue-reviews",
+        label: "Sự cố chờ xử lý",
+        description: "Danh sách báo cáo cần admin can thiệp trước khi có đề xuất bồi thường",
+      },
+      {
         to: "/admin/compensation-proposals",
         label: "Duyệt bồi thường",
         description: "Duyệt hoặc từ chối đề xuất bồi thường sự cố",

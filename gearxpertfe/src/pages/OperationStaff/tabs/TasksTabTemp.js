@@ -63,16 +63,28 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
 
  const fetchAllTasks = useCallback(async () => {
  setLoadingTasks(true);
+ const deliveryTasks = [];
+ const returnTasks = [];
  try {
- const [deliveryRes, returnRes] = await Promise.all([
- getDeliveringRentals(),
- getReturningRentals(),
- ]);
- const deliveryTasks = (deliveryRes?.rentals || []).map(mapRentalToTask);
- const returnTasks = (returnRes?.rentals || []).map(mapRentalToReturnTask);
+ try {
+ const deliveryRes = await getDeliveringRentals();
+ deliveryTasks.push(...(deliveryRes?.rentals || []).map(mapRentalToTask));
+ } catch (e) {
+ console.error("Lỗi tải nhiệm vụ giao hàng:", e);
+ toast.error(
+ e?.response?.data?.message || e?.message || "Không tải được danh sách đơn đang giao"
+ );
+ }
+ try {
+ const returnRes = await getReturningRentals();
+ returnTasks.push(...(returnRes?.rentals || []).map(mapRentalToReturnTask));
+ } catch (e) {
+ console.error("Lỗi tải nhiệm vụ thu hồi:", e);
+ toast.error(
+ e?.response?.data?.message || e?.message || "Không tải được danh sách đơn đang thu hồi"
+ );
+ }
  setTasks([...deliveryTasks, ...returnTasks]);
- } catch (err) {
- console.error('Lỗi tải nhiệm vụ:', err);
  } finally {
  setLoadingTasks(false);
  }

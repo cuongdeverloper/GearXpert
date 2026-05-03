@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
-import { FiTrendingUp, FiDollarSign, FiTarget, FiCalendar, FiUsers, FiBarChart2, FiPieChart, FiActivity } from "react-icons/fi";
+import { FiTrendingUp, FiDollarSign, FiCalendar, FiUsers, FiBarChart2, FiPieChart, FiActivity } from "react-icons/fi";
 import { Bar, Line, Doughnut } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -86,13 +86,15 @@ export default function SupplierRevenue() {
   }, [user?.id]);
 
   const revenueData = data?.summary || EMPTY_DATA.summary;
-  const monthlyBreakdown = data?.monthlyBreakdown || [];
   const topDevices = data?.topDevices || [];
   const bottomDevices = data?.bottomDevices || [];
   const transactions = data?.transactions || [];
   const cashFlowData = data?.cashFlow || EMPTY_DATA.cashFlow;
   const bookingTrends = data?.bookingTrends || EMPTY_DATA.bookingTrends;
-  const rentalStatusCounts = data?.rentalStatusCounts || {};
+  const rentalStatusCounts = useMemo(
+    () => data?.rentalStatusCounts ?? EMPTY_DATA.rentalStatusCounts,
+    [data?.rentalStatusCounts]
+  );
 
   const momGrowth = useMemo(() => {
     if (!revenueData.lastMonthRevenue) return 100;

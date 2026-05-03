@@ -77,9 +77,10 @@ async function sendCompensationProposalChatMessage(req, { senderId, receiverId, 
 }
 
 const RESOLUTION_LABELS = {
-  CUSTOMER_PAY: "Đề xuất khách hàng đền bù",
-  SUPPLIER_BEAR: "Supplier tự chịu chi phí",
-  REQUEST_GX_REVIEW: "Nhờ GearXpert đánh giá/chốt",
+  CUSTOMER_PAY: "Khách đền bù",
+  SUPPLIER_BEAR: "NCC chịu trách nhiệm",
+  REQUEST_GX_REVIEW: "Điều phối từ cọc (GX)",
+  PLATFORM_LIABILITY: "Hệ thống đền bù thiệt hại",
 };
 
 /** Nội dung thư gửi khách (trùng copy FE SupplierIssueDetailPage). */

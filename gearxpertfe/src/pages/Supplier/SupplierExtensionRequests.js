@@ -341,7 +341,11 @@ export default function SupplierExtensionRequests() {
                           </p>
                           <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Đơn hàng #{request.rentalId?._id?.slice(-6)}</p>
                           <div className="mt-2 flex items-center gap-1.5">
-                            <img src={request.customerId?.avatar || "https://ui-avatars.com/api/?name=User"} className="h-5 w-5 rounded-full ring-2 ring-white" />
+                            <img
+                              src={request.customerId?.avatar || "https://ui-avatars.com/api/?name=User"}
+                              alt=""
+                              className="h-5 w-5 rounded-full ring-2 ring-white"
+                            />
                             <span className="text-xs font-bold text-slate-600 truncate">{request.customerId?.fullName}</span>
                           </div>
                         </div>

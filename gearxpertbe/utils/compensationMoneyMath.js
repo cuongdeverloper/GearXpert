@@ -21,7 +21,7 @@ function splitDepositForCompensation(depositRaw, C) {
 }
 
 function pickSupplierTotalIllustrative(resolution, supplierFromRent, C, fromDeposit) {
-  if (resolution === "CUSTOMER_PAY") {
+  if (resolution === "CUSTOMER_PAY" || resolution === "PLATFORM_LIABILITY") {
     return supplierFromRent + C;
   }
   if (resolution === "SUPPLIER_BEAR") {

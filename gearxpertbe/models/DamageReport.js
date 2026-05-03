@@ -51,7 +51,14 @@ const damageReportSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["OPEN", "PROCESSING", "WAITING_EVIDENCE", "RESOLVED", "REJECTED"],
+      enum: [
+        "OPEN",
+        "PROCESSING",
+        "WAITING_EVIDENCE",
+        "AWAITING_ADMIN_GX",
+        "RESOLVED",
+        "REJECTED",
+      ],
       default: "OPEN",
     },
 

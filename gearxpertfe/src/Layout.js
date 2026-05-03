@@ -55,6 +55,8 @@ import AdminShopReports from "./pages/Admin/AdminShopReports";
 import AdminWalletPage from "./pages/Admin/AdminWalletPage";
 import AdminWithdrawalsPage from "./pages/Admin/AdminWithdrawalsPage";
 import AdminCompensationReviewsPage from "./pages/Admin/AdminCompensationReviewsPage";
+import AdminPendingIssueReviewsPage from "./pages/Admin/AdminPendingIssueReviewsPage";
+import AdminIssueInvestigationPage from "./pages/Admin/AdminIssueInvestigationPage";
 
 // pages
 import RentalCheckout from "./pages/Rental/RentalCheckout";
@@ -275,6 +277,8 @@ export default function Layout() {
             <Route path="notifications" element={<AdminBroadcastPage />} />
             <Route path="wallet" element={<AdminWalletPage />} />
             <Route path="withdrawals" element={<AdminWithdrawalsPage />} />
+            <Route path="pending-issue-reviews" element={<AdminPendingIssueReviewsPage />} />
+            <Route path="issue-investigation/:issueId" element={<AdminIssueInvestigationPage />} />
             <Route path="compensation-proposals" element={<AdminCompensationReviewsPage />} />
           </Route>
 

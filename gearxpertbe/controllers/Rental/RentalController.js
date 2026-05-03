@@ -23,6 +23,9 @@ const WalletTransaction = require("../../models/WalletTransaction");
 const DeviceItem = require("../../models/DeviceItem");
 const CompensationProposal = require("../../models/CompensationProposal");
 const { compensationAuditLog } = require("../../utils/compensationAuditLog");
+const {
+  buildCanonicalPaymentBreakdown,
+} = require("../../utils/buildCanonicalPaymentBreakdown");
 
 const DeliveryTask = require("../../models/DeliveryTask");
 
@@ -3833,29 +3836,8 @@ exports.startDelivery = async (req, res) => {
 
     await rental.save();
 
-    // Calculate payment breakdown
-
-    const platformFee = Math.round(rental.totalAmount * 0.1);
-
-    const rentAmount = rental.totalAmount - platformFee;
-
-    const supplierReceive = rentAmount;
-
-    const paymentBreakdown = {
-      rentAmount,
-
-      platformFee,
-
-      depositAmount: rental.depositAmount || 0,
-
-      supplierReceive,
-
-      customerPayAmount: rental.totalAmount + (rental.depositAmount || 0),
-
-      platformReceive: platformFee,
-
-      supplierPayAmount: rentAmount,
-    };
+    /** Snapshot chỉ để hiển thị; payout thực tế dùng buildCanonicalPaymentBreakdown khi settle. */
+    const paymentBreakdown = buildCanonicalPaymentBreakdown(rental);
 
     // Use $set to avoid validation issues
 
@@ -4139,15 +4121,12 @@ async function executeConfirmReturnSettlement(session, req, options = {}) {
 
   // Giả sử đã kiểm tra thiết bị OK (không hỏng, không forfeit deposit)
 
-  // → Payout tiền thuê cho supplier (sau trừ phí nền tảng)
+  // → Payout tiền thuê cho supplier (sau trừ phí nền tảng): luôn tính lại từ field gốc, không tin paymentBreakdown DB
+  const canonicalBreakdown = buildCanonicalPaymentBreakdown(rental);
+  const platformFee = canonicalBreakdown.platformFee;
+  const supplierReceive = canonicalBreakdown.supplierReceive;
 
-  // Lấy dữ liệu tài chính từ breakdown (đã bao gồm các khoản gia hạn nếu có)
-  const platformFee = rental.paymentBreakdown?.platformFee || Math.round(rental.rentPriceTotal * 0.1);
-  const rentAmountTotal = rental.rentPriceTotal;
-  const supplierReceive = rental.paymentBreakdown?.supplierReceive || (rentAmountTotal - platformFee);
-
-  // Tính số tiền escrow cần giải phóng (không bao gồm deliveryFee)
-  const escrowReleaseAmount = rentAmountTotal - platformFee;
+  const escrowReleaseAmount = supplierReceive;
 
   const supplierWallet = await Wallet.findOne({
     user: rental.supplierId,
@@ -4422,16 +4401,14 @@ async function executeConfirmReturnSettlement(session, req, options = {}) {
 
   rental.escrowStatus = "RELEASED";
 
-  // Gán paymentBreakdown để tránh validation error
-
   rental.paymentBreakdown = {
-    rentAmount: rental.rentPriceTotal,
+    rentAmount: canonicalBreakdown.rentAmount,
 
-    depositAmount: rental.depositAmount,
+    depositAmount: canonicalBreakdown.depositAmount,
 
-    platformFee: platformFee,
+    platformFee,
 
-    supplierReceive: supplierReceive,
+    supplierReceive,
   };
 
   await rental.save({ session });

@@ -72,7 +72,6 @@ export default function SupplierListPage() {
 
   const [isLocating, setIsLocating] = useState(false);
   const [routeData, setRouteData] = useState(null);
-  const [isLocatingError, setIsLocatingError] = useState(false);
 
   const fetchSuppliers = useCallback(async () => {
     try {
