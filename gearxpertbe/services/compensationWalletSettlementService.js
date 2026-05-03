@@ -1,8 +1,3 @@
-/**
- * Ghi sổ bồi thường khi admin duyệt — cùng cách tính cọc / phần vượt với
- * buildCompensationSettlementPreview, giao dịch ví tương tự mẫu confirmReturn
- * (PAYOUT cho NCC, DEPOSIT_RELEASE từ ví hệ thống).
- */
 const Wallet = require("../models/Wallet");
 const WalletTransaction = require("../models/WalletTransaction");
 const { splitDepositForCompensation } = require("../utils/compensationMoneyMath");
@@ -82,17 +77,21 @@ async function applyCompensationWalletOnAdminApprove(session, { rental, proposal
 
   /** Lỗi vận hành nền tảng (shipper/staff): trừ ví hệ thống, cộng NCC — không dùng cọc / ví khách. */
   if (resolution === "PLATFORM_LIABILITY") {
-    if (Number(adminWallet.balance) < C) {
+    if (Number(adminWallet.availableBalance) < C) {
       throw new Error(
-        `Số dư ví hệ thống không đủ (Hệ thống đền bù thiệt hại) — cần ${C.toLocaleString("vi-VN")}đ`
+        `Số dư ví khả dụng của hệ thống không đủ để đền bù — cần ${C.toLocaleString("vi-VN")}đ`
       );
     }
+    
     const ad0 = adminWallet.balance;
     adminWallet.balance -= C;
+    adminWallet.availableBalance -= C; 
     await adminWallet.save(saveSess(session));
+
     const s0 = supplierWallet.balance;
     supplierWallet.balance += C;
     await supplierWallet.save(saveSess(session));
+
     const txPl = await WalletTransaction.create(
       [
         {
@@ -103,8 +102,9 @@ async function applyCompensationWalletOnAdminApprove(session, { rental, proposal
           balanceAfter: adminWallet.balance,
           referenceType: "RENTAL",
           referenceId: rentalId,
-          description: `Bồi thường thiệt hại — ví nền tảng → NCC (PLATFORM_LIABILITY) đơn #${shortId}`,
+          description: `Hệ thống GearXpert đền bù thiệt hại (PLATFORM_LIABILITY) đơn #${shortId}`,
           status: "SUCCESS",
+          metadata: { isSystemLiability: true }
         },
         {
           wallet: supplierWallet._id,
@@ -114,7 +114,7 @@ async function applyCompensationWalletOnAdminApprove(session, { rental, proposal
           balanceAfter: supplierWallet.balance,
           referenceType: "RENTAL",
           referenceId: rentalId,
-          description: `Nhận bồi thường thiệt hại từ nền tảng (đơn #${shortId})`,
+          description: `Nhận tiền đền bù từ hệ thống GearXpert (đơn #${shortId})`,
           status: "SUCCESS",
         },
       ],
@@ -135,30 +135,20 @@ async function applyCompensationWalletOnAdminApprove(session, { rental, proposal
 
   if (resolution === "REQUEST_GX_REVIEW") {
     if (depositHeld) {
-      const { fromDeposit, overDeposit, depositRefundToCustomer } = splitDepositForCompensation(
-        deposit,
-        C
-      );
-      compensationAuditLog("WALLET_SPLIT_HELD", {
-        rentalId: String(rentalId),
-        proposalId,
-        C,
-        deposit,
-        fromDeposit,
-        overDeposit,
-        depositRefundToCustomer,
-      });
-
+      const { fromDeposit, overDeposit } = splitDepositForCompensation(deposit, C);
+      
       if (fromDeposit > 0) {
         if (Number(adminWallet.balance) < fromDeposit) {
           throw new Error("Số dư ví hệ thống không đủ để giải phóng cọc cho bồi thường");
         }
         const ad0 = adminWallet.balance;
-        adminWallet.balance -= fromDeposit;
+        adminWallet.balance -= fromDeposit; // Trừ từ quỹ escrow
         await adminWallet.save(saveSess(session));
+
         const sup0 = supplierWallet.balance;
         supplierWallet.balance += fromDeposit;
         await supplierWallet.save(saveSess(session));
+
         const txFromDeposit = await WalletTransaction.create(
           [
             {
@@ -169,7 +159,7 @@ async function applyCompensationWalletOnAdminApprove(session, { rental, proposal
               balanceAfter: adminWallet.balance,
               referenceType: "RENTAL",
               referenceId: rentalId,
-              description: `Giải phóng cọc cho bồi thường (admin duyệt) đơn #${shortId}`,
+              description: `Giải phóng cọc cho bồi thường sự cố (Admin duyệt) đơn #${shortId}`,
               status: "SUCCESS",
             },
             {
@@ -180,7 +170,7 @@ async function applyCompensationWalletOnAdminApprove(session, { rental, proposal
               balanceAfter: supplierWallet.balance,
               referenceType: "RENTAL",
               referenceId: rentalId,
-              description: `Bồi thường từ cọc tạm giữ (đơn #${shortId})`,
+              description: `Nhận tiền bồi thường trừ từ tiền cọc của khách (đơn #${shortId})`,
               status: "SUCCESS",
             },
           ],
@@ -194,15 +184,17 @@ async function applyCompensationWalletOnAdminApprove(session, { rental, proposal
       if (overDeposit > 0) {
         if (Number(customerWallet.balance) < overDeposit) {
           throw new Error(
-            `Số dư ví khách không đủ cho phần bồi thường vượt cọc (cần ${overDeposit.toLocaleString("vi-VN")}đ)`
+            `Ví khách không đủ số dư cho phần bồi thường vượt cọc (cần ${overDeposit.toLocaleString("vi-VN")}đ)`
           );
         }
         const c0 = customerWallet.balance;
         customerWallet.balance -= overDeposit;
         await customerWallet.save(saveSess(session));
+
         const s1 = supplierWallet.balance;
         supplierWallet.balance += overDeposit;
         await supplierWallet.save(saveSess(session));
+
         const txOver = await WalletTransaction.create(
           [
             {
@@ -213,7 +205,7 @@ async function applyCompensationWalletOnAdminApprove(session, { rental, proposal
               balanceAfter: customerWallet.balance,
               referenceType: "RENTAL",
               referenceId: rentalId,
-              description: `Bồi thường vượt cọc — trả NCC (đơn #${shortId})`,
+              description: `Bồi thường sự cố phần vượt quá tiền cọc (đơn #${shortId})`,
               status: "SUCCESS",
             },
             {
@@ -224,7 +216,7 @@ async function applyCompensationWalletOnAdminApprove(session, { rental, proposal
               balanceAfter: supplierWallet.balance,
               referenceType: "RENTAL",
               referenceId: rentalId,
-              description: `Nhận bồi thường phần vượt cọc (đơn #${shortId})`,
+              description: `Nhận bồi thường phần vượt cọc từ khách (đơn #${shortId})`,
               status: "SUCCESS",
             },
           ],
@@ -245,18 +237,21 @@ async function applyCompensationWalletOnAdminApprove(session, { rental, proposal
       compensationAuditLog("WALLET_SETTLE_DONE", { rentalId: String(rentalId), proposalId, ...outHeld });
       return outHeld;
     }
+
     if (depositRefunded) {
       if (Number(customerWallet.balance) < C) {
         throw new Error(
-          `Số dư ví khách không đủ để thanh toán bồi thường (cọc đã hoàn) — cần ${C.toLocaleString("vi-VN")}đ`
+          `Ví khách không đủ số dư để bồi thường (cần ${C.toLocaleString("vi-VN")}đ)`
         );
       }
       const c0 = customerWallet.balance;
       customerWallet.balance -= C;
       await customerWallet.save(saveSess(session));
+
       const s0 = supplierWallet.balance;
       supplierWallet.balance += C;
       await supplierWallet.save(saveSess(session));
+
       const txRef = await WalletTransaction.create(
         [
           {
@@ -267,7 +262,7 @@ async function applyCompensationWalletOnAdminApprove(session, { rental, proposal
             balanceAfter: customerWallet.balance,
             referenceType: "RENTAL",
             referenceId: rentalId,
-            description: `Bồi thường (cọc đã hoàn trước đó) đơn #${shortId}`,
+            description: `Bồi thường sự cố đơn #${shortId} (khấu trừ từ ví do cọc đã hoàn)`,
             status: "SUCCESS",
           },
           {
@@ -278,7 +273,7 @@ async function applyCompensationWalletOnAdminApprove(session, { rental, proposal
             balanceAfter: supplierWallet.balance,
             referenceType: "RENTAL",
             referenceId: rentalId,
-            description: `Nhận bồi thường (đơn #${shortId})`,
+            description: `Nhận tiền bồi thường sự cố từ khách (đơn #${shortId})`,
             status: "SUCCESS",
           },
         ],
@@ -305,15 +300,17 @@ async function applyCompensationWalletOnAdminApprove(session, { rental, proposal
   if (resolution === "CUSTOMER_PAY") {
     if (Number(customerWallet.balance) < C) {
       throw new Error(
-        `Số dư ví khách không đủ (CUSTOMER_PAY) — cần ${C.toLocaleString("vi-VN")}đ`
+        `Ví khách không đủ số dư cho phương án CUSTOMER_PAY (cần ${C.toLocaleString("vi-VN")}đ)`
       );
     }
     const c0 = customerWallet.balance;
     customerWallet.balance -= C;
     await customerWallet.save(saveSess(session));
+
     const s0 = supplierWallet.balance;
     supplierWallet.balance += C;
     await supplierWallet.save(saveSess(session));
+
     const txCpay = await WalletTransaction.create(
       [
         {
@@ -324,7 +321,7 @@ async function applyCompensationWalletOnAdminApprove(session, { rental, proposal
           balanceAfter: customerWallet.balance,
           referenceType: "RENTAL",
           referenceId: rentalId,
-          description: `Khách trả bồi thường (CUSTOMER_PAY) đơn #${shortId}`,
+          description: `Khách trả bồi thường sự cố (thỏa thuận trực tiếp) đơn #${shortId}`,
           status: "SUCCESS",
         },
         {
@@ -335,7 +332,7 @@ async function applyCompensationWalletOnAdminApprove(session, { rental, proposal
           balanceAfter: supplierWallet.balance,
           referenceType: "RENTAL",
           referenceId: rentalId,
-          description: `Nhận bồi thường từ khách (đơn #${shortId})`,
+          description: `Nhận tiền bồi thường từ khách (theo thỏa thuận) đơn #${shortId}`,
           status: "SUCCESS",
         },
       ],
@@ -356,15 +353,17 @@ async function applyCompensationWalletOnAdminApprove(session, { rental, proposal
   if (resolution === "SUPPLIER_BEAR") {
     if (Number(supplierWallet.balance) < C) {
       throw new Error(
-        `Số dư ví NCC không đủ (SUPPLIER_BEAR) — cần ${C.toLocaleString("vi-VN")}đ`
+        `Ví NCC không đủ số dư để bồi thường ngược cho khách (cần ${C.toLocaleString("vi-VN")}đ)`
       );
     }
     const s0 = supplierWallet.balance;
     supplierWallet.balance -= C;
     await supplierWallet.save(saveSess(session));
+
     const c0 = customerWallet.balance;
     customerWallet.balance += C;
     await customerWallet.save(saveSess(session));
+
     const txBear = await WalletTransaction.create(
       [
         {
@@ -375,7 +374,7 @@ async function applyCompensationWalletOnAdminApprove(session, { rental, proposal
           balanceAfter: supplierWallet.balance,
           referenceType: "RENTAL",
           referenceId: rentalId,
-          description: `NCC chịu bồi thường (SUPPLIER_BEAR) đơn #${shortId}`,
+          description: `NCC bồi thường ngược cho khách do lỗi từ phía NCC (đơn #${shortId})`,
           status: "SUCCESS",
         },
         {
@@ -386,7 +385,7 @@ async function applyCompensationWalletOnAdminApprove(session, { rental, proposal
           balanceAfter: customerWallet.balance,
           referenceType: "RENTAL",
           referenceId: rentalId,
-          description: `Bồi thường từ NCC (đơn #${shortId})`,
+          description: `Nhận tiền bồi thường từ NCC do sự cố đơn #${shortId}`,
           status: "SUCCESS",
         },
       ],

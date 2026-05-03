@@ -28,14 +28,13 @@ import { HiOutlineChatAlt2 } from "react-icons/hi";
 import {
   getSupplierIssues,
   patchSupplierIssueStatus,
-  supplierEscalateIssue,
   supplierIssueCancelRefund,
 } from "../../service/ApiService/ReportApi";
 import { createWorkOrderFromIssue, getDeviceItemsByDeviceIds } from "../../service/ApiService/MaintenanceApi";
 import { toast } from "react-toastify";
 import ReturnFailureDetailDialog from "../OperationStaff/tabs/handover/components/ReturnFailureDetailDialog";
-
 import AdditionalDeliveryDialog from "../../components/supplier/AdditionalDeliveryDialog";
+import EscalateIssueDialog from "../../components/supplier/EscalateIssueDialog";
 
 /* ─── Constants ───────────────────────────────────────────────────────────── */
 
@@ -317,6 +316,7 @@ export default function SupplierIssuesPage() {
   const [woDeviceItemsLoading, setWoDeviceItemsLoading] = useState(false);
 
   const [additionalDeliveryDialog, setAdditionalDeliveryDialog] = useState(null);
+  const [escalateIssue, setEscalateIssue] = useState(null);
   const previousProposalStateRef = useRef(new Map());
   const hasBootstrappedProposalRef = useRef(false);
 
@@ -660,6 +660,7 @@ export default function SupplierIssuesPage() {
               onIssueUpdated={loadIssues}
               onCreateWorkOrder={openWoIssueModal}
               onOpenAdditionalDelivery={setAdditionalDeliveryDialog}
+              onOpenEscalate={setEscalateIssue}
             />
           ))}
         </div>
@@ -734,6 +735,16 @@ export default function SupplierIssuesPage() {
         <AdditionalDeliveryDialog
           issue={additionalDeliveryDialog}
           onClose={() => setAdditionalDeliveryDialog(null)}
+          onSuccess={() => {
+            loadIssues();
+          }}
+        />
+      )}
+
+      {escalateIssue && (
+        <EscalateIssueDialog
+          issue={escalateIssue}
+          onClose={() => setEscalateIssue(null)}
           onSuccess={() => {
             loadIssues();
           }}
@@ -888,7 +899,7 @@ function StatCard({ label, value, color }) {
   );
 }
 
-function IssueCard({ issue, onImageClick, onOperationalDetail, onIssueUpdated, onCreateWorkOrder, onOpenAdditionalDelivery }) {
+function IssueCard({ issue, onImageClick, onOperationalDetail, onIssueUpdated, onCreateWorkOrder, onOpenAdditionalDelivery, onOpenEscalate }) {
   const [expanded, setExpanded] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -1171,13 +1182,7 @@ function IssueCard({ issue, onImageClick, onOperationalDetail, onIssueUpdated, o
                       return;
                     }
                     if (key === "escalate") {
-                      try {
-                        await supplierEscalateIssue(issue._id, {});
-                        toast.success("Đã gửi yêu cầu can thiệp tới GearXpert.");
-                        onIssueUpdated?.();
-                      } catch (err) {
-                        toast.error(err.response?.data?.message || err.message || "Không thể gửi yêu cầu can thiệp");
-                      }
+                      onOpenEscalate && onOpenEscalate(issue);
                       return;
                     }
                     if (key === "reply" || key === "evidence") {
