@@ -14,6 +14,7 @@ router.get('/dashboard/charts', checkAccessToken, checkAdmin, adminDashboardCont
 router.get('/rentals', checkAccessToken, checkAdmin, adminDashboardController.getAdminRentals);
 router.get('/reports', checkAccessToken, checkAdmin, adminDashboardController.getAdminReports);
 router.get('/suppliers', checkAccessToken, checkAdmin, adminDashboardController.getAdminSuppliers);
+router.get('/suppliers/:id', checkAccessToken, checkAdmin, adminDashboardController.getAdminSupplierDetail);
 router.get('/devices', checkAccessToken, checkAdmin, adminDashboardController.getAdminDevices);
 
 // Supplier onboarding (become supplier contract approval)

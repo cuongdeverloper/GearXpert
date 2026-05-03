@@ -17,6 +17,10 @@ export default function CompensationProposalCollapsible({
   suggestedResolutionOptions,
   compensationFlowLabels,
 }) {
+  const isResolved =
+    issue?.status === "RESOLVED" ||
+    issue?.compensationProposal?.adminDecision === "APPROVED";
+
   return (
     <section className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
       <div>
@@ -89,7 +93,8 @@ export default function CompensationProposalCollapsible({
           <select
             value={proposalForm.suggestedResolution}
             onChange={(e) => setProposalForm((prev) => ({ ...prev, suggestedResolution: e.target.value }))}
-            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            disabled={isResolved || proposalSubmitting}
+            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-slate-50 disabled:text-slate-500"
           >
             {suggestedResolutionOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -106,7 +111,8 @@ export default function CompensationProposalCollapsible({
             min="0"
             value={proposalForm.amount}
             onChange={(e) => setProposalForm((prev) => ({ ...prev, amount: e.target.value }))}
-            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            disabled={isResolved || proposalSubmitting}
+            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-slate-50 disabled:text-slate-500"
             placeholder="Ví dụ: 2500000"
           />
         </label>
@@ -117,7 +123,8 @@ export default function CompensationProposalCollapsible({
             type="text"
             value={proposalForm.reason}
             onChange={(e) => setProposalForm((prev) => ({ ...prev, reason: e.target.value }))}
-            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            disabled={isResolved || proposalSubmitting}
+            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-slate-50 disabled:text-slate-500"
             placeholder="Ví dụ: Màn hình bị sọc toàn phần, cần thay panel"
           />
         </label>
@@ -127,23 +134,26 @@ export default function CompensationProposalCollapsible({
           <textarea
             value={proposalForm.explanation}
             onChange={(e) => setProposalForm((prev) => ({ ...prev, explanation: e.target.value }))}
-            className="mt-1 w-full min-h-[100px] rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            disabled={isResolved || proposalSubmitting}
+            className="mt-1 w-full min-h-[100px] rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-slate-50 disabled:text-slate-500"
             placeholder="Mô tả tình trạng, căn cứ từ biên bản giao nhận, hướng xử lý và cơ sở chi phí sửa chữa..."
           />
         </label>
 
         <div>
           <label className="text-slate-600 text-xs">Ảnh chứng cứ bổ sung (tối đa 8 ảnh)</label>
-          <label className="mt-1 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 px-3 py-2 cursor-pointer hover:bg-slate-50">
+          <label className={`mt-1 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 px-3 py-2 ${isResolved ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-slate-50'}`}>
             <FiUpload size={14} />
             <span className="text-sm text-slate-700">Tải ảnh chứng cứ</span>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={onProposalImagesChange}
-            />
+            {!isResolved && (
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={onProposalImagesChange}
+              />
+            )}
           </label>
           {proposalImages.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-2">
@@ -162,41 +172,20 @@ export default function CompensationProposalCollapsible({
           )}
         </div>
 
-        <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            checked={proposalForm.directGearXpertReview === true}
-            onChange={(e) => {
-              const checked = e.target.checked;
-              setProposalForm((prev) => ({
-                ...prev,
-                directGearXpertReview: checked,
-                sendToCustomer: checked ? false : prev.sendToCustomer,
-                ...(checked ? { suggestedResolution: "REQUEST_GX_REVIEW" } : {}),
-              }));
-            }}
-            disabled={
-              proposalSubmitting || isSyntheticReturnIssue || issue?.status === "AWAITING_ADMIN_GX"
-            }
-            className="rounded border-slate-300"
-          />
-          <span className="leading-snug">
-            Nộp thẳng GearXpert: coi hai bên đã chờ GX xử lý đề xuất này —{" "}
-            <strong className="font-semibold text-slate-900">không chờ khách bấm xác nhận</strong>; admin là người duyệt
-            và quyết định bồi (vẫn dùng cùng đề xuất bên dưới). Gửi chat cho khách sẽ tắt tự động.
-          </span>
-        </label>
 
-        <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            checked={proposalForm.sendToCustomer}
-            disabled={proposalSubmitting || isSyntheticReturnIssue || proposalForm.directGearXpertReview === true}
-            onChange={(e) => setProposalForm((prev) => ({ ...prev, sendToCustomer: e.target.checked }))}
-            className="rounded border-slate-300"
-          />
-          Gửi nội dung đề xuất này qua chat trực tiếp cho khách ngay sau khi lưu
-        </label>
+
+        {!isResolved && (
+          <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={proposalForm.sendToCustomer}
+              disabled={proposalSubmitting || isSyntheticReturnIssue || proposalForm.directGearXpertReview === true}
+              onChange={(e) => setProposalForm((prev) => ({ ...prev, sendToCustomer: e.target.checked }))}
+              className="rounded border-slate-300"
+            />
+            Gửi nội dung đề xuất này qua chat trực tiếp cho khách ngay sau khi lưu
+          </label>
+        )}
 
         <button
           type="button"
@@ -204,12 +193,17 @@ export default function CompensationProposalCollapsible({
           disabled={
             proposalSubmitting ||
             isSyntheticReturnIssue ||
+            isResolved ||
             issue?.status === "AWAITING_ADMIN_GX"
           }
           className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <FiSend size={15} />
-          {proposalSubmitting ? "Đang gửi đề xuất..." : "Lưu đề xuất bồi thường"}
+          {isResolved
+            ? "Hồ sơ đã được duyệt quyết toán"
+            : proposalSubmitting
+            ? "Đang gửi đề xuất..."
+            : "Lưu đề xuất bồi thường"}
         </button>
       </div>
     </section>

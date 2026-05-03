@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
+import { Link } from "react-router-dom";
 import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
 import { FiSearch, FiEdit2, FiTrash2, FiCheck, FiX } from "react-icons/fi";
 import { getAdminSuppliers } from "../../service/ApiService/AdminDashboardApi";
@@ -96,30 +97,36 @@ export default function SuppliersPage() {
             </div>
 
             {/* Info Grid */}
-            <div className="mb-4 grid grid-cols-2 gap-3 border-t border-b border-slate-200 py-3">
+            <div className="mb-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-b border-slate-200 py-3">
               <div>
-                <p className="text-xs text-slate-500">Thiết bị</p>
+                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Loại thiết bị</p>
                 <p className="font-semibold text-slate-900">
-                  {supplier.totalDevices}
+                  {supplier.totalDevices} <span className="text-[10px] text-slate-400 font-normal">loại</span>
                 </p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Đơn thuê đang chạy</p>
+                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Tổng thiết bị</p>
+                <p className="font-semibold text-slate-900">
+                  {supplier.totalItems} <span className="text-[10px] text-slate-400 font-normal">đơn vị</span>
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Đơn đang chạy</p>
                 <p className="font-semibold text-slate-900">
                   {supplier.activeRentals}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Hạng</p>
-                <p className="font-semibold text-slate-900">{supplier.rank}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Xác minh</p>
-                <div className="flex gap-1">
+                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Xác minh</p>
+                <div className="flex gap-1 mt-0.5">
                   {supplier.isVerified ? (
-                    <FiCheck className="w-5 h-5 text-green-600" />
+                    <span className="flex items-center gap-1 text-green-600 font-semibold text-xs">
+                      <FiCheck size={14} /> Đã xác minh
+                    </span>
                   ) : (
-                    <FiX className="w-5 h-5 text-red-600" />
+                    <span className="flex items-center gap-1 text-red-500 font-semibold text-xs">
+                      <FiX size={14} /> Chưa xác minh
+                    </span>
                   )}
                 </div>
               </div>
@@ -134,14 +141,13 @@ export default function SuppliersPage() {
 
             {/* Actions */}
             <div className="flex gap-2">
-              <button className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-100 transition">
-                <FiEdit2 className="inline mr-1.5" size={14} />
-                Sửa
-              </button>
-              <button className="flex-1 px-3 py-2 rounded-lg border border-red-200 text-sm font-medium text-red-600 hover:bg-red-50 transition">
-                <FiTrash2 className="inline mr-1.5" size={14} />
-                Xóa
-              </button>
+              <Link
+                to={`/admin/suppliers/${supplier.id}`}
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm active:scale-95"
+              >
+                <FiSearch size={16} />
+                <span>Xem chi tiết NCC</span>
+              </Link>
             </div>
           </div>
         ))}

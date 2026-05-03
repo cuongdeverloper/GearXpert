@@ -131,3 +131,73 @@ exports.broadcastNotification = async (req, res) => {
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
+
+exports.getAdminBroadcastHistory = async (req, res) => {
+  try {
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 50);
+    const skip = (page - 1) * limit;
+
+    const history = await Notification.aggregate([
+      { $match: { type: 'ADMIN_BROADCAST' } },
+      {
+        $group: {
+          _id: {
+            title: "$title",
+            message: "$message",
+            link: "$link",
+            createdAt: "$createdAt"
+          },
+          sentCount: { $sum: 1 },
+          readCount: {
+            $sum: { $cond: ["$isRead", 1, 0] }
+          },
+          lastSentAt: { $max: "$createdAt" }
+        }
+      },
+      { $sort: { lastSentAt: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+      {
+        $project: {
+          _id: 0,
+          title: "$_id.title",
+          message: "$_id.message",
+          link: "$_id.link",
+          sentCount: 1,
+          readCount: 1,
+          createdAt: "$lastSentAt"
+        }
+      }
+    ]);
+
+    const totalCount = await Notification.aggregate([
+      { $match: { type: 'ADMIN_BROADCAST' } },
+      {
+        $group: {
+          _id: {
+            title: "$title",
+            message: "$message",
+            link: "$link",
+            createdAt: "$createdAt"
+          }
+        }
+      },
+      { $count: "total" }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      history,
+      pagination: {
+        page,
+        limit,
+        total: totalCount[0]?.total || 0,
+        totalPages: Math.ceil((totalCount[0]?.total || 0) / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Get broadcast history error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};

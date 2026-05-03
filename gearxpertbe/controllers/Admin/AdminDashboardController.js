@@ -333,6 +333,7 @@ exports.getAdminSuppliers = async (req, res) => {
         $group: {
           _id: "$supplierId",
           totalDevices: { $sum: 1 },
+          totalItems: { $sum: "$stockQuantity" },
           rentedDevices: {
             $sum: { $cond: [{ $gt: ["$rentedQuantity", 0] }, 1, 0] },
           },
@@ -364,6 +365,7 @@ exports.getAdminSuppliers = async (req, res) => {
       rank: supplier.rank,
       isVerified: supplier.isVerified,
       totalDevices: deviceCountMap[supplier._id.toString()]?.totalDevices || 0,
+      totalItems: deviceCountMap[supplier._id.toString()]?.totalItems || 0,
       activeRentals: activeRentalMap[supplier._id.toString()] || 0,
     }));
 
@@ -371,6 +373,68 @@ exports.getAdminSuppliers = async (req, res) => {
   } catch (error) {
     console.error("Admin suppliers error:", error);
     res.status(500).json({ message: "Failed to load suppliers" });
+  }
+};
+
+exports.getAdminSupplierDetail = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid ID" });
+    }
+
+    const supplier = await User.findById(id).select("-password");
+    if (!supplier || supplier.role !== "SUPPLIER") {
+      return res.status(404).json({ message: "Supplier not found" });
+    }
+
+    const profile = await SupplierProfile.findOne({ userId: id });
+
+    // Aggregate stats
+    const deviceStats = await Device.aggregate([
+      { $match: { supplierId: new mongoose.Types.ObjectId(id) } },
+      {
+        $group: {
+          _id: null,
+          totalDevices: { $sum: 1 },
+          totalItems: { $sum: "$stockQuantity" },
+          totalRented: { $sum: "$rentedQuantity" },
+          avgRating: { $avg: "$ratingAvg" },
+          totalReviews: { $sum: "$reviewCount" }
+        }
+      }
+    ]);
+
+    const activeStatuses = ["APPROVED", "DELIVERING", "RENTING", "RETURNING", "INSPECTING"];
+    const activeRentals = await Rental.countDocuments({
+      supplierId: id,
+      status: { $in: activeStatuses }
+    });
+
+    const recentRentals = await Rental.find({ supplierId: id })
+      .populate("customerId", "fullName email")
+      .sort({ createdAt: -1 })
+      .limit(5);
+
+    res.json({
+      success: true,
+      data: {
+        ...supplier.toObject(),
+        profile,
+        stats: {
+          totalDevices: deviceStats[0]?.totalDevices || 0,
+          totalItems: deviceStats[0]?.totalItems || 0,
+          totalRented: deviceStats[0]?.totalRented || 0,
+          avgRating: deviceStats[0]?.avgRating || 0,
+          totalReviews: deviceStats[0]?.totalReviews || 0,
+          activeRentals
+        },
+        recentRentals
+      }
+    });
+  } catch (error) {
+    console.error("Admin supplier detail error:", error);
+    res.status(500).json({ message: "Failed to load supplier details" });
   }
 };
 
