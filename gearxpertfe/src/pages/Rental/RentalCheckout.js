@@ -329,7 +329,7 @@ export default function CheckoutPage() {
       });
       toast.success(`Áp dụng voucher thành công! Giảm ${res.discount.toLocaleString()}đ`);
     } catch (err) {
-      toast.error(err.response?.data?.message || err.message || "Voucher không hợp lệ");
+      toast.error(err.response?.data?.message || "Voucher không hợp lệ");
     } finally {
       setIsApplyingVoucher(false);
     }
@@ -547,10 +547,10 @@ export default function CheckoutPage() {
         window.location.href = res.paymentLink.checkoutUrl;
       } else {
         // Wallet payment - show success
-        toast.success("Dat thuê thành công!");
+        toast.success("Đặt thuê thành công!");
       }
     } catch (err) {
-      toast.error(err.response?.message || "Thanh toán that bai");
+      toast.error(err.response?.data?.message || "Thanh toán thất bại");
     } finally {
       setIsProcessing(false);
     }

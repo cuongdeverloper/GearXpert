@@ -8,7 +8,7 @@ const { notifyFollowers } = require("../Supplier/SupplierController");
 
 exports.validateVoucher = async (req, res) => {
   const { code, cartType } = req.body;
-  const customerId = req.user.id;
+  const customerId = req.user._id;
 
   console.log(`[validateVoucher] Starting validation for code: "${code}", cartType: "${cartType}", customerId: ${customerId}`);
 
@@ -45,10 +45,10 @@ exports.validateVoucher = async (req, res) => {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-    // Kiểm tra xem mã NÀY đã được dùng trong tháng này chưa
+    // Kiểm tra xem mã NÀY đã được dùng trong tháng này chưa (Case-insensitive)
     const usedThisVoucher = await Rental.findOne({
-      customerId,
-      voucherCode: voucher.code,
+      customerId: new mongoose.Types.ObjectId(customerId),
+      voucherCode: { $regex: new RegExp(`^${voucher.code}$`, "i") },
       status: { $nin: ['CANCELLED', 'REJECTED'] },
       createdAt: { $gte: startOfMonth, $lte: endOfMonth }
     });
@@ -64,8 +64,8 @@ exports.validateVoucher = async (req, res) => {
   // (Trừ Voucher có gán RANK vì loại này được reset hàng tháng ở bước trên)
   if (!voucher.applicableRank) {
     const usageCheck = await Rental.findOne({
-      customerId,
-      voucherCode: voucher.code,
+      customerId: new mongoose.Types.ObjectId(customerId),
+      voucherCode: { $regex: new RegExp(`^${voucher.code}$`, "i") },
       status: { $nin: ["CANCELLED", "REJECTED"] },
     });
 
@@ -170,7 +170,7 @@ exports.getAllVouchers = async (req, res) => {
     let userRank = null;
 
     // Nếu đã đăng nhập, lấy hạng của User từ DB
-    const userId = req.user?.id || req.user?._id;
+    const userId = req.user?._id || req.user?._id;
     
     if (userId) {
       try {
@@ -247,10 +247,10 @@ exports.getAllVouchers = async (req, res) => {
     );
 
     // MỚI: Nếu người dùng đã đăng nhập, lọc bỏ các voucher đã sử dụng
-    if (req.user && req.user.id) {
-      const customerId = req.user.id;
+    if (req.user && req.user._id) {
+      const customerId = req.user._id;
       const usedVoucherCodes = await Rental.find({
-        customerId,
+        customerId: new mongoose.Types.ObjectId(customerId),
         voucherCode: { $exists: true, $ne: null },
         status: { $nin: ["CANCELLED", "REJECTED"] },
       }).distinct("voucherCode");
@@ -398,7 +398,7 @@ exports.deleteVoucher = async (req, res) => {
 exports.deleteVoucherBySupplier = async (req, res) => {
   try {
     const { id } = req.params;
-    const supplierId = req.user.id;
+    const supplierId = req.user._id;
 
     // Tìm voucher và kiểm tra quyền sở hữu
     const voucher = await Voucher.findOne({ _id: id, supplierId });
@@ -497,7 +497,7 @@ exports.updateVoucherByAdmin = async (req, res) => {
 
 exports.getVouchersBySupplier = async (req, res) => {
   try {
-    const supplierId = req.user.id;
+    const supplierId = req.user._id;
     // Chủ shop xem tất cả mã của mình (kể cả hết hạn/hết lượt)
     const vouchersRaw = await Voucher.find({ supplierId }).sort({ createdAt: -1 }).lean();
 
@@ -515,10 +515,10 @@ exports.getVouchersBySupplier = async (req, res) => {
 
     // MỚI: Nếu người dùng đã đăng nhập (đây là API public lấy list của shop), lọc bỏ voucher đã dùng
     // (Lưu ý: req.user ở đây có thể là bất kỳ ai đang xem shop đó)
-    if (req.user && req.user.id) {
-      const viewerId = req.user.id;
+    if (req.user && req.user._id) {
+      const viewerId = req.user._id;
       const usedVoucherCodes = await Rental.find({
-        customerId: viewerId,
+        customerId: new mongoose.Types.ObjectId(viewerId),
         voucherCode: { $exists: true, $ne: null },
         status: { $nin: ["CANCELLED", "REJECTED"] },
       }).distinct("voucherCode");
@@ -541,7 +541,7 @@ exports.getVouchersBySupplier = async (req, res) => {
 
 exports.createVoucherBySupplier = async (req, res) => {
   try {
-    const supplierId = req.user.id;
+    const supplierId = req.user._id;
     const {
       code,
       description,
@@ -614,7 +614,7 @@ exports.updateVoucherStatusBySupplier = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    const supplierId = req.user.id;
+    const supplierId = req.user._id;
 
     if (!["ACTIVE", "INACTIVE"].includes(status)) {
       return res.status(400).json({
@@ -654,12 +654,12 @@ exports.updateVoucherStatusBySupplier = async (req, res) => {
 exports.getBestVoucherForCart = async (req, res) => {
   try {
     const { cartType } = req.query;
-    const customerId = req.user.id;
+    const customerId = req.user._id;
 
     // 1. Lấy giỏ hàng
     const cart = await Cart.findOne({
-      customerId,
-      cartType: cartType || 'RENT'
+      customerId: new mongoose.Types.ObjectId(customerId),
+      cartType: cartType || 'NORMAL'
     }).populate({
       path: "items",
       populate: {
@@ -703,7 +703,7 @@ exports.getBestVoucherForCart = async (req, res) => {
     const rankCodes = rankVouchersInDB.map(rv => rv.code);
 
     const usedRankCodesThisMonth = await Rental.find({
-      customerId,
+      customerId: new mongoose.Types.ObjectId(customerId),
       voucherCode: { $in: rankCodes },
       status: { $nin: ['CANCELLED', 'REJECTED'] },
       createdAt: { $gte: startOfMonth, $lte: endOfMonth }
@@ -758,10 +758,10 @@ exports.getBestVoucherForCart = async (req, res) => {
         }
       });
 
-      // Kiểm tra xem người dùng đã dùng voucher này chưa
+      // Kiểm tra xem người dùng đã dùng voucher này chưa (Case-insensitive)
       const usageCheck = await Rental.findOne({
-        customerId,
-        voucherCode: voucher.code,
+        customerId: new mongoose.Types.ObjectId(customerId),
+        voucherCode: { $regex: new RegExp(`^${voucher.code}$`, 'i') },
         status: { $nin: ['CANCELLED', 'REJECTED'] }
       });
 
@@ -819,7 +819,7 @@ exports.getBestVoucherForCart = async (req, res) => {
 // Get available vouchers for a specific cart
 exports.getAvailableVouchersForCart = async (req, res) => {
   try {
-    const customerId = req.user.id;
+    const customerId = req.user._id;
     const { cartType } = req.query;
 
     const User = require('../../models/User');
@@ -829,8 +829,8 @@ exports.getAvailableVouchersForCart = async (req, res) => {
     console.log(`[getAvailableVouchersForCart] customerId: ${customerId}, cartType: ${cartType}`);
 
     const cart = await Cart.findOne({
-      customerId,
-      cartType: cartType || "RENTAL"
+      customerId: new mongoose.Types.ObjectId(customerId),
+      cartType: cartType || "NORMAL"
     }).populate({
       path: "items",
       populate: {
@@ -894,7 +894,7 @@ exports.getAvailableVouchersForCart = async (req, res) => {
 
     // 2. Lấy voucher thường đã dùng (loại trừ voucher Rank)
     const usedVoucherCodesEver = await Rental.find({
-      customerId,
+      customerId: new mongoose.Types.ObjectId(customerId),
       voucherCode: { $exists: true, $ne: null, $nin: rankCodes },
       status: { $nin: ['CANCELLED', 'REJECTED'] }
     }).distinct('voucherCode');
@@ -905,7 +905,7 @@ exports.getAvailableVouchersForCart = async (req, res) => {
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
     
     const usedRankThisMonth = await Rental.find({
-      customerId,
+      customerId: new mongoose.Types.ObjectId(customerId),
       voucherCode: { $in: rankCodes },
       status: { $nin: ['CANCELLED', 'REJECTED'] },
       createdAt: { $gte: startOfMonth, $lte: endOfMonth }
@@ -913,10 +913,12 @@ exports.getAvailableVouchersForCart = async (req, res) => {
 
     // 4. Lọc danh sách cuối cùng
     const filteredVouchers = vouchers.filter(v => {
+      const vCodeUpper = v.code.toUpperCase();
+      
       // Nếu là voucher Rank
       if (v.applicableRank) {
         // Kiểm tra xem CHÍNH MÃ NÀY đã được dùng trong tháng này chưa
-        const isAlreadyUsedThisMonth = usedRankThisMonth.includes(v.code);
+        const isAlreadyUsedThisMonth = usedRankThisMonth.some(code => code.toUpperCase() === vCodeUpper);
         if (isAlreadyUsedThisMonth) return false;
         
         // Chuẩn hóa rank từ DB để so sánh
@@ -932,8 +934,8 @@ exports.getAvailableVouchersForCart = async (req, res) => {
         return true;
       }
       
-      // Nếu là voucher thường: Ẩn nếu đã dùng bao giờ rồi
-      return !usedVoucherCodesEver.includes(v.code);
+      // Nếu là voucher thường: Ẩn nếu đã dùng bao giờ rồi (Case-insensitive)
+      return !usedVoucherCodesEver.some(code => code.toUpperCase() === vCodeUpper);
     });
 
     const availableVouchers = filteredVouchers.map(v => {
@@ -1005,12 +1007,12 @@ exports.getAvailableVouchersForCart = async (req, res) => {
 // Auto-apply best voucher for cart
 exports.autoApplyBestVoucher = async (req, res) => {
   try {
-    const customerId = req.user.id;
+    const customerId = req.user._id;
     const { cartType } = req.body;
 
     const cart = await Cart.findOne({
-      customerId,
-      cartType: cartType || "RENTAL"
+      customerId: new mongoose.Types.ObjectId(customerId),
+      cartType: cartType || "NORMAL"
     }).populate({
       path: "items",
       populate: {
@@ -1075,13 +1077,13 @@ exports.autoApplyBestVoucher = async (req, res) => {
 
     // Lọc bỏ những voucher người dùng đã sử dụng
     const usedVoucherCodes = await Rental.find({
-      customerId,
+      customerId: new mongoose.Types.ObjectId(customerId),
       voucherCode: { $exists: true, $ne: null },
       status: { $nin: ["CANCELLED", "REJECTED"] },
     }).distinct("voucherCode");
 
     const usedRankCodesThisMonth = await Rental.find({
-      customerId,
+      customerId: new mongoose.Types.ObjectId(customerId),
       voucherCode: { $in: rankCodes },
       status: { $nin: ['CANCELLED', 'REJECTED'] },
       createdAt: { $gte: startOfMonth, $lte: endOfMonth }
@@ -1089,19 +1091,27 @@ exports.autoApplyBestVoucher = async (req, res) => {
 
     // Lọc bỏ những voucher không hợp lệ (hạng không khớp hoặc đã dùng)
     const filteredVouchers = vouchers.filter((v) => {
+      const vCodeUpper = v.code.toUpperCase();
+
       // Nếu là Voucher Rank
       if (v.applicableRank) {
         const dbRank = v.applicableRank.trim().toUpperCase();
-        // 1. Phải khớp hạng
-        if (dbRank !== userRank) return false;
+        
+        // 1. Phải khớp hạng hoặc cao hơn (Hierarchical)
+        const rankWeights = { BRONZE: 1, SILVER: 2, GOLD: 3, PLATINUM: 4, DIAMOND: 5 };
+        const userWeight = rankWeights[userRank] || 1;
+        const voucherWeight = rankWeights[dbRank] || 1;
+        if (userWeight < voucherWeight) return false;
+
         // 2. Chưa dùng mã này trong tháng (hỗ trợ thăng hạng)
-        if (usedRankCodesThisMonth.includes(v.code)) return false;
+        if (usedRankCodesThisMonth.some(code => code.toUpperCase() === vCodeUpper)) return false;
         return true;
       }
 
       // Nếu là Voucher thường
-      // Check đã dùng chưa
-      if (usedVoucherCodes.includes(v.code)) return false;
+      // Check đã dùng chưa (Case-insensitive)
+      if (usedVoucherCodes.some(code => code.toUpperCase() === vCodeUpper)) return false;
+
       // Check còn lượt sử dụng không
       if (v.usageLimit !== undefined && v.usageLimit !== null) {
         if (v.usageLimit <= 0 || v.usedCount >= v.usageLimit) return false;
