@@ -1,10 +1,19 @@
 import { useState, useEffect, useCallback } from "react";
 import { useDispatch } from "react-redux";
 import { showAdminLoading, hideAdminLoading } from "../../redux/action/appAction";
-import { 
-  FiSearch, FiCheckCircle, FiAlertCircle, FiClock, FiX, 
-  FiCalendar, FiHash, FiUser, FiBox, FiDollarSign, FiFilter,
-  FiChevronRight, FiMapPin, FiTruck, FiRefreshCw, FiExternalLink
+import {
+  FiSearch,
+  FiCheckCircle,
+  FiAlertCircle,
+  FiClock,
+  FiX,
+  FiCalendar,
+  FiUser,
+  FiBox,
+  FiDollarSign,
+  FiFilter,
+  FiTruck,
+  FiRefreshCw,
 } from "react-icons/fi";
 import { getAdminRentals } from "../../service/ApiService/AdminDashboardApi";
 import Pagination from "../../components/common/Pagination";

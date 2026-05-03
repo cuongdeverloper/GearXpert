@@ -140,7 +140,8 @@ const Message = ({ message, own, showTime, receiver, handleDelete }) => {
     const resolutionLabelMap = {
       CUSTOMER_PAY: "Đề xuất khách đền bù",
       SUPPLIER_BEAR: "Supplier tự chịu",
-      REQUEST_GX_REVIEW: "Nhờ GearXpert đánh giá",
+      REQUEST_GX_REVIEW: "Điều phối từ cọc (GX)",
+      PLATFORM_LIABILITY: "Hệ thống đền bù thiệt hại",
     };
     const actionLink = payload.link || payload.customerLink || payload.supplierLink;
     const issueIdFromLink = String(payload.supplierLink || "").match(/\/supplier\/issues\/([^/?#]+)/)?.[1] || null;

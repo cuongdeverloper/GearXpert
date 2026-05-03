@@ -64,6 +64,7 @@ const STATUS_LABELS = {
   OPEN: "Mở",
   PROCESSING: "Đang xử lý",
   WAITING_EVIDENCE: "Chờ bằng chứng",
+  AWAITING_ADMIN_GX: "Chờ Admin GX",
   RESOLVED: "Đã xử lý",
   REJECTED: "Từ chối",
   VERIFIED: "Đã xác nhận",
@@ -73,6 +74,7 @@ const STATUS_STYLES = {
   OPEN: "bg-red-50 text-red-700 border-red-200",
   PROCESSING: "bg-amber-50 text-amber-700 border-amber-200",
   WAITING_EVIDENCE: "bg-violet-50 text-violet-700 border-violet-200",
+  AWAITING_ADMIN_GX: "bg-sky-50 text-sky-800 border-sky-200",
   RESOLVED: "bg-green-50 text-green-700 border-green-200",
   REJECTED: "bg-slate-50 text-slate-700 border-slate-200",
   VERIFIED: "bg-blue-50 text-blue-700 border-blue-200",
@@ -80,8 +82,10 @@ const STATUS_STYLES = {
 
 const COMPENSATION_FLOW_LABELS = {
   PROPOSED: "Mới tạo đề xuất",
+  PENDING_PARTY_REVIEW: "Chờ khách & shop (GX)",
   CUSTOMER_ACCEPTED: "Khách đã xác nhận",
   CUSTOMER_REJECTED: "Khách đã từ chối",
+  SUPPLIER_ACCEPTED: "Shop OK — chờ khách",
   SUPPLIER_REJECTED: "Supplier đã hủy",
   PENDING_ADMIN_REVIEW: "Chờ admin duyệt",
   ADMIN_APPROVED: "Admin đã duyệt",
@@ -90,8 +94,10 @@ const COMPENSATION_FLOW_LABELS = {
 
 const COMPENSATION_FLOW_STYLES = {
   PROPOSED: "bg-slate-50 text-slate-700 border-slate-200",
+  PENDING_PARTY_REVIEW: "bg-sky-50 text-sky-800 border-sky-200",
   CUSTOMER_ACCEPTED: "bg-blue-50 text-blue-700 border-blue-200",
   CUSTOMER_REJECTED: "bg-rose-50 text-rose-700 border-rose-200",
+  SUPPLIER_ACCEPTED: "bg-violet-50 text-violet-800 border-violet-200",
   SUPPLIER_REJECTED: "bg-rose-50 text-rose-700 border-rose-200",
   PENDING_ADMIN_REVIEW: "bg-amber-50 text-amber-700 border-amber-200",
   ADMIN_APPROVED: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -1136,7 +1142,7 @@ function IssueCard({ issue, onImageClick, onOperationalDetail, onIssueUpdated, o
                       ? issue.status !== "OPEN"
                       : !["OPEN", "PROCESSING"].includes(issue.status))) ||
                   (isCustomAction &&
-                    !["OPEN", "PROCESSING", "PENDING_RESOLUTION"].includes(issue.status));
+                    !["OPEN", "PROCESSING", "WAITING_EVIDENCE", "AWAITING_ADMIN_GX"].includes(issue.status));
                 return (
                 <button
                   key={key}

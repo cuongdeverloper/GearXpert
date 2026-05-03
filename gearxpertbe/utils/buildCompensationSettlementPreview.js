@@ -4,9 +4,12 @@
  */
 
 const SUGGESTED_RESOLUTION_LABEL = {
-  CUSTOMER_PAY: "Khách thanh toán bồi thường",
-  SUPPLIER_BEAR: "Nhà cung cấp chịu khoản bồi thường",
-  REQUEST_GX_REVIEW: "Cần phối hợp / đánh giá (GearXpert)",
+  CUSTOMER_PAY: "Khách đền bù",
+  SUPPLIER_BEAR: "NCC chịu trách nhiệm",
+  /** Điều phối từ cọc tạm giữ / ví khách (phần vượt) — không đồng nghĩa chi quỹ lỗi vận hành */
+  REQUEST_GX_REVIEW: "Điều phối từ cọc (GX)",
+  /** Lỗi shipper/staff nền tảng: chi C từ ví hệ thống → NCC */
+  PLATFORM_LIABILITY: "Hệ thống đền bù thiệt hại",
 };
 
 const {
@@ -45,7 +48,17 @@ function makeDepositHeldByPlatformRow(deposit) {
   };
 }
 
-function makeSettlementRentBlockRows(rentTotal, platformFee, supplierFromRent, C) {
+function compensationApprovedRowLabel(resolution) {
+  const m = {
+    CUSTOMER_PAY: "Mức bồi thường C (ô duyệt) — khách trả NCC",
+    SUPPLIER_BEAR: "Mức bồi thường C (ô duyệt) — NCC chịu",
+    PLATFORM_LIABILITY: "Mức bồi thường C (ô duyệt) — ví nền tảng chi cho NCC",
+    REQUEST_GX_REVIEW: "Mức bồi thường C (ô duyệt) — điều phối từ cọc / ví",
+  };
+  return m[resolution] || m.REQUEST_GX_REVIEW;
+}
+
+function makeSettlementRentBlockRows(rentTotal, platformFee, supplierFromRent, C, resolution = "REQUEST_GX_REVIEW") {
   return [
     {
       key: "section_rent",
@@ -63,7 +76,7 @@ function makeSettlementRentBlockRows(rentTotal, platformFee, supplierFromRent, C
     },
     {
       key: "comp",
-      label: "Mức bồi thường (ô duyệt) — khoản khách bù cho NCC",
+      label: compensationApprovedRowLabel(resolution),
       amount: C,
       kind: "primary",
     },
@@ -77,7 +90,7 @@ function pushRowsForCustomerPay(
   rows.push(
     {
       key: "flow",
-      label: "Luồng bồi thường (CUSTOMER_PAY)",
+      label: "Luồng Khách đền bù (CUSTOMER_PAY)",
       valueText:
         "C ghi nhận qua kênh thanh toán tách (không trừ sổ cọc), nhưng tác động ròng tới khách tương đương: hoàn cọc − C (giống cọc − min(C, cọc)). NCC minh họa: thuê (sau phí) + C.",
       kind: "narrative",
@@ -111,11 +124,47 @@ function pushRowsForCustomerPay(
   });
 }
 
+function pushRowsForPlatformLiability(rows, { platformFee, supplierFromRent, C, deposit, supplierTotalIllustrative }) {
+  rows.push(
+    {
+      key: "flow_platform_liability",
+      label: "Luồng Hệ thống đền bù thiệt hại",
+      valueText:
+        "Áp dụng khi lỗi thuộc shipper/staff nền tảng: ghi sổ trừ ví hệ thống (isSystem) và cộng NCC đúng C. Không trừ ví khách cho khoản này; không dùng cọc làm nguồn bù.",
+      kind: "narrative",
+    },
+    {
+      key: "platform_wallet_out",
+      label: "Chi từ ví nền tảng → NCC (minh họa = C)",
+      amount: C,
+      kind: "out",
+    },
+    {
+      key: "platform_net_illustrative",
+      label: "Nền tảng — ròng minh họa (phí thuê 10% − chi bồi thường C)",
+      amount: platformFee - C,
+      kind: "context",
+    },
+    {
+      key: "supplier_receives_damage_pay",
+      label: "NCC — thuê ròng + nhận bồi thường C (minh họa)",
+      amount: supplierTotalIllustrative,
+      kind: "in",
+    },
+    {
+      key: "customer_deposit_no_deduct",
+      label: "Khách — hoàn cọc minh họa (không trừ C vào cọc trong nhánh này)",
+      amount: deposit,
+      kind: "in",
+    }
+  );
+}
+
 function pushRowsForSupplierBear(rows, supplierTotalIllustrative) {
   rows.push(
     {
       key: "flow",
-      label: "Luồng bồi thường (SUPPLIER_BEAR)",
+      label: "Luồng NCC chịu trách nhiệm (SUPPLIER_BEAR)",
       valueText:
         "Khoản C do NCC chịu — tạm trừ vào phần nhận từ thuê (tối đa 0). Cọc không dùng để tính bù trong nhánh này.",
       kind: "narrative",
@@ -179,11 +228,17 @@ function computePartySummary(resolution, {
   depositRefundToCustomer,
   overDeposit,
   supplierTotalIllustrative,
+  C,
 }) {
   let customerAmount = depositRefundToCustomer;
   let customerNote =
     "Đúng: tiền khách nhận lại = cọc trừ đi phần bồi thường lấy từ cọc: (cọc − min(mức bồi thường C, cọc)). Khi C ≤ cọc thì còn = cọc − C; khi C > cọc thì hoàn cọc = 0 và phần vượt xử lý riêng (dòng cảnh báo).";
   let customerRowLabel = "Khách hàng — hoàn cọc sau trừ bồi thường (minh họa)";
+
+  let platformAmount = platformFee;
+  let platformRowLabel = "Nền tảng — phí giữ (10% trên tiền thuê)";
+  let platformDetail =
+    "Phí 10% trên rentPriceTotal; giữ lại khi chốt đơn (cùng logic confirm return).";
 
   if (resolution === "CUSTOMER_PAY") {
     customerAmount = depositRefundToCustomer;
@@ -195,33 +250,52 @@ function computePartySummary(resolution, {
     customerNote =
       "Nhánh NCC chịu C: bản tạm tính coi khách nhận lại cả cọc; không trừ cọc cho bồi thường.";
     customerRowLabel = "Khách hàng — hoàn cọc (minh họa, NCC chịu bồi thường)";
+  } else if (resolution === "PLATFORM_LIABILITY") {
+    customerAmount = deposit;
+    customerNote =
+      "PLATFORM_LIABILITY: nền tảng chi C cho NCC từ ví hệ thống; minh họa khách nhận lại toàn bộ cọc (không trừ C vào cọc).";
+    customerRowLabel = "Khách hàng — hoàn cọc (minh họa)";
+    platformAmount = platformFee - C;
+    platformRowLabel = "Nền tảng — ròng minh họa (phí thuê − chi bồi thường C)";
+    platformDetail =
+      "Chi C từ quỹ ví hệ thống cho NCC. Cột minh họa = phí 10% trên thuê − C (âm = chi vượt phần phí so với mô hình đơn giản).";
   }
+
+  let supplierDetail =
+    resolution === "CUSTOMER_PAY"
+      ? "Từ thuê (sau phí) + bồi thường C."
+      : resolution === "SUPPLIER_BEAR"
+        ? "Còn lại từ thuê sau khi NCC chịu C (≥ 0)."
+        : resolution === "PLATFORM_LIABILITY"
+          ? "Từ thuê (sau phí) + bồi thường C do nền tảng chi."
+          : "Từ thuê (sau phí) + phần từ cọc (minh họa).";
+
+  const extraPayIfOverDeposit =
+    resolution === "PLATFORM_LIABILITY"
+      ? 0
+      : resolution !== "SUPPLIER_BEAR" && overDeposit > 0
+        ? overDeposit
+        : 0;
 
   return {
     platform: {
-      amount: platformFee,
+      amount: platformAmount,
       label: "Nền tảng",
-      rowLabel: "Nền tảng — phí giữ (10% trên tiền thuê)",
-      detail: "Phí 10% trên rentPriceTotal; giữ lại khi chốt đơn (cùng logic confirm return).",
+      rowLabel: platformRowLabel,
+      detail: platformDetail,
     },
     customer: {
       amount: customerAmount,
       label: "Khách hàng",
       rowLabel: customerRowLabel,
       detail: customerNote,
-      extraPayIfOverDeposit:
-        resolution !== "SUPPLIER_BEAR" && overDeposit > 0 ? overDeposit : 0,
+      extraPayIfOverDeposit,
     },
     supplier: {
       amount: supplierTotalIllustrative,
       label: "NCC",
       rowLabel: "NCC — tổng dự kiến nhận (minh họa)",
-      detail:
-        resolution === "CUSTOMER_PAY"
-          ? "Từ thuê (sau phí) + bồi thường C."
-          : resolution === "SUPPLIER_BEAR"
-            ? "Còn lại từ thuê sau khi NCC chịu C (≥ 0)."
-            : "Từ thuê (sau phí) + phần từ cọc (minh họa).",
+      detail: supplierDetail,
     },
   };
 }
@@ -266,10 +340,15 @@ function buildFootNotes(rental, { overDeposit, resolution }) {
     "Đây là tạm tính tham khảo (UI). Ghi sổ ví / escrow thực tế tại bước nghiệp vụ tương ứng (ví dụ chốt trả hàng) có thể khác thời điểm admin duyệt đề xuất.",
     "Cách chia tiền thuê (10% phí nền tảng, phần còn cho NCC) thống nhất với luồng `confirmReturn` (RentalController).",
   ];
+  if (resolution === "PLATFORM_LIABILITY") {
+    footNotes.push(
+      "Hệ thống đền bù thiệt hại: khi duyệt, hệ thống trừ đúng C trên ví nền tảng (isSystem) nếu đủ số dư; không dùng cọc khách làm nguồn cho khoản này."
+    );
+  }
   if (rental?.depositStatus === "REFUNDED" || rental?.escrowStatus === "RELEASED") {
     footNotes.push("Lưu ý: cọc/escrow có thể đã xử lý trên hệ thống — số tạm tính cọc theo hồ sơ đơn, có thể lệch thực tế.");
   }
-  if (overDeposit > 0 && resolution !== "SUPPLIER_BEAR") {
+  if (overDeposit > 0 && resolution !== "SUPPLIER_BEAR" && resolution !== "PLATFORM_LIABILITY") {
     footNotes.push("Khi C > cọc: khoản vượt thường cần thu riêng từ khách (nếu hướng xử lý nghiệp vụ yêu cầu).");
   }
   return footNotes;
@@ -297,7 +376,7 @@ function buildCompensationSettlementPreview({ rental, proposal, approvedAmount: 
   const rows = [
     ...makeSettlementRentalInfoRows(rental),
     makeDepositHeldByPlatformRow(deposit),
-    ...makeSettlementRentBlockRows(rentTotal, platformFee, supplierFromRent, C),
+    ...makeSettlementRentBlockRows(rentTotal, platformFee, supplierFromRent, C, resolution),
   ];
   if (resolution === "CUSTOMER_PAY") {
     pushRowsForCustomerPay(rows, {
@@ -309,7 +388,22 @@ function buildCompensationSettlementPreview({ rental, proposal, approvedAmount: 
     });
   } else if (resolution === "SUPPLIER_BEAR") {
     pushRowsForSupplierBear(rows, supplierTotalIllustrative);
+  } else if (resolution === "PLATFORM_LIABILITY") {
+    pushRowsForPlatformLiability(rows, {
+      platformFee,
+      supplierFromRent,
+      C,
+      deposit,
+      supplierTotalIllustrative,
+    });
   } else {
+    rows.push({
+      key: "flow_deposit_orchestration",
+      label: "Luồng Điều phối từ cọc (REQUEST_GX_REVIEW)",
+      valueText:
+        "Nền tảng điều phối bồi thường từ cọc đang tạm giữ (và phần vượt cọc qua ví khách khi cần), khớp ghi sổ khi admin duyệt — khác «Khách đền bù», «NCC chịu», và «Hệ thống đền bù thiệt hại» (chi thẳng từ ví nền tảng).",
+      kind: "narrative",
+    });
     pushRowsForDepositDefaultPath(rows, {
       deposit,
       fromDeposit,
@@ -327,6 +421,7 @@ function buildCompensationSettlementPreview({ rental, proposal, approvedAmount: 
     depositRefundToCustomer,
     overDeposit,
     supplierTotalIllustrative,
+    C,
   });
   appendThreePartySummaryRows(rows, partySummary);
 
@@ -357,11 +452,18 @@ function buildCompensationSettlementPreview({ rental, proposal, approvedAmount: 
       depositHeldByPlatformOnRecord: deposit,
       compensationApproved: C,
       fromDepositForCompensation:
-        resolution === "SUPPLIER_BEAR" || resolution === "CUSTOMER_PAY" ? 0 : fromDeposit,
+        resolution === "SUPPLIER_BEAR" ||
+        resolution === "CUSTOMER_PAY" ||
+        resolution === "PLATFORM_LIABILITY"
+          ? 0
+          : fromDeposit,
       /** Ròng khách (cọc − min(C,cọc)) — cả nhánh C thu tách vẫn dùng cùng số minh họa tác động. */
       depositRefundToCustomerIllustrative:
-        resolution === "SUPPLIER_BEAR" ? null : depositRefundToCustomer,
-      overCompensationVsDeposit: resolution === "SUPPLIER_BEAR" ? 0 : overDeposit,
+        resolution === "SUPPLIER_BEAR" || resolution === "PLATFORM_LIABILITY"
+          ? null
+          : depositRefundToCustomer,
+      overCompensationVsDeposit:
+        resolution === "SUPPLIER_BEAR" || resolution === "PLATFORM_LIABILITY" ? 0 : overDeposit,
       supplierTotalIllustrative,
       /** Ba bên: số tiền minh họa (VND) */
       platformReceives: partySummary.platform.amount,

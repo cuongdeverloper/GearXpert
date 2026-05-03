@@ -80,6 +80,59 @@ async function applyCompensationWalletOnAdminApprove(session, { rental, proposal
   let customerPaidFromWallet = 0;
   let supplierReceivedTotal = 0;
 
+  /** Lỗi vận hành nền tảng (shipper/staff): trừ ví hệ thống, cộng NCC — không dùng cọc / ví khách. */
+  if (resolution === "PLATFORM_LIABILITY") {
+    if (Number(adminWallet.balance) < C) {
+      throw new Error(
+        `Số dư ví hệ thống không đủ (Hệ thống đền bù thiệt hại) — cần ${C.toLocaleString("vi-VN")}đ`
+      );
+    }
+    const ad0 = adminWallet.balance;
+    adminWallet.balance -= C;
+    await adminWallet.save(saveSess(session));
+    const s0 = supplierWallet.balance;
+    supplierWallet.balance += C;
+    await supplierWallet.save(saveSess(session));
+    const txPl = await WalletTransaction.create(
+      [
+        {
+          wallet: adminWallet._id,
+          type: "ADJUSTMENT",
+          amount: -C,
+          balanceBefore: ad0,
+          balanceAfter: adminWallet.balance,
+          referenceType: "RENTAL",
+          referenceId: rentalId,
+          description: `Bồi thường thiệt hại — ví nền tảng → NCC (PLATFORM_LIABILITY) đơn #${shortId}`,
+          status: "SUCCESS",
+        },
+        {
+          wallet: supplierWallet._id,
+          type: "PAYOUT",
+          amount: C,
+          balanceBefore: s0,
+          balanceAfter: supplierWallet.balance,
+          referenceType: "RENTAL",
+          referenceId: rentalId,
+          description: `Nhận bồi thường thiệt hại từ nền tảng (đơn #${shortId})`,
+          status: "SUCCESS",
+        },
+      ],
+      txSess(session)
+    );
+    logWalletTxBatch("PLATFORM_LIABILITY", txPl);
+    const outPl = {
+      applied: true,
+      mode: "PLATFORM_LIABILITY",
+      deductedFromDeposit: 0,
+      customerPaidFromWallet: 0,
+      supplierReceivedTotal: C,
+      platformPaidFromWallet: C,
+    };
+    compensationAuditLog("WALLET_SETTLE_DONE", { rentalId: String(rentalId), proposalId, ...outPl });
+    return outPl;
+  }
+
   if (resolution === "REQUEST_GX_REVIEW") {
     if (depositHeld) {
       const { fromDeposit, overDeposit, depositRefundToCustomer } = splitDepositForCompensation(

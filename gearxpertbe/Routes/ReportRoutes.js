@@ -143,11 +143,35 @@ ReportRouter.post(
   adminCompensationProposalCtrl.adminReviewCompensationProposal
 );
 
+ReportRouter.post(
+  "/admin/issues/:issueId/compensation-proposal/gx-mediation",
+  checkAccessToken,
+  checkAdmin,
+  uploadCloud.array("images", 8),
+  adminCompensationProposalCtrl.adminCreateGxMediationProposal
+);
+
 ReportRouter.get(
   "/admin/compensation-proposals",
   checkAccessToken,
   checkAdmin,
   deliveryCtrl.adminGetCompensationProposals
+);
+
+/** Admin: ngữ cảnh đầy đủ (issue + đơn + hợp đồng + đề xuất). Query: referenceModel=DeliveryIssueReport|DamageReport */
+ReportRouter.get(
+  "/admin/issues/:issueId/investigation",
+  checkAccessToken,
+  checkAdmin,
+  deliveryCtrl.adminGetIssueInvestigationBundle
+);
+
+/** Admin: sự cố đang AWAITING_ADMIN_GX, chưa có đề xuất bồi thường mở — dùng màn Duyệt bồi thường */
+ReportRouter.get(
+  "/admin/issues-awaiting-gx",
+  checkAccessToken,
+  checkAdmin,
+  deliveryCtrl.adminGetIssuesAwaitingGx
 );
 
 /** Admin: tạm tính dòng tiền khi xem trước khi duyệt (query: approvedAmount tùy chọn) */
