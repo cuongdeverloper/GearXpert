@@ -12,39 +12,61 @@ exports.getDiscountSuggestions = async (req, res) => {
         const supplierId = req.user.id;
 
         // Fetch current active discount IDs to exclude them from suggestions
-        const currentActiveDiscounts = await Device.find({
-            supplierId,
-            discountPrice: { $gt: 0 }
-        }).select("_id");
-        const excludedIds = currentActiveDiscounts.map(d => d._id);
+        const mongoose = require("mongoose");
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        const devices = await Device.find({
-            supplierId,
-            status: "AVAILABLE",
-            _id: { $nin: excludedIds }
-        }).select("_id name category rentPrice stockQuantity slug");
+        const allStats = await Device.aggregate([
+            {
+                // 1. Lọc thiết bị khả dụng của supplier và CHƯA có giảm giá
+                $match: {
+                    supplierId: new mongoose.Types.ObjectId(supplierId),
+                    status: "AVAILABLE",
+                    $or: [
+                        { discountPrice: { $exists: false } },
+                        { discountPrice: 0 },
+                        { discountPrice: null }
+                    ]
+                }
+            },
+            {
+                // 2. JOIN với bảng RentalItem để lấy các đơn thuê trong 30 ngày
+                $lookup: {
+                    from: "rentalitems",
+                    let: { devId: "$_id" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: { $eq: ["$deviceId", "$$devId"] },
+                                createdAt: { $gte: thirtyDaysAgo }
+                            }
+                        }
+                    ],
+                    as: "recentRentals"
+                }
+            },
+            {
+                // 3. Format dữ liệu và TÍNH TỔNG QUANITY thay vì đếm số dòng
+                $project: {
+                    _id: 0,
+                    deviceId: "$_id",
+                    name: 1,
+                    slug: 1,
+                    category: 1,
+                    originalPrice: "$rentPrice.perDay",
+                    rentalCount: {
+                        $reduce: {
+                            input: "$recentRentals",
+                            initialValue: 0,
+                            in: { $add: ["$$value", "$$this.quantity"] }
+                        }
+                    }
+                }
+            }
+        ]);
 
-        if (!devices || devices.length === 0) {
+        if (!allStats || allStats.length === 0) {
             return res.status(200).json({ success: true, suggestions: [], message: "No items available for new suggestions." });
-        }
-
-        let allStats = [];
-        for (const device of devices) {
-            const thirtyDaysAgo = new Date();
-            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-            const rentalCount = await RentalItem.countDocuments({
-                deviceId: device._id,
-                createdAt: { $gte: thirtyDaysAgo }
-            });
-
-            allStats.push({
-                deviceId: device._id,
-                name: device.name,
-                slug: device.slug,
-                originalPrice: device.rentPrice.perDay,
-                rentalCount: rentalCount,
-                category: device.category
-            });
         }
 
         let candidates = allStats.filter(s => s.rentalCount < 5);
