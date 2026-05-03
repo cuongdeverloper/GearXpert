@@ -4137,7 +4137,6 @@ async function executeConfirmReturnSettlement(session, req, options = {}) {
   const supBefore = supplierWallet.balance;
 
   supplierWallet.balance += supplierReceive;
-  supplierWallet.availableBalance = (supplierWallet.availableBalance || 0) + supplierReceive;
 
   await supplierWallet.save({ session });
 
@@ -4199,7 +4198,6 @@ async function executeConfirmReturnSettlement(session, req, options = {}) {
       const custBefore = customerWallet.balance;
 
       customerWallet.balance += depositRefundToCustomer;
-      customerWallet.availableBalance = (customerWallet.availableBalance || 0) + depositRefundToCustomer;
 
       await customerWallet.save({ session });
 
@@ -4254,61 +4252,21 @@ async function executeConfirmReturnSettlement(session, req, options = {}) {
 
   // LUỒNG DI CHUYỂN TIỀN:
   // 1. Trừ tiền payout/refund khỏi ví admin (tiền rời khỏi hệ thống)
-  // 2. Trừ phần tiền phí thắng (Phí sàn + Ship) khỏi balance (tiền không còn treo nữa)
-  // 3. Cộng phần phí đó vào availableBalance (tiền vào túi admin)
+  // 2. Phần phí admin (Phí sàn + Ship) vẫn nằm trong balance, chỉ cần chuyển sang availableBalance
   
-  adminWallet.balance -= (totalDeductFromAdmin + adminEarned); 
+  adminWallet.balance -= totalDeductFromAdmin; 
   const oldAvailable = adminWallet.availableBalance || 0;
   adminWallet.availableBalance = oldAvailable + adminEarned;
 
   await adminWallet.save({ session });
 
-  // Tạo các bút toán ghi nhận doanh thu thực tế vào ví khả dụng để đối soát dễ dàng
-  const revenueTransactions = [];
-  
-  if (platformFee > 0) {
-    revenueTransactions.push({
-      wallet: adminWallet._id,
-      type: "PLATFORM_FEE",
-      amount: platformFee,
-      balanceBefore: oldAvailable, // Theo dõi trên pool khả dụng
-      balanceAfter: oldAvailable + platformFee,
-      referenceType: "RENTAL",
-      referenceId: rental._id,
-      description: `Thực thu phí nền tảng (10%) đơn #${rental._id.toString().slice(-6)}`,
-      status: "SUCCESS",
-      isEarned: true,
-      metadata: { isRevenueRealization: true }
-    });
-  }
-
-  if (rental.deliveryFee > 0) {
-    const currentAvailable = oldAvailable + (platformFee > 0 ? platformFee : 0);
-    revenueTransactions.push({
-      wallet: adminWallet._id,
-      type: "SHIPPING_FEE",
-      amount: rental.deliveryFee,
-      balanceBefore: currentAvailable,
-      balanceAfter: currentAvailable + rental.deliveryFee,
-      referenceType: "RENTAL",
-      referenceId: rental._id,
-      description: `Thực thu phí vận chuyển đơn #${rental._id.toString().slice(-6)}`,
-      status: "SUCCESS",
-      isEarned: true,
-      metadata: { isRevenueRealization: true }
-    });
-  }
-
-  if (revenueTransactions.length > 0) {
-    await WalletTransaction.insertMany(revenueTransactions, { session });
-  }
-
-  // Cập nhật các bút toán treo cũ thành đã thực thu để Dashboard Admin không bị lệch
+  // Cập nhật các bút toán treo cũ (tạo từ lúc checkout) thành đã thực thu
+  // Điều này giúp tránh tạo duplicate transaction mà vẫn hạch toán đúng doanh thu
   await WalletTransaction.updateMany(
     { 
       referenceType: "RENTAL", 
       referenceId: rental._id, 
-      type: { $in: ["PLATFORM_FEE", "SHIPPING_FEE", "ESCROW_HOLD"] },
+      type: { $in: ["PLATFORM_FEE", "SHIPPING_FEE", "ESCROW_HOLD", "DEPOSIT_HOLD"] },
       isEarned: false 
     },
     { 
@@ -4372,27 +4330,7 @@ async function executeConfirmReturnSettlement(session, req, options = {}) {
     { session, ordered: true },
   );
 
-  // Platform fee và Shipping fee đã ở lại trong ví admin (không cần chuyển đi đâu)
-
-  // Cập nhật trạng thái đơn thuê cho các giao dịch treo cũ (Để làm lịch sử, không tính vào doanh thu thực thu ở AvailableBalance)
-  await WalletTransaction.updateMany(
-    {
-      wallet: adminWallet._id,
-      type: { $in: ["PLATFORM_FEE", "SHIPPING_FEE"] },
-      referenceType: "RENTAL",
-      referenceId: rental._id,
-    },
-    {
-      $set: {
-        rentalStatus: "COMPLETED",
-        // isEarned giữ nguyên false để tránh duplicate với bút toán Realization ở trên
-      },
-    },
-    { session }
-  );
-
   // Cập nhật trạng thái cuối
-
   rental.status = "COMPLETED";
 
   rental.depositStatus = "REFUNDED";

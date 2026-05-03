@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { FiArrowLeft, FiCheckCircle, FiEye, FiSearch, FiXCircle } from "react-icons/fi";
+import { FiArrowLeft, FiCheckCircle, FiEye, FiSearch, FiXCircle, FiInbox, FiClock, FiRefreshCw } from "react-icons/fi";
 import { toast } from "react-toastify";
 import {
   adminApproveCompensationProposal,
@@ -12,18 +12,7 @@ import { confirmDialog } from "../../utils/confirmDialog";
 import Pagination from "../../components/common/Pagination";
 import AdminGxMediationForm from "../../components/admin/AdminGxMediationForm";
 
-const FLOW_STATUS_OPTIONS = [
-  { value: "ALL", label: "Tất cả luồng" },
-  { value: "PENDING_ADMIN_REVIEW", label: "Chờ admin duyệt" },
-  { value: "PENDING_PARTY_REVIEW", label: "Chờ 2 bên (GX)" },
-  { value: "SUPPLIER_ACCEPTED", label: "Shop đã OK — chờ khách" },
-  { value: "ADMIN_APPROVED", label: "Đã duyệt" },
-  { value: "ADMIN_REJECTED", label: "Đã từ chối" },
-  { value: "CUSTOMER_ACCEPTED", label: "Khách đã xác nhận" },
-  { value: "CUSTOMER_REJECTED", label: "Khách đã từ chối" },
-  { value: "SUPPLIER_REJECTED", label: "Supplier đã từ chối" },
-  { value: "PROPOSED", label: "Mới tạo" },
-];
+
 
 const FLOW_STATUS_META = {
   PROPOSED: "bg-slate-100 text-slate-700 border-slate-200",
@@ -74,10 +63,10 @@ export default function AdminCompensationReviewsPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [proposals, setProposals] = useState([]);
+  const [activeTab, setActiveTab] = useState("PENDING"); // 'PENDING' | 'HISTORY'
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const [flowStatus, setFlowStatus] = useState("PENDING_ADMIN_REVIEW");
   const [search, setSearch] = useState("");
   const [selectedProposal, setSelectedProposal] = useState(null);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
@@ -96,10 +85,11 @@ export default function AdminCompensationReviewsPage() {
     async (targetPage = 1) => {
       try {
         setLoading(true);
+        const statusParam = activeTab === "PENDING" ? "PENDING_ADMIN_REVIEW" : "ALL";
         const res = await adminGetCompensationProposals({
           page: targetPage,
           limit: 20,
-          flowStatus,
+          flowStatus: statusParam,
           search,
         });
         const rows = res?.proposals || res?.data?.proposals || [];
@@ -114,7 +104,7 @@ export default function AdminCompensationReviewsPage() {
         setLoading(false);
       }
     },
-    [flowStatus, search]
+    [activeTab, search]
   );
 
   useEffect(() => {
@@ -130,10 +120,7 @@ export default function AdminCompensationReviewsPage() {
     toast.info("Đã điền mã sự cố — hoàn thành form và gửi đề xuất trung gian.");
   }, [searchParams]);
 
-  const pendingCount = useMemo(
-    () => proposals.filter((item) => item?.flowStatus === "PENDING_ADMIN_REVIEW").length,
-    [proposals]
-  );
+
 
   const queryIssueId = queryIssueIdEarly;
   const queryReferenceModel = searchParams.get("referenceModel")?.trim() || "";
@@ -301,13 +288,43 @@ export default function AdminCompensationReviewsPage() {
         ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900">Duyệt đề xuất bồi thường</h2>
-          <p className="text-sm text-slate-500 mt-1">
-            {total.toLocaleString("vi-VN")} đề xuất, hiện có {pendingCount} đề xuất chờ duyệt.
-          </p>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-1">
+        <div className="flex items-center gap-6">
+          <button
+            onClick={() => setActiveTab("PENDING")}
+            className={`flex items-center gap-2 py-3 text-sm font-bold border-b-2 transition-all ${
+              activeTab === "PENDING"
+                ? "text-indigo-600 border-indigo-600"
+                : "text-slate-500 border-transparent hover:text-slate-700"
+            }`}
+          >
+            <FiInbox size={18} />
+            Đề xuất chờ duyệt
+            {total > 0 && activeTab === "PENDING" && (
+              <span className="ml-1 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[10px]">
+                {total}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab("HISTORY")}
+            className={`flex items-center gap-2 py-3 text-sm font-bold border-b-2 transition-all ${
+              activeTab === "HISTORY"
+                ? "text-indigo-600 border-indigo-600"
+                : "text-slate-500 border-transparent hover:text-slate-700"
+            }`}
+          >
+            <FiClock size={18} />
+            Lịch sử duyệt
+          </button>
         </div>
+        <button
+          onClick={() => fetchProposals(1)}
+          className="mb-2 inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        >
+          <FiRefreshCw className={loading ? "animate-spin" : ""} size={16} />
+          Làm mới
+        </button>
       </div>
 
       <div ref={gxFormCardRef}>
@@ -317,13 +334,13 @@ export default function AdminCompensationReviewsPage() {
           referenceModel={queryReferenceModel || null}
           issueIdReadOnly={false}
           onSuccess={() => {
-            setFlowStatus("PENDING_PARTY_REVIEW");
+            setActiveTab("HISTORY");
             fetchProposals(1);
           }}
         />
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between shadow-sm">
         <div className="relative w-full lg:max-w-md">
           <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -333,25 +350,18 @@ export default function AdminCompensationReviewsPage() {
             className="w-full rounded-xl border border-slate-200 pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <select
-            value={flowStatus}
-            onChange={(e) => setFlowStatus(e.target.value)}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-          >
-            {FLOW_STATUS_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={() => fetchProposals(1)}
-            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
-            Làm mới
-          </button>
-        </div>
+        {activeTab === "HISTORY" && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500 font-medium">Lọc nhanh:</span>
+            <select
+              value={activeTab === "HISTORY" ? "ALL" : "PENDING_ADMIN_REVIEW"}
+              disabled
+              className="rounded-xl border border-slate-200 px-3 py-2 text-xs bg-slate-50 text-slate-400 cursor-not-allowed"
+            >
+              <option value="ALL">Tất cả lịch sử</option>
+            </select>
+          </div>
+        )}
       </div>
 
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">

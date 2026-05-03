@@ -10,8 +10,10 @@ function buildCanonicalPaymentBreakdown(rental) {
   const deliveryFee = Math.max(0, Number(rental?.deliveryFee) || 0);
   const voucherDiscount = Math.max(0, Number(rental?.voucherDiscount) || 0);
 
-  const platformFee = Math.round(rentAmount * 0.1);
-  const supplierReceive = Math.max(0, rentAmount - platformFee);
+  // Phí nền tảng tính trên tiền thuê thực tế khách trả (sau giảm giá)
+  const rentAfterDiscount = Math.max(0, rentAmount - voucherDiscount);
+  const platformFee = Math.round(rentAfterDiscount * 0.1);
+  const supplierReceive = Math.max(0, rentAfterDiscount - platformFee);
 
   const customerPayAmount = Math.max(
     0,
