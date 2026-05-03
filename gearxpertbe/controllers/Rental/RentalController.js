@@ -797,7 +797,7 @@ exports.checkoutRental = async (req, res) => {
         const usageCheck = await Rental.findOne({
           customerId,
 
-          voucherCode: appliedVoucher.code,
+          voucherCode: { $regex: new RegExp(`^${appliedVoucher.code}$`, "i") },
 
           status: { $nin: ["CANCELLED", "REJECTED"] },
         }).session(session);

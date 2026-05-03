@@ -232,7 +232,9 @@
     "update_error": "Không thể cập nhật lịch. Vui lòng thử lại!",
     "empty_warn": "Giỏ hàng của bạn đang trống!",
     "checkout_loading": "Đang chuyển đến trang thanh toán...",
-    "loading": "Đang tải..."
+    "loading": "Đang tải...",
+    "cancel": "Hủy",
+    "save": "Lưu thay đổi"
   },
   "products": {
     "title": "Danh mục",

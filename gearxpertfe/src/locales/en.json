@@ -232,7 +232,9 @@
     "update_error": "Could not update schedule. Please try again!",
     "empty_warn": "Your cart is empty!",
     "checkout_loading": "Redirecting to checkout...",
-    "loading": "Loading..."
+    "loading": "Loading...",
+    "cancel": "Cancel",
+    "save": "Save changes"
   },
   "products": {
     "title": "Category",
