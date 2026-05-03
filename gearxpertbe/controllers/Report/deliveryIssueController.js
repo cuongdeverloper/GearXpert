@@ -410,6 +410,7 @@ exports.createStaffDeliveryIssue = async (req, res) => {
       rentalId,
       rentalItemIds,
       deviceIds,
+      deviceItemIds: req.body.deviceItemIds || (req.body.deviceItemId ? [req.body.deviceItemId] : []),
       staffId,
       reportedBy: "STAFF",
       reportContext: "DELIVERY",
@@ -542,6 +543,7 @@ exports.createStaffReturnIssue = async (req, res) => {
       rentalId,
       rentalItemIds,
       deviceIds,
+      deviceItemIds: req.body.deviceItemIds || (req.body.deviceItemId ? [req.body.deviceItemId] : []),
       staffId,
       reportedBy: "STAFF",
       reportContext: "RETURN",
@@ -758,8 +760,13 @@ exports.getSupplierIssues = async (req, res) => {
         select: "customerId phoneNumber status inspectedContext",
         populate: { path: "customerId", select: "fullName email phone image" },
       })
+      .populate({
+        path: "rentalItemIds",
+        populate: { path: "deviceItemIds" }
+      })
       .populate({ path: "staffId", select: "fullName" })
       .populate({ path: "deviceIds", select: "name images" })
+      .populate({ path: "deviceItemIds" })
       .sort({ createdAt: -1 })
       .lean();
 
@@ -837,6 +844,11 @@ exports.getSupplierIssues = async (req, res) => {
         populate: { path: "customerId", select: "fullName email phone image" },
       })
       .populate({ path: "deviceId", select: "name images" })
+      .populate({
+        path: "rentalItemId",
+        populate: { path: "deviceItemIds" }
+      })
+      .populate({ path: "deviceItemIds" })
       .sort({ createdAt: -1 })
       .lean();
 

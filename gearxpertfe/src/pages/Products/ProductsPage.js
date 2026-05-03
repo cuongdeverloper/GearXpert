@@ -5,6 +5,7 @@ import { getDevices, getDeviceDetail } from "../../service/ApiService/DeviceApi"
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
 import ProductCard from "../../components/common/ProductCard";
+import { FiChevronLeft, FiChevronRight, FiChevronsLeft, FiChevronsRight } from 'react-icons/fi';
 
 // Headless UI cho modal & dropdown
 import { Dialog, Transition, Popover } from "@headlessui/react";
@@ -22,6 +23,10 @@ export default function ProductsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("featured");
   const [priceRange, setPriceRange] = useState([0, 10000000]);
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 9;
 
   // New filter states
   const [minRating, setMinRating] = useState(0);
@@ -194,6 +199,65 @@ export default function ProductsPage() {
       return () => clearTimeout(timer);
     }
   }, [applyFiltersAndSort, searchQuery, priceRange]);
+
+  // Reset to page 1 when any filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    selectedCategory,
+    searchQuery,
+    sortBy,
+    priceRange,
+    minRating,
+    inStockOnly,
+    rentalStartDate,
+    rentalEndDate,
+  ]);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Logic for pagination
+  const indexOfLastItem = currentPage * ITEMS_PER_PAGE;
+  const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE;
+  const currentDevices = filteredDevices.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredDevices.length / ITEMS_PER_PAGE);
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const siblingCount = 1; // Number of pages to show on each side of current page
+
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      const leftSiblingIndex = Math.max(currentPage - siblingCount, 1);
+      const rightSiblingIndex = Math.min(currentPage + siblingCount, totalPages);
+
+      const showLeftDots = leftSiblingIndex > 2;
+      const showRightDots = rightSiblingIndex < totalPages - 1;
+
+      if (!showLeftDots && showRightDots) {
+        let leftItemCount = 3 + 2 * siblingCount;
+        for (let i = 1; i <= leftItemCount; i++) pages.push(i);
+        pages.push("...");
+        pages.push(totalPages);
+      } else if (showLeftDots && !showRightDots) {
+        let rightItemCount = 3 + 2 * siblingCount;
+        pages.push(1);
+        pages.push("...");
+        for (let i = totalPages - rightItemCount + 1; i <= totalPages; i++) pages.push(i);
+      } else if (showLeftDots && showRightDots) {
+        pages.push(1);
+        pages.push("...");
+        for (let i = leftSiblingIndex; i <= rightSiblingIndex; i++) pages.push(i);
+        pages.push("...");
+        pages.push(totalPages);
+      }
+    }
+    return pages;
+  };
 
   // Compare logic
   const handleToggleCompare = (device) => {
@@ -726,19 +790,96 @@ export default function ProductsPage() {
                     <div key={i} className="h-[420px] bg-white rounded-3xl animate-pulse ring-1 ring-slate-100 shadow-sm"></div>
                   ))}
                 </div>
-              ) : filteredDevices.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-                  {filteredDevices.map((device) => (
-                    <ProductCard
-                      key={device._id || device.id}
-                      device={device}
-                      variant="detailed"
-                      className="hover:-translate-y-2 transition-transform duration-500 h-full"
-                      isSelectedForCompare={selectedForCompare.includes(device._id)}
-                      onToggleCompare={() => handleToggleCompare(device)}
-                    />
-                  ))}
-                </div>
+              ) : currentDevices.length > 0 ? (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+                    {currentDevices.map((device) => (
+                      <ProductCard
+                        key={device._id || device.id}
+                        device={device}
+                        variant="detailed"
+                        className="hover:-translate-y-2 transition-transform duration-500 h-full"
+                        isSelectedForCompare={selectedForCompare.includes(device._id)}
+                        onToggleCompare={() => handleToggleCompare(device)}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Pagination Section */}
+                  <div className="mt-12 flex flex-col items-center gap-4 py-8 select-none">
+                    {/* Premium Page Indicator */}
+                    <div className="px-4 py-1 bg-slate-50 rounded-full border border-slate-100 shadow-sm flex items-center gap-2 group hover:bg-white transition-colors duration-300">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Trang</span>
+                      <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md min-w-[24px] text-center">{currentPage}</span>
+                      <span className="text-slate-300">/</span>
+                      <span className="text-xs font-bold text-slate-600">{totalPages}</span>
+                    </div>
+
+                    <nav className="flex items-center gap-1.5 md:gap-2" aria-label="Pagination">
+                      {/* First Page */}
+                      <button
+                        onClick={() => handlePageChange(1)}
+                        disabled={currentPage === 1}
+                        className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 hover:border-indigo-400 hover:text-indigo-600 hover:shadow-lg hover:shadow-indigo-100 transition-all disabled:opacity-20 disabled:cursor-not-allowed group"
+                        title="Trang đầu"
+                      >
+                        <FiChevronsLeft className="w-4 h-4 md:w-5 md:h-5 group-hover:-translate-x-0.5 transition-transform" />
+                      </button>
+
+                      {/* Previous */}
+                      <button
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 hover:border-indigo-400 hover:text-indigo-600 hover:shadow-lg hover:shadow-indigo-100 transition-all disabled:opacity-20 disabled:cursor-not-allowed group"
+                        title="Trang trước"
+                      >
+                        <FiChevronLeft className="w-4 h-4 md:w-5 md:h-5 group-hover:-translate-x-0.5 transition-transform" />
+                      </button>
+
+                      {/* Page Numbers */}
+                      <div className="flex items-center gap-1.5 md:gap-2 px-1">
+                        {getPageNumbers().map((page, index) => (
+                          page === "..." ? (
+                            <span key={`dots-${index}`} className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center text-slate-400 font-bold">
+                              &hellip;
+                            </span>
+                          ) : (
+                            <button
+                              key={page}
+                              onClick={() => handlePageChange(page)}
+                              className={`w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-xl font-bold text-xs md:text-sm transition-all duration-300 ${currentPage === page
+                                ? 'bg-gradient-to-br from-indigo-600 to-violet-700 text-white shadow-xl shadow-indigo-200 scale-110 z-10 border-none'
+                                : 'bg-white border border-slate-200 text-slate-500 hover:border-indigo-300 hover:text-indigo-600 hover:bg-slate-50'
+                                }`}
+                            >
+                              {page}
+                            </button>
+                          )
+                        ))}
+                      </div>
+
+                      {/* Next */}
+                      <button
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 hover:border-indigo-400 hover:text-indigo-600 hover:shadow-lg hover:shadow-indigo-100 transition-all disabled:opacity-20 disabled:cursor-not-allowed group"
+                        title="Trang sau"
+                      >
+                        <FiChevronRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-0.5 transition-transform" />
+                      </button>
+
+                      {/* Last Page */}
+                      <button
+                        onClick={() => handlePageChange(totalPages)}
+                        disabled={currentPage === totalPages}
+                        className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 hover:border-indigo-400 hover:text-indigo-600 hover:shadow-lg hover:shadow-indigo-100 transition-all disabled:opacity-20 disabled:cursor-not-allowed group"
+                        title="Trang cuối"
+                      >
+                        <FiChevronsRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-0.5 transition-transform" />
+                      </button>
+                    </nav>
+                  </div>
+                </>
               ) : (
                 <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-slate-100 shadow-xl text-center p-8">
                   <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mb-6">

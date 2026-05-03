@@ -20,6 +20,7 @@ import {
   FiChevronDown,
   FiX,
   FiImage,
+  FiZap,
 } from "react-icons/fi";
 import { toast } from "react-toastify";
 
@@ -99,6 +100,31 @@ export default function SupplierInventoryPage() {
     };
   }, [itemImagePreviewUrls]);
 
+  const addModalProduct = useMemo(() => {
+    if (!addFormFor) return null;
+    return devices.find((d) => String(d._id) === String(addFormFor)) || null;
+  }, [devices, addFormFor]);
+
+  const generateRandomInternalCode = () => {
+    const allInternalCodes = Object.values(itemsByDevice)
+      .flat()
+      .map((it) => it.internalCode)
+      .filter(Boolean);
+    let newCode = "";
+    let attempts = 0;
+    const prefix = addModalProduct?.name
+      ? addModalProduct.name.substring(0, 3).toUpperCase()
+      : "ITEM";
+
+    do {
+      const randomPart = Math.random().toString(36).substring(2, 10).toUpperCase();
+      newCode = `${prefix}-${randomPart}`;
+      attempts++;
+    } while (allInternalCodes.includes(newCode) && attempts < 10);
+
+    setAddDraft((prev) => ({ ...prev, internalCode: newCode }));
+  };
+
   const closeAddModal = useCallback(() => {
     setAddFormFor(null);
     setAddImageFiles([]);
@@ -142,8 +168,7 @@ export default function SupplierInventoryPage() {
     setIsLoading(true);
     try {
       const params = {
-        limit: pageSize,
-        page: page,
+        limit: "all",
       };
       const response = await getSupplierDevices(user.id, params);
       setDevices(response.devices || []);
@@ -156,7 +181,7 @@ export default function SupplierInventoryPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, page, pageSize]);
+  }, [user?.id]);
 
   const toggleExpand = (deviceId) => {
     setExpanded((prev) => {
@@ -215,8 +240,20 @@ export default function SupplierInventoryPage() {
         internalCode: addDraft.internalCode.trim() || undefined,
         condition: addDraft.condition,
       };
-      const note = addDraft.locationNote.trim();
-      if (note) payload.location = { note };
+
+      // Client-side check against loaded items
+      if (payload.internalCode) {
+        const allInternalCodes = Object.values(itemsByDevice)
+          .flat()
+          .map((it) => it.internalCode)
+          .filter(Boolean);
+        if (allInternalCodes.includes(payload.internalCode)) {
+          toast.warning("Mã nội bộ này đã tồn tại trong danh sách đang hiển thị. Vui lòng chọn mã khác.");
+          setAddSubmitting(false);
+          return;
+        }
+      }
+
       const files = addImageFiles.length ? addImageFiles : null;
       await createDeviceItemForSupplier(deviceId, payload, files);
       toast.success("Đã thêm đơn vị vào kho");
@@ -234,15 +271,21 @@ export default function SupplierInventoryPage() {
     fetchDevices();
   }, [fetchDevices]);
 
-  // Search filter (client-side on fetched data)
-  const filteredDevices = searchTerm
-    ? devices.filter((d) =>
-        d.name.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    : devices;
+  // Search & Stock Filtering (client-side)
+  const filteredDevices = useMemo(() => {
+    let result = devices;
 
-  const stockFilteredDevices = useMemo(() => {
-    return filteredDevices.filter((device) => {
+    // Search filter
+    if (searchTerm) {
+      const lowerSearch = searchTerm.toLowerCase();
+      result = result.filter((d) =>
+        d.name.toLowerCase().includes(lowerSearch) ||
+        (d.sku || d.code || "").toLowerCase().includes(lowerSearch)
+      );
+    }
+
+    // Stock filter
+    result = result.filter((device) => {
       const totalUnits = device.stockQuantity || 0;
       if (stockFilter === "ALL") return true;
       if (stockFilter === "OUT_OF_STOCK") return totalUnits === 0;
@@ -251,7 +294,22 @@ export default function SupplierInventoryPage() {
       }
       return totalUnits > LOW_STOCK_THRESHOLD;
     });
-  }, [filteredDevices, stockFilter]);
+
+    return result;
+  }, [devices, searchTerm, stockFilter]);
+
+  // Pagination calculation (client-side)
+  const stockFilteredDevices = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredDevices.slice(start, start + pageSize);
+  }, [filteredDevices, page, pageSize]);
+
+  const totalPagesCount = Math.ceil(filteredDevices.length / pageSize);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, stockFilter]);
 
   const inventorySummary = useMemo(() => {
     return devices.reduce(
@@ -280,10 +338,7 @@ export default function SupplierInventoryPage() {
     );
   }, [devices]);
 
-  const addModalProduct = useMemo(() => {
-    if (!addFormFor) return null;
-    return devices.find((d) => String(d._id) === String(addFormFor)) || null;
-  }, [devices, addFormFor]);
+
 
   return (
     <div className="space-y-6">
@@ -544,7 +599,6 @@ export default function SupplierInventoryPage() {
                                       <tr className="border-b border-slate-100 bg-slate-50/80 text-left">
                                         <th className="px-3 py-2 font-semibold">Serial</th>
                                         <th className="px-3 py-2 font-semibold">Mã NB</th>
-                                        <th className="px-3 py-2 font-semibold">Ảnh</th>
                                         <th className="px-3 py-2 font-semibold">Trạng thái</th>
                                         <th className="px-3 py-2 font-semibold">Tình trạng</th>
                                         <th className="px-3 py-2 font-semibold whitespace-nowrap">Tạo</th>
@@ -558,34 +612,6 @@ export default function SupplierInventoryPage() {
                                             </td>
                                             <td className="px-3 py-2.5 font-mono text-xs text-slate-600">
                                               {u.internalCode || "—"}
-                                            </td>
-                                            <td className="px-3 py-2.5">
-                                              {u.images?.length ? (
-                                                <div className="flex flex-wrap gap-1.5">
-                                                  {u.images.slice(0, 3).map((src, i) => (
-                                                    <a
-                                                      key={i}
-                                                      href={src}
-                                                      target="_blank"
-                                                      rel="noopener noreferrer"
-                                                      className="block shrink-0 rounded-md ring-1 ring-slate-200"
-                                                    >
-                                                      <img
-                                                        src={src}
-                                                        alt=""
-                                                        className="h-8 w-8 rounded-md object-cover"
-                                                      />
-                                                    </a>
-                                                  ))}
-                                                  {u.images.length > 3 ? (
-                                                    <span className="self-center text-xs text-slate-500">
-                                                      +{u.images.length - 3}
-                                                    </span>
-                                                  ) : null}
-                                                </div>
-                                              ) : (
-                                                <span className="text-slate-400">—</span>
-                                              )}
                                             </td>
                                             <td className="px-3 py-2.5">
                                               <span
@@ -650,30 +676,27 @@ export default function SupplierInventoryPage() {
                 </button>
                 <button
                   type="button"
-                  className="px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-sm font-medium"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50"
                 >
                   Trước
                 </button>
-                <span className="text-sm font-semibold text-slate-900">
-                  <span className="text-primary">{page}</span>
-                  <span className="text-slate-400"> / </span>
-                  <span>{totalPages}</span>
-                </span>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm font-semibold text-slate-900">{page}</span>
+                  <span className="text-sm text-slate-500">/ {totalPagesCount}</span>
+                </div>
                 <button
-                  type="button"
-                  className="px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-sm font-medium"
-                  disabled={page === totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  onClick={() => setPage(p => Math.min(totalPagesCount, p + 1))}
+                  disabled={page === totalPagesCount || totalPagesCount === 0}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50"
                 >
                   Sau
                 </button>
                 <button
-                  type="button"
-                  className="px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-sm font-medium"
-                  disabled={page === totalPages}
-                  onClick={() => setPage(totalPages)}
+                  onClick={() => setPage(totalPagesCount)}
+                  disabled={page === totalPagesCount || totalPagesCount === 0}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50"
                 >
                   Cuối
                 </button>
@@ -746,27 +769,31 @@ export default function SupplierInventoryPage() {
                       placeholder="VD: SN trên thân máy, IMEI…"
                       autoComplete="off"
                     />
-                    <p className="mt-1 text-[11px] leading-snug text-slate-500">
-                      Là &quot;mã của máy&quot; do hãng gắn — duy nhất toàn hệ thống nếu bạn nhập.
-                    </p>
                   </label>
                   <label className="block">
                     <span className="text-xs font-medium text-slate-600">
                       Mã nội bộ (của cửa hàng)
                     </span>
-                    <input
-                      type="text"
-                      value={addDraft.internalCode}
-                      onChange={(e) =>
-                        setAddDraft((d) => ({ ...d, internalCode: e.target.value }))
-                      }
-                      className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                      placeholder="VD: CAM-014, KỆ-A-12"
-                      autoComplete="off"
-                    />
-                    <p className="mt-1 text-[11px] leading-snug text-slate-500">
-                      Bạn tự đặt để nhận diện chiếc này trong kho; không nhất thiết trùng seri in trên máy.
-                    </p>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={addDraft.internalCode}
+                        onChange={(e) =>
+                          setAddDraft((d) => ({ ...d, internalCode: e.target.value }))
+                        }
+                        className="mt-1 w-full rounded-xl border border-slate-200 pl-3 pr-10 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        placeholder="VD: CAM-014, KỆ-A-12"
+                        autoComplete="off"
+                      />
+                      <button
+                        type="button"
+                        onClick={generateRandomInternalCode}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-primary transition-colors"
+                        title="Tạo mã ngẫu nhiên"
+                      >
+                        <FiZap size={16} />
+                      </button>
+                    </div>
                   </label>
                   <label className="block text-xs font-medium text-slate-600 sm:col-span-2">
                     Tình trạng
@@ -784,18 +811,7 @@ export default function SupplierInventoryPage() {
                       ))}
                     </select>
                   </label>
-                  <label className="block text-xs font-medium text-slate-600 sm:col-span-2">
-                    Ghi chú vị trí / kho
-                    <input
-                      type="text"
-                      value={addDraft.locationNote}
-                      onChange={(e) =>
-                        setAddDraft((d) => ({ ...d, locationNote: e.target.value }))
-                      }
-                      className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                      placeholder="Tùy chọn"
-                    />
-                  </label>
+
                   <div className="sm:col-span-2">
                     <span className="block text-xs font-medium text-slate-600">Ảnh đơn vị</span>
                     <label className="mt-1 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 hover:border-primary/40 hover:bg-primary/5">

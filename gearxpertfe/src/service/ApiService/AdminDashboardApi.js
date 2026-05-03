@@ -19,6 +19,9 @@ export const getAdminReports = () => {
 export const getAdminSuppliers = () => {
   return axios.get("/api/admin/suppliers");
 };
+export const getAdminSupplierDetail = (id) => {
+  return axios.get(`/api/admin/suppliers/${id}`);
+};
 
 export const getAdminDevices = (params = {}) => {
   return axios.get("/api/admin/devices", { params });

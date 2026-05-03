@@ -28,7 +28,6 @@ import { openChatWindow } from "../../redux/reducer/chatWindowReducer";
 import {
   getSupplierIssues,
   patchSupplierIssueStatus,
-  supplierEscalateIssue,
   supplierCloseIssueNoCompensation,
   supplierIssueCancelRefund,
   supplierConfirmCompensationProposal,
@@ -37,6 +36,7 @@ import {
 import { getHandoverAttemptsByRental } from "../../service/ApiService/HandoverApi";
 import { confirmDialog } from "../../utils/confirmDialog";
 import AdditionalDeliveryDialog from "../../components/supplier/AdditionalDeliveryDialog";
+import EscalateIssueDialog from "../../components/supplier/EscalateIssueDialog";
 import CompensationProposalCollapsible from "../../components/supplier/CompensationProposalCollapsible";
 
 const STATUS_LABELS = {
@@ -415,6 +415,7 @@ export default function SupplierIssueDetailPage() {
   const [loading, setLoading] = useState(!initialIssue);
   const [submitting, setSubmitting] = useState(false);
   const [additionalDeliveryDialog, setAdditionalDeliveryDialog] = useState(null);
+  const [showEscalateDialog, setShowEscalateDialog] = useState(false);
   const [handoverLoading, setHandoverLoading] = useState(false);
   const [handoverAttempts, setHandoverAttempts] = useState([]);
   const [activeHandoverId, setActiveHandoverId] = useState(null);
@@ -708,17 +709,7 @@ export default function SupplierIssueDetailPage() {
 
   const handleEscalateIssue = async () => {
     if (!issue?._id || !canEscalateIssue || submitting) return;
-    const note = window.prompt("Mô tả ngắn lý do cần GearXpert can thiệp (không bắt buộc):", "") || "";
-    try {
-      setSubmitting(true);
-      await supplierEscalateIssue(issue._id, { note });
-      toast.success("Đã gửi yêu cầu can thiệp tới GearXpert");
-      await loadIssue({ silent: true });
-    } catch (err) {
-      toast.error(err?.response?.data?.message || "Không thể gửi yêu cầu can thiệp");
-    } finally {
-      setSubmitting(false);
-    }
+    setShowEscalateDialog(true);
   };
 
   const handleContactCustomerChat = async () => {
@@ -1275,18 +1266,20 @@ export default function SupplierIssueDetailPage() {
                   {submitting ? "Đang đóng..." : "Đóng sự cố, không bồi thường (thông báo khách & admin)"}
                 </button>
 
-                <button
-                  onClick={handleSupplierForwardToAdmin}
-                  disabled={!canForwardProposalToAdmin || proposalSubmitting || isSyntheticReturnIssue}
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <FiCheckCircle size={15} />
-                  {proposalSubmitting
-                    ? "Đang chuyển..."
-                    : canGxSupplierAcceptFirst
-                    ? "Xác nhận đồng ý phương án GearXpert"
-                    : "Chuyển admin duyệt bồi thường"}
-                </button>
+                {issue?._type !== "RETURN" && (
+                  <button
+                    onClick={handleSupplierForwardToAdmin}
+                    disabled={!canForwardProposalToAdmin || proposalSubmitting || isSyntheticReturnIssue}
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <FiCheckCircle size={15} />
+                    {proposalSubmitting
+                      ? "Đang chuyển..."
+                      : canGxSupplierAcceptFirst
+                      ? "Xác nhận đồng ý phương án GearXpert"
+                      : "Chuyển admin duyệt bồi thường"}
+                  </button>
+                )}
 
                 <button
                   onClick={handleContactCustomerChat}
@@ -1305,23 +1298,27 @@ export default function SupplierIssueDetailPage() {
                   Nhờ GearXpert can thiệp
                 </button>
 
-                <button
-                  onClick={handleCancelRefund}
-                  disabled={!canCancelRefund || submitting}
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <FiXCircle size={15} />
-                  Hủy đơn và hoàn tiền
-                </button>
+                {issue?._type !== "RETURN" && (
+                  <>
+                    <button
+                      onClick={handleCancelRefund}
+                      disabled={!canCancelRefund || submitting}
+                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <FiXCircle size={15} />
+                      Hủy đơn và hoàn tiền
+                    </button>
 
-                <button
-                  onClick={() => setAdditionalDeliveryDialog(issue)}
-                  disabled={!canAdditionalDelivery || submitting}
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <FiTruck size={15} />
-                  Tạo giao bổ sung
-                </button>
+                    <button
+                      onClick={() => setAdditionalDeliveryDialog(issue)}
+                      disabled={!canAdditionalDelivery || submitting}
+                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <FiTruck size={15} />
+                      Tạo giao bổ sung
+                    </button>
+                  </>
+                )}
               </section>
 
               <section className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
@@ -1353,6 +1350,16 @@ export default function SupplierIssueDetailPage() {
             <AdditionalDeliveryDialog
               issue={additionalDeliveryDialog}
               onClose={() => setAdditionalDeliveryDialog(null)}
+              onSuccess={async () => {
+                await loadIssue({ silent: true });
+              }}
+            />
+          )}
+
+          {showEscalateDialog && (
+            <EscalateIssueDialog
+              issue={issue}
+              onClose={() => setShowEscalateDialog(false)}
               onSuccess={async () => {
                 await loadIssue({ silent: true });
               }}
