@@ -142,8 +142,7 @@ export default function SupplierInventoryPage() {
     setIsLoading(true);
     try {
       const params = {
-        limit: pageSize,
-        page: page,
+        limit: "all",
       };
       const response = await getSupplierDevices(user.id, params);
       setDevices(response.devices || []);
@@ -156,7 +155,7 @@ export default function SupplierInventoryPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, page, pageSize]);
+  }, [user?.id]);
 
   const toggleExpand = (deviceId) => {
     setExpanded((prev) => {
@@ -234,15 +233,21 @@ export default function SupplierInventoryPage() {
     fetchDevices();
   }, [fetchDevices]);
 
-  // Search filter (client-side on fetched data)
-  const filteredDevices = searchTerm
-    ? devices.filter((d) =>
-        d.name.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    : devices;
+  // Search & Stock Filtering (client-side)
+  const filteredDevices = useMemo(() => {
+    let result = devices;
 
-  const stockFilteredDevices = useMemo(() => {
-    return filteredDevices.filter((device) => {
+    // Search filter
+    if (searchTerm) {
+      const lowerSearch = searchTerm.toLowerCase();
+      result = result.filter((d) =>
+        d.name.toLowerCase().includes(lowerSearch) ||
+        (d.sku || d.code || "").toLowerCase().includes(lowerSearch)
+      );
+    }
+
+    // Stock filter
+    result = result.filter((device) => {
       const totalUnits = device.stockQuantity || 0;
       if (stockFilter === "ALL") return true;
       if (stockFilter === "OUT_OF_STOCK") return totalUnits === 0;
@@ -251,7 +256,22 @@ export default function SupplierInventoryPage() {
       }
       return totalUnits > LOW_STOCK_THRESHOLD;
     });
-  }, [filteredDevices, stockFilter]);
+
+    return result;
+  }, [devices, searchTerm, stockFilter]);
+
+  // Pagination calculation (client-side)
+  const stockFilteredDevices = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredDevices.slice(start, start + pageSize);
+  }, [filteredDevices, page, pageSize]);
+
+  const totalPagesCount = Math.ceil(filteredDevices.length / pageSize);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, stockFilter]);
 
   const inventorySummary = useMemo(() => {
     return devices.reduce(
@@ -650,30 +670,27 @@ export default function SupplierInventoryPage() {
                 </button>
                 <button
                   type="button"
-                  className="px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-sm font-medium"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50"
                 >
                   Trước
                 </button>
-                <span className="text-sm font-semibold text-slate-900">
-                  <span className="text-primary">{page}</span>
-                  <span className="text-slate-400"> / </span>
-                  <span>{totalPages}</span>
-                </span>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm font-semibold text-slate-900">{page}</span>
+                  <span className="text-sm text-slate-500">/ {totalPagesCount}</span>
+                </div>
                 <button
-                  type="button"
-                  className="px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-sm font-medium"
-                  disabled={page === totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  onClick={() => setPage(p => Math.min(totalPagesCount, p + 1))}
+                  disabled={page === totalPagesCount || totalPagesCount === 0}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50"
                 >
                   Sau
                 </button>
                 <button
-                  type="button"
-                  className="px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-sm font-medium"
-                  disabled={page === totalPages}
-                  onClick={() => setPage(totalPages)}
+                  onClick={() => setPage(totalPagesCount)}
+                  disabled={page === totalPagesCount || totalPagesCount === 0}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50"
                 >
                   Cuối
                 </button>

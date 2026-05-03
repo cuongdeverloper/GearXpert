@@ -440,15 +440,44 @@ export default function SupplierIssuesPage() {
 
     setWoDeviceItemsLoading(true);
     try {
-      const res = await getDeviceItemsByDeviceIds(deviceIds);
-      const items = Array.isArray(res?.data) ? res.data : (res?.data?.data || []);
-      setWoRentalDeviceItems(items);
-      // Tự chọn sẵn nếu chỉ có 1 item
-      if (items.length === 1 && items[0]._id) {
-        setWoIssueForm((f) => ({ ...f, deviceItemId: String(items[0]._id) }));
+      // Ưu tiên lấy DeviceItems ĐÃ ĐƯỢC GÁN trong đơn hàng (RentalItems)
+      let rentalItems = [];
+      if (issue._type === "DAMAGE") {
+        if (issue.rentalItemId) rentalItems = [issue.rentalItemId];
+      } else {
+        rentalItems = issue.rentalItemIds || [];
       }
-    } catch {
-      // silent
+
+      // Trích xuất tất cả DeviceItems từ các RentalItems này
+      const itemsInRental = rentalItems.flatMap(ri => ri.deviceItemIds || []).filter(Boolean);
+
+      // Nếu báo cáo có deviceItemIds cụ thể (do staff chọn lúc báo cáo)
+      if (issue.deviceItemIds && issue.deviceItemIds.length > 0) {
+        const firstItem = issue.deviceItemIds[0];
+        const itemId = firstItem?._id || firstItem;
+        if (itemId) {
+          setWoIssueForm((f) => ({ ...f, deviceItemId: String(itemId) }));
+        }
+      }
+
+      // Nếu có thiết bị trong đơn hàng, dùng danh sách này thay vì fetch toàn kho
+      if (itemsInRental.length > 0) {
+        setWoRentalDeviceItems(itemsInRental);
+        // Tự chọn nếu chỉ có 1 cái
+        if (!woIssueForm.deviceItemId && itemsInRental.length === 1) {
+          setWoIssueForm((f) => ({ ...f, deviceItemId: String(itemsInRental[0]._id) }));
+        }
+      } else {
+        // Fallback: Nếu đơn chưa gán serial (vô lý nhưng đề phòng), fetch theo deviceId như cũ
+        const res = await getDeviceItemsByDeviceIds(deviceIds);
+        const items = Array.isArray(res?.data) ? res.data : (res?.data?.data || []);
+        setWoRentalDeviceItems(items);
+        if (!woIssueForm.deviceItemId && items.length === 1 && items[0]._id) {
+          setWoIssueForm((f) => ({ ...f, deviceItemId: String(items[0]._id) }));
+        }
+      }
+    } catch (err) {
+      console.error("Lỗi lấy thông tin thiết bị:", err);
     } finally {
       setWoDeviceItemsLoading(false);
     }
@@ -782,13 +811,37 @@ export default function SupplierIssuesPage() {
                 </label>
                 {woDeviceItemsLoading ? (
                   <div className="flex items-center gap-2 text-sm text-slate-400 py-2">
-                    <FiTool size={13} className="animate-spin" /> Đang tải thiết bị trong đơn...
+                    <FiTool size={13} className="animate-spin" /> Đang tải thiết bị...
+                  </div>
+                ) : (woIssueModal.deviceItemIds?.length > 0 || woRentalDeviceItems.length === 1) && woIssueForm.deviceItemId ? (
+                  // HIỂN THỊ TĨNH NẾU ĐÃ XÁC ĐỊNH ĐÚNG THIẾT BỊ
+                  <div className="w-full rounded-xl border border-rose-100 bg-rose-50/50 px-3 py-2.5 text-sm flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+                      <FiTool size={16} />
+                    </div>
+                    <div>
+                      <div className="font-bold text-slate-900">
+                        {(() => {
+                          const item = woIssueModal.deviceItemIds?.find(it => String(it._id) === woIssueForm.deviceItemId) 
+                                     || woRentalDeviceItems.find(it => String(it._id) === woIssueForm.deviceItemId);
+                          return item?.device?.name || woIssueModal._devices?.[0] || "Thiết bị";
+                        })()}
+                      </div>
+                      <div className="text-xs text-slate-500 font-medium">
+                        Mã: {(() => {
+                          const item = woIssueModal.deviceItemIds?.find(it => String(it._id) === woIssueForm.deviceItemId)
+                                     || woRentalDeviceItems.find(it => String(it._id) === woIssueForm.deviceItemId);
+                          return item?.internalCode || item?.serialNumber || "N/A";
+                        })()}
+                      </div>
+                    </div>
                   </div>
                 ) : woRentalDeviceItems.length === 0 ? (
                   <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    ⚠️ Không tìm thấy thiết bị trong đơn hàng này. Đơn có thể chưa được phân bổ serial.
+                    ⚠️ Không tìm thấy thiết bị trong đơn hàng này.
                   </p>
                 ) : (
+                  // DROPDOWN CHỈ HIỂN THỊ KHI CÓ NHIỀU LỰA CHỌN VÀ CHƯA XÁC ĐỊNH ĐƯỢC ITEM
                   <select
                     value={woIssueForm.deviceItemId}
                     onChange={(e) => setWoIssueForm((f) => ({ ...f, deviceItemId: e.target.value }))}
@@ -799,13 +852,9 @@ export default function SupplierIssuesPage() {
                       if (!item._id) return null;
                       const devName = item.device?.name || "Thiết bị";
                       const serial = item.internalCode || item.serialNumber || `#${idx + 1}`;
-                      const statusTag =
-                        item.status === "AVAILABLE" ? " ✅" :
-                        item.status === "PENDING_RESOLUTION" ? " 🔴" :
-                        item.status === "REPAIR" ? " 🔧" : "";
                       return (
                         <option key={item._id} value={item._id}>
-                          {devName} — {serial}{statusTag}
+                          {devName} — {serial}
                         </option>
                       );
                     })}
