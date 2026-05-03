@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useSearchParams, useLocation } from "react-router-dom";
 import {
   FiTool,
@@ -87,6 +87,183 @@ const formatDateTime = (d) => {
 const today = () => {
   const d = new Date();
   return d.toISOString().split("T")[0];
+};
+
+const DeviceSelector = ({ items, value, onChange, disabled }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [filterType, setFilterType] = useState("ALL"); // ALL, AVAILABLE, REPAIR
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
+      if (filterType === "AVAILABLE" && item.status !== "AVAILABLE") return false;
+      if (filterType === "REPAIR" && item.status === "AVAILABLE") return false;
+
+      const searchLower = String(search).toLowerCase();
+      const nameMatch = String(item.device?.name || "").toLowerCase().includes(searchLower);
+      const serialMatch = String(item.internalCode || item.serialNumber || "").toLowerCase().includes(searchLower);
+      return nameMatch || serialMatch;
+    });
+  }, [items, search, filterType]);
+
+  const selectedItem = items.find((i) => i._id === value);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <div
+        className={`w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white cursor-pointer flex items-center justify-between ${
+          disabled ? "opacity-50 pointer-events-none" : ""
+        }`}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+      >
+        {selectedItem ? (
+          <div className="flex items-center gap-2 truncate">
+            {selectedItem.device?.images?.[0] ? (
+              <img
+                src={selectedItem.device.images[0]}
+                alt=""
+                className="w-6 h-6 object-cover rounded-md flex-shrink-0"
+              />
+            ) : (
+              <div className="w-6 h-6 bg-slate-100 rounded-md flex items-center justify-center flex-shrink-0">
+                <FiTool size={10} className="text-slate-400" />
+              </div>
+            )}
+            <span className="truncate">
+              {selectedItem.device?.name || "Thiết bị"} —{" "}
+              <span className="text-slate-500">{selectedItem.internalCode || selectedItem.serialNumber}</span>
+            </span>
+          </div>
+        ) : (
+          <span className="text-slate-400">— Chọn thiết bị —</span>
+        )}
+        <FiChevronDown className={`transition-transform text-slate-400 ${isOpen ? "rotate-180" : ""}`} size={16} />
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg flex flex-col max-h-[320px]">
+          <div className="p-2 border-b border-slate-100 space-y-2">
+            <input
+              type="text"
+              placeholder="Tìm kiếm tên, Serial..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              autoFocus
+            />
+            <div className="flex gap-1 p-1 bg-slate-50 rounded-lg">
+              <button
+                type="button"
+                onClick={() => setFilterType("ALL")}
+                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  filterType === "ALL" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                Tất cả
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterType("AVAILABLE")}
+                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  filterType === "AVAILABLE"
+                    ? "bg-white text-emerald-700 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                Bình thường
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterType("REPAIR")}
+                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  filterType === "REPAIR" ? "bg-white text-rose-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                Cần sửa
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-y-auto flex-1 p-1 custom-scrollbar">
+            {filteredItems.length === 0 ? (
+              <div className="p-4 text-center text-sm text-slate-500">Không tìm thấy thiết bị phù hợp</div>
+            ) : (
+              filteredItems.map((item) => {
+                const isSelected = item._id === value;
+                const devName = item.device?.name || "Thiết bị";
+                const serial = item.internalCode || item.serialNumber || "N/A";
+
+                let statusBadge = null;
+                if (item.status === "AVAILABLE") {
+                  statusBadge = (
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-700">
+                      Khả dụng
+                    </span>
+                  );
+                } else if (item.status === "MAINTENANCE") {
+                  statusBadge = (
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700">
+                      Đang bảo trì
+                    </span>
+                  );
+                } else {
+                  statusBadge = (
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-rose-100 text-rose-700">
+                      Sự cố
+                    </span>
+                  );
+                }
+
+                return (
+                  <div
+                    key={item._id}
+                    onClick={() => {
+                      onChange(item._id);
+                      setIsOpen(false);
+                    }}
+                    className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
+                      isSelected ? "bg-indigo-50" : "hover:bg-slate-50"
+                    }`}
+                  >
+                    {item.device?.images?.[0] ? (
+                      <img
+                        src={item.device.images[0]}
+                        alt=""
+                        className="w-10 h-10 object-cover rounded-lg border border-slate-200 flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center border border-slate-200 flex-shrink-0">
+                        <FiTool size={14} className="text-slate-400" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-800 truncate">{devName}</p>
+                      <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                        <span className="text-xs text-slate-500">SN: {serial}</span>
+                        {statusBadge}
+                      </div>
+                    </div>
+                    {isSelected && <FiCheckCircle className="text-indigo-600 mt-1 flex-shrink-0" size={16} />}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -628,23 +805,12 @@ export default function SupplierMaintenance() {
                   ⚠️ Không tìm thấy thiết bị nào trong kho.
                 </p>
               ) : (
-                <select
+                <DeviceSelector
+                  items={allDeviceItems}
                   value={createWoForm.deviceItemId}
-                  onChange={(e) => setCreateWoForm((f) => ({ ...f, deviceItemId: e.target.value }))}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">— Chọn thiết bị —</option>
-                  {allDeviceItems.map((item, idx) => {
-                    const devName = item.device?.name || "Thiết bị";
-                    const serial = item.internalCode || item.serialNumber || `#${idx + 1}`;
-                    const statusTag = item.status === "AVAILABLE" ? " ✅" : item.status === "MAINTENANCE" ? " 🔧" : " ⚠️";
-                    return (
-                      <option key={item._id} value={item._id}>
-                        {devName} — {serial}{statusTag}
-                      </option>
-                    );
-                  })}
-                </select>
+                  onChange={(val) => setCreateWoForm((f) => ({ ...f, deviceItemId: val }))}
+                  disabled={submitting}
+                />
               )}
             </div>
             <div>

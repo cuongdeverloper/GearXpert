@@ -1024,7 +1024,7 @@ exports.deleteDevice = async (req, res) => {
 exports.getSupplierDevices = async (req, res) => {
   try {
     const { supplierId } = req.params;
-    const { category, status, limit = 12, page = 1 } = req.query;
+    const { category, status, limit, page = 1 } = req.query;
 
     const query = {
       supplierId,
@@ -1033,14 +1033,18 @@ exports.getSupplierDevices = async (req, res) => {
     if (category) query.category = category;
     if (status) query.status = status;
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const devices = await Device.find(query)
+    let deviceQuery = Device.find(query)
       .select(
         "name slug description rentPrice ratingAvg reviewCount location images category status stockQuantity rentedQuantity availableQuantity maintenanceCount damagedCount depositAmount discountPrice discountReason discountExpiry includedAccessories"
       )
-      .limit(parseInt(limit))
-      .skip(skip)
-      .sort({ ratingAvg: -1, reviewCount: -1 });
+      .sort({ ratingAvg: -1, reviewCount: -1, _id: 1 });
+
+    if (limit && limit !== "all") {
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+      deviceQuery = deviceQuery.limit(parseInt(limit)).skip(skip);
+    }
+
+    const devices = await deviceQuery;
 
     const total = await Device.countDocuments(query);
 
