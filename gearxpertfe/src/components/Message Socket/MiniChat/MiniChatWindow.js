@@ -504,9 +504,10 @@ const CompensationProposalBubble = ({ message, isOwn }) => {
     const [localFlowStatus, setLocalFlowStatus] = useState(payload.flowStatus || "PROPOSED");
     const amount = Number(payload.amount || 0);
     const resolutionLabelMap = {
-        CUSTOMER_PAY: "De xuat khach den bu",
-        SUPPLIER_BEAR: "Supplier tu chiu",
-        REQUEST_GX_REVIEW: "Nho GearXpert danh gia",
+        CUSTOMER_PAY: "Khách đền bù",
+        SUPPLIER_BEAR: "NCC chịu trách nhiệm",
+        REQUEST_GX_REVIEW: "Điều phối từ cọc (GX)",
+        PLATFORM_LIABILITY: "Hệ thống đền bù thiệt hại",
     };
     const actionLink = payload.link || payload.customerLink || payload.supplierLink;
     const images = Array.isArray(payload.images) ? payload.images : [];
