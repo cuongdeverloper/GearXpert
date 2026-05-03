@@ -18,10 +18,11 @@ const createAdvertisement = async (req, res) => {
         }
 
         const budgetNum = parseInt(dailyBudget);
-        if (budgetNum < 10000) {
+        const allowedBudgets = [50000, 100000, 200000, 500000];
+        if (!allowedBudgets.includes(budgetNum)) {
             return res.status(400).json({
                 errorCode: 1,
-                message: "Ngân sách hàng ngày tối thiểu là 10.000đ.",
+                message: "Ngân sách hàng ngày không hợp lệ. Vui lòng chọn các mức: 50k, 100k, 200k hoặc 500k.",
             });
         }
 

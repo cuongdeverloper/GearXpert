@@ -76,10 +76,11 @@ export default function AdvertisementModal({ isOpen, onClose, onSuccess, presele
     const totalCost = days * effectiveDailyBudget;
 
     const getPriority = (budget) => {
-        if (budget < 100000) return { label: 'Đồng', color: 'text-orange-400' };
-        if (budget < 300000) return { label: 'Bạc', color: 'text-slate-300' };
-        if (budget < 500000) return { label: 'Vàng', color: 'text-amber-400' };
-        return { label: 'Kim cương', color: 'text-cyan-400' };
+        const b = Number(budget);
+        if (b >= 500000) return { label: 'Kim cương', color: 'text-blue-600' };
+        if (b >= 200000) return { label: 'Vàng', color: 'text-yellow-600' };
+        if (b >= 100000) return { label: 'Bạc', color: 'text-slate-600' };
+        return { label: 'Đồng', color: 'text-orange-600' };
     };
 
     const priority = getPriority(formData.dailyBudget);
@@ -185,13 +186,13 @@ export default function AdvertisementModal({ isOpen, onClose, onSuccess, presele
 
     return (
         <AnimatePresence>
-            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto overflow-x-hidden outline-none focus:outline-none bg-transparent">
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     onClick={onClose}
-                    className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+                    className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm"
                 ></motion.div>
 
                 <motion.div
@@ -384,36 +385,40 @@ export default function AdvertisementModal({ isOpen, onClose, onSuccess, presele
                                             <label className="block text-sm font-semibold text-slate-700">
                                                 Ngân sách hàng ngày <span className="text-rose-500">*</span>
                                             </label>
-                                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${priority.color.replace('text-', 'bg-').replace('400', '100')} ${priority.color}`}>
+                                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${priority.color.replace('text-', 'bg-').replace('600', '100')} ${priority.color}`}>
                                                 {priority.label}
                                             </span>
                                         </div>
                                         <div className="relative mb-3">
                                             <input
-                                                type="number"
+                                                type="text"
                                                 name="dailyBudget"
-                                                value={formData.dailyBudget}
-                                                onChange={handleInputChange}
-                                                required
-                                                min="10000"
-                                                step="1000"
-                                                className="w-full pl-10 pr-16 py-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all font-bold text-slate-900 text-lg shadow-sm"
+                                                value={Number(formData.dailyBudget).toLocaleString('vi-VN')}
+                                                readOnly
+                                                className="w-full pl-10 pr-16 py-4 border border-slate-100 bg-slate-50 rounded-xl outline-none font-bold text-slate-900 text-lg shadow-inner cursor-not-allowed"
+                                                placeholder="Chọn mức ngân sách bên dưới"
                                             />
                                             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₫</div>
                                             <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold uppercase">VND</div>
                                         </div>
-                                        <div className="flex flex-wrap gap-2">
-                                            {[50000, 100000, 200000, 500000].map((budget) => (
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {[
+                                                { val: 50000, label: "Đồng (50k)", color: "text-orange-700 bg-orange-50 border-orange-200", active: "bg-orange-600 text-white border-orange-600 shadow-orange-200" },
+                                                { val: 100000, label: "Bạc (100k)", color: "text-slate-600 bg-slate-100 border-slate-300", active: "bg-slate-600 text-white border-slate-600 shadow-slate-200" },
+                                                { val: 200000, label: "Vàng (200k)", color: "text-yellow-700 bg-yellow-50 border-yellow-200", active: "bg-yellow-500 text-white border-yellow-500 shadow-yellow-200" },
+                                                { val: 500000, label: "Kim cương (500k)", color: "text-blue-700 bg-blue-50 border-blue-200", active: "bg-blue-600 text-white border-blue-600 shadow-blue-200" }
+                                            ].map((tier) => (
                                                 <button
-                                                    key={budget}
+                                                    key={tier.val}
                                                     type="button"
-                                                    onClick={() => setFormData(prev => ({ ...prev, dailyBudget: budget }))}
-                                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${Number(formData.dailyBudget) === budget
-                                                        ? 'bg-primary/10 border-primary text-primary'
-                                                        : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300'
+                                                    onClick={() => setFormData(prev => ({ ...prev, dailyBudget: tier.val }))}
+                                                    className={`px-4 py-3 rounded-xl text-sm font-bold transition-all border shadow-sm flex flex-col items-center justify-center gap-1 ${Number(formData.dailyBudget) === tier.val
+                                                        ? `${tier.active} scale-[1.02] shadow-lg`
+                                                        : `${tier.color} hover:border-slate-400 opacity-80 hover:opacity-100`
                                                         }`}
                                                 >
-                                                    {budget.toLocaleString('vi-VN')}
+                                                    <span className="uppercase tracking-wider text-[10px] opacity-80">Gói</span>
+                                                    <span>{tier.label}</span>
                                                 </button>
                                             ))}
                                         </div>
