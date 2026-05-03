@@ -38,3 +38,7 @@ export const broadcastNotification = (data) =>
   axios.post("/api/notifications/broadcast", data, {
     headers: { 'Content-Type': 'application/json' },
   });
+
+export const getAdminBroadcastHistory = (params = {}) => {
+  return axios.get("/api/notifications/broadcast-history", { params });
+};

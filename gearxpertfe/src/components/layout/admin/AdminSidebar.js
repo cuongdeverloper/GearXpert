@@ -47,7 +47,6 @@ const navGroups = [
           { to: "/admin/shop-reports", label: "Báo cáo Shop", icon: FiAlertTriangle },
         ]
       },
-      { to: "/admin/suppliers", label: "Nhà cung cấp", icon: FiUserCheck },
       { to: "/admin/supplier-onboarding", label: "Duyệt đăng ký NCC", icon: FiClipboard },
       { to: "/admin/rentals", label: "Đơn thuê", icon: FiFileText },
       { to: "/admin/devices", label: "Thiết bị", icon: FiBox },
@@ -64,7 +63,7 @@ const navGroups = [
       { to: "/admin/reports", label: "Báo cáo", icon: FiBarChart2 },
       { to: "/admin/pending-issue-reviews", label: "Sự cố chờ xử lý", icon: FiInbox },
       { to: "/admin/compensation-proposals", label: "Duyệt bồi thường", icon: FiAlertTriangle },
-      { to: "/admin/notifications", label: "Thông báo hệ thống", icon: FiBell },
+      { to: "/admin/notifications", label: "Quản lý Thông báo", icon: FiBell },
       { to: "/admin/wallet", label: "Ví Admin", icon: FiCreditCard },
       { to: "/admin/withdrawals", label: "Duyệt rút tiền", icon: FiDollarSign },
     ],

@@ -323,19 +323,6 @@ export default function AdminCompensationReviewsPage() {
         </button>
       </div>
 
-      <div ref={gxFormCardRef}>
-        <AdminGxMediationForm
-          key={queryIssueId || "gx-manual"}
-          initialIssueId={queryIssueId}
-          referenceModel={queryReferenceModel || null}
-          issueIdReadOnly={false}
-          onSuccess={() => {
-            setActiveTab("HISTORY");
-            fetchProposals(1);
-          }}
-        />
-      </div>
-
       <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between shadow-sm">
         <div className="relative w-full lg:max-w-md">
           <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -457,6 +444,19 @@ export default function AdminCompensationReviewsPage() {
             onPageChange={fetchProposals}
           />
         )}
+      </div>
+
+      <div ref={gxFormCardRef} className="mt-10 pt-10 border-t border-dashed border-slate-200">
+        <AdminGxMediationForm
+          key={queryIssueId || "gx-manual"}
+          initialIssueId={queryIssueId}
+          referenceModel={queryReferenceModel || null}
+          issueIdReadOnly={false}
+          onSuccess={() => {
+            setActiveTab("HISTORY");
+            fetchProposals(1);
+          }}
+        />
       </div>
 
       {selectedProposal && (
