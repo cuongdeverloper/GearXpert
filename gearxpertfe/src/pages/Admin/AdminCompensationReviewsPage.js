@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { FiArrowLeft, FiCheckCircle, FiEye, FiSearch, FiXCircle, FiInbox, FiClock, FiRefreshCw } from "react-icons/fi";
 import { toast } from "react-toastify";
@@ -192,9 +192,8 @@ export default function AdminCompensationReviewsPage() {
     const caseShort = String(issueId).slice(-8);
     const result = await confirmDialog({
       title: "Xác nhận duyệt đề xuất bồi thường?",
-      text: `Bạn sắp duyệt mức ${parsed.toLocaleString("vi-VN")} VND cho case #${caseShort}. Sự cố sẽ ghi nhận đã kết thúc, số bồi thường lưu hệ thống và thông báo tới khách cùng nhà cung cấp.${
-        reviewForm.note.trim() ? ` Ghi chú kèm theo: ${reviewForm.note.trim()}` : ""
-      }`,
+      text: `Bạn sắp duyệt mức ${parsed.toLocaleString("vi-VN")} VND cho case #${caseShort}. Sự cố sẽ ghi nhận đã kết thúc, số bồi thường lưu hệ thống và thông báo tới khách cùng nhà cung cấp.${reviewForm.note.trim() ? ` Ghi chú kèm theo: ${reviewForm.note.trim()}` : ""
+        }`,
       icon: "question",
       confirmText: "Duyệt",
       cancelText: "Hủy",
@@ -237,9 +236,8 @@ export default function AdminCompensationReviewsPage() {
     const caseShort = String(issueId).slice(-8);
     const result = await confirmDialog({
       title: "Xác nhận từ chối đề xuất?",
-      text: `Từ chối case #${caseShort} — sự cố sẽ mở lại cho nhà cung cấp có thể gửi đề xuất mới.${
-        reviewForm.note.trim() ? ` Ghi chú: ${reviewForm.note.trim()}` : " Bạn nên thêm ghi chú lý do từ chối nếu chưa có."
-      }`,
+      text: `Từ chối case #${caseShort} — sự cố sẽ mở lại cho nhà cung cấp có thể gửi đề xuất mới.${reviewForm.note.trim() ? ` Ghi chú: ${reviewForm.note.trim()}` : " Bạn nên thêm ghi chú lý do từ chối nếu chưa có."
+        }`,
       icon: "warning",
       confirmText: "Từ chối",
       cancelText: "Hủy",
@@ -292,11 +290,10 @@ export default function AdminCompensationReviewsPage() {
         <div className="flex items-center gap-6">
           <button
             onClick={() => setActiveTab("PENDING")}
-            className={`flex items-center gap-2 py-3 text-sm font-bold border-b-2 transition-all ${
-              activeTab === "PENDING"
+            className={`flex items-center gap-2 py-3 text-sm font-bold border-b-2 transition-all ${activeTab === "PENDING"
                 ? "text-indigo-600 border-indigo-600"
                 : "text-slate-500 border-transparent hover:text-slate-700"
-            }`}
+              }`}
           >
             <FiInbox size={18} />
             Đề xuất chờ duyệt
@@ -308,11 +305,10 @@ export default function AdminCompensationReviewsPage() {
           </button>
           <button
             onClick={() => setActiveTab("HISTORY")}
-            className={`flex items-center gap-2 py-3 text-sm font-bold border-b-2 transition-all ${
-              activeTab === "HISTORY"
+            className={`flex items-center gap-2 py-3 text-sm font-bold border-b-2 transition-all ${activeTab === "HISTORY"
                 ? "text-indigo-600 border-indigo-600"
                 : "text-slate-500 border-transparent hover:text-slate-700"
-            }`}
+              }`}
           >
             <FiClock size={18} />
             Lịch sử duyệt
@@ -411,9 +407,8 @@ export default function AdminCompensationReviewsPage() {
                     </td>
                     <td className="px-4 py-3 align-top">
                       <span
-                        className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${
-                          FLOW_STATUS_META[proposal.flowStatus] || "bg-slate-100 text-slate-700 border-slate-200"
-                        }`}
+                        className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${FLOW_STATUS_META[proposal.flowStatus] || "bg-slate-100 text-slate-700 border-slate-200"
+                          }`}
                       >
                         {FLOW_STATUS_LABEL[proposal.flowStatus] || proposal.flowStatus}
                       </span>
@@ -535,25 +530,24 @@ export default function AdminCompensationReviewsPage() {
                         </span>
                         {(settlementPreview.rental?.depositStatus === "REFUNDED" ||
                           settlementPreview.rental?.escrowStatus === "RELEASED") && (
-                          <span className="block font-normal text-amber-900 mt-1">
-                            Lưu ý: trạng thái cọc/escrow gợi ý đã xử lý — số tạm giữ thực tế có thể khác.
-                          </span>
-                        )}
+                            <span className="block font-normal text-amber-900 mt-1">
+                              Lưu ý: trạng thái cọc/escrow gợi ý đã xử lý — số tạm giữ thực tế có thể khác.
+                            </span>
+                          )}
                       </p>
                     )}
                     <ul className="space-y-1.5 text-xs">
                       {settlementPreview.rows.map((row) => (
                         <li
                           key={row.key}
-                          className={`rounded-lg px-2 py-1.5 ${
-                            row.kind === "narrative"
+                          className={`rounded-lg px-2 py-1.5 ${row.kind === "narrative"
                               ? "bg-white/90 border border-indigo-100"
                               : row.kind === "primary"
                                 ? "bg-white border border-emerald-200 flex justify-between gap-2"
                                 : row.kind === "warning"
                                   ? "bg-amber-50 border border-amber-200 flex justify-between gap-2"
                                   : "bg-white/80 border border-indigo-100/80 flex justify-between gap-2"
-                          }`}
+                            }`}
                         >
                           {row.kind === "narrative" ? (
                             <div>
@@ -623,8 +617,8 @@ export default function AdminCompensationReviewsPage() {
                   {selectedProposal.flowStatus === "PENDING_PARTY_REVIEW"
                     ? "Đề xuất đang chờ khách và shop xác nhận — chưa thể Duyệt / Từ chối quyết toán ví tại đây."
                     : selectedProposal.flowStatus === "SUPPLIER_ACCEPTED"
-                    ? "Shop đã đồng ý; chờ khách xác nhận trước khi vào bước admin duyệt ví."
-                    : "Đề xuất này không còn chờ duyệt. Chỉ xem thông tin — không thể Duyệt / Từ chối lại ở đây."}
+                      ? "Shop đã đồng ý; chờ khách xác nhận trước khi vào bước admin duyệt ví."
+                      : "Đề xuất này không còn chờ duyệt. Chỉ xem thông tin — không thể Duyệt / Từ chối lại ở đây."}
                 </p>
               )}
               <button
