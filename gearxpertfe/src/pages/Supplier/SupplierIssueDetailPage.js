@@ -43,6 +43,7 @@ const STATUS_LABELS = {
   OPEN: "Mở",
   PROCESSING: "Đang xử lý",
   WAITING_EVIDENCE: "Chờ bằng chứng",
+  AWAITING_ADMIN_GX: "Chờ Admin GearXpert",
   RESOLVED: "Đã xử lý",
   REJECTED: "Từ chối",
   VERIFIED: "Đã xác nhận",
@@ -52,6 +53,7 @@ const STATUS_STYLES = {
   OPEN: "bg-red-50 text-red-700 border-red-200",
   PROCESSING: "bg-amber-50 text-amber-700 border-amber-200",
   WAITING_EVIDENCE: "bg-violet-50 text-violet-700 border-violet-200",
+  AWAITING_ADMIN_GX: "bg-sky-50 text-sky-800 border-sky-200",
   RESOLVED: "bg-green-50 text-green-700 border-green-200",
   REJECTED: "bg-slate-50 text-slate-700 border-slate-200",
   VERIFIED: "bg-blue-50 text-blue-700 border-blue-200",
@@ -90,15 +92,18 @@ const HANDOVER_RESULT_LABELS = {
 };
 
 const SUGGESTED_RESOLUTION_OPTIONS = [
-  { value: "CUSTOMER_PAY", label: "Đề xuất khách hàng đền bù" },
-  { value: "SUPPLIER_BEAR", label: "Supplier tự chịu chi phí" },
-  { value: "REQUEST_GX_REVIEW", label: "Nhờ GearXpert đánh giá/chốt" },
+  { value: "CUSTOMER_PAY", label: "Khách đền bù" },
+  { value: "SUPPLIER_BEAR", label: "NCC chịu trách nhiệm" },
+  { value: "REQUEST_GX_REVIEW", label: "Điều phối từ cọc (GX)" },
+  { value: "PLATFORM_LIABILITY", label: "Hệ thống đền bù thiệt hại" },
 ];
 
 const COMPENSATION_FLOW_LABELS = {
   PROPOSED: "Mới tạo đề xuất",
+  PENDING_PARTY_REVIEW: "Chờ khách & shop xác nhận (GX)",
   CUSTOMER_ACCEPTED: "Khách đã xác nhận",
   CUSTOMER_REJECTED: "Khách đã từ chối",
+  SUPPLIER_ACCEPTED: "Shop đã xác nhận — chờ khách",
   SUPPLIER_REJECTED: "Supplier đã hủy chuyển duyệt",
   PENDING_ADMIN_REVIEW: "Đang chờ admin duyệt",
   ADMIN_APPROVED: "Admin đã duyệt",
@@ -147,7 +152,7 @@ function buildIssueResolutionFlow(issue) {
     OPEN: "Báo cáo mở — cần bắt đầu / tiếp tục xử lý.",
     PROCESSING: "Báo cáo đang được NCC / đối chiếu hồ sơ xử lý.",
     WAITING_EVIDENCE: "Đang chờ bổ sung bằng chứng từ các bên.",
-    PENDING_RESOLUTION: "Báo cáo chờ hướng xử lý thống nhất (tách với cột PENDING ở đơn, nếu có).",
+    AWAITING_ADMIN_GX: "Báo cáo đang chờ Admin GearXpert xem hồ sơ và đưa phương án.",
     RESOLVED: "Báo cáo đã đóng theo hồ sơ.",
     REJECTED: "Báo cáo kết thúc ở trạng thái từ chối / không áp dụng.",
     VERIFIED: "Đã ghi nhận xác minh, tiếp tục theo mã báo cáo.",
@@ -156,7 +161,7 @@ function buildIssueResolutionFlow(issue) {
   const inProgress = new Set([
     "PROCESSING",
     "WAITING_EVIDENCE",
-    "PENDING_RESOLUTION",
+    "AWAITING_ADMIN_GX",
     "VERIFIED",
   ]);
 
@@ -253,7 +258,21 @@ function buildIssueResolutionFlow(issue) {
     } else {
       steps[1] = { ...steps[1], state: "done" };
       steps[2] = { ...steps[2], state: "done", sublabel: "Đã tạo đề xuất" };
-      if (p?.customerDecision === "PENDING") {
+      if (p?.origin === "ADMIN_GX" && fs_ === "PENDING_PARTY_REVIEW") {
+        steps[3] = {
+          ...steps[3],
+          state: "current",
+          sublabel: "Chờ khách & shop xác nhận phương án GearXpert",
+        };
+        steps[4] = { ...steps[4], state: "upcoming" };
+      } else if (
+        p?.origin === "ADMIN_GX" &&
+        fs_ === "SUPPLIER_ACCEPTED" &&
+        p?.customerDecision === "PENDING"
+      ) {
+        steps[3] = { ...steps[3], state: "current", sublabel: "Chờ khách xác nhận phương án" };
+        steps[4] = { ...steps[4], state: "upcoming" };
+      } else if (p?.customerDecision === "PENDING") {
         steps[3] = {
           ...steps[3],
           state: "current",
@@ -309,11 +328,23 @@ function buildIssueResolutionFlow(issue) {
     banner =
       "Đã ghi nhận yêu cầu can thiệp GearXpert. Có thể bổ sung bằng chứng thêm trên hồ sơ.";
   }
+  if (is === "AWAITING_ADMIN_GX" && hasProp && fs_ === "PENDING_PARTY_REVIEW") {
+    banner =
+      "Admin GearXpert đã đưa phương án trung gian. Vui lòng xác nhận cùng khách; sau đó hồ sơ lên admin duyệt bồi thường.";
+  }
+  if (is === "AWAITING_ADMIN_GX" && hasProp && fs_ === "SUPPLIER_ACCEPTED") {
+    banner = "Bạn đã đồng ý phương án GearXpert — đang chờ khách xác nhận.";
+  }
   if (fs_ === "PENDING_ADMIN_REVIEW" && is !== "RESOLVED") {
     banner =
       "Đề xuất bồi thường đang nằm trong hàng chờ admin. Quyết định sẽ gửi tới bạn và khách.";
   }
-  if (p?.customerDecision === "PENDING" && hasProp && is !== "RESOLVED") {
+  if (
+    p?.customerDecision === "PENDING" &&
+    hasProp &&
+    is !== "RESOLVED" &&
+    !(p?.origin === "ADMIN_GX" && ["PENDING_PARTY_REVIEW", "SUPPLIER_ACCEPTED"].includes(fs_ || ""))
+  ) {
     banner = p.forwardedToCustomerAt
       ? "Chờ khách hàng chấp nhận / từ chối đề xuất bồi thường."
       : "Đề xuất đã tạo — gửi tin nhắn cho khách nếu cần xác nhận.";
@@ -395,6 +426,7 @@ export default function SupplierIssueDetailPage() {
     explanation: "",
     suggestedResolution: "CUSTOMER_PAY",
     sendToCustomer: true,
+    directGearXpertReview: false,
   });
 
   const loadIssue = useCallback(async ({ silent = false } = {}) => {
@@ -467,6 +499,7 @@ export default function SupplierIssueDetailPage() {
       explanation: proposal.explanation || "",
       suggestedResolution: proposal.suggestedResolution || prev.suggestedResolution,
       sendToCustomer: false,
+      directGearXpertReview: Boolean(proposal.directGearXpertReview),
     }));
   }, [issue?.compensationProposal]);
 
@@ -491,13 +524,13 @@ export default function SupplierIssueDetailPage() {
     issue &&
     issue._type === "DELIVERY" &&
     issue.reportedBy === "STAFF" &&
-    ["OPEN", "PROCESSING", "PENDING_RESOLUTION"].includes(issue.status);
+    ["OPEN", "PROCESSING", "WAITING_EVIDENCE", "AWAITING_ADMIN_GX"].includes(issue.status);
 
   const canAdditionalDelivery = canCancelRefund;
   const canEscalateIssue =
     issue &&
     !isSyntheticReturnIssue &&
-    ["OPEN", "PROCESSING", "WAITING_EVIDENCE", "PENDING_RESOLUTION"].includes(issue.status);
+    ["OPEN", "PROCESSING", "WAITING_EVIDENCE"].includes(issue.status);
 
   const proposal = issue?.compensationProposal || null;
 
@@ -505,7 +538,7 @@ export default function SupplierIssueDetailPage() {
   const canCloseNoCompensation =
     issue &&
     !isSyntheticReturnIssue &&
-    ["OPEN", "PROCESSING", "WAITING_EVIDENCE", "PENDING_RESOLUTION"].includes(issue.status) &&
+    ["OPEN", "PROCESSING", "WAITING_EVIDENCE", "AWAITING_ADMIN_GX"].includes(issue.status) &&
     (!proposal ||
       (proposal?.flowStatus &&
         ["ADMIN_APPROVED", "ADMIN_REJECTED", "CUSTOMER_REJECTED", "SUPPLIER_REJECTED"].includes(
@@ -594,6 +627,7 @@ export default function SupplierIssueDetailPage() {
     if (!issue) return "—";
     if (issue.status === "OPEN") return "Cao - cần xử lý sớm";
     if (issue.status === "PROCESSING") return "Trung bình - đang theo dõi";
+    if (issue.status === "AWAITING_ADMIN_GX") return "Cao - chờ Admin GearXpert";
     return "Ổn định";
   }, [issue]);
 
@@ -603,12 +637,19 @@ export default function SupplierIssueDetailPage() {
    */
   const issueJourney = useMemo(() => buildIssueResolutionFlow(issue), [issue]);
 
+  const canGxSupplierAcceptFirst =
+    Boolean(proposal) &&
+    proposal.origin === "ADMIN_GX" &&
+    proposal.flowStatus === "PENDING_PARTY_REVIEW" &&
+    proposal.customerDecision === "PENDING" &&
+    proposal.supplierDecision === "PENDING";
+
   const canForwardProposalToAdmin =
     Boolean(proposal) &&
-    proposal.customerDecision === "ACCEPTED" &&
     proposal.supplierDecision !== "ACCEPTED" &&
     proposal.flowStatus !== "PENDING_ADMIN_REVIEW" &&
-    proposal.flowStatus !== "ADMIN_APPROVED";
+    proposal.flowStatus !== "ADMIN_APPROVED" &&
+    (proposal.customerDecision === "ACCEPTED" || canGxSupplierAcceptFirst);
 
   const activeHandover = useMemo(() => {
     return handoverAttempts.find(
@@ -743,8 +784,11 @@ export default function SupplierIssueDetailPage() {
       toast.warning("Số tiền đề xuất không hợp lệ");
       return;
     }
-    if (suggestedResolution === "CUSTOMER_PAY" && amountValue <= 0) {
-      toast.warning("Đề xuất khách hàng đền bù cần số tiền lớn hơn 0");
+    if (
+      (suggestedResolution === "CUSTOMER_PAY" || suggestedResolution === "PLATFORM_LIABILITY") &&
+      amountValue <= 0
+    ) {
+      toast.warning("Phương án này cần số tiền đề xuất lớn hơn 0");
       return;
     }
     if (!reason) {
@@ -768,8 +812,12 @@ export default function SupplierIssueDetailPage() {
     formData.append("reason", reason);
     formData.append("explanation", explanation);
     formData.append("suggestedResolution", suggestedResolution);
-    formData.append("forwardedToCustomer", proposalForm.sendToCustomer ? "true" : "false");
-    formData.append("forwardedMessagePreview", proposalForm.sendToCustomer ? messageText : "");
+    const directGx = proposalForm.directGearXpertReview === true;
+    formData.append("forwardedToCustomer", directGx ? "false" : proposalForm.sendToCustomer ? "true" : "false");
+    formData.append("forwardedMessagePreview", directGx ? "" : proposalForm.sendToCustomer ? messageText : "");
+    if (directGx) {
+      formData.append("directGearXpertReview", "true");
+    }
     proposalImages.forEach((file) => {
       formData.append("images", file);
     });
@@ -779,7 +827,9 @@ export default function SupplierIssueDetailPage() {
       await supplierSubmitCompensationProposal(issue._id, formData);
 
       toast.success(
-        proposalForm.sendToCustomer
+        proposalForm.directGearXpertReview
+          ? "Đã nộp đề xuất thẳng GearXpert — chờ admin duyệt và quyết toán."
+          : proposalForm.sendToCustomer
           ? "Đã lưu đề xuất bồi thường và gửi tin nhắn cho khách"
           : "Đã lưu đề xuất bồi thường"
       );
@@ -794,7 +844,11 @@ export default function SupplierIssueDetailPage() {
 
   const handleSupplierForwardToAdmin = async () => {
     if (!issue?._id || !proposal || proposalSubmitting) return;
-    if (proposal.customerDecision !== "ACCEPTED") {
+    const gxFirst =
+      proposal.origin === "ADMIN_GX" &&
+      proposal.flowStatus === "PENDING_PARTY_REVIEW" &&
+      proposal.customerDecision === "PENDING";
+    if (proposal.customerDecision !== "ACCEPTED" && !gxFirst) {
       toast.warning("Khách hàng cần xác nhận trước khi chuyển admin duyệt");
       return;
     }
@@ -1227,7 +1281,11 @@ export default function SupplierIssueDetailPage() {
                   className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FiCheckCircle size={15} />
-                  {proposalSubmitting ? "Đang chuyển..." : "Chuyển admin duyệt bồi thường"}
+                  {proposalSubmitting
+                    ? "Đang chuyển..."
+                    : canGxSupplierAcceptFirst
+                    ? "Xác nhận đồng ý phương án GearXpert"
+                    : "Chuyển admin duyệt bồi thường"}
                 </button>
 
                 <button

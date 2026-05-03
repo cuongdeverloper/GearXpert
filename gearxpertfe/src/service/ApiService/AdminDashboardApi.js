@@ -8,8 +8,8 @@ export const getAdminDashboardCharts = () => {
   return axios.get("/api/admin/dashboard/charts");
 };
 
-export const getAdminRentals = () => {
-  return axios.get("/api/admin/rentals");
+export const getAdminRentals = (params = {}) => {
+  return axios.get("/api/admin/rentals", { params });
 };
 
 export const getAdminReports = () => {

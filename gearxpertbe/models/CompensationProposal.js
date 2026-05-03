@@ -34,13 +34,20 @@ const compensationProposalSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    /** SUPPLIER: NCC gửi; ADMIN_GX: admin soạn sau khi case ở AWAITING_ADMIN_GX */
+    origin: {
+      type: String,
+      enum: ["SUPPLIER", "ADMIN_GX"],
+      default: "SUPPLIER",
+      index: true,
+    },
     amount: { type: Number, min: 0, default: 0 },
     currency: { type: String, default: "VND" },
     reason: { type: String, trim: true, maxlength: 1000, required: true },
     explanation: { type: String, trim: true, maxlength: 4000, required: true },
     suggestedResolution: {
       type: String,
-      enum: ["CUSTOMER_PAY", "SUPPLIER_BEAR", "REQUEST_GX_REVIEW"],
+      enum: ["CUSTOMER_PAY", "SUPPLIER_BEAR", "REQUEST_GX_REVIEW", "PLATFORM_LIABILITY"],
       required: true,
     },
     images: [String],
@@ -71,6 +78,22 @@ const compensationProposalSchema = new mongoose.Schema(
       ref: "User",
     },
     supplierDecisionNote: { type: String, trim: true, maxlength: 1000 },
+    /**
+     * NCC đưa luôn hồ sơ chờ GX: coi hai bên không cần bước xác nhận riêng trên luồng thường;
+     * admin vẫn là người quyết & quyết toán ví.
+     */
+    directGearXpertReview: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    /** Admin phụ trách xử lý (gán khi duyệt/từ chối lần đầu nếu trống). */
+    handledByAdminId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      index: true,
+      default: null,
+    },
     adminDecision: {
       type: String,
       enum: ["PENDING", "APPROVED", "REJECTED"],
@@ -88,6 +111,7 @@ const compensationProposalSchema = new mongoose.Schema(
       type: String,
       enum: [
         "PROPOSED",
+        "PENDING_PARTY_REVIEW",
         "CUSTOMER_ACCEPTED",
         "CUSTOMER_REJECTED",
         "SUPPLIER_ACCEPTED",

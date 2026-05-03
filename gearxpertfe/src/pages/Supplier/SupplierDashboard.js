@@ -210,33 +210,6 @@ export default function SupplierDashboard() {
     };
   }, [cashFlow, cashFlowRange]);
 
-  const revenueLineData = useMemo(() => ({
-    labels: monthlyBreakdown.map((m) => m.label),
-    datasets: [
-      {
-        label: "Doanh thu",
-        data: monthlyBreakdown.map((m) => m.revenue),
-        borderColor: "rgb(124, 58, 237)",
-        backgroundColor: "rgba(124, 58, 237, 0.12)",
-        fill: true,
-        tension: 0.4,
-        pointRadius: 5,
-        pointBackgroundColor: "rgb(124, 58, 237)",
-      },
-      {
-        label: "Số đơn thuê",
-        data: monthlyBreakdown.map((m) => m.rentals),
-        borderColor: "rgb(99, 102, 241)",
-        backgroundColor: "rgba(99, 102, 241, 0.06)",
-        fill: false,
-        tension: 0.4,
-        pointRadius: 5,
-        pointBackgroundColor: "rgb(99, 102, 241)",
-        yAxisID: "y1",
-      },
-    ],
-  }), [monthlyBreakdown]);
-
   const topDeviceBarData = useMemo(() => ({
     labels: topDevices.map((d) => d.name?.length > 18 ? d.name.slice(0, 18) + "…" : d.name),
     datasets: [
@@ -301,68 +274,6 @@ export default function SupplierDashboard() {
       ],
     };
   }, [categoryBreakdown]);
-
-  const recentTxChartSlice = useMemo(
-    () => [...transactions].slice(0, 5).reverse(),
-    [transactions]
-  );
-
-  const recentTxBarData = useMemo(
-    () => ({
-      labels: recentTxChartSlice.map((t) => `#${String(t.id).slice(-6)}`),
-      datasets: [
-        {
-          label: "Số tiền",
-          data: recentTxChartSlice.map((t) => t.amount),
-          backgroundColor: recentTxChartSlice.map((t) =>
-            t.amount >= 0 ? "rgba(16, 185, 129, 0.78)" : "rgba(239, 68, 68, 0.78)"
-          ),
-          borderRadius: 6,
-          barPercentage: 0.55,
-        },
-      ],
-    }),
-    [recentTxChartSlice]
-  );
-
-  const txBarOptions = useMemo(
-    () => ({
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            title: (items) => {
-              const i = items[0]?.dataIndex;
-              return i != null ? recentTxChartSlice[i]?.description || "" : "";
-            },
-            label: (item) => {
-              const i = item.dataIndex;
-              const v = recentTxChartSlice[i]?.amount ?? item.raw ?? 0;
-              const sign = v >= 0 ? "+" : "−";
-              return ` ${sign}${Math.abs(v).toLocaleString("vi-VN")} đ`;
-            },
-            afterLabel: (item) => {
-              const i = item.dataIndex;
-              return recentTxChartSlice[i]?.createdAt || "";
-            },
-          },
-        },
-      },
-      scales: {
-        x: { grid: { display: false }, ticks: { font: CHART_FONT } },
-        y: {
-          grid: { color: "rgba(0,0,0,0.04)" },
-          ticks: {
-            font: CHART_FONT,
-            callback: (v) => `${Number(v).toLocaleString("vi-VN")} đ`,
-          },
-        },
-      },
-    }),
-    [recentTxChartSlice]
-  );
 
   const hourlyTrendsData = useMemo(() => ({
     labels: Array.from({ length: 24 }, (_, i) => `${i}h`),
@@ -832,28 +743,6 @@ const barOptions = {
   scales: {
     x: { grid: { display: false }, ticks: { font: CHART_FONT } },
     y: { grid: { color: "rgba(0,0,0,0.04)" }, ticks: { font: CHART_FONT, callback: (v) => `${Number(v).toLocaleString("vi-VN")} đ` } },
-  },
-};
-
-const lineOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  interaction: { intersect: false, mode: "index" },
-  plugins: {
-    legend: { position: "top", align: "end", labels: { font: CHART_FONT, boxWidth: 12, padding: 12 } },
-    tooltip: {
-      callbacks: {
-        label: (c) =>
-          c.datasetIndex === 0
-            ? `${c.dataset.label}: ${(c.raw || 0).toLocaleString("vi-VN")} đ`
-            : `${c.dataset.label}: ${c.raw}`,
-      },
-    },
-  },
-  scales: {
-    x: { grid: { display: false }, ticks: { font: CHART_FONT } },
-    y: { position: "left", grid: { color: "rgba(0,0,0,0.04)" }, ticks: { font: CHART_FONT, callback: (v) => `${Number(v).toLocaleString("vi-VN")} đ` } },
-    y1: { position: "right", grid: { display: false }, ticks: { font: CHART_FONT, stepSize: 1 } },
   },
 };
 

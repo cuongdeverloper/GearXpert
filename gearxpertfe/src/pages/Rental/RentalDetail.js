@@ -391,14 +391,17 @@ export default function RentalDetail() {
         : "";
 
   const resolutionLabelMap = {
-    CUSTOMER_PAY: "Khách hàng đền bù",
-    SUPPLIER_BEAR: "Shop tự chịu",
-    REQUEST_GX_REVIEW: "Nhờ GearXpert đánh giá",
+    CUSTOMER_PAY: "Khách đền bù",
+    SUPPLIER_BEAR: "NCC chịu trách nhiệm",
+    REQUEST_GX_REVIEW: "Điều phối từ cọc (GX)",
+    PLATFORM_LIABILITY: "Hệ thống đền bù thiệt hại",
   };
   const flowStatusLabelMap = {
     PROPOSED: "Đã gửi đề xuất",
+    PENDING_PARTY_REVIEW: "Chờ khách & shop (GX)",
     CUSTOMER_ACCEPTED: "Khách đã chấp nhận",
     CUSTOMER_REJECTED: "Khách đã từ chối",
+    SUPPLIER_ACCEPTED: "Shop đã chấp nhận — chờ khách",
     SUPPLIER_REJECTED: "Shop đã từ chối",
     PENDING_ADMIN_REVIEW: "Chờ admin duyệt",
     ADMIN_APPROVED: "Admin đã duyệt",

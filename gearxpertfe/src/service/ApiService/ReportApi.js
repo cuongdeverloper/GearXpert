@@ -70,9 +70,22 @@ export const adminRejectCompensationProposal = (issueId, data = {}) =>
 export const adminReviewCompensationProposal = (issueId, data = {}) =>
   axios.post(`/api/reports/admin/issues/${issueId}/compensation-proposal/review`, data);
 
+/** Admin: đề xuất trung gian sau khi NCC escalate (issue AWAITING_ADMIN_GX) — multipart FormData */
+export const adminCreateGxMediationProposal = (issueId, formData) =>
+  axios.post(`/api/reports/admin/issues/${issueId}/compensation-proposal/gx-mediation`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+
 /** Admin: lấy danh sách đề xuất bồi thường để duyệt */
 export const adminGetCompensationProposals = (params = {}) =>
   axios.get("/api/reports/admin/compensation-proposals", { params });
+
+/** Admin: case chờ GearXpert (sau khi NCC nhờ can thiệp), chưa có đề xuất mở */
+export const adminGetIssuesAwaitingGx = () => axios.get("/api/reports/admin/issues-awaiting-gx");
+
+/** Admin: chi tiết điều tra — query { referenceModel: 'DeliveryIssueReport' | 'DamageReport' } */
+export const adminGetIssueInvestigationBundle = (issueId, params = {}) =>
+  axios.get(`/api/reports/admin/issues/${issueId}/investigation`, { params });
 
 /** Admin: tạm tính dòng tiền (xem trước khi duyệt). params: { approvedAmount? } */
 export const adminGetCompensationSettlementPreview = (proposalId, params = {}) =>

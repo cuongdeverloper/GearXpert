@@ -206,17 +206,6 @@ export default function ProfileTab({ setActiveMenu }) {
             </div>
           </div>
 
-          <div className="mt-6 w-full grid grid-cols-2 gap-4 text-center">
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <p className="text-xl font-bold text-slate-900">{userAccount.rewardPoints || 0}</p>
-              <p className="text-xs text-slate-500 font-medium mt-1">Điểm thưởng</p>
-            </div>
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <p className="text-xl font-bold text-slate-900">{userAccount.rank || 'BRONZE'}</p>
-              <p className="text-xs text-slate-500 font-medium mt-1">Rank</p>
-            </div>
-          </div>
-
           <button
             onClick={() => setIsEditing((prev) => !prev)}
             className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-slate-700 py-2.5 font-semibold hover:bg-slate-50 transition-colors shadow-sm"

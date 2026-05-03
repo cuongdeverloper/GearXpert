@@ -71,18 +71,16 @@ export default function DeliveryReportModal({
                         onClick={() =>
                           toggleSerialSelection(deviceItemId)
                         }
-                        className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all cursor-pointer ${
-                          isSelected
+                        className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all cursor-pointer ${isSelected
                             ? "border-amber-500 bg-amber-50"
                             : "border-gray-100 bg-white hover:border-gray-200"
-                        }`}
+                          }`}
                       >
                         <div
-                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                            isSelected
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected
                               ? "bg-amber-500 border-amber-500"
                               : "border-gray-300"
-                          }`}
+                            }`}
                         >
                           {isSelected && (
                             <Check
@@ -113,32 +111,30 @@ export default function DeliveryReportModal({
                     onClick={() =>
                       toggleSerialSelection(item._id.toString())
                     }
-                    className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all cursor-pointer ${
-                      DeliReportModal.selectedItems?.includes(
-                        item._id.toString()
-                      )
+                    className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all cursor-pointer ${DeliReportModal.selectedItems?.includes(
+                      item._id.toString()
+                    )
                         ? "border-amber-500 bg-amber-50"
                         : "border-gray-100 bg-white hover:border-gray-200"
-                    }`}
+                      }`}
                   >
                     <div
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                        DeliReportModal.selectedItems?.includes(
-                          item._id.toString()
-                        )
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${DeliReportModal.selectedItems?.includes(
+                        item._id.toString()
+                      )
                           ? "bg-amber-500"
                           : "border-gray-300"
-                      }`}
+                        }`}
                     >
                       {DeliReportModal.selectedItems?.includes(
                         item._id.toString()
                       ) && (
-                        <Check
-                          size={12}
-                          className="text-white"
-                          strokeWidth={4}
-                        />
-                      )}
+                          <Check
+                            size={12}
+                            className="text-white"
+                            strokeWidth={4}
+                          />
+                        )}
                     </div>
                     <img
                       src={item.deviceId?.images?.[0]}
@@ -275,12 +271,11 @@ export default function DeliveryReportModal({
                 !DeliReportModal.selectedItems?.length ||
                 !DeliReportModal.reasonType
               }
-              className={`py-4 rounded-xl font-black uppercase italic text-[11px] flex items-center justify-center gap-2 transition-all ${
-                DeliReportModal.selectedItems?.length > 0 &&
-                DeliReportModal.reasonType
+              className={`py-4 rounded-xl font-black uppercase italic text-[11px] flex items-center justify-center gap-2 transition-all ${DeliReportModal.selectedItems?.length > 0 &&
+                  DeliReportModal.reasonType
                   ? "bg-amber-500 text-white hover:bg-amber-600"
                   : "bg-gray-200 text-gray-400 cursor-not-allowed"
-              }`}
+                }`}
             >
               Gửi báo cáo <Send size={14} />
             </button>

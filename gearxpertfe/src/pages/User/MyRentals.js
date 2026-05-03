@@ -908,11 +908,9 @@ export default function MyRentals() {
 
     );
 
-    const quantity = extendModal.order?.items?.[0]?.quantity || 1;
-
     const extraAmount = Math.round(
 
-      extensionDays * (extendModal.dailyPrice || 0) * quantity
+      extensionDays * (extendModal.dailyPrice || 0)
 
     );
 
@@ -1046,15 +1044,13 @@ export default function MyRentals() {
 
     const dailyPrice = extendModal.dailyPrice || 0;
 
-    const quantity = extendModal.order?.items?.[0]?.quantity || 1;
-
     setExtendModal((prev) => ({
 
       ...prev,
 
       newEndDate: date,
 
-      extraAmount: validDays * dailyPrice * quantity,
+      extraAmount: Math.round(validDays * dailyPrice),
 
     }));
 
@@ -1214,13 +1210,13 @@ export default function MyRentals() {
 
           if (item.deliveryIssues?.length > 0) {
 
-            console.log("[MyRentals] Delivery issues:", item.deliveryIssues.map(d => ({ 
+            console.log("[MyRentals] Delivery issues:", item.deliveryIssues.map(d => ({
 
-              id: d._id, 
+              id: d._id,
 
               deviceItemIds: d.deviceItemIds,
 
-              deviceItemIdsLength: d.deviceItemIds?.length 
+              deviceItemIdsLength: d.deviceItemIds?.length
 
             })));
 
@@ -1228,13 +1224,13 @@ export default function MyRentals() {
 
           if (item.damageReports?.length > 0) {
 
-            console.log("[MyRentals] Damage reports:", item.damageReports.map(d => ({ 
+            console.log("[MyRentals] Damage reports:", item.damageReports.map(d => ({
 
-              id: d._id, 
+              id: d._id,
 
               deviceItemIds: d.deviceItemIds,
 
-              deviceItemIdsLength: d.deviceItemIds?.length 
+              deviceItemIdsLength: d.deviceItemIds?.length
 
             })));
 
@@ -1254,13 +1250,13 @@ export default function MyRentals() {
 
         if (deliveryIssues.length > 0) {
 
-          console.log("[MyRentals] Delivery issues for item:", item.deviceId?.name, deliveryIssues.map(d => ({ 
+          console.log("[MyRentals] Delivery issues for item:", item.deviceId?.name, deliveryIssues.map(d => ({
 
-            id: d._id, 
+            id: d._id,
 
             deviceItemIds: d.deviceItemIds,
 
-            deviceItemIdsLength: d.deviceItemIds?.length 
+            deviceItemIdsLength: d.deviceItemIds?.length
 
           })));
 
@@ -1374,7 +1370,7 @@ export default function MyRentals() {
 
     const reqs = [];
 
-    
+
 
     console.log("[extendRequests] Total rentals:", rentals.length);
 
@@ -1382,7 +1378,7 @@ export default function MyRentals() {
 
       console.log("[extendRequests] Rental:", rental._id, "items:", rental.items?.length, "extReqs:", rental.extensionRequests?.length);
 
-      
+
 
       // Debug first item
 
@@ -1394,7 +1390,7 @@ export default function MyRentals() {
 
       }
 
-      
+
 
       for (const extReq of rental.extensionRequests || []) {
 
@@ -1404,7 +1400,7 @@ export default function MyRentals() {
 
         const rentalCode = rental.orderCode || rentalId?.toString().slice(-6);
 
-        
+
 
         // Use devices from backend if available, otherwise map from rental items
         let devices = extReq.devices || [];
@@ -1423,7 +1419,7 @@ export default function MyRentals() {
             };
           }).filter(d => d.name);
         }
-        
+
         reqs.push({
           _id: extReq._id,
           rentalId: rentalId,
@@ -1672,11 +1668,9 @@ export default function MyRentals() {
 
               <div
 
-                className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                className={`overflow-hidden transition-all duration-300 ease-in-out ${isReportsExpanded ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
 
-                  isReportsExpanded ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
-
-                }`}
+                  }`}
 
               >
 
@@ -1690,15 +1684,13 @@ export default function MyRentals() {
 
                       onClick={() => { setReportTab("processing"); setReportsPage(1); }}
 
-                      className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-black uppercase transition-all ${
-
-                        reportTab === "processing"
+                      className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-black uppercase transition-all ${reportTab === "processing"
 
                           ? "bg-white text-gray-900 shadow-sm"
 
                           : "text-gray-500 hover:text-gray-700"
 
-                      }`}
+                        }`}
 
                     >
 
@@ -1710,15 +1702,13 @@ export default function MyRentals() {
 
                       onClick={() => { setReportTab("processed"); setReportsPage(1); }}
 
-                      className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-black uppercase transition-all ${
-
-                        reportTab === "processed"
+                      className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-black uppercase transition-all ${reportTab === "processed"
 
                           ? "bg-white text-gray-900 shadow-sm"
 
                           : "text-gray-500 hover:text-gray-700"
 
-                      }`}
+                        }`}
 
                     >
 
@@ -1772,15 +1762,13 @@ export default function MyRentals() {
 
                               </div>
 
-                              <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase ${
+                              <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase ${r.type === "DELIVERY"
 
-                                r.type === "DELIVERY" 
-
-                                  ? "bg-amber-100 text-amber-700" 
+                                  ? "bg-amber-100 text-amber-700"
 
                                   : "bg-rose-100 text-rose-700"
 
-                              }`}>
+                                }`}>
 
                                 {r.type === "DELIVERY" ? "Giao hàng" : "Hư hỏng"}
 
@@ -1834,9 +1822,9 @@ export default function MyRentals() {
 
                                 <p className="text-[10px] text-gray-500">
 
-                                  {r.createdAt 
+                                  {r.createdAt
 
-                                    ? new Date(r.createdAt).toLocaleDateString("vi-VN") 
+                                    ? new Date(r.createdAt).toLocaleDateString("vi-VN")
 
                                     : "-"}
 
@@ -1854,47 +1842,43 @@ export default function MyRentals() {
 
                               {/* Status */}
 
-                              <div className={`p-2 rounded-lg ${
+                              <div className={`p-2 rounded-lg ${r.status === "RESOLVED" || r.status === "APPROVED"
 
-                                r.status === "RESOLVED" || r.status === "APPROVED"
-
-                                  ? "bg-emerald-50" 
+                                  ? "bg-emerald-50"
 
                                   : r.status === "REJECTED"
 
-                                  ? "bg-red-50"
+                                    ? "bg-red-50"
 
-                                  : "bg-amber-50"
-
-                              }`}>
-
-                                <p className="text-[10px] text-gray-500">Trạng thái</p>
-
-                                <p className={`text-xs font-bold ${
-
-                                  r.status === "RESOLVED" || r.status === "APPROVED"
-
-                                    ? "text-emerald-700" 
-
-                                    : r.status === "REJECTED"
-
-                                    ? "text-red-700"
-
-                                    : "text-amber-700"
+                                    : "bg-amber-50"
 
                                 }`}>
 
+                                <p className="text-[10px] text-gray-500">Trạng thái</p>
+
+                                <p className={`text-xs font-bold ${r.status === "RESOLVED" || r.status === "APPROVED"
+
+                                    ? "text-emerald-700"
+
+                                    : r.status === "REJECTED"
+
+                                      ? "text-red-700"
+
+                                      : "text-amber-700"
+
+                                  }`}>
+
                                   {r.status === "OPEN" ? "Chờ xử lý" :
 
-                                   r.status === "PROCESSING" ? "Đang xử lý" :
+                                    r.status === "PROCESSING" ? "Đang xử lý" :
 
-                                   r.status === "RESOLVED" ? "Đã giải quyết" :
+                                      r.status === "RESOLVED" ? "Đã giải quyết" :
 
-                                   r.status === "APPROVED" ? "Đã duyệt" :
+                                        r.status === "APPROVED" ? "Đã duyệt" :
 
-                                   r.status === "REJECTED" ? "Từ chối" : 
+                                          r.status === "REJECTED" ? "Từ chối" :
 
-                                   r.status || "Chờ xử lý"}
+                                            r.status || "Chờ xử lý"}
 
                                 </p>
 
@@ -1906,41 +1890,37 @@ export default function MyRentals() {
 
                               {r.type === "DAMAGE" && r.severity ? (
 
-                                <div className={`p-2 rounded-lg ${
-
-                                  r.severity === "CRITICAL" || r.severity === "HIGH"
+                                <div className={`p-2 rounded-lg ${r.severity === "CRITICAL" || r.severity === "HIGH"
 
                                     ? "bg-rose-50"
 
                                     : r.severity === "MEDIUM"
 
-                                    ? "bg-orange-50"
+                                      ? "bg-orange-50"
 
-                                    : "bg-green-50"
+                                      : "bg-green-50"
 
-                                }`}>
+                                  }`}>
 
                                   <p className="text-[10px] text-gray-500">Mức độ</p>
 
-                                  <p className={`text-xs font-bold ${
-
-                                    r.severity === "CRITICAL" || r.severity === "HIGH"
+                                  <p className={`text-xs font-bold ${r.severity === "CRITICAL" || r.severity === "HIGH"
 
                                       ? "text-rose-700"
 
                                       : r.severity === "MEDIUM"
 
-                                      ? "text-orange-700"
+                                        ? "text-orange-700"
 
-                                      : "text-green-700"
+                                        : "text-green-700"
 
-                                  }`}>
+                                    }`}>
 
                                     {r.severity === "CRITICAL" ? "Nghiêm trọng" :
 
-                                     r.severity === "HIGH" ? "Cao" :
+                                      r.severity === "HIGH" ? "Cao" :
 
-                                     r.severity === "MEDIUM" ? "Trung bình" : "Thấp"}
+                                        r.severity === "MEDIUM" ? "Trung bình" : "Thấp"}
 
                                   </p>
 
@@ -1956,9 +1936,9 @@ export default function MyRentals() {
 
                                     {r.issueType === "MISSING" ? "Thiếu hàng" :
 
-                                     r.issueType === "DAMAGED" ? "Hư hỏng" :
+                                      r.issueType === "DAMAGED" ? "Hư hỏng" :
 
-                                     r.issueType === "WRONG_ITEM" ? "Sai sản phẩm" : r.issueType}
+                                        r.issueType === "WRONG_ITEM" ? "Sai sản phẩm" : r.issueType}
 
                                   </p>
 
@@ -2022,9 +2002,9 @@ export default function MyRentals() {
 
                             className={`px-3 py-1.5 rounded-lg text-xs font-bold ${reportsPage <= 1
 
-                                ? "text-gray-300 cursor-not-allowed"
+                              ? "text-gray-300 cursor-not-allowed"
 
-                                : "text-gray-600 hover:bg-gray-100"
+                              : "text-gray-600 hover:bg-gray-100"
 
                               }`}
 
@@ -2048,9 +2028,9 @@ export default function MyRentals() {
 
                             className={`px-3 py-1.5 rounded-lg text-xs font-bold ${reportsPage >= totalReportsPages
 
-                                ? "text-gray-300 cursor-not-allowed"
+                              ? "text-gray-300 cursor-not-allowed"
 
-                                : "text-gray-600 hover:bg-gray-100"
+                              : "text-gray-600 hover:bg-gray-100"
 
                               }`}
 
@@ -2122,15 +2102,13 @@ export default function MyRentals() {
 
                     }}
 
-                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${
-
-                      !showAllRentals
+                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${!showAllRentals
 
                         ? "bg-white text-gray-900 shadow-sm"
 
                         : "text-gray-500 hover:text-gray-700"
 
-                    }`}
+                      }`}
 
                   >
 
@@ -2148,15 +2126,13 @@ export default function MyRentals() {
 
                     }}
 
-                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${
-
-                      showAllRentals
+                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${showAllRentals
 
                         ? "bg-white text-gray-900 shadow-sm"
 
                         : "text-gray-500 hover:text-gray-700"
 
-                    }`}
+                      }`}
 
                   >
 
@@ -2222,7 +2198,10 @@ export default function MyRentals() {
 
                           extraAmount: 0,
 
-                          dailyPrice: order.items?.[0]?.rentPrice || order.rentPriceTotal / (order.items?.[0]?.totalDays || 1) || 0,
+                          dailyPrice: (order.items || []).reduce((sum, it) => {
+                            const days = it.totalDays || 1;
+                            return sum + ((it.rentPrice || 0) / days);
+                          }, 0),
 
                           order,
 
@@ -2422,11 +2401,9 @@ export default function MyRentals() {
 
               <div
 
-                className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                className={`overflow-hidden transition-all duration-300 ease-in-out ${isExtendExpanded ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
 
-                  isExtendExpanded ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
-
-                }`}
+                  }`}
 
               >
 
@@ -2440,15 +2417,13 @@ export default function MyRentals() {
 
                       onClick={() => { setExtendTab("processing"); setExtendPage(1); }}
 
-                      className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-black uppercase transition-all ${
-
-                        extendTab === "processing"
+                      className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-black uppercase transition-all ${extendTab === "processing"
 
                           ? "bg-white text-indigo-900 shadow-sm"
 
                           : "text-indigo-600 hover:text-indigo-800"
 
-                      }`}
+                        }`}
 
                     >
 
@@ -2460,15 +2435,13 @@ export default function MyRentals() {
 
                       onClick={() => { setExtendTab("processed"); setExtendPage(1); }}
 
-                      className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-black uppercase transition-all ${
-
-                        extendTab === "processed"
+                      className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-black uppercase transition-all ${extendTab === "processed"
 
                           ? "bg-white text-indigo-900 shadow-sm"
 
                           : "text-indigo-600 hover:text-indigo-800"
 
-                      }`}
+                        }`}
 
                     >
 
@@ -2507,18 +2480,16 @@ export default function MyRentals() {
                                   {r.rentalCode ? `BK${String(r.rentalCode).padStart(4, "0")}` : "N/A"}
                                 </span>
                               </div>
-                              <div className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 ${
-                                r.status === "APPROVED" ? "bg-emerald-50 text-emerald-700 border border-emerald-100" :
-                                r.status === "REJECTED" ? "bg-rose-50 text-rose-700 border border-rose-100" :
-                                "bg-amber-50 text-amber-700 border border-amber-100"
-                              }`}>
-                                <div className={`w-1 h-1 rounded-full ${
-                                  r.status === "APPROVED" ? "bg-emerald-500" :
-                                  r.status === "REJECTED" ? "bg-rose-500" :
-                                   "bg-amber-500"
-                                }`} />
+                              <div className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 ${r.status === "APPROVED" ? "bg-emerald-50 text-emerald-700 border border-emerald-100" :
+                                  r.status === "REJECTED" ? "bg-rose-50 text-rose-700 border border-rose-100" :
+                                    "bg-amber-50 text-amber-700 border border-amber-100"
+                                }`}>
+                                <div className={`w-1 h-1 rounded-full ${r.status === "APPROVED" ? "bg-emerald-500" :
+                                    r.status === "REJECTED" ? "bg-rose-500" :
+                                      "bg-amber-500"
+                                  }`} />
                                 {r.status === "APPROVED" ? "Đã duyệt" :
-                                 r.status === "REJECTED" ? "Từ chối" : "Chờ duyệt"}
+                                  r.status === "REJECTED" ? "Từ chối" : "Chờ duyệt"}
                               </div>
                             </div>
 
@@ -2609,9 +2580,9 @@ export default function MyRentals() {
 
                             className={`px-3 py-1.5 rounded-lg text-xs font-bold ${extendPage <= 1
 
-                                ? "text-gray-300 cursor-not-allowed"
+                              ? "text-gray-300 cursor-not-allowed"
 
-                                : "text-gray-600 hover:bg-gray-100"
+                              : "text-gray-600 hover:bg-gray-100"
 
                               }`}
 
@@ -2635,9 +2606,9 @@ export default function MyRentals() {
 
                             className={`px-3 py-1.5 rounded-lg text-xs font-bold ${extendPage >= totalExtendPages
 
-                                ? "text-gray-300 cursor-not-allowed"
+                              ? "text-gray-300 cursor-not-allowed"
 
-                                : "text-gray-600 hover:bg-gray-100"
+                              : "text-gray-600 hover:bg-gray-100"
 
                               }`}
 
@@ -2811,9 +2782,9 @@ export default function MyRentals() {
 
               className={`px-5 py-3 rounded-2xl text-sm font-bold border ${currentPage <= 1
 
-                  ? "bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed"
+                ? "bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed"
 
-                  : "bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
+                : "bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
 
                 }`}
 
@@ -2837,9 +2808,9 @@ export default function MyRentals() {
 
               className={`px-5 py-3 rounded-2xl text-sm font-bold border ${currentPage >= totalPages
 
-                  ? "bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed"
+                ? "bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed"
 
-                  : "bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
+                : "bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
 
                 }`}
 

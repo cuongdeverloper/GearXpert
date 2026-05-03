@@ -7,6 +7,7 @@ function toCompensationProposalDto(proposal) {
   return {
     _id: proposal._id,
     proposedBy: proposal.proposedBy,
+    origin: proposal.origin || "SUPPLIER",
     amount: proposal.amount ?? 0,
     currency: proposal.currency || "VND",
     reason: proposal.reason || "",
@@ -24,6 +25,24 @@ function toCompensationProposalDto(proposal) {
     supplierDecidedAt: proposal.supplierDecidedAt,
     supplierDecidedBy: proposal.supplierDecidedBy,
     supplierDecisionNote: proposal.supplierDecisionNote || "",
+    directGearXpertReview: Boolean(proposal.directGearXpertReview),
+    handledByAdminId:
+      proposal.handledByAdminId &&
+      typeof proposal.handledByAdminId === "object" &&
+      proposal.handledByAdminId._id
+        ? proposal.handledByAdminId._id
+        : proposal.handledByAdminId || null,
+    handledByAdmin:
+      proposal.handledByAdminId &&
+      typeof proposal.handledByAdminId === "object" &&
+      (proposal.handledByAdminId.fullName ||
+        proposal.handledByAdminId.email ||
+        proposal.handledByAdminId.phone)
+        ? {
+            fullName: proposal.handledByAdminId.fullName || "",
+            email: proposal.handledByAdminId.email || "",
+          }
+        : null,
     adminDecision: proposal.adminDecision || "PENDING",
     adminDecidedAt: proposal.adminDecidedAt,
     adminDecidedBy: proposal.adminDecidedBy,

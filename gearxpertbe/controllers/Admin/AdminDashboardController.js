@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Device = require("../../models/Device");
 const Rental = require("../../models/Rental");
 const RentalItem = require("../../models/RentalItem");
@@ -146,31 +147,119 @@ exports.getAdminDashboard = async (req, res) => {
 
 exports.getAdminRentals = async (req, res) => {
   try {
-    const rentals = await Rental.find()
-      .populate("customerId", "fullName")
-      .populate("supplierId", "fullName")
-      .sort({ createdAt: -1 });
+    const { page = 1, limit = 10, search = "", status = "ALL" } = req.query;
+    const pageNum = Math.max(1, parseInt(page, 10));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
+    const skip = (pageNum - 1) * limitNum;
 
-    const rentalItems = await Promise.all(
-      rentals.map(async (rental) => {
-        const rentalItem = await RentalItem.findOne({ rentalId: rental._id })
-          .populate("deviceId", "name");
-        return {
-          id: rental._id,
-          customerName: rental.customerId?.fullName || "Unknown",
-          supplierName: rental.supplierId?.fullName || "Unknown",
-          deviceName: rentalItem?.deviceId?.name || "Device",
-          rentalStartDate: rental.rentalStartDate,
-          rentalEndDate: rental.rentalEndDate,
-          totalAmount: rental.totalAmount,
-          paymentStatus: rental.paymentStatus,
-          status: rental.status,
-          deliveryAddress: rental.deliveryAddress || {},
-        };
-      })
-    );
+    // Filter build
+    const filter = {};
+    if (status && status !== "ALL") {
+      filter.status = status;
+    }
 
-    res.json({ rentals: rentalItems });
+    // Since we need to search across populated fields (customer name, supplier name), 
+    // and RentalItem device names, we'll use aggregation for best performance with search.
+    
+    const pipeline = [
+      { $match: filter },
+      // Join customer
+      {
+        $lookup: {
+          from: "users",
+          localField: "customerId",
+          foreignField: "_id",
+          as: "customer"
+        }
+      },
+      { $unwind: { path: "$customer", preserveNullAndEmptyArrays: true } },
+      // Join supplier
+      {
+        $lookup: {
+          from: "users",
+          localField: "supplierId",
+          foreignField: "_id",
+          as: "supplier"
+        }
+      },
+      { $unwind: { path: "$supplier", preserveNullAndEmptyArrays: true } },
+      // Join rental items to get device names
+      {
+        $lookup: {
+          from: "rentalitems",
+          localField: "_id",
+          foreignField: "rentalId",
+          as: "items"
+        }
+      },
+      // Lookup device details for each item
+      {
+        $lookup: {
+          from: "devices",
+          localField: "items.deviceId",
+          foreignField: "_id",
+          as: "itemDevices"
+        }
+      }
+    ];
+
+    // Search filter if provided
+    if (search.trim()) {
+      const searchRegex = new RegExp(search.trim(), "i");
+      pipeline.push({
+        $match: {
+          $or: [
+            { "customer.fullName": searchRegex },
+            { "supplier.fullName": searchRegex },
+            { "itemDevices.name": searchRegex },
+            { orderCode: searchRegex },
+            { _id: search.trim().length === 24 ? new mongoose.Types.ObjectId(search.trim()) : null }
+          ]
+        }
+      });
+    }
+
+    // Count before pagination
+    const countPipeline = [...pipeline, { $count: "total" }];
+    const countResult = await Rental.aggregate(countPipeline);
+    const total = countResult[0]?.total || 0;
+
+    // Pagination and sorting
+    pipeline.push({ $sort: { createdAt: -1 } });
+    pipeline.push({ $skip: skip });
+    pipeline.push({ $limit: limitNum });
+
+    // Project final result
+    pipeline.push({
+      $project: {
+        id: "$_id",
+        orderCode: 1,
+        customerName: "$customer.fullName",
+        customerEmail: "$customer.email",
+        supplierName: "$supplier.fullName",
+        supplierEmail: "$supplier.email",
+        devices: "$itemDevices.name",
+        // Get dates and duration from the first rental item (assuming all items have same dates)
+        rentalStartDate: { $arrayElemAt: ["$items.rentalStartDate", 0] },
+        rentalEndDate: { $arrayElemAt: ["$items.rentalEndDate", 0] },
+        totalDays: { $arrayElemAt: ["$items.totalDays", 0] },
+        totalAmount: 1,
+        paymentStatus: 1,
+        status: 1,
+        deliveryAddress: 1,
+        createdAt: 1
+      }
+    });
+
+    const rentals = await Rental.aggregate(pipeline);
+
+    res.json({
+      rentals,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum)
+    });
   } catch (error) {
     console.error("Admin rentals error:", error);
     res.status(500).json({ message: "Failed to load rentals" });

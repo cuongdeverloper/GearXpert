@@ -7,6 +7,9 @@ const DeliveryTask = require("../../models/DeliveryTask");
 const Wallet = require("../../models/Wallet");
 const WalletTransaction = require("../../models/WalletTransaction");
 const User = require("../../models/User");
+const Contract = require("../../models/Contract");
+const ContractFile = require("../../models/ContractFile");
+const ExtensionRequest = require("../../models/ExtensionRequest");
 const DeviceItem = require("../../models/DeviceItem");
 const mongoose = require("mongoose");
 const {
@@ -53,6 +56,8 @@ function buildCompensationProposalChatPayload(proposalDto, issueId, rentalId) {
     supplierDecision: proposalDto.supplierDecision || "PENDING",
     adminDecision: proposalDto.adminDecision || "PENDING",
     flowStatus: proposalDto.flowStatus || "PROPOSED",
+    directGearXpertReview: Boolean(proposalDto.directGearXpertReview),
+    origin: proposalDto.origin || "SUPPLIER",
     customerLink: rid ? `/my-rentals/${rid}` : "/my-rentals",
     supplierLink: iid ? `/supplier/issues/${iid}` : "/supplier/issues",
     link: rid ? `/my-rentals/${rid}` : "/my-rentals",
@@ -155,6 +160,35 @@ async function attachLatestCompensationProposal({ deliveryIssues = [], damageRep
       if (!model || !referenceId) return;
       proposalMap.set(`${model}:${String(referenceId)}`, toCompensationProposalDto(entry.proposal));
     });
+
+    if (proposalMap.size > 0) {
+      const handlerIds = [
+        ...new Set(
+          [...proposalMap.values()]
+            .map((dto) => dto.handledByAdminId)
+            .filter(Boolean)
+            .map((id) => String(id))
+        ),
+      ];
+      if (handlerIds.length) {
+        try {
+          const handlers = await User.find({
+            _id: { $in: handlerIds.map((id) => new mongoose.Types.ObjectId(id)) },
+          })
+            .select("fullName email")
+            .lean();
+          const hMap = new Map(handlers.map((h) => [String(h._id), h]));
+          proposalMap.forEach((dto) => {
+            const hid = dto.handledByAdminId ? String(dto.handledByAdminId) : "";
+            if (!hid) return;
+            const u = hMap.get(hid);
+            if (u) dto.handledByAdmin = { fullName: u.fullName || "", email: u.email || "" };
+          });
+        } catch (e) {
+          console.error("attachLatestCompensationProposal handler enrich:", e);
+        }
+      }
+    }
   }
 
   const mapIssues = (items = [], modelName) =>
@@ -962,25 +996,30 @@ exports.supplierEscalateIssue = async (req, res) => {
       return res.status(403).json({ message: "Không có quyền cập nhật báo cáo này" });
     }
 
-    if (!["OPEN", "PROCESSING", "WAITING_EVIDENCE", "PENDING_RESOLUTION"].includes(doc.status)) {
+    if (doc.status === "AWAITING_ADMIN_GX") {
+      return res.status(400).json({
+        message: "Báo cáo đã ở trạng thái chờ Admin GearXpert xử lý.",
+      });
+    }
+
+    if (!["OPEN", "PROCESSING", "WAITING_EVIDENCE"].includes(doc.status)) {
       return res.status(400).json({
         message: "Không thể nhờ can thiệp với trạng thái báo cáo hiện tại",
       });
     }
 
+    const prevStatus = doc.status;
     if (!doc.statusHistory) doc.statusHistory = [];
     doc.statusHistory.push({
-      status: doc.status,
+      status: prevStatus,
       changedBy: supplierId,
       note: cleanNote
         ? `Supplier nhờ GearXpert can thiệp: ${cleanNote}`
-        : "Supplier nhờ GearXpert can thiệp",
+        : "Supplier nhờ GearXpert can thiệp — chuyển chờ Admin GearXpert",
       createdAt: new Date(),
     });
 
-    if (doc.status === "OPEN") {
-      doc.status = "PROCESSING";
-    }
+    doc.status = "AWAITING_ADMIN_GX";
 
     await doc.save();
 
@@ -1042,7 +1081,7 @@ exports.supplierCloseIssueNoCompensation = async (req, res) => {
       return res.status(403).json({ message: "Không có quyền cập nhật báo cáo này" });
     }
 
-    const canClose = ["OPEN", "PROCESSING", "WAITING_EVIDENCE", "PENDING_RESOLUTION"].includes(
+    const canClose = ["OPEN", "PROCESSING", "WAITING_EVIDENCE", "AWAITING_ADMIN_GX"].includes(
       doc.status
     );
     if (!canClose) {
@@ -1162,7 +1201,7 @@ exports.supplierCancelAndRefund = async (req, res) => {
       throw new Error("Không có quyền cập nhật báo cáo này");
     }
 
-    if (!["OPEN", "PROCESSING", "PENDING_RESOLUTION"].includes(doc.status)) {
+    if (!["OPEN", "PROCESSING", "WAITING_EVIDENCE", "AWAITING_ADMIN_GX"].includes(doc.status)) {
       throw new Error("Không thể hủy đơn với trạng thái báo cáo hiện tại");
     }
 
@@ -1246,7 +1285,7 @@ exports.supplierAdditionalDelivery = async (req, res) => {
       throw new Error("Không có quyền cập nhật báo cáo này");
     }
 
-    if (!["OPEN", "PROCESSING", "PENDING_RESOLUTION"].includes(doc.status)) {
+    if (!["OPEN", "PROCESSING", "WAITING_EVIDENCE", "AWAITING_ADMIN_GX"].includes(doc.status)) {
       throw new Error("Không thể tạo giao bổ sung với trạng thái báo cáo hiện tại");
     }
 
@@ -1330,6 +1369,13 @@ exports.supplierSubmitCompensationProposal = async (req, res) => {
       return res.status(403).json({ message: "Không có quyền gửi đề xuất cho báo cáo này" });
     }
 
+    if (doc.status === "AWAITING_ADMIN_GX") {
+      return res.status(400).json({
+        message:
+          "Sự cố đang chờ Admin GearXpert xử lý. Không gửi thêm đề xuất NCC cho đến khi luồng hiện tại kết thúc hoặc admin đưa ra phương án.",
+      });
+    }
+
     const {
       amount,
       reason,
@@ -1337,6 +1383,7 @@ exports.supplierSubmitCompensationProposal = async (req, res) => {
       suggestedResolution,
       forwardedMessagePreview,
       forwardedToCustomer,
+      directGearXpertReview,
     } = req.body || {};
 
     const cleanAmount = Number(amount ?? 0);
@@ -1346,6 +1393,11 @@ exports.supplierSubmitCompensationProposal = async (req, res) => {
     const cleanForwardMessage = String(forwardedMessagePreview || "").trim();
     const shouldMarkForwarded =
       forwardedToCustomer === true || forwardedToCustomer === "true";
+
+    const isDirectGx =
+      directGearXpertReview === true ||
+      directGearXpertReview === "true" ||
+      String(directGearXpertReview || "").toLowerCase() === "yes";
 
     if (!Number.isFinite(cleanAmount) || cleanAmount < 0) {
       return res.status(400).json({ message: "Số tiền bồi thường không hợp lệ" });
@@ -1358,15 +1410,38 @@ exports.supplierSubmitCompensationProposal = async (req, res) => {
         message: "Vui lòng nhập giải thích chi tiết (tối thiểu 10 ký tự)",
       });
     }
-    if (!["CUSTOMER_PAY", "SUPPLIER_BEAR", "REQUEST_GX_REVIEW"].includes(cleanResolution)) {
+    if (!["CUSTOMER_PAY", "SUPPLIER_BEAR", "REQUEST_GX_REVIEW", "PLATFORM_LIABILITY"].includes(cleanResolution)) {
       return res.status(400).json({
         message:
-          "Phương án đề xuất không hợp lệ. Hợp lệ: CUSTOMER_PAY, SUPPLIER_BEAR, REQUEST_GX_REVIEW",
+          "Phương án đề xuất không hợp lệ. Hợp lệ: CUSTOMER_PAY, SUPPLIER_BEAR, REQUEST_GX_REVIEW, PLATFORM_LIABILITY",
       });
     }
-    if (cleanResolution === "CUSTOMER_PAY" && cleanAmount <= 0) {
+    if (
+      (cleanResolution === "CUSTOMER_PAY" || cleanResolution === "PLATFORM_LIABILITY") &&
+      cleanAmount <= 0
+    ) {
       return res.status(400).json({
-        message: "Khi đề xuất khách đền bù, số tiền phải lớn hơn 0",
+        message:
+          cleanResolution === "CUSTOMER_PAY"
+            ? "Khi đề xuất khách đền bù, số tiền phải lớn hơn 0"
+            : "Hệ thống đền bù thiệt hại: số tiền phải lớn hơn 0",
+      });
+    }
+
+    const terminalProposal = new Set([
+      "ADMIN_APPROVED",
+      "ADMIN_REJECTED",
+      "CUSTOMER_REJECTED",
+      "SUPPLIER_REJECTED",
+    ]);
+    const existingOpen = await CompensationProposal.findOne({
+      referenceModel: modelName,
+      referenceId: doc._id,
+    }).sort({ submittedAt: -1, createdAt: -1 });
+    if (existingOpen && !terminalProposal.has(existingOpen.flowStatus)) {
+      return res.status(409).json({
+        message:
+          "Đang có đề xuất bồi thường chưa kết thúc. Hoàn tất hoặc hủy luồng hiện tại trước khi gửi đề xuất mới.",
       });
     }
 
@@ -1374,36 +1449,58 @@ exports.supplierSubmitCompensationProposal = async (req, res) => {
       ? req.files.map((file) => file?.path).filter(Boolean)
       : [];
 
-    const proposalData = {
+    const submittedAtNow = new Date();
+    let proposalDataBase = {
       referenceModel: modelName,
       referenceId: doc._id,
       rentalId: doc.rentalId,
       supplierId,
       customerId: rental.customerId || undefined,
       proposedBy: supplierId,
+      origin: "SUPPLIER",
       amount: cleanAmount,
       currency: "VND",
       reason: cleanReason,
       explanation: cleanExplanation,
       suggestedResolution: cleanResolution,
       images: uploadedImages,
-      submittedAt: new Date(),
-      forwardedToCustomerAt: shouldMarkForwarded ? new Date() : undefined,
-      forwardedMessagePreview: cleanForwardMessage || undefined,
-      flowStatus: "PROPOSED",
-      customerDecision: "PENDING",
-      // Supplier là người tạo đề xuất => mặc định đồng ý proposal của chính mình.
+      submittedAt: submittedAtNow,
+      forwardedToCustomerAt:
+        shouldMarkForwarded && !isDirectGx ? submittedAtNow : undefined,
+      forwardedMessagePreview:
+        shouldMarkForwarded && !isDirectGx ? cleanForwardMessage || undefined : undefined,
       supplierDecision: "ACCEPTED",
-      supplierDecidedAt: new Date(),
+      supplierDecidedAt: submittedAtNow,
       supplierDecidedBy: supplierId,
       adminDecision: "PENDING",
+      directGearXpertReview: isDirectGx,
     };
+
+    let proposalTail;
+    if (isDirectGx) {
+      proposalTail = {
+        flowStatus: "PENDING_ADMIN_REVIEW",
+        customerDecision: "ACCEPTED",
+        customerDecidedAt: submittedAtNow,
+        customerDecisionNote:
+          "Luồng nộp thẳng GearXpert: chờ GX xét và quyết định cuối theo đề xuất NCC (không chờ khách nhấn xác nhận trước trên luồng thường).",
+      };
+    } else {
+      proposalTail = {
+        flowStatus: "PROPOSED",
+        customerDecision: "PENDING",
+      };
+    }
+
+    const proposalData = { ...proposalDataBase, ...proposalTail };
 
     if (!doc.statusHistory) doc.statusHistory = [];
     doc.statusHistory.push({
       status: doc.status,
       changedBy: supplierId,
-      note: `Supplier gửi đề xuất bồi thường (${cleanResolution})`,
+      note: isDirectGx
+        ? `Supplier nộp đề xuất bồi — chuyển thẳng GearXpert duyệt (${cleanResolution})`
+        : `Supplier gửi đề xuất bồi thường (${cleanResolution})`,
       createdAt: new Date(),
     });
 
@@ -1436,7 +1533,7 @@ exports.supplierSubmitCompensationProposal = async (req, res) => {
 
     const proposalDto = toCompensationProposalDto(createdProposal.toObject());
 
-    if (shouldMarkForwarded && rental.customerId) {
+    if (shouldMarkForwarded && rental.customerId && !isDirectGx) {
       try {
         const payload = buildCompensationProposalChatPayload(proposalDto, doc._id, doc.rentalId);
         if (payload) {
@@ -1470,9 +1567,45 @@ exports.supplierSubmitCompensationProposal = async (req, res) => {
       }
     }
 
+    if (isDirectGx) {
+      try {
+        const adminUsers = await User.find({ role: "ADMIN" }).select("_id");
+        await Promise.all(
+          adminUsers.map((adminUser) =>
+            NotificationConfig.sendNotification({
+              senderId: supplierId,
+              receiverId: adminUser._id,
+              title: "Đề xuất chờ GX duyệt (nộp thẳng)",
+              message: `Case #${String(doc._id).slice(-6)}: NCC đã nộp thẳng — chờ admin xét và quyết định bồi thường.`,
+              link: "/admin/compensation-proposals",
+              type: "COMPENSATION_PROPOSAL_REVIEW",
+            })
+          )
+        );
+      } catch (e) {
+        console.error("supplierSubmitCompensationProposal admin notify:", e);
+      }
+      if (rental.customerId) {
+        try {
+          await NotificationConfig.sendNotification({
+            senderId: supplierId,
+            receiverId: rental.customerId,
+            title: "Hồ sơ chờ GearXpert xử lý",
+            message: `Sự cố #${String(doc._id).slice(-6)}: shop đã chuyển hồ sơ chờ GX xét. Bạn sẽ được thông báo kết quả.`,
+            link: "/my-rentals",
+            type: "COMPENSATION_PROPOSAL",
+          });
+        } catch (e) {
+          console.error("supplierSubmitCompensationProposal customer notify:", e);
+        }
+      }
+    }
+
     return res.json({
       success: true,
-      message: "Đã lưu đề xuất bồi thường",
+      message: isDirectGx
+        ? "Đã nộp đề xuất thẳng GearXpert — chờ admin duyệt và quyết định bồi thường"
+        : "Đã lưu đề xuất bồi thường",
       issue: {
         ...populated,
         compensationProposal: proposalDto,
@@ -1535,26 +1668,71 @@ exports.customerConfirmCompensationProposal = async (req, res) => {
       });
     }
 
+    const origin = proposal.origin || "SUPPLIER";
+    const fs = proposal.flowStatus;
+    if (
+      ["PENDING_ADMIN_REVIEW", "PENDING_WALLET", "ADMIN_APPROVED", "ADMIN_REJECTED"].includes(fs)
+    ) {
+      return res.status(409).json({
+        message: "Đề xuất đã qua giai đoạn xác nhận phía khách hàng.",
+      });
+    }
+    if (fs === "CUSTOMER_REJECTED" || fs === "SUPPLIER_REJECTED") {
+      return res.status(409).json({ message: "Đề xuất đã kết thúc ở nhánh từ chối." });
+    }
+    if (origin === "ADMIN_GX") {
+      if (!["PENDING_PARTY_REVIEW", "SUPPLIER_ACCEPTED"].includes(fs)) {
+        return res.status(409).json({
+          message: "Chỉ xác nhận được đề xuất trung gian GearXpert khi đang chờ phản hồi hai bên.",
+        });
+      }
+    } else if (fs !== "PROPOSED") {
+      return res.status(409).json({
+        message: "Không thể cập nhật xác nhận khách ở trạng thái luồng hiện tại.",
+      });
+    }
+
+    if (
+      fs === "CUSTOMER_ACCEPTED" &&
+      proposal.customerDecision === "ACCEPTED" &&
+      cleanDecision === "REJECTED"
+    ) {
+      return res.status(409).json({ message: "Không thể đổi quyết định sau khi đã chấp nhận." });
+    }
+
     proposal.customerDecision = cleanDecision;
     proposal.customerDecidedAt = new Date();
     proposal.customerDecidedBy = userId;
     proposal.customerDecisionNote = cleanNote || undefined;
-    const shouldAutoForwardToAdmin =
-      cleanDecision === "ACCEPTED" && proposal.supplierDecision === "ACCEPTED";
-    proposal.flowStatus = shouldAutoForwardToAdmin
-      ? "PENDING_ADMIN_REVIEW"
-      : cleanDecision === "ACCEPTED"
-      ? "CUSTOMER_ACCEPTED"
-      : "CUSTOMER_REJECTED";
-    if (cleanDecision === "REJECTED") {
+
+    let shouldAutoForwardToAdmin = false;
+    if (cleanDecision === "ACCEPTED") {
+      if (origin === "ADMIN_GX") {
+        if (proposal.supplierDecision === "ACCEPTED") {
+          shouldAutoForwardToAdmin = true;
+          proposal.flowStatus = "PENDING_ADMIN_REVIEW";
+          proposal.adminDecision = "PENDING";
+        } else {
+          proposal.flowStatus = "CUSTOMER_ACCEPTED";
+        }
+      } else {
+        shouldAutoForwardToAdmin = proposal.supplierDecision === "ACCEPTED";
+        proposal.flowStatus = shouldAutoForwardToAdmin
+          ? "PENDING_ADMIN_REVIEW"
+          : "CUSTOMER_ACCEPTED";
+        if (shouldAutoForwardToAdmin) proposal.adminDecision = "PENDING";
+      }
+    } else {
+      proposal.flowStatus = "CUSTOMER_REJECTED";
       proposal.adminDecision = "REJECTED";
       proposal.approvedCompensationAmount = 0;
     }
     await proposal.save();
 
+    const prevIssueStatus = issueDoc.status;
     if (!issueDoc.statusHistory) issueDoc.statusHistory = [];
     issueDoc.statusHistory.push({
-      status: issueDoc.status,
+      status: prevIssueStatus,
       changedBy: userId,
       note:
         shouldAutoForwardToAdmin
@@ -1564,6 +1742,9 @@ exports.customerConfirmCompensationProposal = async (req, res) => {
           : "Khách hàng đã từ chối đề xuất bồi thường",
       createdAt: new Date(),
     });
+    if (shouldAutoForwardToAdmin && issueDoc.status === "AWAITING_ADMIN_GX") {
+      issueDoc.status = "PROCESSING";
+    }
     await issueDoc.save();
 
     if (rental?.supplierId) {
@@ -1671,7 +1852,23 @@ exports.supplierConfirmCompensationProposal = async (req, res) => {
       });
     }
 
-    if (proposal.customerDecision !== "ACCEPTED") {
+    if (proposal.supplierDecision === cleanDecision) {
+      return res.json({
+        success: true,
+        noChange: true,
+        message: "Đề xuất đã được xác nhận trước đó",
+        proposal: toCompensationProposalDto(proposal.toObject()),
+      });
+    }
+
+    const origin = proposal.origin || "SUPPLIER";
+    const ggxSupplierFirst =
+      origin === "ADMIN_GX" &&
+      proposal.flowStatus === "PENDING_PARTY_REVIEW" &&
+      proposal.customerDecision === "PENDING";
+    const gxSupplierFirstPath = ggxSupplierFirst;
+
+    if (!ggxSupplierFirst && proposal.customerDecision !== "ACCEPTED") {
       return res.status(409).json({
         message: "Khách hàng chưa chấp nhận đề xuất, chưa thể chuyển admin duyệt",
       });
@@ -1682,10 +1879,29 @@ exports.supplierConfirmCompensationProposal = async (req, res) => {
     proposal.supplierDecidedBy = supplierId;
     proposal.supplierDecisionNote = cleanNote || undefined;
 
+    let notifyAdmins = false;
+    let notifyCustomerForAdminQueue = false;
+
     if (cleanDecision === "ACCEPTED") {
-      proposal.flowStatus = "PENDING_ADMIN_REVIEW";
-      proposal.adminDecision = "PENDING";
-      proposal.approvedCompensationAmount = 0;
+      if (origin === "ADMIN_GX") {
+        if (proposal.customerDecision === "ACCEPTED") {
+          proposal.flowStatus = "PENDING_ADMIN_REVIEW";
+          proposal.adminDecision = "PENDING";
+          proposal.approvedCompensationAmount = 0;
+          notifyAdmins = true;
+          notifyCustomerForAdminQueue = true;
+        } else {
+          proposal.flowStatus = "SUPPLIER_ACCEPTED";
+          proposal.adminDecision = "PENDING";
+          proposal.approvedCompensationAmount = 0;
+        }
+      } else {
+        proposal.flowStatus = "PENDING_ADMIN_REVIEW";
+        proposal.adminDecision = "PENDING";
+        proposal.approvedCompensationAmount = 0;
+        notifyAdmins = true;
+        notifyCustomerForAdminQueue = true;
+      }
     } else {
       proposal.flowStatus = "SUPPLIER_REJECTED";
       proposal.adminDecision = "REJECTED";
@@ -1694,19 +1910,27 @@ exports.supplierConfirmCompensationProposal = async (req, res) => {
 
     await proposal.save();
 
+    const prevIssueStatus = issueDoc.status;
     if (!issueDoc.statusHistory) issueDoc.statusHistory = [];
     issueDoc.statusHistory.push({
-      status: issueDoc.status,
+      status: prevIssueStatus,
       changedBy: supplierId,
       note:
         cleanDecision === "ACCEPTED"
-          ? "Supplier đã xác nhận, chuyển đề xuất bồi thường sang admin duyệt"
+          ? proposal.flowStatus === "SUPPLIER_ACCEPTED"
+            ? "Supplier đã đồng ý phương án GearXpert — chờ khách xác nhận"
+            : "Supplier đã xác nhận, chuyển đề xuất bồi thường sang admin duyệt"
+          : gxSupplierFirstPath
+          ? "Supplier đã từ chối đề xuất trung gian GearXpert"
           : "Supplier đã hủy đề xuất bồi thường sau khi khách xác nhận",
       createdAt: new Date(),
     });
+    if (notifyAdmins && issueDoc.status === "AWAITING_ADMIN_GX") {
+      issueDoc.status = "PROCESSING";
+    }
     await issueDoc.save();
 
-    if (cleanDecision === "ACCEPTED") {
+    if (notifyAdmins) {
       const adminUsers = await User.find({ role: "ADMIN" }).select("_id");
       await Promise.all(
         adminUsers.map((adminUser) =>
@@ -1720,23 +1944,39 @@ exports.supplierConfirmCompensationProposal = async (req, res) => {
           })
         )
       );
-      if (rental?.customerId) {
-        await NotificationConfig.sendNotification({
-          senderId: supplierId,
-          receiverId: rental.customerId,
-          title: "Đề xuất bồi thường đã lên admin duyệt",
-          message: `Case #${String(issueDoc._id).slice(-6)}: shop vừa xác nhận — hệ thống chờ quản trị duyệt mức bồi thường. Bạn sẽ nhận thông báo khi có kết quả.`,
-          link: `/customer/rentals/${issueDoc.rentalId}`,
-          type: "COMPENSATION_PROPOSAL",
-        });
-      }
+    }
+    if (notifyCustomerForAdminQueue && rental?.customerId) {
+      await NotificationConfig.sendNotification({
+        senderId: supplierId,
+        receiverId: rental.customerId,
+        title: "Đề xuất bồi thường đã lên admin duyệt",
+        message: `Case #${String(issueDoc._id).slice(-6)}: shop vừa xác nhận — hệ thống chờ quản trị duyệt mức bồi thường. Bạn sẽ nhận thông báo khi có kết quả.`,
+        link: `/customer/rentals/${issueDoc.rentalId}`,
+        type: "COMPENSATION_PROPOSAL",
+      });
+    }
+    if (
+      cleanDecision === "ACCEPTED" &&
+      proposal.flowStatus === "SUPPLIER_ACCEPTED" &&
+      rental?.customerId
+    ) {
+      await NotificationConfig.sendNotification({
+        senderId: supplierId,
+        receiverId: rental.customerId,
+        title: "GearXpert đề xuất phương án — chờ bạn xác nhận",
+        message: `Case #${String(issueDoc._id).slice(-6)}: shop đã đồng ý phương án trung gian. Vui lòng xác nhận hoặc từ chối trên đơn thuê.`,
+        link: `/customer/rentals/${issueDoc.rentalId}`,
+        type: "COMPENSATION_PROPOSAL",
+      });
     }
 
     return res.json({
       success: true,
       message:
         cleanDecision === "ACCEPTED"
-          ? "Đã chuyển đề xuất sang admin duyệt"
+          ? proposal.flowStatus === "SUPPLIER_ACCEPTED"
+            ? "Đã xác nhận — chờ khách đồng ý phương án GearXpert"
+            : "Đã chuyển đề xuất sang admin duyệt"
           : "Đã hủy chuyển duyệt đề xuất bồi thường",
       proposal: toCompensationProposalDto(proposal.toObject()),
     });
@@ -1781,6 +2021,7 @@ exports.adminGetCompensationProposals = async (req, res) => {
         .populate({ path: "supplierId", select: "fullName email phone avatar" })
         .populate({ path: "customerId", select: "fullName email phone avatar" })
         .populate({ path: "rentalId", select: "_id status rentPriceTotal depositAmount" })
+        .populate({ path: "handledByAdminId", select: "fullName email" })
         .lean(),
       CompensationProposal.countDocuments(filter),
     ]);
@@ -1848,6 +2089,242 @@ exports.adminGetCompensationProposals = async (req, res) => {
   }
 };
 
+const TERMINAL_COMPENSATION_FLOW = new Set([
+  "ADMIN_APPROVED",
+  "ADMIN_REJECTED",
+  "CUSTOMER_REJECTED",
+  "SUPPLIER_REJECTED",
+]);
+
+async function issueHasOpenCompensationProposal(referenceModel, referenceId) {
+  const latest = await CompensationProposal.findOne({
+    referenceModel,
+    referenceId,
+  })
+    .sort({ submittedAt: -1, createdAt: -1 })
+    .select("flowStatus")
+    .lean();
+  return Boolean(latest && !TERMINAL_COMPENSATION_FLOW.has(latest.flowStatus));
+}
+
+/**
+ * Admin: đầy đủ ngữ cảnh issue + đơn thuê + hợp đồng + lịch sử đề xuất (điều tra / phán quyết).
+ * Query: referenceModel = DeliveryIssueReport | DamageReport (bắt buộc)
+ */
+exports.adminGetIssueInvestigationBundle = async (req, res) => {
+  try {
+    const { issueId } = req.params;
+    const referenceModel = String(req.query.referenceModel || req.query.type || "").trim();
+    if (!mongoose.Types.ObjectId.isValid(issueId)) {
+      return res.status(400).json({ message: "issueId không hợp lệ" });
+    }
+    if (!["DeliveryIssueReport", "DamageReport"].includes(referenceModel)) {
+      return res.status(400).json({
+        message: "Thiếu hoặc sai referenceModel — dùng DeliveryIssueReport hoặc DamageReport",
+      });
+    }
+
+    const oid = new mongoose.Types.ObjectId(issueId);
+
+    let issueDoc = null;
+    if (referenceModel === "DeliveryIssueReport") {
+      issueDoc = await DeliveryIssueReport.findById(oid)
+        .populate({ path: "customerId", select: "fullName email phone avatar" })
+        .populate({ path: "staffId", select: "fullName email phone" })
+        .populate({ path: "assignedAdminId", select: "fullName email phone" })
+        .populate({ path: "deviceIds", select: "name slug images rentPrice depositAmount" })
+        .populate({
+          path: "rentalItemIds",
+          populate: [
+            { path: "deviceId", select: "name slug images rentPrice depositAmount supplierId" },
+            {
+              path: "deviceItemIds",
+              select: "serialNumber internalCode condition status location images",
+            },
+          ],
+        })
+        .populate({
+          path: "deviceItemIds",
+          select: "serialNumber internalCode condition status location images",
+        })
+        .lean();
+    } else {
+      issueDoc = await DamageReport.findById(oid)
+        .populate({ path: "customerId", select: "fullName email phone avatar" })
+        .populate({ path: "assignedAdminId", select: "fullName email phone" })
+        .populate({ path: "deviceId", select: "name slug images rentPrice depositAmount" })
+        .populate({
+          path: "rentalItemId",
+          populate: [
+            { path: "deviceId", select: "name slug images rentPrice depositAmount supplierId" },
+            {
+              path: "deviceItemIds",
+              select: "serialNumber internalCode condition status location images",
+            },
+          ],
+        })
+        .populate({
+          path: "deviceItemIds",
+          select: "serialNumber internalCode condition status location images",
+        })
+        .lean();
+    }
+
+    if (!issueDoc) {
+      return res.status(404).json({ message: "Không tìm thấy báo cáo sự cố" });
+    }
+
+    const rentalId = issueDoc.rentalId;
+    if (!rentalId) {
+      return res.status(404).json({ message: "Báo cáo không gắn đơn thuê" });
+    }
+
+    const [compensationProposals, rental, rentalItems, contractRow, extensionRequests] = await Promise.all([
+      CompensationProposal.find({ referenceModel, referenceId: oid })
+        .sort({ submittedAt: -1, createdAt: -1 })
+        .populate({ path: "proposedBy", select: "fullName email role" })
+        .populate({ path: "handledByAdminId", select: "fullName email" })
+        .populate({ path: "supplierId", select: "fullName email phone avatar" })
+        .populate({ path: "customerId", select: "fullName email phone avatar" })
+        .lean(),
+      Rental.findById(rentalId)
+        .populate("customerId", "fullName email phone avatar")
+        .populate("supplierId", "fullName email phone avatar")
+        .populate("assignedOperationStaffId", "fullName email phone role")
+        .lean(),
+      RentalItem.find({ rentalId })
+        .populate([
+          {
+            path: "deviceId",
+            select: "name slug images supplierId rentPrice depositAmount",
+            populate: { path: "supplierId", select: "fullName phone email" },
+          },
+          {
+            path: "deviceItemIds",
+            select: "serialNumber internalCode condition status location images",
+          },
+        ])
+        .lean(),
+      Contract.findOne({ rentalId }).lean(),
+      ExtensionRequest.find({ rentalId })
+        .sort({ createdAt: -1 })
+        .limit(30)
+        .select("requestedEndDate requestedDays proposedExtraAmount status note createdAt updatedAt")
+        .lean(),
+    ]);
+
+    if (!rental) {
+      return res.status(404).json({ message: "Không tìm thấy đơn thuê" });
+    }
+
+    let contractUrl = null;
+    if (contractRow?._id) {
+      const contractFile = await ContractFile.findOne({ contractId: contractRow._id }).lean();
+      if (contractFile?.fileUrl) contractUrl = contractFile.fileUrl;
+    }
+
+    const [otherDelivery, otherDamage] = await Promise.all([
+      DeliveryIssueReport.find({ rentalId, _id: { $ne: oid } })
+        .sort({ updatedAt: -1 })
+        .limit(40)
+        .select("issueType description status reportContext compensationAmount createdAt updatedAt")
+        .lean(),
+      DamageReport.find({ rentalId, _id: { $ne: oid } })
+        .sort({ updatedAt: -1 })
+        .limit(40)
+        .select("description severity status compensationAmount createdAt updatedAt")
+        .lean(),
+    ]);
+
+    return res.json({
+      success: true,
+      referenceModel,
+      issue: issueDoc,
+      compensationProposals,
+      rental: { ...rental, items: rentalItems },
+      contract: contractRow ? { ...contractRow, contractUrl } : null,
+      extensionRequests: extensionRequests || [],
+      relatedIssues: {
+        deliveryIssueReports: otherDelivery,
+        damageReports: otherDamage,
+      },
+    });
+  } catch (err) {
+    console.error("adminGetIssueInvestigationBundle:", err);
+    return res.status(500).json({ message: err.message || "Lỗi server" });
+  }
+};
+
+/** Admin: case NCC đã escalate (AWAITING_ADMIN_GX) chưa có đề xuất mở — hiển thị trang duyệt bồi thường */
+exports.adminGetIssuesAwaitingGx = async (req, res) => {
+  try {
+    const [deliveryList, damageList] = await Promise.all([
+      DeliveryIssueReport.find({ status: "AWAITING_ADMIN_GX" })
+        .sort({ updatedAt: -1 })
+        .limit(200)
+        .lean(),
+      DamageReport.find({ status: "AWAITING_ADMIN_GX" })
+        .sort({ updatedAt: -1 })
+        .limit(200)
+        .lean(),
+    ]);
+
+    const candidates = [];
+    for (const doc of deliveryList) {
+      if (await issueHasOpenCompensationProposal("DeliveryIssueReport", doc._id)) continue;
+      candidates.push({ referenceModel: "DeliveryIssueReport", doc });
+    }
+    for (const doc of damageList) {
+      if (await issueHasOpenCompensationProposal("DamageReport", doc._id)) continue;
+      candidates.push({ referenceModel: "DamageReport", doc });
+    }
+
+    const rentalIds = [
+      ...new Set(candidates.map((c) => c.doc.rentalId).filter(Boolean).map((id) => String(id))),
+    ];
+    const rentals = rentalIds.length
+      ? await Rental.find({ _id: { $in: rentalIds } })
+          .select("_id status supplierId customerId")
+          .populate({ path: "supplierId", select: "fullName email phone" })
+          .populate({ path: "customerId", select: "fullName email phone" })
+          .lean()
+      : [];
+    const rentalMap = new Map(rentals.map((r) => [String(r._id), r]));
+
+    const issues = candidates
+      .map(({ referenceModel, doc }) => {
+        const r = doc.rentalId ? rentalMap.get(String(doc.rentalId)) : null;
+        return {
+          referenceModel,
+          issueId: doc._id,
+          status: doc.status,
+          issueType: doc.issueType || null,
+          severity: doc.severity || null,
+          description: (doc.description || "").slice(0, 400),
+          reportContext: doc.reportContext || null,
+          createdAt: doc.createdAt,
+          updatedAt: doc.updatedAt,
+          assignedAdminId: doc.assignedAdminId || null,
+          rentalId: doc.rentalId,
+          rental: r
+            ? {
+                _id: r._id,
+                status: r.status,
+                supplier: r.supplierId || null,
+                customer: r.customerId || null,
+              }
+            : null,
+        };
+      })
+      .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+
+    return res.json({ success: true, issues });
+  } catch (err) {
+    console.error("adminGetIssuesAwaitingGx:", err);
+    return res.status(500).json({ message: err.message || "Lỗi server" });
+  }
+};
+
 module.exports = {
   createDeliveryIssue: exports.createDeliveryIssue,
   getDeliveryIssueByRental: exports.getDeliveryIssueByRental,
@@ -1861,6 +2338,8 @@ module.exports = {
   customerConfirmCompensationProposal: exports.customerConfirmCompensationProposal,
   supplierConfirmCompensationProposal: exports.supplierConfirmCompensationProposal,
   adminGetCompensationProposals: exports.adminGetCompensationProposals,
+  adminGetIssueInvestigationBundle: exports.adminGetIssueInvestigationBundle,
+  adminGetIssuesAwaitingGx: exports.adminGetIssuesAwaitingGx,
   supplierEscalateIssue: exports.supplierEscalateIssue,
   supplierCloseIssueNoCompensation: exports.supplierCloseIssueNoCompensation,
   supplierCancelAndRefund: exports.supplierCancelAndRefund,

@@ -8,6 +8,7 @@ const withdrawRequestSchema = new mongoose.Schema({
   // Thông tin ngân hàng nhận tiền
   bankInfo: {
     bankName: { type: String, required: true },
+    bankCode: { type: String }, // BIN của ngân hàng (VD: 970422)
     accountNumber: { type: String, required: true },
     accountName: { type: String, required: true }
   },
