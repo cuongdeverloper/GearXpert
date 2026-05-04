@@ -7,6 +7,35 @@ import {
 } from 'lucide-react';
 import { getDeliveringRentals, getReturningRentals, claimDeliveryTask, confirmPickup } from '../../../service/ApiService/RentalApi';
 import { logOperationAction } from '../../../service/ApiService/OperationLogApi';
+import { Calendar, AlertCircle } from 'lucide-react';
+
+const formatDate = (dateString) => {
+  if (!dateString) return '—';
+  return new Date(dateString).toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+const isNearStart = (task) => {
+  if (!task || task.type !== 'delivery') return false;
+  const startDate = task.rentalData?.rentalStartDate;
+  if (!startDate) return false;
+  
+  // Nếu đã giao rồi thì không báo nữa
+  if (task.rentalData?.deliveredAt) return false;
+
+  const start = new Date(startDate);
+  const now = new Date();
+  const diff = start - now;
+  const oneDayInMs = 24 * 60 * 60 * 1000;
+  
+  // Báo động nếu còn dưới 1 ngày hoặc đã quá hạn mà chưa giao
+  return diff < oneDayInMs;
+};
 
 const mapRentalToTask = (rental) => {
   const items = rental.rentalItems || [];
@@ -309,14 +338,25 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
                       </span>
                     )}
                   </div>
-                  <span className="text-xs font-semibold text-slate-500">
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {isNearStart(task) && (
+                      <span className="flex items-center gap-1 text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100 animate-pulse">
+                        <AlertCircle size={12} /> SẮP GIAO
+                      </span>
+                    )}
+                    <span className="text-xs font-semibold text-slate-500">
+                    </span>
+                  </div>
                 </div>
 
                 <div className="p-4 space-y-3 flex-1">
                   <div>
                     <p className="font-semibold text-slate-900 text-base">{task.device}</p>
                     <p className="text-sm text-slate-500 mt-0.5 line-clamp-1">{task.customer}</p>
+                    <div className="flex items-center gap-1.5 text-[11px] text-indigo-600 font-semibold mt-1">
+                      <Calendar size={13} />
+                      <span>{formatDate(task.rentalData?.rentalStartDate)} - {formatDate(task.rentalData?.rentalEndDate)}</span>
+                    </div>
                   </div>
                   <div className="flex items-start gap-2 text-sm text-slate-600 bg-slate-50 p-2.5 rounded-lg">
                     <MapPin size={16} className="text-slate-400 shrink-0 mt-0.5" />
@@ -456,6 +496,34 @@ export default function TasksTab({ onOpenHandover, realtimeTick = 0 }) {
                       <FileText size={18} /> Xem chi tiết biên bản/hợp đồng
                     </button>
                   )}
+                </div>
+              </div>
+
+              {/* Rental Period Section */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <Calendar size={18} className="text-indigo-600"/> 
+                  <h4 className="font-semibold text-slate-900 text-[15px]">Thời gian thuê</h4>
+                </div>
+                
+                {isNearStart(selectedTask) && (
+                  <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 flex items-center gap-3 animate-pulse">
+                    <AlertCircle size={20} className="text-rose-600 shrink-0" />
+                    <p className="text-sm font-bold text-rose-700">
+                      Nhiệm vụ cần ưu tiên! Thời gian thuê bắt đầu trong chưa đầy 24h.
+                    </p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Ngày bắt đầu</p>
+                    <p className="text-sm font-semibold text-slate-900">{formatDate(selectedTask.rentalData?.rentalStartDate)}</p>
+                  </div>
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Ngày kết thúc</p>
+                    <p className="text-sm font-semibold text-slate-900">{formatDate(selectedTask.rentalData?.rentalEndDate)}</p>
+                  </div>
                 </div>
               </div>
             </div>

@@ -35,6 +35,7 @@ const navGroups = [
         label: "Người dùng",
         icon: FiUsers,
         subItems: [
+          { to: "/admin/staff", label: "Nhân viên vận hành", icon: FiUsers },
           { to: "/admin/advertisements", label: "Quảng cáo", icon: HiOutlineSpeakerphone }
         ]
       },

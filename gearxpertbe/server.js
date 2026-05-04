@@ -111,6 +111,26 @@ app.use("/", googleAuthRouter);
 
 app.post("/api/ai-chat", handleAIChat);
 
+app.get("/api/check-ip", (req, res) => {
+  const https = require("https");
+  https.get("https://api.ipify.org?format=json", (resp) => {
+    let data = "";
+    resp.on("data", (chunk) => {
+      data += chunk;
+    });
+    resp.on("end", () => {
+      try {
+        const parsed = JSON.parse(data);
+        res.json({ deployed_server_ip: parsed.ip });
+      } catch (e) {
+        res.status(500).json({ error: "Parse error" });
+      }
+    });
+  }).on("error", (err) => {
+    res.status(500).json({ error: err.message });
+  });
+});
+
 app.get("/", (req, res) => {
   res.json("Hello");
 });

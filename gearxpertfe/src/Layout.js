@@ -58,6 +58,7 @@ import AdminCompensationReviewsPage from "./pages/Admin/AdminCompensationReviews
 import AdminPendingIssueReviewsPage from "./pages/Admin/AdminPendingIssueReviewsPage";
 import AdminIssueInvestigationPage from "./pages/Admin/AdminIssueInvestigationPage";
 import AdminSupplierDetailPage from "./pages/Admin/AdminSupplierDetailPage";
+import OperationStaffPage from "./pages/Admin/OperationStaffPage";
 
 // pages
 import RentalCheckout from "./pages/Rental/RentalCheckout";
@@ -266,6 +267,7 @@ export default function Layout() {
             <Route path="users" element={<UsersPage />} />
             <Route path="suppliers" element={<SuppliersPage />} />
             <Route path="suppliers/:id" element={<AdminSupplierDetailPage />} />
+            <Route path="staff" element={<OperationStaffPage />} />
             <Route path="shop-reports" element={<AdminShopReports />} />
             <Route path="supplier-onboarding" element={<SupplierOnboardingPage />} />
             <Route path="devices" element={<DevicesModerationPage />} />

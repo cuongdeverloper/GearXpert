@@ -8,6 +8,7 @@ const navGroups = [
     items: [
       { to: "/admin", label: "Bảng điều khiển", icon: FiHome },
       { to: "/admin/users", label: "Người dùng", icon: FiUsers },
+      { to: "/admin/staff", label: "Nhân viên vận hành", icon: FiUsers },
       { to: "/admin/suppliers", label: "Nhà cung cấp", icon: FiUserCheck },
       { to: "/admin/supplier-onboarding", label: "Duyệt đăng ký NCC", icon: FiClipboard },
       { to: "/admin/devices", label: "Thiết bị", icon: FiBox },

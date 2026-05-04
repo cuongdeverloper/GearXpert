@@ -1,4 +1,6 @@
 const User = require('../../models/User');
+const Rental = require('../../models/Rental');
+const RentalItem = require('../../models/RentalItem');
 const { sendMail } = require('../../configs/sendMail');
 const { accountStatusChangeTemplate } = require('../../utils/EmailTemplates');
 
@@ -93,8 +95,78 @@ const getAdmins = async (req, res) => {
     }
 };
 
+const getOperationStaff = async (req, res) => {
+    try {
+        const staff = await User.find({ role: 'OPERATION_STAFF' }).sort({ createdAt: -1 });
+        
+        // Count tasks for each staff
+        const staffWithTaskCount = await Promise.all(staff.map(async (s) => {
+            const taskCount = await Rental.countDocuments({
+                assignedOperationStaffId: s._id,
+                status: { $in: ['APPROVED', 'DELIVERING', 'RETURNING', 'INSPECTING'] }
+            });
+            return {
+                ...s.toObject(),
+                activeTaskCount: taskCount
+            };
+        }));
+
+        res.status(200).json({
+            success: true,
+            staff: staffWithTaskCount
+        });
+    } catch (error) {
+        console.error("Get operation staff error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Lỗi server khi lấy danh sách nhân viên vận hành"
+        });
+    }
+};
+
+const getStaffTasks = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const rentals = await Rental.find({ assignedOperationStaffId: id })
+            .populate('customerId', 'fullName email phone')
+            .sort({ updatedAt: -1 });
+
+        const tasks = await Promise.all(rentals.map(async (rental) => {
+            const rentalItem = await RentalItem.findOne({ rentalId: rental._id })
+                .populate('deviceId', 'name images');
+            
+            return {
+                _id: rental._id,
+                orderCode: rental.orderCode,
+                status: rental.status,
+                customerName: rental.customerId?.fullName || 'N/A',
+                customerPhone: rental.phoneNumber || rental.customerId?.phone || 'N/A',
+                address: rental.deliveryAddress?.fullAddress || 'N/A',
+                deviceName: rentalItem?.deviceId?.name || 'Thiết bị',
+                deviceImage: rentalItem?.deviceId?.images?.[0] || '',
+                rentalStartDate: rentalItem?.rentalStartDate,
+                rentalEndDate: rentalItem?.rentalEndDate,
+                type: (rental.status === 'APPROVED' || rental.status === 'DELIVERING') ? 'DELIVERY' : 'RETURN'
+            };
+        }));
+
+        res.status(200).json({
+            success: true,
+            tasks
+        });
+    } catch (error) {
+        console.error("Get staff tasks error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Lỗi server khi lấy danh sách nhiệm vụ của nhân viên"
+        });
+    }
+};
+
 module.exports = {
     getAllUsers,
     toggleUserStatus,
     getAdmins,
+    getOperationStaff,
+    getStaffTasks
 };

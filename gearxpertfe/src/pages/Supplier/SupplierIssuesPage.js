@@ -463,8 +463,7 @@ export default function SupplierIssuesPage() {
       // Nếu có thiết bị trong đơn hàng, dùng danh sách này thay vì fetch toàn kho
       if (itemsInRental.length > 0) {
         setWoRentalDeviceItems(itemsInRental);
-        // Tự chọn nếu chỉ có 1 cái
-        if (!woIssueForm.deviceItemId && itemsInRental.length === 1) {
+        if (!woIssueForm.deviceItemId) {
           setWoIssueForm((f) => ({ ...f, deviceItemId: String(itemsInRental[0]._id) }));
         }
       } else {
@@ -472,7 +471,7 @@ export default function SupplierIssuesPage() {
         const res = await getDeviceItemsByDeviceIds(deviceIds);
         const items = Array.isArray(res?.data) ? res.data : (res?.data?.data || []);
         setWoRentalDeviceItems(items);
-        if (!woIssueForm.deviceItemId && items.length === 1 && items[0]._id) {
+        if (!woIssueForm.deviceItemId && items.length > 0 && items[0]._id) {
           setWoIssueForm((f) => ({ ...f, deviceItemId: String(items[0]._id) }));
         }
       }
@@ -813,7 +812,7 @@ export default function SupplierIssuesPage() {
                   <div className="flex items-center gap-2 text-sm text-slate-400 py-2">
                     <FiTool size={13} className="animate-spin" /> Đang tải thiết bị...
                   </div>
-                ) : (woIssueModal.deviceItemIds?.length > 0 || woRentalDeviceItems.length === 1) && woIssueForm.deviceItemId ? (
+                ) : woIssueForm.deviceItemId ? (
                   // HIỂN THỊ TĨNH NẾU ĐÃ XÁC ĐỊNH ĐÚNG THIẾT BỊ
                   <div className="w-full rounded-xl border border-rose-100 bg-rose-50/50 px-3 py-2.5 text-sm flex items-center gap-3">
                     <div className="h-8 w-8 rounded-lg bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
@@ -836,29 +835,10 @@ export default function SupplierIssuesPage() {
                       </div>
                     </div>
                   </div>
-                ) : woRentalDeviceItems.length === 0 ? (
+                ) : (
                   <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                     ⚠️ Không tìm thấy thiết bị trong đơn hàng này.
                   </p>
-                ) : (
-                  // DROPDOWN CHỈ HIỂN THỊ KHI CÓ NHIỀU LỰA CHỌN VÀ CHƯA XÁC ĐỊNH ĐƯỢC ITEM
-                  <select
-                    value={woIssueForm.deviceItemId}
-                    onChange={(e) => setWoIssueForm((f) => ({ ...f, deviceItemId: e.target.value }))}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-rose-400"
-                  >
-                    <option value="">— Chọn thiết bị cần sửa —</option>
-                    {woRentalDeviceItems.map((item, idx) => {
-                      if (!item._id) return null;
-                      const devName = item.device?.name || "Thiết bị";
-                      const serial = item.internalCode || item.serialNumber || `#${idx + 1}`;
-                      return (
-                        <option key={item._id} value={item._id}>
-                          {devName} — {serial}
-                        </option>
-                      );
-                    })}
-                  </select>
                 )}
               </div>
 
