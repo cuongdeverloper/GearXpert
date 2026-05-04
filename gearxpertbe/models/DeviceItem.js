@@ -25,6 +25,8 @@ const deviceItemSchema = new mongoose.Schema(
         "RESERVED",
         "PENDING_RESOLUTION",
         "MAINTENANCE",
+        "PENDING_MAINTENANCE_REVIEW",
+        "RE_MAINTENANCE",
         "REPAIR",
         "DAMAGED",
         "LOST",
@@ -149,7 +151,7 @@ deviceItemSchema.statics.updateDeviceCounts = async function (
           $sum: { $cond: [{ $in: ["$status", ["RENTED", "RESERVED", "PENDING_RESOLUTION"]] }, 1, 0] },
         },
         maintenance: {
-          $sum: { $cond: [{ $eq: ["$status", "MAINTENANCE"] }, 1, 0] },
+          $sum: { $cond: [{ $in: ["$status", ["MAINTENANCE", "PENDING_MAINTENANCE_REVIEW", "RE_MAINTENANCE"]] }, 1, 0] },
         },
         damaged: {
           $sum: { $cond: [{ $eq: ["$status", "DAMAGED"] }, 1, 0] },
