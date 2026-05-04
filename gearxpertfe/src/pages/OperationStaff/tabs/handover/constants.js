@@ -9,8 +9,6 @@ export const FAILURE_OPTIONS = [
 
 /** Lý do thu hồi thất bại (đồng bộ enum backend ReturnRecord.failure.reason) */
 export const RETURN_FAILURE_OPTIONS = [
-  { value: "CUSTOMER_UNAVAILABLE", label: "Khách vắng mặt / Không liên hệ được" },
-  { value: "WRONG_ADDRESS", label: "Sai địa chỉ / Không tìm thấy vị trí" },
   { value: "MISSING_DEVICE", label: "Khách báo làm mất thiết bị" },
   { value: "DAMAGED_DEVICE", label: "Thiết bị hỏng hóc" },
   { value: "OTHER", label: "Lý do khác (Bắt buộc nhập ghi chú)" },
