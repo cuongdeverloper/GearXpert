@@ -117,13 +117,25 @@ exports.getSmartGearSuggestion = async (req, res) => {
       jsonResult = JSON.parse(responseText);
 
     } catch (aiError) {
-      console.warn("[SmartGear Fallback] AI bị lỗi hoặc quá tải. Kích hoạt combo dự phòng.", aiError.message);
+      console.warn("[SmartGear Fallback] AI bị lỗi. Kích hoạt fallback thông minh.", aiError.message);
+      // 1. Tách các từ khóa khách hàng nhập vào
+      const searchTerms = prompt.toLowerCase().split(/\s+/).filter(t => t.length > 1);
 
-      // Lấy an toàn 3 thiết bị từ database để ghép vào combo dự phòng
-      // Việc dùng ID thật giúp frontend bấm vào xem chi tiết thiết bị không bị lỗi 404
-      const d1 = availableDevices[0];
-      const d2 = availableDevices.length > 1 ? availableDevices[1] : d1;
-      const d3 = availableDevices.length > 2 ? availableDevices[2] : d2;
+      // 2. Lọc danh sách thiết bị có chứa từ khóa trong tên hoặc danh mục
+      const matchedDevices = availableDevices.filter(device => {
+        const textToSearch = `${device.name} ${device.category}`.toLowerCase();
+        // Trả về true nếu có bất kỳ từ khóa nào khớp
+        return searchTerms.some(term => textToSearch.includes(term));
+      });
+
+      // 3. Nếu tìm thấy đồ khớp thì dùng, nếu khách nhập sai/không có đồ thì mới lấy mặc định
+      const sourceList = matchedDevices.length > 0 ? matchedDevices : availableDevices;
+      // --- KẾT THÚC NÂNG CẤP ---
+
+      // Lấy an toàn 3 thiết bị từ danh sách đã lọc (sourceList)
+      const d1 = sourceList[0];
+      const d2 = sourceList.length > 1 ? sourceList[1] : d1;
+      const d3 = sourceList.length > 2 ? sourceList[2] : d2;
 
       jsonResult = {
         "budget": {

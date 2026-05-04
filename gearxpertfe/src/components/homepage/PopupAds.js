@@ -16,8 +16,34 @@ export default function PopupAds() {
                 try {
                     const response = await getApprovedPopups();
                     if (response.errorCode === 0 && response.data && response.data.length > 0) {
-                        // The backend already sorts by dailyBudget DESC, so the first one is the highest priority
-                        setAd(response.data[0]);
+                        const ads = response.data;
+
+                        // 1. Định nghĩa bảng điểm trọng số cho các mức chi (Số chẵn)
+                        const getWeight = (budget) => {
+                            if (budget >= 500000) return 50; // Kim cương
+                            if (budget >= 200000) return 25; // Vàng
+                            if (budget >= 100000) return 15; // Bạc
+                            return 10; // Đồng
+                        };
+
+                        // 2. Tính tổng trọng số của tất cả quảng cáo đang chạy
+                        const totalWeight = ads.reduce((sum, ad) => sum + getWeight(ad.dailyBudget), 0);
+
+                        // 3. Lấy số ngẫu nhiên từ 0 đến tổng trọng số
+                        let random = Math.random() * totalWeight;
+
+                        // 4. Chọn quảng cáo dựa trên số ngẫu nhiên
+                        let selectedAd = ads[0];
+                        for (const adItem of ads) {
+                            const adWeight = getWeight(adItem.dailyBudget);
+                            if (random < adWeight) {
+                                selectedAd = adItem;
+                                break;
+                            }
+                            random -= adWeight;
+                        }
+
+                        setAd(selectedAd);
 
                         // Delay slightly for better UX
                         setTimeout(() => {
