@@ -205,6 +205,19 @@ const createBlog = async (req, res) => {
             return res.status(400).json({ message: "Thiếu dữ liệu bắt buộc hoặc chưa tải ảnh lên" });
         }
 
+        // Check for sensitive keywords in title, description, and content
+        const blockedKeywords = await SensitiveKeyword.find().select("keyword");
+        const checkFields = [title, description, content];
+        const containsSensitive = blockedKeywords.some(bk => 
+            checkFields.some(field => field && field.toLowerCase().includes(bk.keyword.toLowerCase()))
+        );
+
+        if (containsSensitive) {
+            return res.status(400).json({ 
+                message: "Nội dung bài viết chứa từ ngữ không phù hợp và không thể đăng tải." 
+            });
+        }
+
         const newBlog = new Blog({
             title,
             description,
@@ -265,6 +278,19 @@ const updateBlog = async (req, res) => {
 
         const finalImages = [...keptImages, ...newImages];
         const coverImage = finalImages.length > 0 ? finalImages[0] : blog.coverImage;
+
+        // Check for sensitive keywords in updated fields
+        const blockedKeywords = await SensitiveKeyword.find().select("keyword");
+        const checkFields = [title || blog.title, description || blog.description, content || blog.content];
+        const containsSensitive = blockedKeywords.some(bk => 
+            checkFields.some(field => field && field.toLowerCase().includes(bk.keyword.toLowerCase()))
+        );
+
+        if (containsSensitive) {
+            return res.status(400).json({ 
+                message: "Nội dung cập nhật chứa từ ngữ không phù hợp và không thể lưu." 
+            });
+        }
 
         // Update fields
         blog.title = title || blog.title;
