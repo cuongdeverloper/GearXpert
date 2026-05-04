@@ -13,7 +13,34 @@ export default function TopBannerAds() {
             try {
                 const response = await getApprovedBanners();
                 if (response.errorCode === 0) {
-                    setBanners(response.data);
+                    let remainingAds = [...response.data];
+                    const shuffledBanners = [];
+
+                    // 1. Định nghĩa bảng điểm trọng số cho các mức chi
+                    const getWeight = (budget) => {
+                        if (budget >= 500000) return 50; // Kim cương
+                        if (budget >= 200000) return 25; // Vàng
+                        if (budget >= 100000) return 15; // Bạc
+                        return 10; // Đồng
+                    };
+
+                    // 2. Thuật toán Weighted Shuffle: Chọn từng vị trí dựa trên trọng số của các quảng cáo còn lại
+                    while (remainingAds.length > 0) {
+                        const totalWeight = remainingAds.reduce((sum, ad) => sum + getWeight(ad.dailyBudget), 0);
+                        let random = Math.random() * totalWeight;
+
+                        for (let i = 0; i < remainingAds.length; i++) {
+                            const weight = getWeight(remainingAds[i].dailyBudget);
+                            if (random < weight) {
+                                shuffledBanners.push(remainingAds[i]);
+                                remainingAds.splice(i, 1); // Loại bỏ quảng cáo đã chọn khỏi danh sách chờ
+                                break;
+                            }
+                            random -= weight;
+                        }
+                    }
+
+                    setBanners(shuffledBanners);
                 }
             } catch (error) {
                 console.error("Error fetching banners:", error);
