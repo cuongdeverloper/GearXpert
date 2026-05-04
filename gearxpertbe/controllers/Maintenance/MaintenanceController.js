@@ -521,44 +521,22 @@ exports.completeWorkOrder = async (req, res) => {
     nextDue.setMonth(nextDue.getMonth() + 3); // Nhắc lại sau 3 tháng mặc định
 
     // Cập nhật WorkOrder
-    wo.status = "COMPLETED";
-    wo.completedDate = now;
+    wo.status = "PENDING_REVIEW";
+    // wo.completedDate = now; // Admin duyệt mới tính ngày hoàn tất
     if (notes?.trim()) wo.notes = notes.trim();
     if (cost !== undefined && !isNaN(Number(cost))) wo.cost = Number(cost);
     if (uploadedBefore.length > 0) wo.imagesBefore = [...(wo.imagesBefore || []), ...uploadedBefore];
     if (uploadedAfter.length > 0) wo.imagesAfter = [...(wo.imagesAfter || []), ...uploadedAfter];
     await wo.save();
 
-    // Cập nhật DeviceItem → AVAILABLE + reset maintenance tracking
+    // Cập nhật DeviceItem → PENDING_MAINTENANCE_REVIEW
     await DeviceItem.findByIdAndUpdate(wo.deviceItemId, {
-      status: "AVAILABLE",
-      "lastMaintenance.at": now,
-      "lastMaintenance.note": notes?.trim() || "",
-      "lastMaintenance.cost": Number(cost) || 0,
-      nextMaintenanceDue: nextDue,
-      rentalCountSinceLastMaintenance: 0,
-      activeIssueId: null,
+      status: "PENDING_MAINTENANCE_REVIEW",
+      activeIssueId: wo.issueId || null,
     });
 
-    // Nếu WorkOrder này được tạo từ 1 issue cụ thể -> Cập nhật trạng thái issue đó
-    if (wo.issueId && wo.issueModel) {
-      const mongoose = require("mongoose");
-      if (mongoose.models[wo.issueModel]) {
-        const IssueModel = mongoose.model(wo.issueModel);
-        await IssueModel.findByIdAndUpdate(wo.issueId, {
-          status: "RESOLVED",
-          resolutionNote: "Đã khắc phục sự cố thông qua lệnh sửa chữa hoàn tất.",
-          $push: {
-            statusHistory: {
-              status: "RESOLVED",
-              changedBy: supplierId,
-              note: "Hệ thống tự động cập nhật do hoàn tất lệnh sửa chữa",
-              createdAt: now,
-            }
-          }
-        });
-      }
-    }
+    // Tạm thời chưa resolve IssueModel, chờ Admin quyết định
+    // Nếu có Issue thì vẫn giữ pending resolution hoặc tương đương
 
     return res.json({
       success: true,

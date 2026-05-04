@@ -51,6 +51,7 @@ const navGroups = [
       { to: "/admin/supplier-onboarding", label: "Duyệt đăng ký NCC", icon: FiClipboard },
       { to: "/admin/rentals", label: "Đơn thuê", icon: FiFileText },
       { to: "/admin/devices", label: "Thiết bị", icon: FiBox },
+      { to: "/admin/maintenance", label: "Nghiệm thu bảo trì", icon: FiClipboard },
       { to: "/admin/vouchers", label: "Mã giảm giá", icon: FiTag },
       { 
         to: "/admin/blogs", 

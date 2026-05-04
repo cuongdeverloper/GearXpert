@@ -48,6 +48,7 @@ import ReportsPage from "./pages/Admin/ReportsPage";
 import SettingsPage from "./pages/Admin/SettingsPage";
 import AdminVouchersPage from "./pages/Admin/AdminVouchersPage";
 import AdminAdsPage from "./pages/Admin/AdminAdsPage";
+import AdminMaintenancePage from "./pages/Admin/AdminMaintenancePage";
 import BlogManagement from "./pages/Admin/BlogManagement";
 import CommentManagement from "./pages/Admin/CommentManagement";
 import AdminBroadcastPage from "./pages/Admin/AdminBroadcastPage";
@@ -281,6 +282,7 @@ export default function Layout() {
             <Route path="settings" element={<SettingsPage />} />
             <Route path="vouchers" element={<AdminVouchersPage />} />
             <Route path="advertisements" element={<AdminAdsPage />} />
+            <Route path="maintenance" element={<AdminMaintenancePage />} />
             <Route path="blogs" element={<BlogManagement />} />
             <Route path="comments" element={<CommentManagement />} />
             <Route path="notifications" element={<AdminBroadcastPage />} />

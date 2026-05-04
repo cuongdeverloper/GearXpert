@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams, useLocation } from "react-router-dom";
 import {
   FiTool,
@@ -39,6 +40,8 @@ const TABS = [
 const WO_STATUS_LABELS = {
   PENDING: "Đang chờ",
   IN_PROGRESS: "Đang thực hiện",
+  PENDING_REVIEW: "Chờ nghiệm thu",
+  INFO_REQUIRED: "Cần bổ sung",
   COMPLETED: "Hoàn tất",
   CANCELLED: "Đã hủy",
 };
@@ -46,6 +49,8 @@ const WO_STATUS_LABELS = {
 const WO_STATUS_STYLES = {
   PENDING: "bg-amber-50 text-amber-700 border-amber-200",
   IN_PROGRESS: "bg-blue-50 text-blue-700 border-blue-200",
+  PENDING_REVIEW: "bg-purple-50 text-purple-700 border-purple-200",
+  INFO_REQUIRED: "bg-rose-50 text-rose-700 border-rose-200",
   COMPLETED: "bg-green-50 text-green-700 border-green-200",
   CANCELLED: "bg-slate-50 text-slate-500 border-slate-200",
 };
@@ -73,7 +78,7 @@ const PRIORITY_LABELS = {
 };
 
 const PRIORITY_STYLES = {
-  LOW: "bg-slate-50 text-slate-500 border-slate-200",
+  LOW: "bg-emerald-50 text-emerald-700 border-emerald-200",
   MEDIUM: "bg-amber-50 text-amber-700 border-amber-200",
   HIGH: "bg-rose-50 text-rose-700 border-rose-200",
 };
@@ -1113,7 +1118,7 @@ export default function SupplierMaintenance() {
       {/* ── Modal: Complete WorkOrder ──────────────────────────────────────── */}
       {completeModal && (
         <Modal
-          title="Xác nhận hoàn tất bảo trì"
+          title={completeModal.status === "INFO_REQUIRED" ? "Gửi lại báo cáo bảo trì" : "Xác nhận hoàn tất bảo trì"}
           maxWidth="max-w-lg"
           onClose={() => setCompleteModal(null)}
         >
@@ -1214,7 +1219,7 @@ export default function SupplierMaintenance() {
                   rows={3}
                   value={completeForm.notes}
                   onChange={(e) => setCompleteForm((f) => ({ ...f, notes: e.target.value }))}
-                  placeholder="Mô tả công việc đã hoàn thành..."
+                  placeholder={completeModal.status === "INFO_REQUIRED" ? "Nhập thông tin bổ sung, giải trình theo yêu cầu..." : "Mô tả công việc đã hoàn thành..."}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
@@ -1222,7 +1227,7 @@ export default function SupplierMaintenance() {
 
             <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl">
               <p className="text-xs text-emerald-700 leading-relaxed">
-                ✨ <strong>Thông báo:</strong> Thiết bị sẽ được cập nhật trạng thái <strong>Khả dụng</strong> ngay sau khi lệnh này hoàn tất.
+                ✨ <strong>Thông báo:</strong> Lệnh bảo trì của bạn sẽ được chuyển đến Admin để <strong>Nghiệm thu</strong>
               </p>
             </div>
           </div>
@@ -1239,16 +1244,16 @@ export default function SupplierMaintenance() {
               className="px-6 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-emerald-100"
             >
               {submitting && <FiLoader size={13} className="animate-spin" />}
-              Hoàn tất bảo trì
+              {completeModal.status === "INFO_REQUIRED" ? "Cập nhật báo cáo" : "Hoàn tất bảo trì"}
             </button>
           </div>
         </Modal>
       )}
 
       {/* Lightbox */}
-      {lightboxImg && (
+      {lightboxImg && createPortal(
         <div
-          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+          className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setLightboxImg(null)}
         >
           <div className="relative max-w-3xl max-h-[90vh]">
@@ -1260,7 +1265,8 @@ export default function SupplierMaintenance() {
             </button>
             <img src={lightboxImg} alt="Ảnh bảo trì" className="rounded-xl max-h-[85vh] object-contain" />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -1509,14 +1515,14 @@ function WorkOrderCard({ wo, onStart, onCancel, onComplete, onImageClick }) {
                   </button>
                 </>
               )}
-              {wo.status === "IN_PROGRESS" && (
+              {(wo.status === "IN_PROGRESS" || wo.status === "INFO_REQUIRED") && (
                 <>
                   <button
                     onClick={(e) => { e.stopPropagation(); onComplete(); }}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold bg-green-600 text-white hover:bg-green-700 transition-colors"
                   >
                     <FiCheckCircle size={13} />
-                    Đánh dấu hoàn tất
+                    {wo.status === "INFO_REQUIRED" ? "Gửi lại kết quả" : "Đánh dấu hoàn tất"}
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); onCancel(); }}
@@ -1543,8 +1549,8 @@ function WorkOrderCard({ wo, onStart, onCancel, onComplete, onImageClick }) {
 // ── Shared UI ─────────────────────────────────────────────────────────────────
 
 function Modal({ title, onClose, children, maxWidth = "max-w-md" }) {
-  return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
       <div className={`bg-white rounded-2xl shadow-xl w-full ${maxWidth} max-h-[90vh] overflow-y-auto`}>
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-slate-100">
           <h3 className="text-base font-bold text-slate-900">{title}</h3>
@@ -1554,7 +1560,8 @@ function Modal({ title, onClose, children, maxWidth = "max-w-md" }) {
         </div>
         <div className="px-5 pt-4 pb-2">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

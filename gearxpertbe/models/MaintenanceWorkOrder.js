@@ -51,7 +51,7 @@ const maintenanceWorkOrderSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"],
+      enum: ["PENDING", "IN_PROGRESS", "PENDING_REVIEW", "COMPLETED", "CANCELLED", "INFO_REQUIRED"],
       default: "PENDING",
       index: true,
     },
