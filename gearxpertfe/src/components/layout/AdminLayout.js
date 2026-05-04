@@ -18,7 +18,7 @@ export default function AdminLayout() {
       <AdminTopbar onMenuOpen={() => setOpenDrawer(true)} me={me} />
 
       {/* Main layout */}
-      <div className="flex flex-1 w-full translate-z-0">
+      <div className="flex flex-1 w-full">
         {/* Sidebar (desktop) */}
         <AdminSidebar collapsed={collapsed} onToggleCollapsed={() => setCollapsed(!collapsed)} />
 
