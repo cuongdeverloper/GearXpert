@@ -37,7 +37,7 @@ exports.getSupplierDeviceItems = async (req, res) => {
     // Bước 2: Lấy tất cả DeviceItem thuộc các device đó (mặc định limit cao)
     const items = await DeviceItem.find(
       { deviceId: { $in: deviceIds } },
-      { _id: 1, serialNumber: 1, internalCode: 1, status: 1, condition: 1, deviceId: 1 }
+      { _id: 1, serialNumber: 1, internalCode: 1, status: 1, condition: 1, deviceId: 1, activeIssueId: 1 }
     ).sort({ createdAt: -1 }).lean();
 
     const result = items.map((item) => ({
@@ -47,6 +47,7 @@ exports.getSupplierDeviceItems = async (req, res) => {
       status: item.status,
       condition: item.condition,
       deviceId: item.deviceId,
+      activeIssueId: item.activeIssueId || null,
       device: deviceMap[item.deviceId?.toString()] || null,
     }));
 
@@ -90,7 +91,7 @@ exports.getDeviceItemsByDeviceIds = async (req, res) => {
 
     const items = await DeviceItem.find(
       { deviceId: { $in: verifiedIds } },
-      { _id: 1, serialNumber: 1, internalCode: 1, status: 1, condition: 1, deviceId: 1 }
+      { _id: 1, serialNumber: 1, internalCode: 1, status: 1, condition: 1, deviceId: 1, activeIssueId: 1 }
     ).sort({ createdAt: -1 }).lean();
 
     const result = items.map((item) => ({
@@ -100,6 +101,7 @@ exports.getDeviceItemsByDeviceIds = async (req, res) => {
       status: item.status,
       condition: item.condition,
       deviceId: item.deviceId,
+      activeIssueId: item.activeIssueId || null,
       device: deviceMap[item.deviceId?.toString()] || null,
     }));
 
@@ -246,7 +248,7 @@ exports.getWorkOrders = async (req, res) => {
     if (maintenanceType && maintenanceType !== "ALL") filter.maintenanceType = maintenanceType;
 
     const skip = (Number(page) - 1) * Number(limit);
-    const [workOrders, total] = await Promise.all([
+    const [workOrders, total, stats] = await Promise.all([
       MaintenanceWorkOrder.find(filter)
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -261,9 +263,27 @@ exports.getWorkOrders = async (req, res) => {
         })
         .lean(),
       MaintenanceWorkOrder.countDocuments(filter),
+      MaintenanceWorkOrder.aggregate([
+        { $match: { supplierId: new mongoose.Types.ObjectId(supplierId) } },
+        {
+          $group: {
+            _id: null,
+            pending: { $sum: { $cond: [{ $eq: ["$status", "PENDING"] }, 1, 0] } },
+            inProgress: { $sum: { $cond: [{ $eq: ["$status", "IN_PROGRESS"] }, 1, 0] } },
+            completed: { $sum: { $cond: [{ $eq: ["$status", "COMPLETED"] }, 1, 0] } },
+            totalCost: { $sum: "$cost" },
+          }
+        }
+      ])
     ]);
 
-    return res.json({ success: true, data: workOrders, total, page: Number(page) });
+    return res.json({
+      success: true,
+      data: workOrders,
+      total,
+      page: Number(page),
+      stats: stats[0] || { pending: 0, inProgress: 0, completed: 0, totalCost: 0 }
+    });
   } catch (err) {
     console.error("[MaintenanceController] getWorkOrders:", err);
     return res.status(500).json({ success: false, message: "Lỗi server" });
@@ -277,7 +297,17 @@ exports.getWorkOrders = async (req, res) => {
 exports.createWorkOrder = async (req, res) => {
   try {
     const supplierId = req.user.id;
-    const { deviceItemId, maintenanceType, scheduledDate, notes } = req.body;
+    const { 
+      deviceItemId, 
+      maintenanceType, 
+      scheduledDate, 
+      notes, 
+      priority = "LOW", 
+      estimatedCost = 0, 
+      providerName = "",
+      issueId = null,
+      issueModel = null
+    } = req.body;
 
     if (!deviceItemId || !maintenanceType || !scheduledDate) {
       return res.status(400).json({ success: false, message: "Thiếu thông tin bắt buộc" });
@@ -307,11 +337,20 @@ exports.createWorkOrder = async (req, res) => {
       });
     }
 
+    // Ảnh trước bảo trì từ upload
+    const imagesBefore = extractUploadedUrls(req.files?.imagesBefore || []);
+
     const workOrder = await MaintenanceWorkOrder.create({
       deviceItemId,
       deviceId: deviceItem.deviceId._id,
       supplierId,
+      issueId,
+      issueModel,
       maintenanceType,
+      priority,
+      estimatedCost: Number(estimatedCost) || 0,
+      providerName: providerName?.trim() || "",
+      imagesBefore,
       status: "PENDING",
       scheduledDate: new Date(scheduledDate),
       notes: notes?.trim() || "",
