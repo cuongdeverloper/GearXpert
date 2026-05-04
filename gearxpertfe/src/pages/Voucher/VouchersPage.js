@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { useEffect, useState } from "react";
-import { getAllVouchers } from "../../service/ApiService/VoucherApi";
+import { getAllVouchers, getUsedVouchers } from "../../service/ApiService/VoucherApi";
 import { useSelector } from "react-redux";
 import Header from "../../components/navigation/Header";
 import Footer from "../../components/homepage/Footer";
@@ -28,6 +28,7 @@ export default function VouchersPage() {
         { name: "Riêng bạn", id: "PERSONAL", icon: "workspace_premium" },
         { name: "Global", id: "GLOBAL", icon: "public" },
         { name: "Supplier", id: "SUPPLIER", icon: "storefront" },
+        { name: "Đã sử dụng", id: "USED", icon: "history" },
     ];
 
 
@@ -38,9 +39,21 @@ export default function VouchersPage() {
     const fetchVouchers = async () => {
         try {
             setLoading(true);
-            const response = await getAllVouchers();
-            if (response && response.success) {
-                setVouchers(response.vouchers);
+            const promises = [getAllVouchers()];
+            if (userAccount) {
+                promises.push(getUsedVouchers());
+            }
+
+            const results = await Promise.all(promises);
+            const availableRes = results[0];
+            const usedRes = results[1];
+
+            if (availableRes && availableRes.success) {
+                const combined = [
+                    ...availableRes.vouchers,
+                    ...(usedRes?.success ? usedRes.vouchers : [])
+                ];
+                setVouchers(combined);
             } else {
                 toast.error("Không thể tải danh sách voucher");
             }
@@ -61,7 +74,27 @@ export default function VouchersPage() {
     };
 
     const filteredVouchers = vouchers.filter(voucher => {
-        const matchesType = activeFilter === "ALL" || voucher.type === activeFilter || (activeFilter === "PERSONAL" && !!voucher.applicableRank);
+        const isUsed = !!voucher.usedAt;
+        
+        let matchesType = false;
+        if (activeFilter === "USED") {
+            matchesType = isUsed;
+        } else {
+            // Các tab còn lại chỉ hiện voucher chưa dùng
+            if (isUsed) return false;
+
+            if (activeFilter === "ALL") {
+                matchesType = true;
+            } else if (activeFilter === "PERSONAL") {
+                matchesType = !!voucher.applicableRank;
+            } else if (activeFilter === "GLOBAL") {
+                // Chỉ hiện voucher Global thuần túy (không yêu cầu hạng)
+                matchesType = voucher.type === "GLOBAL" && !voucher.applicableRank;
+            } else if (activeFilter === "SUPPLIER") {
+                // Chỉ hiện voucher Shop thuần túy (không yêu cầu hạng)
+                matchesType = voucher.type === "SUPPLIER" && !voucher.applicableRank;
+            }
+        }
 
         // Normalize search query: trim and lowercase
         const query = searchQuery.trim().toLowerCase();

@@ -8,7 +8,7 @@ const { notifyFollowers } = require("../Supplier/SupplierController");
 
 exports.validateVoucher = async (req, res) => {
   const { code, cartType } = req.body;
-  const customerId = req.user._id;
+  const customerId = req.user.id;
 
   console.log(`[validateVoucher] Starting validation for code: "${code}", cartType: "${cartType}", customerId: ${customerId}`);
 
@@ -170,7 +170,7 @@ exports.getAllVouchers = async (req, res) => {
     let userRank = null;
 
     // Nếu đã đăng nhập, lấy hạng của User từ DB
-    const userId = req.user?._id || req.user?._id;
+    const userId = req.user?.id;
     
     if (userId) {
       try {
@@ -187,10 +187,19 @@ exports.getAllVouchers = async (req, res) => {
     // Lọc theo điều kiện: Active, chưa hết hạn và đã đến ngày bắt đầu (nếu có)
     let query = {
       status: "ACTIVE",
-      expiredAt: { $gt: currentDate },
-      $or: [
-        { scheduledStartDate: null },
-        { scheduledStartDate: { $lte: currentDate } }
+      $and: [
+        {
+          $or: [
+            { expiredAt: { $gt: currentDate } },
+            { expiredAt: null } // Cho phép voucher vô hạn
+          ]
+        },
+        {
+          $or: [
+            { scheduledStartDate: null },
+            { scheduledStartDate: { $lte: currentDate } }
+          ]
+        }
       ]
     };
 
@@ -202,18 +211,20 @@ exports.getAllVouchers = async (req, res) => {
       const allowedRanks = Object.keys(rankWeights).filter(rank => rankWeights[rank] <= currentWeight);
       const rankRegexes = allowedRanks.map(rank => new RegExp(`^\\s*${rank}\\s*$`, "i"));
 
-      query.$or = [
-        { applicableRank: { $in: rankRegexes } },
-        { 
-          applicableRank: null, 
-          $expr: { $lt: ["$usedCount", "$usageLimit"] } 
-        }
-      ];
+      query.$and.push({
+        $or: [
+          { applicableRank: { $in: rankRegexes } },
+          { 
+            applicableRank: null, 
+            $expr: { $lt: ["$usedCount", "$usageLimit"] } 
+          }
+        ]
+      });
       console.log(`[getAllVouchers] Hierarchical Rank Match for: ${userRank}. Allowed Ranks: ${allowedRanks.join(', ')}`);
     } else {
       // Nếu chưa đăng nhập: Chỉ hiện voucher thường còn lượt dùng
       query.applicableRank = null;
-      query.$expr = { $lt: ["$usedCount", "$usageLimit"] };
+      query.$and.push({ $expr: { $lt: ["$usedCount", "$usageLimit"] } });
     }
 
     // Nếu truyền supplierId (khách xem tại trang shop), lọc thêm theo shop đó
@@ -247,8 +258,8 @@ exports.getAllVouchers = async (req, res) => {
     );
 
     // MỚI: Nếu người dùng đã đăng nhập, lọc bỏ các voucher đã sử dụng
-    if (req.user && req.user._id) {
-      const customerId = req.user._id;
+    if (req.user && req.user.id) {
+      const customerId = req.user.id;
       const usedVoucherCodes = await Rental.find({
         customerId: new mongoose.Types.ObjectId(customerId),
         voucherCode: { $exists: true, $ne: null },
@@ -398,7 +409,7 @@ exports.deleteVoucher = async (req, res) => {
 exports.deleteVoucherBySupplier = async (req, res) => {
   try {
     const { id } = req.params;
-    const supplierId = req.user._id;
+    const supplierId = req.user.id;
 
     // Tìm voucher và kiểm tra quyền sở hữu + đảm bảo không phải voucher rank
     const voucher = await Voucher.findOne({ _id: id, supplierId, applicableRank: null });
@@ -497,7 +508,7 @@ exports.updateVoucherByAdmin = async (req, res) => {
 
 exports.getVouchersBySupplier = async (req, res) => {
   try {
-    const supplierId = req.user._id;
+    const supplierId = req.user.id;
     // Chủ shop xem tất cả mã của mình (kể cả hết hạn/hết lượt)
     // Ẩn đi các mã có rank (mã Rank do Admin quản lý)
     const vouchersRaw = await Voucher.find({ 
@@ -519,8 +530,8 @@ exports.getVouchersBySupplier = async (req, res) => {
 
     // MỚI: Nếu người dùng đã đăng nhập (đây là API public lấy list của shop), lọc bỏ voucher đã dùng
     // (Lưu ý: req.user ở đây có thể là bất kỳ ai đang xem shop đó)
-    if (req.user && req.user._id) {
-      const viewerId = req.user._id;
+    if (req.user && req.user.id) {
+      const viewerId = req.user.id;
       const usedVoucherCodes = await Rental.find({
         customerId: new mongoose.Types.ObjectId(viewerId),
         voucherCode: { $exists: true, $ne: null },
@@ -545,7 +556,7 @@ exports.getVouchersBySupplier = async (req, res) => {
 
 exports.createVoucherBySupplier = async (req, res) => {
   try {
-    const supplierId = req.user._id;
+    const supplierId = req.user.id;
     const {
       code,
       description,
@@ -618,7 +629,7 @@ exports.updateVoucherStatusBySupplier = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    const supplierId = req.user._id;
+    const supplierId = req.user.id;
 
     if (!["ACTIVE", "INACTIVE"].includes(status)) {
       return res.status(400).json({
@@ -658,7 +669,7 @@ exports.updateVoucherStatusBySupplier = async (req, res) => {
 exports.getBestVoucherForCart = async (req, res) => {
   try {
     const { cartType } = req.query;
-    const customerId = req.user._id;
+    const customerId = req.user.id;
 
     // 1. Lấy giỏ hàng
     const cart = await Cart.findOne({
@@ -684,10 +695,19 @@ exports.getBestVoucherForCart = async (req, res) => {
     const currentDate = new Date();
     const vouchers = await Voucher.find({
       status: "ACTIVE",
-      expiredAt: { $gt: currentDate },
-      $or: [
-        { scheduledStartDate: null },
-        { scheduledStartDate: { $lte: currentDate } }
+      $and: [
+        {
+          $or: [
+            { expiredAt: { $gt: currentDate } },
+            { expiredAt: null }
+          ]
+        },
+        {
+          $or: [
+            { scheduledStartDate: null },
+            { scheduledStartDate: { $lte: currentDate } }
+          ]
+        }
       ]
     });
 
@@ -823,7 +843,7 @@ exports.getBestVoucherForCart = async (req, res) => {
 // Get available vouchers for a specific cart
 exports.getAvailableVouchersForCart = async (req, res) => {
   try {
-    const customerId = req.user._id;
+    const customerId = req.user.id;
     const { cartType } = req.query;
 
     const User = require('../../models/User');
@@ -874,20 +894,33 @@ exports.getAvailableVouchersForCart = async (req, res) => {
 
     const vouchers = await Voucher.find({
       status: "ACTIVE",
-      expiredAt: { $gt: currentDate },
-      $or: [
-        { scheduledStartDate: null },
-        { scheduledStartDate: { $lte: currentDate } }
-      ],
-      $or: [
-        { applicableRank: { $ne: null } },
-        { $expr: { $lt: ["$usedCount", "$usageLimit"] } }
-      ],
-      $or: [
-        { type: "GLOBAL" },
-        { 
-          type: "SUPPLIER",
-          supplierId: { $in: Array.from(supplierIds).map(id => new mongoose.Types.ObjectId(id)) }
+      $and: [
+        {
+          $or: [
+            { expiredAt: { $gt: currentDate } },
+            { expiredAt: null }
+          ]
+        },
+        {
+          $or: [
+            { scheduledStartDate: null },
+            { scheduledStartDate: { $lte: currentDate } }
+          ]
+        },
+        {
+          $or: [
+            { applicableRank: { $ne: null } },
+            { $expr: { $lt: ["$usedCount", "$usageLimit"] } }
+          ]
+        },
+        {
+          $or: [
+            { type: "GLOBAL" },
+            { 
+              type: "SUPPLIER",
+              supplierId: { $in: Array.from(supplierIds).map(id => new mongoose.Types.ObjectId(id)) }
+            }
+          ]
         }
       ]
     }).lean();
@@ -1011,7 +1044,7 @@ exports.getAvailableVouchersForCart = async (req, res) => {
 // Auto-apply best voucher for cart
 exports.autoApplyBestVoucher = async (req, res) => {
   try {
-    const customerId = req.user._id;
+    const customerId = req.user.id;
     const { cartType } = req.body;
 
     const cart = await Cart.findOne({
@@ -1048,20 +1081,33 @@ exports.autoApplyBestVoucher = async (req, res) => {
 
     const vouchers = await Voucher.find({
       status: "ACTIVE",
-      expiredAt: { $gt: currentDate },
-      $or: [
-        { scheduledStartDate: null },
-        { scheduledStartDate: { $lte: currentDate } }
-      ],
-      $or: [
-        { applicableRank: { $ne: null } },
-        { $expr: { $lt: ["$usedCount", "$usageLimit"] } }
-      ],
-      $or: [
-        { type: "GLOBAL" },
-        { 
-          type: "SUPPLIER",
-          supplierId: { $in: Array.from(supplierIds).map(id => new mongoose.Types.ObjectId(id)) }
+      $and: [
+        {
+          $or: [
+            { expiredAt: { $gt: currentDate } },
+            { expiredAt: null }
+          ]
+        },
+        {
+          $or: [
+            { scheduledStartDate: null },
+            { scheduledStartDate: { $lte: currentDate } }
+          ]
+        },
+        {
+          $or: [
+            { applicableRank: { $ne: null } },
+            { $expr: { $lt: ["$usedCount", "$usageLimit"] } }
+          ]
+        },
+        {
+          $or: [
+            { type: "GLOBAL" },
+            { 
+              type: "SUPPLIER",
+              supplierId: { $in: Array.from(supplierIds).map(id => new mongoose.Types.ObjectId(id)) }
+            }
+          ]
         }
       ]
     }).lean();
@@ -1188,6 +1234,77 @@ exports.autoApplyBestVoucher = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Lỗi server khi tự động áp dụng voucher"
+    });
+  }
+};
+
+exports.getUsedVouchers = async (req, res) => {
+  try {
+    const customerId = req.user.id;
+
+    // 1. Tìm tất cả các đơn hàng đã sử dụng voucher của user này
+    // Lọc bỏ các đơn bị hủy hoặc từ chối
+    const rentals = await Rental.find({
+      customerId,
+      voucherCode: { $exists: true, $ne: null },
+      status: { $nin: ["CANCELLED", "REJECTED"] },
+    }).sort({ createdAt: -1 }).lean();
+
+    if (!rentals || rentals.length === 0) {
+      return res.status(200).json({
+        success: true,
+        vouchers: []
+      });
+    }
+
+    // 2. Lấy danh sách codes và map ngày sử dụng
+    const usageMap = {}; // code -> usedAt
+    rentals.forEach(r => {
+      usageMap[r.voucherCode.toUpperCase()] = r.createdAt;
+    });
+
+    const codes = Object.keys(usageMap);
+
+    // 3. Lấy thông tin chi tiết voucher
+    const vouchersRaw = await Voucher.find({
+      code: { $in: codes.map(c => new RegExp(`^${c}$`, 'i')) }
+    }).lean();
+
+    // 4. Kết hợp dữ liệu
+    const vouchers = await Promise.all(vouchersRaw.map(async (v) => {
+      let shopInfo = null;
+      if (v.type === "SUPPLIER" && v.supplierId) {
+        const profile = await SupplierProfile.findOne({ userId: v.supplierId })
+          .select("businessName businessAvatar")
+          .lean();
+        if (profile) {
+          shopInfo = {
+            name: profile.businessName,
+            avatar: profile.businessAvatar
+          };
+        }
+      }
+
+      return {
+        ...v,
+        shopInfo,
+        usedAt: usageMap[v.code.toUpperCase()]
+      };
+    }));
+
+    // Sắp xếp theo ngày sử dụng mới nhất
+    vouchers.sort((a, b) => new Date(b.usedAt) - new Date(a.usedAt));
+
+    res.status(200).json({
+      success: true,
+      message: "Lấy danh sách voucher đã sử dụng thành công",
+      vouchers
+    });
+  } catch (error) {
+    console.error("Get used vouchers error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi lấy danh sách voucher đã sử dụng"
     });
   }
 };
