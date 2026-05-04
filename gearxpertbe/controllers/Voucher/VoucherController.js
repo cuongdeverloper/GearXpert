@@ -400,8 +400,8 @@ exports.deleteVoucherBySupplier = async (req, res) => {
     const { id } = req.params;
     const supplierId = req.user._id;
 
-    // Tìm voucher và kiểm tra quyền sở hữu
-    const voucher = await Voucher.findOne({ _id: id, supplierId });
+    // Tìm voucher và kiểm tra quyền sở hữu + đảm bảo không phải voucher rank
+    const voucher = await Voucher.findOne({ _id: id, supplierId, applicableRank: null });
 
     if (!voucher) {
       return res.status(404).json({
@@ -499,7 +499,11 @@ exports.getVouchersBySupplier = async (req, res) => {
   try {
     const supplierId = req.user._id;
     // Chủ shop xem tất cả mã của mình (kể cả hết hạn/hết lượt)
-    const vouchersRaw = await Voucher.find({ supplierId }).sort({ createdAt: -1 }).lean();
+    // Ẩn đi các mã có rank (mã Rank do Admin quản lý)
+    const vouchersRaw = await Voucher.find({ 
+      supplierId, 
+      applicableRank: null 
+    }).sort({ createdAt: -1 }).lean();
 
     const profile = await SupplierProfile.findOne({ userId: supplierId })
       .select("businessName businessAvatar")
@@ -624,7 +628,7 @@ exports.updateVoucherStatusBySupplier = async (req, res) => {
     }
 
     const voucher = await Voucher.findOneAndUpdate(
-      { _id: id, supplierId },
+      { _id: id, supplierId, applicableRank: null },
       { status },
       { new: true }
     );
