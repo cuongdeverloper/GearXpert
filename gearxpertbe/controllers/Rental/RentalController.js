@@ -4367,6 +4367,10 @@ async function executeConfirmReturnSettlement(session, req, options = {}) {
 
   await rental.save({ session });
 
+  // Cộng điểm thưởng và cập nhật rank cho khách hàng (10,000đ = 100 điểm)
+  const rankUpdateResult = await updatePointsAndRank(rental.customerId, canonicalBreakdown.rentAmount, session);
+  rental._rankUpdate = rankUpdateResult; // Lưu tạm để dùng cho notification ở ngoài
+
   // Cập nhật trạng thái DeviceItems sang AVAILABLE
 
   const rentalItems = await RentalItem.find({ rentalId: rental._id }).session(
@@ -4457,6 +4461,15 @@ exports.turn = exports.confirmReturn = async (req, res) => {
     const { rental, returnDraft, supplierReceive } = out;
     const actorId = out.actorId;
 
+    let customerMessage = `Thiết bị đã được thu hồi thành công. Cọc đã được hoàn về ví của bạn.`;
+    if (rental._rankUpdate) {
+      customerMessage += ` Bạn đã nhận được ${rental._rankUpdate.pointsToAdd} điểm thưởng.`;
+      if (rental._rankUpdate.isRankUp) {
+        customerMessage += ` Chúc mừng bạn đã thăng hạng lên ${rental._rankUpdate.newRank}!`;
+      }
+    }
+    customerMessage += ` Cảm ơn bạn!`;
+
     await sendRentalNotification(
       rental,
 
@@ -4464,7 +4477,7 @@ exports.turn = exports.confirmReturn = async (req, res) => {
 
       "Đơn thuê đã hoàn thành",
 
-      `Thiết bị đã được thu hồi thành công. Cọc đã được hoàn về ví của bạn. Cảm ơn bạn!`,
+      customerMessage,
     );
 
     await sendRentalNotification(
@@ -4528,10 +4541,17 @@ exports.confirmReturnAfterCompensation = async (req, res) => {
     const { rental, returnDraft, supplierReceive, totalDepositUsedForCompensation } = out;
     const actorId = out.actorId;
 
-    const customerBody =
-      totalDepositUsedForCompensation > 0
-        ? `Thiết bị đã thu hồi. Phần cọc còn lại (sau bồi thường admin đã duyệt) đã hoàn về ví. Cảm ơn bạn!`
-        : `Thiết bị đã được thu hồi thành công. Cọc đã được hoàn về ví của bạn. Cảm ơn bạn!`;
+    let customerBody = totalDepositUsedForCompensation > 0
+        ? `Thiết bị đã thu hồi. Phần cọc còn lại (sau bồi thường admin đã duyệt) đã hoàn về ví.`
+        : `Thiết bị đã được thu hồi thành công. Cọc đã được hoàn về ví của bạn.`;
+    
+    if (rental._rankUpdate) {
+      customerBody += ` Bạn đã nhận được ${rental._rankUpdate.pointsToAdd} điểm thưởng.`;
+      if (rental._rankUpdate.isRankUp) {
+        customerBody += ` Chúc mừng bạn đã thăng hạng lên ${rental._rankUpdate.newRank}!`;
+      }
+    }
+    customerBody += ` Cảm ơn bạn!`;
 
     await sendRentalNotification(
       rental,
@@ -4908,6 +4928,52 @@ exports.repaySingleRental = async (req, res) => {
     session.endSession();
   }
 };
+
+/**
+ * Cập nhật điểm thưởng và hạng thành viên khi đơn hàng hoàn tất.
+ * 10,000 VND = 100 điểm (tương đương 100đ = 1 điểm).
+ */
+async function updatePointsAndRank(customerId, rentAmount, session) {
+  try {
+    const pointsToAdd = Math.floor(rentAmount / 100);
+    if (pointsToAdd <= 0) return null;
+
+    const user = await User.findById(customerId).session(session);
+    if (!user) return null;
+
+    const oldPoints = user.rewardPoints || 0;
+    user.rewardPoints = oldPoints + pointsToAdd;
+
+    let newRank = 'BRONZE';
+    const totalPoints = user.rewardPoints;
+    
+    if (totalPoints >= 20000) newRank = 'DIAMOND';
+    else if (totalPoints >= 10000) newRank = 'PLATINUM';
+    else if (totalPoints >= 5000) newRank = 'GOLD';
+    else if (totalPoints >= 1000) newRank = 'SILVER';
+
+    const oldRank = user.rank;
+    const isRankUp = oldRank !== newRank;
+    if (isRankUp) {
+      user.rank = newRank;
+      console.log(`[RankUp] User ${user.fullName} (${customerId}) promoted from ${oldRank} to ${newRank}`);
+    }
+
+    await user.save({ session });
+    console.log(`[Points] Added ${pointsToAdd} points to User ${customerId}. Total: ${user.rewardPoints}, Rank: ${user.rank}`);
+    
+    return {
+      pointsToAdd,
+      oldRank,
+      newRank,
+      isRankUp,
+      totalPoints: user.rewardPoints
+    };
+  } catch (error) {
+    console.error("Error updating points/rank:", error);
+    return null;
+  }
+}
 
 // Export helper function for cron jobs
 
