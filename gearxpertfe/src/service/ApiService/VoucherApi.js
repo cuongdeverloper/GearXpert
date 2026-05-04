@@ -20,6 +20,10 @@ export const getAllVouchers = () => {
   return axios.get("/api/vouchers");
 };
 
+export const getUsedVouchers = () => {
+  return axios.get("/api/vouchers/used");
+};
+
 // Admin APIs
 export const getVouchersForAdmin = () => {
   return axios.get("/api/vouchers/admin");

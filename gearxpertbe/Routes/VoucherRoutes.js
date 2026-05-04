@@ -8,6 +8,7 @@ voucherRouter.get('/best-for-cart', checkAccessToken, voucherController.getBestV
 voucherRouter.get('/available-for-cart', checkAccessToken, voucherController.getAvailableVouchersForCart);
 voucherRouter.post('/auto-apply', checkAccessToken, voucherController.autoApplyBestVoucher);
 voucherRouter.get('/', checkUserOptional, voucherController.getAllVouchers);
+voucherRouter.get('/used', checkAccessToken, voucherController.getUsedVouchers);
 
 // Supplier Routes
 voucherRouter.get('/supplier', checkAccessToken, voucherController.getVouchersBySupplier);
