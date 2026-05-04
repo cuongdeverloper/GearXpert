@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Device = require("../../models/Device");
+const User = require("../../models/User");
 
 /** Phụ kiện đi kèm (catalog) — luôn trả mảng, bỏ dòng không có tên */
 function normalizeIncludedAccessories(raw) {
@@ -65,8 +66,40 @@ const { notifyFollowers } = require("../Supplier/SupplierController");
  */
 exports.createDevice = async (req, res) => {
   try {
-    // Get supplierId from token (JWT)
-    const supplierId = req.user.id;
+    // Lấy supplierId từ body, nếu không có hoặc không hợp lệ thì lấy từ Token
+    let supplierId = req.body.supplierId;
+    if (!supplierId || supplierId === "undefined" || supplierId === "null" || supplierId === "[object Object]") {
+      supplierId = req.user.id;
+    }
+
+    console.log(">>> FINAL supplierId:", supplierId);
+
+    // Kiểm tra định dạng ID trước khi truy vấn để tránh lỗi 500 (CastError)
+    if (!mongoose.Types.ObjectId.isValid(supplierId)) {
+      return res.status(400).json({ 
+        message: "ID nhà cung cấp không hợp lệ.",
+        received: supplierId
+      });
+    }
+
+    // Lấy thông tin User trực tiếp từ DB dựa trên supplierId
+    const user = await User.findById(supplierId).select("role");
+    const userRole = user ? user.role : "UNKNOWN";
+
+    console.log(">>> Backend nhận tạo thiết bị - SupplierId:", supplierId, " | Role (Từ DB):", userRole);
+
+    // Kiểm tra quyền: Chỉ cho phép SUPPLIER tạo thiết bị
+    if (userRole !== "SUPPLIER") {
+      return res.status(403).json({
+        message: `Bạn không có quyền thực hiện hành động này. Vai trò hiện tại của bạn là ${userRole}. Nếu bạn vừa được duyệt làm nhà cung cấp, hãy thử lại hoặc báo với Admin.`,
+      });
+    }
+
+    // Optional: Fetch supplier profile to ensure it exists and is valid
+    const profile = await SupplierProfile.findOne({ userId: supplierId });
+    if (!profile) {
+      return res.status(404).json({ message: "Không tìm thấy hồ sơ nhà cung cấp." });
+    }
 
     let {
       name,
@@ -183,13 +216,14 @@ exports.createDevice = async (req, res) => {
       `${name} vừa được thêm vào cửa hàng`,
       `/device/${newDevice.slug}`,
       req
-    ).catch(() => {});
+    ).catch(() => { });
 
     res.status(201).json({
       message: "Device created successfully",
       device: newDevice,
     });
   } catch (error) {
+    console.error(">>> LỖI TẠO THIẾT BỊ (CREATE DEVICE ERROR):", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -273,7 +307,7 @@ exports.getDevices = async (req, res) => {
 
     // Get all device IDs to query DeviceItem availability
     const deviceIds = devicesRaw.map(d => d._id.toString());
-    
+
     // Count available DeviceItem for each device (status = AVAILABLE)
     const deviceItemAvailability = await DeviceItem.aggregate([
       {
@@ -289,7 +323,7 @@ exports.getDevices = async (req, res) => {
         }
       }
     ]);
-    
+
     // Create a map for quick lookup
     const availabilityMap = {};
     deviceItemAvailability.forEach(item => {
@@ -395,8 +429,24 @@ exports.getDeviceItemsForSupplier = async (req, res) => {
     if (!device) {
       return res.status(404).json({ message: "Device not found" });
     }
-    if (device.supplierId.toString() !== req.user.id) {
+
+    // Lấy Role mới nhất từ DB
+    const currentUser = await User.findById(req.user.id).select("role");
+    const currentUserRole = currentUser ? currentUser.role : "UNKNOWN";
+
+    console.log(">>> KIỂM TRA QUYỀN TRUY CẬP ITEM:");
+    console.log("- Device SupplierId:", device.supplierId.toString());
+    console.log("- Request User ID:", req.user.id);
+    console.log("- Request User Role (DB):", currentUserRole);
+
+    // Kiểm tra: Phải là chủ sở hữu HOẶC là ADMIN/STAFF (nếu cần), 
+    // và quan trọng nhất là Role hiện tại phải là SUPPLIER hoặc ADMIN.
+    if (device.supplierId.toString() !== req.user.id && currentUserRole !== "ADMIN") {
       return res.status(403).json({ message: "Không có quyền xem đơn vị của thiết bị này" });
+    }
+    
+    if (currentUserRole !== "SUPPLIER" && currentUserRole !== "ADMIN") {
+        return res.status(403).json({ message: "Bạn không có quyền của nhà cung cấp." });
     }
 
     const { status } = req.query;
@@ -459,8 +509,17 @@ exports.createDeviceItemForSupplier = async (req, res) => {
     if (!device) {
       return res.status(404).json({ message: "Device not found" });
     }
-    if (device.supplierId.toString() !== req.user.id) {
+
+    // Lấy Role mới nhất từ DB
+    const currentUser = await User.findById(req.user.id).select("role");
+    const currentUserRole = currentUser ? currentUser.role : "UNKNOWN";
+
+    if (device.supplierId.toString() !== req.user.id && currentUserRole !== "ADMIN") {
       return res.status(403).json({ message: "Không có quyền thêm đơn vị cho thiết bị này" });
+    }
+
+    if (currentUserRole !== "SUPPLIER" && currentUserRole !== "ADMIN") {
+        return res.status(403).json({ message: "Bạn không có quyền của nhà cung cấp để thực hiện hành động này." });
     }
 
     let { serialNumber, internalCode, condition, location } = req.body || {};
@@ -594,16 +653,16 @@ exports.getDeviceDetail = async (req, res) => {
     const now = new Date();
     const supProfile = await SupplierProfile.findOne({ userId: device.supplierId._id });
     if (supProfile && (supProfile.status === 'SUSPENDED' || supProfile.isPermanentlyHidden)) {
-       // Check if suspended period expired
-       if (!supProfile.isPermanentlyHidden && supProfile.suspendedUntil && supProfile.suspendedUntil < now) {
-          supProfile.status = 'ACTIVE';
-          await supProfile.save();
-       } else {
-          return res.status(403).json({ 
-            success: false,
-            message: supProfile.isPermanentlyHidden ? "Sản phẩm này thuộc nhà cung cấp đã bị ngừng hoạt động vĩnh viễn" : "Sản phẩm này hiện đang bị tạm ẩn do nhà cung cấp đang bị xử phạt" 
-          });
-       }
+      // Check if suspended period expired
+      if (!supProfile.isPermanentlyHidden && supProfile.suspendedUntil && supProfile.suspendedUntil < now) {
+        supProfile.status = 'ACTIVE';
+        await supProfile.save();
+      } else {
+        return res.status(403).json({
+          success: false,
+          message: supProfile.isPermanentlyHidden ? "Sản phẩm này thuộc nhà cung cấp đã bị ngừng hoạt động vĩnh viễn" : "Sản phẩm này hiện đang bị tạm ẩn do nhà cung cấp đang bị xử phạt"
+        });
+      }
     }
 
     // 2. Lấy danh sách đánh giá (Reviews) của thiết bị này
@@ -899,9 +958,16 @@ exports.updateDevice = async (req, res) => {
       return res.status(404).json({ message: "Device not found" });
     }
 
-    // Verify device ownership
-    if (device.supplierId.toString() !== req.user.id) {
+    // Verify device ownership & role from DB
+    const currentUser = await User.findById(req.user.id).select("role");
+    const currentUserRole = currentUser ? currentUser.role : "UNKNOWN";
+
+    if (device.supplierId.toString() !== req.user.id && currentUserRole !== "ADMIN") {
       return res.status(403).json({ message: "You are not authorized to edit this device" });
+    }
+
+    if (currentUserRole !== "SUPPLIER" && currentUserRole !== "ADMIN") {
+        return res.status(403).json({ message: "Bạn không có quyền của nhà cung cấp." });
     }
 
     const blockingStatuses = ["STOPPED", "SUSPICIOUS", "DISCONTINUED"];
