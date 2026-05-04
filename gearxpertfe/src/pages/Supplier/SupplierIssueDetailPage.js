@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
   FiAlertCircle,
@@ -15,11 +15,14 @@ import {
   FiMail,
   FiMessageSquare,
   FiPackage,
+  FiRefreshCw,
   FiRotateCw,
   FiShare2,
   FiShield,
+  FiTool,
   FiTruck,
   FiUser,
+  FiX,
   FiXCircle,
 } from "react-icons/fi";
 import { toast } from "react-toastify";
@@ -34,6 +37,7 @@ import {
   supplierSubmitCompensationProposal,
 } from "../../service/ApiService/ReportApi";
 import { getHandoverAttemptsByRental } from "../../service/ApiService/HandoverApi";
+import { createWorkOrderFromIssue, getDeviceItemsByDeviceIds } from "../../service/ApiService/MaintenanceApi";
 import { confirmDialog } from "../../utils/confirmDialog";
 import AdditionalDeliveryDialog from "../../components/supplier/AdditionalDeliveryDialog";
 import EscalateIssueDialog from "../../components/supplier/EscalateIssueDialog";
@@ -377,9 +381,9 @@ function normalizeIssue(issue) {
   if (!issue) return null;
 
   const type = issue?.deviceId ? "DAMAGE" : isReturnReport(issue) ? "RETURN" : "DELIVERY";
-  const deviceNames = issue?.deviceId
-    ? [issue?.deviceId?.name].filter(Boolean)
-    : (issue?.deviceIds || []).map((d) => d?.name).filter(Boolean);
+  const devices = issue?.deviceId
+    ? [issue?.deviceId].filter(Boolean)
+    : (issue?.deviceIds || []).filter(Boolean);
 
   return {
     ...issue,
@@ -387,7 +391,7 @@ function normalizeIssue(issue) {
     _customerName: issue?.rentalId?.customerId?.fullName || "—",
     _customerPhone: issue?.rentalId?.phoneNumber || issue?.rentalId?.customerId?.phone || "—",
     _staffName: issue?.staffId?.fullName || "—",
-    _devices: deviceNames,
+    _devices: devices,
     _rentalId: issue?.rentalId?._id || issue?.rentalId || null,
   };
 }
@@ -420,6 +424,13 @@ export default function SupplierIssueDetailPage() {
   const [handoverAttempts, setHandoverAttempts] = useState([]);
   const [activeHandoverId, setActiveHandoverId] = useState(null);
   const [proposalSubmitting, setProposalSubmitting] = useState(false);
+
+  // Maintenance Work Order states
+  const [showWoModal, setShowWoModal] = useState(false);
+  const [woForm, setWoForm] = useState({ deviceItemId: "", scheduledDate: "", notes: "" });
+  const [woSubmitting, setWoSubmitting] = useState(false);
+  const [woRentalDeviceItems, setWoRentalDeviceItems] = useState([]);
+  const [woDeviceItemsLoading, setWoDeviceItemsLoading] = useState(false);
   const [proposalImages, setProposalImages] = useState([]);
   const [proposalForm, setProposalForm] = useState({
     amount: "",
@@ -429,6 +440,7 @@ export default function SupplierIssueDetailPage() {
     sendToCustomer: true,
     directGearXpertReview: false,
   });
+
 
   const loadIssue = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setLoading(true);
@@ -887,6 +899,85 @@ export default function SupplierIssueDetailPage() {
     }
   };
 
+  const openWoModal = async () => {
+    setShowWoModal(true);
+    const todayStr = new Date().toISOString().split("T")[0];
+    setWoForm({ deviceItemId: "", scheduledDate: todayStr, notes: "" });
+    setWoRentalDeviceItems([]);
+
+    let deviceIds = [];
+    if (issue?._type === "DAMAGE") {
+      const did = issue.deviceId?._id || issue.deviceId;
+      if (did) deviceIds = [String(did)];
+    } else {
+      deviceIds = (issue?.deviceIds || []).map((d) => String(d?._id || d)).filter(Boolean);
+    }
+
+    if (deviceIds.length === 0) return;
+
+    setWoDeviceItemsLoading(true);
+    try {
+      let rentalItems = [];
+      if (issue?._type === "DAMAGE") {
+        if (issue.rentalItemId) rentalItems = [issue.rentalItemId];
+      } else {
+        rentalItems = issue?.rentalItemIds || [];
+      }
+
+      const itemsInRental = rentalItems.flatMap(ri => ri.deviceItemIds || []).filter(Boolean);
+
+      if (issue?.deviceItemIds && issue.deviceItemIds.length > 0) {
+        const firstItem = issue.deviceItemIds[0];
+        const itemId = firstItem?._id || firstItem;
+        if (itemId) {
+          setWoForm((f) => ({ ...f, deviceItemId: String(itemId) }));
+        }
+      }
+
+      if (itemsInRental.length > 0) {
+        setWoRentalDeviceItems(itemsInRental);
+        if (!woForm.deviceItemId && itemsInRental.length === 1) {
+          setWoForm((f) => ({ ...f, deviceItemId: String(itemsInRental[0]._id) }));
+        }
+      } else {
+        const res = await getDeviceItemsByDeviceIds(deviceIds);
+        const items = Array.isArray(res?.data) ? res.data : (res?.data?.data || []);
+        setWoRentalDeviceItems(items);
+        if (!woForm.deviceItemId && items.length === 1 && items[0]._id) {
+          setWoForm((f) => ({ ...f, deviceItemId: String(items[0]._id) }));
+        }
+      }
+    } catch (err) {
+      console.error("Lỗi lấy thông tin thiết bị:", err);
+    } finally {
+      setWoDeviceItemsLoading(false);
+    }
+  };
+
+  const handleCreateWo = async () => {
+    if (!woForm.deviceItemId) return toast.warning("Vui lòng chọn thiết bị");
+    if (!woForm.scheduledDate) return toast.warning("Vui lòng chọn ngày thực hiện");
+    
+    setWoSubmitting(true);
+    try {
+      const issueModel = issue?._type === "DAMAGE" ? "DamageReport" : "DeliveryIssueReport";
+      await createWorkOrderFromIssue({
+        deviceItemId: woForm.deviceItemId,
+        issueId: issue?._id,
+        issueModel,
+        scheduledDate: woForm.scheduledDate,
+        notes: woForm.notes,
+      });
+      toast.success("Đã tạo lệnh sửa chữa!");
+      setShowWoModal(false);
+      await loadIssue({ silent: true });
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Không thể tạo lệnh sửa chữa");
+    } finally {
+      setWoSubmitting(false);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between gap-3">
@@ -970,7 +1061,17 @@ export default function SupplierIssueDetailPage() {
               <section className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
                 <h2 className="text-base font-semibold text-slate-900">Thông tin nghiệp vụ</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <Field label="Mã đơn thuê" value={issue?._rentalId || "—"} />
+                  <Field
+                    label="Mã đơn thuê"
+                    value={
+                      <Link
+                        to={`/supplier/rental-requests/${issue._rentalId}`}
+                        className="text-indigo-600 hover:underline font-medium"
+                      >
+                        {issue?._rentalId || "—"}
+                      </Link>
+                    }
+                  />
                   <Field
                     label="Loại sự cố"
                     value={ISSUE_TYPE_LABELS[issue.issueType] || issue.issueType || "—"}
@@ -1007,14 +1108,32 @@ export default function SupplierIssueDetailPage() {
               <section className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
                 <h2 className="text-base font-semibold text-slate-900">Thiết bị liên quan</h2>
                 {issue._devices?.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {issue._devices.map((device) => (
-                      <span
-                        key={`${issue._id}-${device}`}
-                        className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-medium"
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {issue._devices.map((device, idx) => (
+                      <div
+                        key={`${issue._id}-device-${idx}`}
+                        className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50/50"
                       >
-                        {device}
-                      </span>
+                        <div className="h-12 w-12 rounded-lg overflow-hidden border border-slate-200 bg-white shrink-0">
+                          {device.images?.[0] ? (
+                            <img
+                              src={device.images[0]}
+                              alt={device.name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="h-full w-full flex items-center justify-center text-slate-300">
+                              <FiPackage size={20} />
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-slate-800 truncate">
+                            {device.name || "Thiết bị"}
+                          </p>
+                          <p className="text-xs text-slate-500">Mã thiết bị: {device._id?.slice(-8).toUpperCase()}</p>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 ) : (
@@ -1139,15 +1258,17 @@ export default function SupplierIssueDetailPage() {
                                     className="rounded-lg border border-slate-200 bg-white p-3"
                                   >
                                     <p className="text-sm font-medium text-slate-800">
-                                      {item?.deviceName || "Thiết bị"}
+                                      {item?.deviceName && item.deviceName !== "Thiết bị"
+                                        ? item.deviceName
+                                        : issue?._devices?.find((d) => String(d?._id) === String(item?.deviceId))
+                                            ?.name || "Thiết bị"}
                                     </p>
-                                    <p className="text-xs text-slate-500 mt-1">
-                                      Serial giao:{" "}
-                                      {Array.isArray(item?.deliveredSerialNumbers) &&
-                                      item.deliveredSerialNumbers.length > 0
-                                        ? item.deliveredSerialNumbers.join(", ")
-                                        : "—"}
-                                    </p>
+                                    {Array.isArray(item?.deliveredSerialNumbers) &&
+                                      item.deliveredSerialNumbers.length > 0 && (
+                                        <p className="text-xs text-slate-500 mt-1">
+                                          Serial giao: {item.deliveredSerialNumbers.join(", ")}
+                                        </p>
+                                      )}
                                     {item?.operatorNote ? (
                                       <p className="text-xs text-slate-600 mt-1">
                                         Ghi chú: {item.operatorNote}
@@ -1219,6 +1340,7 @@ export default function SupplierIssueDetailPage() {
                   </div>
                 </section>
               )}
+
             </section>
 
             <aside className="space-y-6">
@@ -1319,6 +1441,26 @@ export default function SupplierIssueDetailPage() {
                     </button>
                   </>
                 )}
+
+                {/* Nút Tạo lệnh sửa chữa */}
+                {issue?.status === "OPEN" && (
+                  <button
+                    onClick={openWoModal}
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100"
+                  >
+                    <FiTool size={15} />
+                    Tạo lệnh sửa chữa
+                  </button>
+                )}
+                {["PROCESSING", "RESOLVED"].includes(issue?.status) && (
+                  <button
+                    disabled
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-200 text-emerald-700 bg-emerald-50 opacity-80 cursor-default"
+                  >
+                    <FiTool size={15} />
+                    Đã tạo lệnh sửa chữa
+                  </button>
+                )}
               </section>
 
               <section className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
@@ -1364,6 +1506,113 @@ export default function SupplierIssueDetailPage() {
                 await loadIssue({ silent: true });
               }}
             />
+          )}
+
+          {showWoModal && (
+            <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 backdrop-blur-sm">
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                  <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <FiTool className="text-rose-600" />
+                    Tạo lệnh sửa chữa
+                  </h3>
+                  <button onClick={() => setShowWoModal(false)} className="text-slate-400 hover:text-slate-700 p-2 rounded-lg hover:bg-slate-100 transition-colors">
+                    <FiX size={20} />
+                  </button>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                      Thiết bị cần sửa chữa <span className="text-rose-500">*</span>
+                    </label>
+                    {woDeviceItemsLoading ? (
+                      <div className="flex items-center gap-2 text-sm text-slate-400 py-3 bg-slate-50 rounded-xl px-4 animate-pulse">
+                        <FiRefreshCw size={14} className="animate-spin" /> Đang tải danh sách thiết bị...
+                      </div>
+                    ) : woRentalDeviceItems.length === 1 && woForm.deviceItemId ? (
+                      <div className="w-full rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-3 text-sm flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+                          <FiTool size={20} />
+                        </div>
+                        <div>
+                          <div className="font-bold text-slate-900">
+                            {(() => {
+                              const item = woRentalDeviceItems.find(it => String(it._id) === woForm.deviceItemId);
+                              return item?.device?.name || "Thiết bị";
+                            })()}
+                          </div>
+                          <div className="text-xs text-slate-500 font-medium">
+                            Mã: {(() => {
+                              const item = woRentalDeviceItems.find(it => String(it._id) === woForm.deviceItemId);
+                              return item?.internalCode || item?.serialNumber || "N/A";
+                            })()}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <select
+                        value={woForm.deviceItemId}
+                        onChange={(e) => setWoForm((f) => ({ ...f, deviceItemId: e.target.value }))}
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <option value="">— Chọn thiết bị —</option>
+                        {woRentalDeviceItems.map((item) => (
+                          <option key={item._id} value={item._id}>
+                            {item.device?.name} — {item.internalCode || item.serialNumber || "N/A"}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                      Ngày dự kiến thực hiện <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={woForm.scheduledDate}
+                      onChange={(e) => setWoForm((f) => ({ ...f, scheduledDate: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Ghi chú sửa chữa</label>
+                    <textarea
+                      rows={3}
+                      value={woForm.notes}
+                      onChange={(e) => setWoForm((f) => ({ ...f, notes: e.target.value }))}
+                      placeholder="Nhập tình trạng hư hỏng hoặc yêu cầu cụ thể..."
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
+                    <FiAlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-700 leading-relaxed">
+                      Thiết bị sau khi tạo lệnh sửa chữa sẽ được chuyển sang trạng thái <strong>REPAIR</strong> trong kho của bạn.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 px-6 pb-6 pt-2">
+                  <button
+                    onClick={() => setShowWoModal(false)}
+                    className="px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                  >
+                    Hủy bỏ
+                  </button>
+                  <button
+                    onClick={handleCreateWo}
+                    disabled={woSubmitting}
+                    className="px-6 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2 transition-all shadow-lg shadow-indigo-200"
+                  >
+                    {woSubmitting && <FiRefreshCw size={14} className="animate-spin" />}
+                    Xác nhận tạo lệnh
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </>
       )}

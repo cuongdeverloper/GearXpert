@@ -13,7 +13,8 @@ const SocketContext = createContext();
 export const useSocket = () => useContext(SocketContext);
 
 export const SocketProvider = ({ children }) => {
-  const tutorId = useSelector(state => state.user.account?.id);
+  const account = useSelector((state) => state.user.account);
+  const tutorId = account?.id || account?._id;
   const [socket, setSocket] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const dispatch = useDispatch();

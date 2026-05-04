@@ -155,8 +155,10 @@ export default function SupplierVouchersPage() {
     };
 
     const filteredVouchers = vouchers.filter(v =>
-        v.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        v.description?.toLowerCase().includes(searchTerm.toLowerCase())
+        !v.applicableRank && (
+            v.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            v.description?.toLowerCase().includes(searchTerm.toLowerCase())
+        )
     );
 
     return (

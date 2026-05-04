@@ -135,6 +135,43 @@ const getNextAttemptNo = async (rentalId, session) => {
   return (latest?.attemptNo || 0) + 1;
 };
 
+const enrichInspectionItems = async (items, prefetchedItems, session) => {
+  if (!Array.isArray(items)) return [];
+  const enriched = [];
+  
+  const prefetchedMap = new Map();
+  (prefetchedItems || []).forEach(it => {
+    prefetchedMap.set(String(it.rentalItemId), it);
+  });
+
+  const allDeviceItemIds = items.flatMap(it => it.deliveredDeviceItemIds || []).filter(Boolean);
+  const uniqueItemIds = [...new Set(allDeviceItemIds.map(id => String(id)))];
+  
+  const deviceItems = uniqueItemIds.length > 0 
+    ? await DeviceItem.find({ _id: { $in: uniqueItemIds } }).select("serialNumber").session(session).lean()
+    : [];
+  
+  const serialMap = new Map();
+  deviceItems.forEach(di => serialMap.set(String(di._id), di.serialNumber));
+
+  for (const item of items) {
+    const prefetched = prefetchedMap.get(String(item.rentalItemId));
+    
+    const deliveredSerials = (item.deliveredDeviceItemIds || [])
+      .map(id => serialMap.get(String(id)))
+      .filter(Boolean);
+
+    enriched.push({
+      ...item,
+      deviceName: item.deviceName || prefetched?.deviceName || "Thiết bị",
+      expectedQuantity: item.expectedQuantity || prefetched?.expectedQuantity || 0,
+      expectedSerialNumbers: item.expectedSerialNumbers || prefetched?.expectedSerialNumbers || [],
+      deliveredSerialNumbers: deliveredSerials.length > 0 ? deliveredSerials : (item.deliveredSerialNumbers || []),
+    });
+  }
+  return enriched;
+};
+
 const resolveDeliveryTask = async (deliveryTaskId, session) => {
   if (!deliveryTaskId) return null;
   let q = DeliveryTask.findById(deliveryTaskId);
@@ -430,13 +467,19 @@ const saveInspection = async ({ handoverId, inspection, staffId, actorId }) => {
       throw new DomainError("Rental đã kết thúc/cancel, không thể cập nhật inspection", 409, "RENTAL_FINALIZED");
     }
 
+    const enrichedItems = await enrichInspectionItems(
+      inspection.items,
+      current.prefetchedSnapshot?.items,
+      session
+    );
+
     const normalized = {
       checklist: {
         customerPresent: Boolean(inspection.checklist?.customerPresent),
         customerIdentityVerified: Boolean(inspection.checklist?.customerIdentityVerified),
         deliveryAddressMatched: Boolean(inspection.checklist?.deliveryAddressMatched),
       },
-      items: inspection.items,
+      items: enrichedItems,
       operatorNote: inspection.operatorNote || "",
       evidenceUrls: Array.isArray(inspection.evidenceUrls) ? inspection.evidenceUrls : [],
     };
@@ -526,6 +569,16 @@ const confirmSuccess = async ({
 
     const inspectionData = inspection || current.inspection;
     validateInspectionPayload(inspectionData);
+    
+    // Enrich items if new inspection is provided
+    if (inspection && inspection.items) {
+      inspectionData.items = await enrichInspectionItems(
+        inspection.items,
+        current.prefetchedSnapshot?.items,
+        session
+      );
+    }
+
     await ensureDeliverySerialsExist(inspectionData.items, session);
 
     const rentalUpdate = await Rental.updateOne(
@@ -648,9 +701,15 @@ const failHandover = async ({
       throw new DomainError("Biên bản đã COMPLETED/VOID, không thể fail", 409, "INVALID_TRANSITION");
     }
 
+    let inspectionData = inspection || current.inspection;
     if (inspection) {
       validateInspectionPayload(inspection);
-      await ensureDeliverySerialsExist(inspection.items, session);
+      inspectionData.items = await enrichInspectionItems(
+        inspection.items,
+        current.prefetchedSnapshot?.items,
+        session
+      );
+      await ensureDeliverySerialsExist(inspectionData.items, session);
     }
 
     const normalizedFailure = {
@@ -681,7 +740,7 @@ const failHandover = async ({
           status: HANDOVER_STATUS.FAILED,
           result: HANDOVER_RESULT.FAILED,
           failure: normalizedFailure,
-          inspection: inspection || current.inspection,
+          inspection: inspectionData,
           customerConfirmation: {
             confirmed: false,
           },
