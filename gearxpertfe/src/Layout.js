@@ -107,11 +107,14 @@ import RentalDetail from "./pages/Rental/RentalDetail";
 const ChatbotWrapper = () => {
   const location = useLocation();
 
-  const hideOnPaths = ["/admin", "/supplier", "/messenger", "/staff"];
+  // Các đường dẫn chắc chắn ẩn
+  const hideOnPaths = ["/admin", "/messenger", "/staff"];
+  
+  const isInternalSupplierPath = location.pathname.startsWith("/supplier") && 
+                                !location.pathname.startsWith("/suppliers") && 
+                                !/^\/supplier\/[a-f\d]{24}$/i.test(location.pathname);
 
-  const shouldHide = hideOnPaths.some((path) =>
-    location.pathname.startsWith(path)
-  );
+  const shouldHide = hideOnPaths.some((path) => location.pathname.startsWith(path)) || isInternalSupplierPath;
 
   if (shouldHide) {
     return null;
@@ -141,9 +144,11 @@ const ChatWindowWrapper = () => {
 
   const hideOnPaths = ["/messenger", "/admin", "/staff"];
 
-  const shouldHide = hideOnPaths.some((path) =>
-    location.pathname.startsWith(path)
-  );
+  const isInternalSupplierPath = location.pathname.startsWith("/supplier") && 
+                                !location.pathname.startsWith("/suppliers") && 
+                                !/^\/supplier\/[a-f\d]{24}$/i.test(location.pathname);
+
+  const shouldHide = hideOnPaths.some((path) => location.pathname.startsWith(path)) || isInternalSupplierPath;
 
   if (shouldHide) {
     return null;
