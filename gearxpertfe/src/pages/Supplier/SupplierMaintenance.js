@@ -15,6 +15,7 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiRefreshCw,
+  FiCamera,
 } from "react-icons/fi";
 import { toast } from "react-toastify";
 import {
@@ -122,9 +123,8 @@ const DeviceSelector = ({ items, value, onChange, disabled }) => {
   return (
     <div className="relative" ref={dropdownRef}>
       <div
-        className={`w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white cursor-pointer flex items-center justify-between ${
-          disabled ? "opacity-50 pointer-events-none" : ""
-        }`}
+        className={`w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white cursor-pointer flex items-center justify-between ${disabled ? "opacity-50 pointer-events-none" : ""
+          }`}
         onClick={() => !disabled && setIsOpen(!isOpen)}
       >
         {selectedItem ? (
@@ -166,29 +166,26 @@ const DeviceSelector = ({ items, value, onChange, disabled }) => {
               <button
                 type="button"
                 onClick={() => setFilterType("ALL")}
-                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                  filterType === "ALL" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                }`}
+                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${filterType === "ALL" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  }`}
               >
                 Tất cả
               </button>
               <button
                 type="button"
                 onClick={() => setFilterType("AVAILABLE")}
-                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                  filterType === "AVAILABLE"
-                    ? "bg-white text-emerald-700 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
-                }`}
+                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${filterType === "AVAILABLE"
+                  ? "bg-white text-emerald-700 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+                  }`}
               >
                 Bình thường
               </button>
               <button
                 type="button"
                 onClick={() => setFilterType("REPAIR")}
-                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                  filterType === "REPAIR" ? "bg-white text-rose-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                }`}
+                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${filterType === "REPAIR" ? "bg-white text-rose-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  }`}
               >
                 Cần sửa
               </button>
@@ -232,9 +229,8 @@ const DeviceSelector = ({ items, value, onChange, disabled }) => {
                       onChange(item._id);
                       setIsOpen(false);
                     }}
-                    className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
-                      isSelected ? "bg-indigo-50" : "hover:bg-slate-50"
-                    }`}
+                    className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer transition-colors ${isSelected ? "bg-indigo-50" : "hover:bg-slate-50"
+                      }`}
                   >
                     {item.device?.images?.[0] ? (
                       <img
@@ -399,13 +395,13 @@ export default function SupplierMaintenance() {
       <div>
         <p className="font-medium text-slate-800 mb-3">Bỏ qua nhắc nhở bảo trì này?</p>
         <div className="flex gap-2 justify-end">
-          <button 
+          <button
             className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-200 transition-colors"
             onClick={() => toast.dismiss(tId)}
           >
             Hủy
           </button>
-          <button 
+          <button
             className="px-3 py-1.5 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors"
             onClick={async () => {
               toast.dismiss(tId);
@@ -449,21 +445,20 @@ export default function SupplierMaintenance() {
   const handleUpdateStatus = (wo, status) => {
     const confirmMsg =
       status === "IN_PROGRESS" ? "Bắt đầu thực hiện lệnh bảo trì này?" : "Hủy lệnh bảo trì này?";
-    
+
     const tId = toast(
       <div>
         <p className="font-medium text-slate-800 mb-3">{confirmMsg}</p>
         <div className="flex gap-2 justify-end">
-          <button 
+          <button
             className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-200 transition-colors"
             onClick={() => toast.dismiss(tId)}
           >
             Đóng
           </button>
-          <button 
-            className={`px-3 py-1.5 text-white rounded-md text-sm font-medium transition-colors ${
-              status === "IN_PROGRESS" ? "bg-indigo-600 hover:bg-indigo-700" : "bg-red-600 hover:bg-red-700"
-            }`}
+          <button
+            className={`px-3 py-1.5 text-white rounded-md text-sm font-medium transition-colors ${status === "IN_PROGRESS" ? "bg-indigo-600 hover:bg-indigo-700" : "bg-red-600 hover:bg-red-700"
+              }`}
             onClick={async () => {
               toast.dismiss(tId);
               try {
@@ -532,11 +527,10 @@ export default function SupplierMaintenance() {
             <button
               key={tab.key}
               onClick={() => setTab(tab.key)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border transition-all ${
-                isActive
-                  ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-              }`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border transition-all ${isActive
+                ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                }`}
             >
               <Icon size={15} />
               {tab.label}
@@ -673,7 +667,7 @@ export default function SupplierMaintenance() {
                   >
                     <FiChevronLeft size={20} />
                   </button>
-                  
+
                   <div className="flex items-center gap-1">
                     {(() => {
                       const pages = [];
@@ -688,19 +682,18 @@ export default function SupplierMaintenance() {
                           pages.push(1, '...', woCurrentPage - 1, woCurrentPage, woCurrentPage + 1, '...', woTotalPages);
                         }
                       }
-                      
+
                       return pages.map((page, index) => (
                         <button
                           key={index}
                           onClick={() => page !== '...' && setWoCurrentPage(page)}
                           disabled={page === '...'}
-                          className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                            page === '...' 
-                              ? 'text-slate-400 cursor-default'
-                              : woCurrentPage === page 
-                                ? 'bg-indigo-600 text-white' 
-                                : 'text-slate-600 hover:bg-slate-100'
-                          }`}
+                          className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${page === '...'
+                            ? 'text-slate-400 cursor-default'
+                            : woCurrentPage === page
+                              ? 'bg-indigo-600 text-white'
+                              : 'text-slate-600 hover:bg-slate-100'
+                            }`}
                         >
                           {page}
                         </button>
@@ -731,9 +724,8 @@ export default function SupplierMaintenance() {
           <div className="space-y-4">
             <InfoRow
               label="Thiết bị"
-              value={`${approveModal.deviceId?.name || "—"} · ${
-                approveModal.deviceItemId?.internalCode || approveModal.deviceItemId?.serialNumber || "N/A"
-              }`}
+              value={`${approveModal.deviceId?.name || "—"} · ${approveModal.deviceItemId?.internalCode || approveModal.deviceItemId?.serialNumber || "N/A"
+                }`}
             />
             <InfoRow label="Lý do nhắc" value={approveModal.triggerValue} />
             <div>
@@ -759,7 +751,7 @@ export default function SupplierMaintenance() {
               />
             </div>
             <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-               Thiết bị sẽ chuyển sang trạng thái <strong>Đang bảo trì</strong> và không thể cho thuê.
+              Thiết bị sẽ chuyển sang trạng thái <strong>Đang bảo trì</strong> và không thể cho thuê.
             </p>
           </div>
           <div className="flex justify-end gap-2 mt-5">
@@ -847,7 +839,7 @@ export default function SupplierMaintenance() {
               />
             </div>
             <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-               Thiết bị sẽ chuyển sang trạng thái <strong>Đang bảo trì</strong>.
+              Thiết bị sẽ chuyển sang trạng thái <strong>Đang bảo trì</strong>.
             </p>
           </div>
           <div className="flex justify-end gap-2 mt-5">
@@ -875,37 +867,102 @@ export default function SupplierMaintenance() {
           <div className="space-y-4">
             <InfoRow
               label="Thiết bị"
-              value={`${completeModal.deviceId?.name || "—"} · ${
-                completeModal.deviceItemId?.internalCode || completeModal.deviceItemId?.serialNumber || "N/A"
-              }`}
+              value={`${completeModal.deviceId?.name || "—"} · ${completeModal.deviceItemId?.internalCode || completeModal.deviceItemId?.serialNumber || "N/A"
+                }`}
             />
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                📷 Ảnh trước bảo trì
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Ảnh trước bảo trì
               </label>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(e) =>
-                  setCompleteForm((f) => ({ ...f, imagesBefore: Array.from(e.target.files) }))
-                }
-                className="text-sm text-slate-600"
-              />
+              <div className="flex flex-wrap gap-3">
+                {(completeForm.imagesBefore || []).map((file, i) => (
+                  <div key={i} className="relative group">
+                    <img
+                      src={URL.createObjectURL(file)}
+                      className="w-20 h-20 object-cover rounded-xl border border-slate-200"
+                      alt=""
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCompleteForm((f) => ({
+                          ...f,
+                          imagesBefore: f.imagesBefore.filter((_, idx) => idx !== i),
+                        }))
+                      }
+                      className="absolute -top-2 -right-2 bg-white text-rose-500 rounded-full p-0.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <FiXCircle size={18} className="fill-white" />
+                    </button>
+                  </div>
+                ))}
+                <label className="w-20 h-20 rounded-xl bg-slate-50 border-2 border-dashed border-slate-300 hover:border-indigo-400 hover:bg-indigo-50 transition-colors flex flex-col items-center justify-center cursor-pointer text-slate-500 hover:text-indigo-600">
+                  <FiCamera size={20} />
+                  <span className="text-[10px] mt-1 font-medium">Thêm ảnh</span>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        const selectedFiles = Array.from(e.target.files);
+                        setCompleteForm((f) => ({
+                          ...f,
+                          imagesBefore: [...(f.imagesBefore || []), ...selectedFiles],
+                        }));
+                      }
+                    }}
+                  />
+                </label>
+              </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                📷 Ảnh sau bảo trì
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Ảnh sau bảo trì
               </label>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(e) =>
-                  setCompleteForm((f) => ({ ...f, imagesAfter: Array.from(e.target.files) }))
-                }
-                className="text-sm text-slate-600"
-              />
+              <div className="flex flex-wrap gap-3">
+                {(completeForm.imagesAfter || []).map((file, i) => (
+                  <div key={i} className="relative group">
+                    <img
+                      src={URL.createObjectURL(file)}
+                      className="w-20 h-20 object-cover rounded-xl border border-slate-200"
+                      alt=""
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCompleteForm((f) => ({
+                          ...f,
+                          imagesAfter: f.imagesAfter.filter((_, idx) => idx !== i),
+                        }))
+                      }
+                      className="absolute -top-2 -right-2 bg-white text-rose-500 rounded-full p-0.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <FiXCircle size={18} className="fill-white" />
+                    </button>
+                  </div>
+                ))}
+                <label className="w-20 h-20 rounded-xl bg-slate-50 border-2 border-dashed border-slate-300 hover:border-indigo-400 hover:bg-indigo-50 transition-colors flex flex-col items-center justify-center cursor-pointer text-slate-500 hover:text-indigo-600">
+                  <FiCamera size={20} />
+                  <span className="text-[10px] mt-1 font-medium">Thêm ảnh</span>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        const selectedFiles = Array.from(e.target.files);
+                        setCompleteForm((f) => ({
+                          ...f,
+                          imagesAfter: [...(f.imagesAfter || []), ...selectedFiles],
+                        }));
+                      }
+                    }}
+                  />
+                </label>
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Chi phí (VND)</label>
@@ -929,7 +986,7 @@ export default function SupplierMaintenance() {
               />
             </div>
             <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-              ✅ Thiết bị sẽ trở về trạng thái <strong>Khả dụng</strong> sau khi hoàn tất.
+              Thiết bị sẽ trở về trạng thái <strong>Khả dụng</strong> sau khi hoàn tất.
             </p>
           </div>
           <div className="flex justify-end gap-2 mt-5">
@@ -1061,17 +1118,15 @@ function WorkOrderCard({ wo, onStart, onCancel, onComplete, onImageClick }) {
           <div className="flex flex-wrap items-center gap-2 mb-1">
             {/* Status */}
             <span
-              className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold border ${
-                WO_STATUS_STYLES[wo.status] || "bg-slate-50 text-slate-600 border-slate-200"
-              }`}
+              className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold border ${WO_STATUS_STYLES[wo.status] || "bg-slate-50 text-slate-600 border-slate-200"
+                }`}
             >
               {WO_STATUS_LABELS[wo.status] || wo.status}
             </span>
             {/* Type */}
             <span
-              className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold border ${
-                WO_TYPE_STYLES[wo.maintenanceType] || "bg-slate-50 text-slate-600"
-              }`}
+              className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold border ${WO_TYPE_STYLES[wo.maintenanceType] || "bg-slate-50 text-slate-600"
+                }`}
             >
               {WO_TYPE_LABELS[wo.maintenanceType] || wo.maintenanceType}
             </span>

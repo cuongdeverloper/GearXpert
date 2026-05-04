@@ -815,9 +815,30 @@ exports.getSupplierIssues = async (req, res) => {
           name: item?.deviceName || "Thiết bị",
         }));
 
+        const syntheticRentalItemIds = snapshotItems.map(item => {
+          const deviceItemIds = [];
+          if (item.expectedDeviceItemIds && item.expectedDeviceItemIds.length > 0) {
+             item.expectedDeviceItemIds.forEach((dId, i) => {
+               deviceItemIds.push({
+                 _id: dId,
+                 device: {
+                   _id: item.deviceId,
+                   name: item.deviceName
+                 },
+                 internalCode: item.expectedSerialNumbers?.[i] || ""
+               });
+             });
+          }
+          return {
+             _id: item.rentalItemId,
+             deviceItemIds
+          };
+        });
+
         return {
           _id: `return-failed-${record._id}`,
           rentalId: record.rentalId,
+          rentalItemIds: syntheticRentalItemIds,
           deviceIds: syntheticDeviceIds,
           issueType: "OTHER",
           description,
@@ -951,22 +972,22 @@ exports.supplierUpdateIssueStatus = async (req, res) => {
     const populated =
       modelName === "DeliveryIssueReport"
         ? await DeliveryIssueReport.findById(doc._id)
-            .populate({
-              path: "rentalId",
-              select: "customerId phoneNumber status inspectedContext",
-              populate: { path: "customerId", select: "fullName email phone image" },
-            })
-            .populate({ path: "staffId", select: "fullName" })
-            .populate({ path: "deviceIds", select: "name images" })
-            .lean()
+          .populate({
+            path: "rentalId",
+            select: "customerId phoneNumber status inspectedContext",
+            populate: { path: "customerId", select: "fullName email phone image" },
+          })
+          .populate({ path: "staffId", select: "fullName" })
+          .populate({ path: "deviceIds", select: "name images" })
+          .lean()
         : await DamageReport.findById(doc._id)
-            .populate({
-              path: "rentalId",
-              select: "customerId phoneNumber status",
-              populate: { path: "customerId", select: "fullName email phone image" },
-            })
-            .populate({ path: "deviceId", select: "name images" })
-            .lean();
+          .populate({
+            path: "rentalId",
+            select: "customerId phoneNumber status",
+            populate: { path: "customerId", select: "fullName email phone image" },
+          })
+          .populate({ path: "deviceId", select: "name images" })
+          .lean();
 
     res.json({
       success: true,
@@ -1168,22 +1189,22 @@ exports.supplierCloseIssueNoCompensation = async (req, res) => {
     const populated =
       modelName === "DeliveryIssueReport"
         ? await DeliveryIssueReport.findById(doc._id)
-            .populate({
-              path: "rentalId",
-              select: "customerId phoneNumber status inspectedContext",
-              populate: { path: "customerId", select: "fullName email phone image" },
-            })
-            .populate({ path: "staffId", select: "fullName" })
-            .populate({ path: "deviceIds", select: "name images" })
-            .lean()
+          .populate({
+            path: "rentalId",
+            select: "customerId phoneNumber status inspectedContext",
+            populate: { path: "customerId", select: "fullName email phone image" },
+          })
+          .populate({ path: "staffId", select: "fullName" })
+          .populate({ path: "deviceIds", select: "name images" })
+          .lean()
         : await DamageReport.findById(doc._id)
-            .populate({
-              path: "rentalId",
-              select: "customerId phoneNumber status",
-              populate: { path: "customerId", select: "fullName email phone image" },
-            })
-            .populate({ path: "deviceId", select: "name images" })
-            .lean();
+          .populate({
+            path: "rentalId",
+            select: "customerId phoneNumber status",
+            populate: { path: "customerId", select: "fullName email phone image" },
+          })
+          .populate({ path: "deviceId", select: "name images" })
+          .lean();
 
     return res.json({
       success: true,
@@ -1305,7 +1326,7 @@ exports.supplierAdditionalDelivery = async (req, res) => {
     // Or just create a new DELIVERY task for all missing items (if tracked) or all devices.
     // For simplicity, create a generic Delivery task for the same rental
     const existingStaffId = rental.assignedOperationStaffId;
-    
+
     // Đảm bảo update trạng thái Rental về PENDING_RESOLUTION thay vì DELIVERING 
     // vì đơn đang gặp "sự cố" phải để PENDING_RESOLUTION để getDeliveringRentals() load
     if (rental.status !== "PENDING_RESOLUTION") {
@@ -1526,22 +1547,22 @@ exports.supplierSubmitCompensationProposal = async (req, res) => {
     const populated =
       modelName === "DeliveryIssueReport"
         ? await DeliveryIssueReport.findById(doc._id)
-            .populate({
-              path: "rentalId",
-              select: "customerId phoneNumber status inspectedContext",
-              populate: { path: "customerId", select: "fullName email phone image" },
-            })
-            .populate({ path: "staffId", select: "fullName" })
-            .populate({ path: "deviceIds", select: "name images" })
-            .lean()
+          .populate({
+            path: "rentalId",
+            select: "customerId phoneNumber status inspectedContext",
+            populate: { path: "customerId", select: "fullName email phone image" },
+          })
+          .populate({ path: "staffId", select: "fullName" })
+          .populate({ path: "deviceIds", select: "name images" })
+          .lean()
         : await DamageReport.findById(doc._id)
-            .populate({
-              path: "rentalId",
-              select: "customerId phoneNumber status",
-              populate: { path: "customerId", select: "fullName email phone image" },
-            })
-            .populate({ path: "deviceId", select: "name images" })
-            .lean();
+          .populate({
+            path: "rentalId",
+            select: "customerId phoneNumber status",
+            populate: { path: "customerId", select: "fullName email phone image" },
+          })
+          .populate({ path: "deviceId", select: "name images" })
+          .lean();
 
     const proposalDto = toCompensationProposalDto(createdProposal.toObject());
 
@@ -1750,8 +1771,8 @@ exports.customerConfirmCompensationProposal = async (req, res) => {
         shouldAutoForwardToAdmin
           ? "Khách hàng đã xác nhận đề xuất bồi thường, hệ thống tự chuyển sang chờ admin duyệt"
           : cleanDecision === "ACCEPTED"
-          ? "Khách hàng đã xác nhận đề xuất bồi thường"
-          : "Khách hàng đã từ chối đề xuất bồi thường",
+            ? "Khách hàng đã xác nhận đề xuất bồi thường"
+            : "Khách hàng đã từ chối đề xuất bồi thường",
       createdAt: new Date(),
     });
     if (shouldAutoForwardToAdmin && issueDoc.status === "AWAITING_ADMIN_GX") {
@@ -1767,9 +1788,8 @@ exports.customerConfirmCompensationProposal = async (req, res) => {
           cleanDecision === "ACCEPTED"
             ? "Khách hàng đã xác nhận đề xuất bồi thường"
             : "Khách hàng đã từ chối đề xuất bồi thường",
-        message: `Case #${String(issueDoc._id).slice(-6)} vừa được khách hàng ${
-          cleanDecision === "ACCEPTED" ? "xác nhận" : "từ chối"
-        }.`,
+        message: `Case #${String(issueDoc._id).slice(-6)} vừa được khách hàng ${cleanDecision === "ACCEPTED" ? "xác nhận" : "từ chối"
+          }.`,
         link: `/supplier/issues/${issueDoc._id}`,
         type: "COMPENSATION_PROPOSAL",
       });
@@ -1812,8 +1832,8 @@ exports.customerConfirmCompensationProposal = async (req, res) => {
         shouldAutoForwardToAdmin
           ? "Đã xác nhận đề xuất bồi thường và chuyển admin duyệt"
           : cleanDecision === "ACCEPTED"
-          ? "Đã xác nhận đề xuất bồi thường"
-          : "Đã từ chối đề xuất bồi thường",
+            ? "Đã xác nhận đề xuất bồi thường"
+            : "Đã từ chối đề xuất bồi thường",
       proposal: toCompensationProposalDto(proposal.toObject()),
     });
   } catch (err) {
@@ -1933,8 +1953,8 @@ exports.supplierConfirmCompensationProposal = async (req, res) => {
             ? "Supplier đã đồng ý phương án GearXpert — chờ khách xác nhận"
             : "Supplier đã xác nhận, chuyển đề xuất bồi thường sang admin duyệt"
           : gxSupplierFirstPath
-          ? "Supplier đã từ chối đề xuất trung gian GearXpert"
-          : "Supplier đã hủy đề xuất bồi thường sau khi khách xác nhận",
+            ? "Supplier đã từ chối đề xuất trung gian GearXpert"
+            : "Supplier đã hủy đề xuất bồi thường sau khi khách xác nhận",
       createdAt: new Date(),
     });
     if (notifyAdmins && issueDoc.status === "AWAITING_ADMIN_GX") {
@@ -2048,13 +2068,13 @@ exports.adminGetCompensationProposals = async (req, res) => {
     const [deliveryIssues, damageIssues] = await Promise.all([
       deliveryIssueIds.length
         ? DeliveryIssueReport.find({ _id: { $in: deliveryIssueIds } })
-            .select("_id status issueType description reportContext createdAt")
-            .lean()
+          .select("_id status issueType description reportContext createdAt")
+          .lean()
         : [],
       damageIssueIds.length
         ? DamageReport.find({ _id: { $in: damageIssueIds } })
-            .select("_id status issueType description reportContext createdAt")
-            .lean()
+          .select("_id status issueType description reportContext createdAt")
+          .lean()
         : [],
     ]);
 
@@ -2070,13 +2090,13 @@ exports.adminGetCompensationProposals = async (req, res) => {
         referenceId: proposal.referenceId,
         issue: issue
           ? {
-              _id: issue._id,
-              status: issue.status,
-              issueType: issue.issueType,
-              description: issue.description || "",
-              reportContext: issue.reportContext || "",
-              createdAt: issue.createdAt,
-            }
+            _id: issue._id,
+            status: issue.status,
+            issueType: issue.issueType,
+            description: issue.description || "",
+            reportContext: issue.reportContext || "",
+            createdAt: issue.createdAt,
+          }
           : null,
         supplier: proposal.supplierId || null,
         customer: proposal.customerId || null,
@@ -2296,10 +2316,10 @@ exports.adminGetIssuesAwaitingGx = async (req, res) => {
     ];
     const rentals = rentalIds.length
       ? await Rental.find({ _id: { $in: rentalIds } })
-          .select("_id status supplierId customerId")
-          .populate({ path: "supplierId", select: "fullName email phone" })
-          .populate({ path: "customerId", select: "fullName email phone" })
-          .lean()
+        .select("_id status supplierId customerId")
+        .populate({ path: "supplierId", select: "fullName email phone" })
+        .populate({ path: "customerId", select: "fullName email phone" })
+        .lean()
       : [];
     const rentalMap = new Map(rentals.map((r) => [String(r._id), r]));
 
@@ -2320,11 +2340,11 @@ exports.adminGetIssuesAwaitingGx = async (req, res) => {
           rentalId: doc.rentalId,
           rental: r
             ? {
-                _id: r._id,
-                status: r.status,
-                supplier: r.supplierId || null,
-                customer: r.customerId || null,
-              }
+              _id: r._id,
+              status: r.status,
+              supplier: r.supplierId || null,
+              customer: r.customerId || null,
+            }
             : null,
         };
       })
@@ -2336,6 +2356,7 @@ exports.adminGetIssuesAwaitingGx = async (req, res) => {
     return res.status(500).json({ message: err.message || "Lỗi server" });
   }
 };
+
 
 module.exports = {
   createDeliveryIssue: exports.createDeliveryIssue,

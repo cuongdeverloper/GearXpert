@@ -3919,14 +3919,30 @@ exports.startDelivery = async (req, res) => {
       });
     }
 
+    console.log(`[RentalController] Emitting operationStaffUpdate for rental ${rental._id}`);
     emitOperationStaffUpdate({
       action: "DELIVERY_STARTED",
 
-      message: "Nhà cung cấp đã mở giao hàng — có đơn mới cần xử lý.",
+      message: `Nhà cung cấp đã mở giao hàng — có đơn mới cần xử lý.`,
 
       rentalId: String(rental._id),
 
       deliveryTaskId: task?._id ? String(task._id) : undefined,
+
+      deviceLabel: rentalItems[0]?.deviceId?.name || "Thiết bị",
+
+      actorId: supplierId,
+    });
+
+    // Gửi thông báo chính thức lưu vào database cho toàn bộ OPERATION_STAFF
+    console.log(`[RentalController] Sending notifications to all OPERATION_STAFF for rental ${rental._id}`);
+    await NotificationConfig.sendNotificationToRole({
+      senderId: supplierId,
+      role: "OPERATION_STAFF",
+      title: "Nhiệm vụ giao hàng mới",
+      message: `Đơn thuê ${rentalId.slice(-6).toUpperCase()} (${rentalItems[0]?.deviceId?.name || "Thiết bị"}) đã sẵn sàng để giao.`,
+      link: `/staff/tasks`, // Giả định link cho staff
+      type: "ORDER",
     });
 
     return res.status(200).json({
