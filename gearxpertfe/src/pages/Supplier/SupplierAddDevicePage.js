@@ -30,7 +30,6 @@ export default function SupplierAddDevicePage() {
   const [images, setImages] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
   const fileInputRef = useRef();
-  // Fetch supplier profile by userId on mount
   useEffect(() => {
     const fetchProfile = async () => {
       if (!userAccount?.id) return;
@@ -169,8 +168,8 @@ export default function SupplierAddDevicePage() {
       // Explicitly send supplierId from fetched profile
       if (supplierProfile?.userId) {
         // userId có thể là object do được populate ở backend, cần lấy ._id
-        const sId = typeof supplierProfile.userId === 'object' 
-          ? supplierProfile.userId._id 
+        const sId = typeof supplierProfile.userId === 'object'
+          ? supplierProfile.userId._id
           : supplierProfile.userId;
         form.append("supplierId", sId);
       }
