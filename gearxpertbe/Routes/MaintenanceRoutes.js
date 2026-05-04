@@ -34,7 +34,13 @@ maintenanceRouter.post(
 );
 
 // POST   /api/maintenance/work-orders        — Tạo WO thủ công
-maintenanceRouter.post("/work-orders", checkAccessToken, checkSupplier, ctrl.createWorkOrder);
+maintenanceRouter.post(
+  "/work-orders",
+  checkAccessToken,
+  checkSupplier,
+  uploadCloud.fields([{ name: "imagesBefore", maxCount: 5 }]),
+  ctrl.createWorkOrder
+);
 
 // PATCH  /api/maintenance/work-orders/:id/status   — Cập nhật trạng thái (IN_PROGRESS | CANCELLED)
 maintenanceRouter.patch("/work-orders/:id/status", checkAccessToken, checkSupplier, ctrl.updateWorkOrderStatus);

@@ -56,6 +56,12 @@ const maintenanceWorkOrderSchema = new mongoose.Schema(
       index: true,
     },
 
+    priority: {
+      type: String,
+      enum: ["LOW", "MEDIUM", "HIGH"],
+      default: "LOW",
+    },
+
     scheduledDate: {
       type: Date,
       required: true,
@@ -69,10 +75,21 @@ const maintenanceWorkOrderSchema = new mongoose.Schema(
       maxlength: 2000,
     },
 
+    estimatedCost: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
     cost: {
       type: Number,
       default: 0,
       min: 0,
+    },
+
+    providerName: {
+      type: String,
+      trim: true,
     },
 
     imagesBefore: [{ type: String }],
