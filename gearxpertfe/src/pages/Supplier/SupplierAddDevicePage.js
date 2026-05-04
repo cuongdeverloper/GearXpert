@@ -1,13 +1,17 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useSelector } from "react-redux";
 import { FiArrowLeft, FiPlus, FiX, FiList } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { toast } from "react-toastify";
 import { createDevice } from "../../service/ApiService/DeviceApi";
+import { getSupplierProfile } from "../../service/ApiService/SupplierApi";
 import { VIETNAM_CITIES } from "../../utils/vietnamCities";
 
 export default function SupplierAddDevicePage() {
   const navigate = useNavigate();
+  const userAccount = useSelector((state) => state.user.account);
+  const [supplierProfile, setSupplierProfile] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -26,6 +30,29 @@ export default function SupplierAddDevicePage() {
   const [images, setImages] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
   const fileInputRef = useRef();
+  // Fetch supplier profile by userId on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!userAccount?.id) return;
+      console.log(">>> Dữ liệu tài khoản Redux:", userAccount);
+      console.log(">>> Vai trò (Role) hiện tại:", userAccount.role || "Chưa xác định");
+      try {
+        const res = await getSupplierProfile(userAccount.id);
+        if (res.data) {
+          console.log(res.data)
+          setSupplierProfile(res.data);
+          // Auto-fill city from profile if available
+          if (res.data.location?.city) {
+            setFormData(prev => ({ ...prev, city: res.data.location.city }));
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching supplier profile:", error);
+        toast.error("Không thể lấy thông tin cửa hàng");
+      }
+    };
+    fetchProfile();
+  }, [userAccount?.id]);
 
   const compressImage = (file, maxWidth = 1200, quality = 0.8) =>
     new Promise((resolve) => {
@@ -132,11 +159,21 @@ export default function SupplierAddDevicePage() {
 
   const submitDevice = async () => {
     try {
+      console.log(">>> Vai trò của User hiện tại:", userAccount?.role);
+      console.log(">>> Thông tin User/Supplier khi thêm sản phẩm:", supplierProfile);
       setLoading(true);
       const form = new FormData();
       form.append("name", formData.name);
       form.append("description", formData.description);
       form.append("category", formData.category);
+      // Explicitly send supplierId from fetched profile
+      if (supplierProfile?.userId) {
+        // userId có thể là object do được populate ở backend, cần lấy ._id
+        const sId = typeof supplierProfile.userId === 'object' 
+          ? supplierProfile.userId._id 
+          : supplierProfile.userId;
+        form.append("supplierId", sId);
+      }
       form.append(
         "rentPrice",
         JSON.stringify({
@@ -223,11 +260,10 @@ export default function SupplierAddDevicePage() {
                   value={formData.name}
                   onChange={handleChange}
                   placeholder="Ví dụ: MacBook Pro 14 M3 Pro"
-                  className={`w-full px-4 py-2.5 rounded-xl border transition-all ${
-                    errors.name
-                      ? "border-red-500 bg-red-50 focus:ring-red-200"
-                      : "border-slate-200 focus:ring-primary/20"
-                  } focus:ring-2 focus:border-primary outline-none`}
+                  className={`w-full px-4 py-2.5 rounded-xl border transition-all ${errors.name
+                    ? "border-red-500 bg-red-50 focus:ring-red-200"
+                    : "border-slate-200 focus:ring-primary/20"
+                    } focus:ring-2 focus:border-primary outline-none`}
                 />
                 {errors.name && <p className="text-xs text-red-600 mt-1">{errors.name}</p>}
               </div>
@@ -263,11 +299,10 @@ export default function SupplierAddDevicePage() {
                   onChange={handleChange}
                   placeholder="Mô tả tình trạng, cấu hình, phụ kiện đi kèm..."
                   rows="4"
-                  className={`w-full px-4 py-2.5 rounded-xl border transition-all ${
-                    errors.description
-                      ? "border-red-500 bg-red-50 focus:ring-red-200"
-                      : "border-slate-200 focus:ring-primary/20"
-                  } focus:ring-2 focus:border-primary outline-none resize-none`}
+                  className={`w-full px-4 py-2.5 rounded-xl border transition-all ${errors.description
+                    ? "border-red-500 bg-red-50 focus:ring-red-200"
+                    : "border-slate-200 focus:ring-primary/20"
+                    } focus:ring-2 focus:border-primary outline-none resize-none`}
                 />
                 {errors.description && (
                   <p className="text-xs text-red-600 mt-1">{errors.description}</p>
@@ -327,7 +362,7 @@ export default function SupplierAddDevicePage() {
           <section className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div className="p-6 border-b border-slate-100 bg-slate-50/50">
               <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-                 <FiList className="text-primary" /> Thông số kỹ thuật
+                <FiList className="text-primary" /> Thông số kỹ thuật
               </h3>
               <p className="text-sm text-slate-500 mt-1">
                 Tạo bảng thuộc tính kỹ thuật chi tiết giúp khách hàng dễ dàng ra quyết định thuê.
@@ -336,31 +371,31 @@ export default function SupplierAddDevicePage() {
             <div className="p-6">
               {formData.specs.length > 0 && (
                 <div className="flex items-center gap-4 px-1 mb-4">
-                   <div className="w-5/12 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Tên thông số</div>
-                   <div className="flex-1 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Giá trị cấu hình</div>
-                   <div className="w-10"></div>
+                  <div className="w-5/12 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Tên thông số</div>
+                  <div className="flex-1 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Giá trị cấu hình</div>
+                  <div className="w-10"></div>
                 </div>
               )}
               <div className="space-y-4">
                 {formData.specs.map((spec, idx) => (
                   <div key={`spec-${idx}`} className="flex items-start gap-4 group">
                     <div className="w-5/12">
-                       <input
-                         type="text"
-                         value={spec.key}
-                         onChange={(e) => handleSpecChange(idx, "key", e.target.value)}
-                         placeholder="VD: Cảm biến, Chipset..."
-                         className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 focus:bg-white focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none text-sm transition-all shadow-sm"
-                       />
+                      <input
+                        type="text"
+                        value={spec.key}
+                        onChange={(e) => handleSpecChange(idx, "key", e.target.value)}
+                        placeholder="VD: Cảm biến, Chipset..."
+                        className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 focus:bg-white focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none text-sm transition-all shadow-sm"
+                      />
                     </div>
                     <div className="flex-1">
-                       <input
-                         type="text"
-                         value={spec.value}
-                         onChange={(e) => handleSpecChange(idx, "value", e.target.value)}
-                         placeholder="VD: Full-frame 24.2MP..."
-                         className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 focus:bg-white focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none text-sm transition-all shadow-sm"
-                       />
+                      <input
+                        type="text"
+                        value={spec.value}
+                        onChange={(e) => handleSpecChange(idx, "value", e.target.value)}
+                        placeholder="VD: Full-frame 24.2MP..."
+                        className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 focus:bg-white focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none text-sm transition-all shadow-sm"
+                      />
                     </div>
                     <button
                       type="button"
@@ -400,11 +435,10 @@ export default function SupplierAddDevicePage() {
                   onChange={handleChange}
                   placeholder="0"
                   min="0"
-                  className={`w-full px-4 py-2.5 rounded-xl border transition-all ${
-                    errors.perDay
-                      ? "border-red-500 bg-red-50 focus:ring-red-200"
-                      : "border-slate-200 focus:ring-primary/20"
-                  } focus:ring-2 focus:border-primary outline-none`}
+                  className={`w-full px-4 py-2.5 rounded-xl border transition-all ${errors.perDay
+                    ? "border-red-500 bg-red-50 focus:ring-red-200"
+                    : "border-slate-200 focus:ring-primary/20"
+                    } focus:ring-2 focus:border-primary outline-none`}
                 />
                 {errors.perDay && <p className="text-xs text-red-600 mt-1">{errors.perDay}</p>}
               </div>
@@ -447,11 +481,10 @@ export default function SupplierAddDevicePage() {
                   onChange={handleChange}
                   placeholder="0"
                   min="0"
-                  className={`w-full px-4 py-2.5 rounded-xl border transition-all ${
-                    errors.depositAmount
-                      ? "border-red-500 bg-red-50 focus:ring-red-200"
-                      : "border-slate-200 focus:ring-primary/20"
-                  } focus:ring-2 focus:border-primary outline-none`}
+                  className={`w-full px-4 py-2.5 rounded-xl border transition-all ${errors.depositAmount
+                    ? "border-red-500 bg-red-50 focus:ring-red-200"
+                    : "border-slate-200 focus:ring-primary/20"
+                    } focus:ring-2 focus:border-primary outline-none`}
                 />
                 {errors.depositAmount && (
                   <p className="text-xs text-red-600 mt-1">{errors.depositAmount}</p>
@@ -501,11 +534,10 @@ export default function SupplierAddDevicePage() {
                   name="city"
                   value={formData.city}
                   onChange={handleChange}
-                  className={`w-full px-4 py-2.5 rounded-xl border transition-all ${
-                    errors.city
-                      ? "border-red-500 bg-red-50 focus:ring-red-200"
-                      : "border-slate-200 focus:ring-primary/20"
-                  } focus:ring-2 focus:border-primary outline-none bg-white`}
+                  className={`w-full px-4 py-2.5 rounded-xl border transition-all ${errors.city
+                    ? "border-red-500 bg-red-50 focus:ring-red-200"
+                    : "border-slate-200 focus:ring-primary/20"
+                    } focus:ring-2 focus:border-primary outline-none bg-white`}
                 >
                   <option value="">Chọn Tỉnh/Thành phố</option>
                   {VIETNAM_CITIES.map((city) => (
