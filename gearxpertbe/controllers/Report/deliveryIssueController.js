@@ -815,9 +815,30 @@ exports.getSupplierIssues = async (req, res) => {
           name: item?.deviceName || "Thiết bị",
         }));
 
+        const syntheticRentalItemIds = snapshotItems.map(item => {
+          const deviceItemIds = [];
+          if (item.expectedDeviceItemIds && item.expectedDeviceItemIds.length > 0) {
+             item.expectedDeviceItemIds.forEach((dId, i) => {
+               deviceItemIds.push({
+                 _id: dId,
+                 device: {
+                   _id: item.deviceId,
+                   name: item.deviceName
+                 },
+                 internalCode: item.expectedSerialNumbers?.[i] || ""
+               });
+             });
+          }
+          return {
+             _id: item.rentalItemId,
+             deviceItemIds
+          };
+        });
+
         return {
           _id: `return-failed-${record._id}`,
           rentalId: record.rentalId,
+          rentalItemIds: syntheticRentalItemIds,
           deviceIds: syntheticDeviceIds,
           issueType: "OTHER",
           description,
