@@ -16,6 +16,7 @@ import {
   FiChevronRight,
   FiRefreshCw,
   FiCamera,
+  FiInfo,
 } from "react-icons/fi";
 import { toast } from "react-toastify";
 import {
@@ -65,6 +66,18 @@ const TRIGGER_TYPE_LABELS = {
   NEXT_DUE: "Quá hạn",
 };
 
+const PRIORITY_LABELS = {
+  LOW: "Thấp",
+  MEDIUM: "Trung bình",
+  HIGH: "Cao",
+};
+
+const PRIORITY_STYLES = {
+  LOW: "bg-slate-50 text-slate-500 border-slate-200",
+  MEDIUM: "bg-amber-50 text-amber-700 border-amber-200",
+  HIGH: "bg-rose-50 text-rose-700 border-rose-200",
+};
+
 const formatDate = (d) => {
   if (!d) return "—";
   return new Date(d).toLocaleDateString("vi-VN", {
@@ -108,6 +121,9 @@ const DeviceSelector = ({ items, value, onChange, disabled }) => {
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
+      // Không hiển thị thiết bị đang bảo trì
+      if (item.status === "MAINTENANCE") return false;
+
       if (filterType === "AVAILABLE" && item.status !== "AVAILABLE") return false;
       if (filterType === "REPAIR" && item.status === "AVAILABLE") return false;
 
@@ -128,7 +144,7 @@ const DeviceSelector = ({ items, value, onChange, disabled }) => {
         onClick={() => !disabled && setIsOpen(!isOpen)}
       >
         {selectedItem ? (
-          <div className="flex items-center gap-2 truncate">
+          <div className="flex items-center gap-2 truncate flex-1">
             {selectedItem.device?.images?.[0] ? (
               <img
                 src={selectedItem.device.images[0]}
@@ -140,10 +156,18 @@ const DeviceSelector = ({ items, value, onChange, disabled }) => {
                 <FiTool size={10} className="text-slate-400" />
               </div>
             )}
-            <span className="truncate">
-              {selectedItem.device?.name || "Thiết bị"} —{" "}
-              <span className="text-slate-500">{selectedItem.internalCode || selectedItem.serialNumber}</span>
-            </span>
+            <div className="flex items-center gap-2 truncate">
+              <span className="truncate font-medium">
+                {selectedItem.device?.name || "Thiết bị"} —{" "}
+                <span className="text-slate-500">{selectedItem.internalCode || selectedItem.serialNumber}</span>
+              </span>
+              {selectedItem.status !== "AVAILABLE" && (
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${selectedItem.status === "MAINTENANCE" ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-700"
+                  }`}>
+                  {selectedItem.status === "MAINTENANCE" ? "Bảo trì" : "Sự cố"}
+                </span>
+              )}
+            </div>
           </div>
         ) : (
           <span className="text-slate-400">— Chọn thiết bị —</span>
@@ -285,6 +309,7 @@ export default function SupplierMaintenance() {
   // WorkOrders state
   const [workOrders, setWorkOrders] = useState([]);
   const [woLoading, setWoLoading] = useState(false);
+  const [woStats, setWoStats] = useState({ pending: 0, inProgress: 0, completed: 0, totalCost: 0 });
   const [woStatusFilter, setWoStatusFilter] = useState("ALL");
   const [woTypeFilter, setWoTypeFilter] = useState("ALL");
   const [woCurrentPage, setWoCurrentPage] = useState(1);
@@ -304,8 +329,12 @@ export default function SupplierMaintenance() {
     maintenanceType: "PREVENTIVE",
     scheduledDate: today(),
     notes: "",
+    priority: "LOW",
+    estimatedCost: "",
+    providerName: "",
+    imagesBefore: [],
   });
-  const [completeForm, setCompleteForm] = useState({ notes: "", cost: "", imagesBefore: [], imagesAfter: [] });
+  const [completeForm, setCompleteForm] = useState({ notes: "", cost: "", imagesAfter: [] });
   const [submitting, setSubmitting] = useState(false);
 
   // Danh sách DeviceItems của supplier (cho dropdown tạo WO thủ công)
@@ -345,6 +374,7 @@ export default function SupplierMaintenance() {
       if (woTypeFilter !== "ALL") params.maintenanceType = woTypeFilter;
       const res = await getWorkOrders(params);
       setWorkOrders(res?.data || []);
+      setWoStats(res?.stats || { pending: 0, inProgress: 0, completed: 0, totalCost: 0 });
       const total = res?.total || res?.data?.total || 0;
       setWoTotalPages(Math.max(1, Math.ceil(total / woItemsPerPage)));
     } catch {
@@ -430,10 +460,29 @@ export default function SupplierMaintenance() {
     }
     setSubmitting(true);
     try {
-      await createWorkOrder(createWoForm);
+      const fd = new FormData();
+      fd.append("deviceItemId", createWoForm.deviceItemId);
+      fd.append("maintenanceType", createWoForm.maintenanceType);
+      fd.append("scheduledDate", createWoForm.scheduledDate);
+      fd.append("notes", createWoForm.notes || "");
+      fd.append("priority", createWoForm.priority);
+      fd.append("estimatedCost", createWoForm.estimatedCost || "0");
+      fd.append("providerName", createWoForm.providerName || "");
+      createWoForm.imagesBefore.forEach((f) => fd.append("imagesBefore", f));
+
+      await createWorkOrder(fd);
       toast.success("Đã tạo lệnh bảo trì!");
       setCreateWoModal(false);
-      setCreateWoForm({ deviceItemId: "", maintenanceType: "PREVENTIVE", scheduledDate: today(), notes: "" });
+      setCreateWoForm({
+        deviceItemId: "",
+        maintenanceType: "PREVENTIVE",
+        scheduledDate: today(),
+        notes: "",
+        priority: "LOW",
+        estimatedCost: "",
+        providerName: "",
+        imagesBefore: [],
+      });
       loadWorkOrders();
     } catch (err) {
       toast.error(err?.response?.data?.message || "Không thể tạo lệnh bảo trì");
@@ -485,12 +534,11 @@ export default function SupplierMaintenance() {
       const fd = new FormData();
       fd.append("notes", completeForm.notes || "");
       fd.append("cost", completeForm.cost || "0");
-      completeForm.imagesBefore.forEach((f) => fd.append("imagesBefore", f));
       completeForm.imagesAfter.forEach((f) => fd.append("imagesAfter", f));
       await completeWorkOrder(completeModal._id, fd);
       toast.success("Hoàn tất bảo trì! Thiết bị đã về trạng thái Khả dụng.");
       setCompleteModal(null);
-      setCompleteForm({ notes: "", cost: "", imagesBefore: [], imagesAfter: [] });
+      setCompleteForm({ notes: "", cost: "", imagesAfter: [] });
       loadWorkOrders();
     } catch (err) {
       toast.error(err?.response?.data?.message || "Không thể hoàn tất");
@@ -518,30 +566,97 @@ export default function SupplierMaintenance() {
         </p>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2">
-        {TABS.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.key;
-          return (
-            <button
-              key={tab.key}
-              onClick={() => setTab(tab.key)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border transition-all ${isActive
-                ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                }`}
-            >
-              <Icon size={15} />
-              {tab.label}
-              {tab.key === "reminders" && pendingCount > 0 && (
-                <span className="inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full text-xs font-bold bg-rose-500 text-white">
-                  {pendingCount}
-                </span>
-              )}
-            </button>
-          );
-        })}
+      {/* Stats Summary */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+        <StatCard
+          label="Chờ xử lý"
+          value={woStats.pending}
+          icon={FiBell}
+          color="text-amber-600"
+          bg="bg-amber-50"
+          trend="Cần ưu tiên"
+        />
+        <StatCard
+          label="Đang thực hiện"
+          value={woStats.inProgress}
+          icon={FiLoader}
+          color="text-blue-600"
+          bg="bg-blue-50"
+          trend="Đang làm"
+        />
+        <StatCard
+          label="Đã hoàn tất"
+          value={woStats.completed}
+          icon={FiCheckCircle}
+          color="text-emerald-600"
+          bg="bg-emerald-50"
+          trend="Thành công"
+        />
+        <StatCard
+          label="Tổng chi phí"
+          value={new Intl.NumberFormat("vi-VN").format(woStats.totalCost) + "đ"}
+          icon={FiClipboard}
+          color="text-indigo-600"
+          bg="bg-indigo-50"
+          trend="Tổng chi"
+        />
+      </div>
+
+      {/* Tabs & Filters */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm mt-4">
+        <div className="flex p-1 bg-slate-100 rounded-xl">
+          {TABS.map((tab) => {
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setTab(tab.key)}
+                className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all ${isActive
+                  ? "bg-white text-indigo-600 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+                  }`}
+              >
+                {tab.label}
+                {tab.key === "reminders" && pendingCount > 0 && (
+                  <span className="inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full text-[10px] font-black bg-rose-500 text-white">
+                    {pendingCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {activeTab === "work_orders" && (
+          <div className="flex items-center gap-3 px-3">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Trạng thái:</span>
+              <select
+                value={woStatusFilter}
+                onChange={(e) => setWoStatusFilter(e.target.value)}
+                className="text-xs font-bold text-slate-600 bg-transparent focus:outline-none cursor-pointer hover:text-indigo-600 transition-colors"
+              >
+                <option value="ALL">Tất cả</option>
+                <option value="PENDING">Chờ xử lý</option>
+                <option value="IN_PROGRESS">Đang làm</option>
+                <option value="COMPLETED">Đã xong</option>
+              </select>
+            </div>
+            <div className="w-px h-4 bg-slate-200" />
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Loại:</span>
+              <select
+                value={woTypeFilter}
+                onChange={(e) => setWoTypeFilter(e.target.value)}
+                className="text-xs font-bold text-slate-600 bg-transparent focus:outline-none cursor-pointer hover:text-indigo-600 transition-colors"
+              >
+                <option value="ALL">Tất cả</option>
+                <option value="PREVENTIVE">Phòng ngừa</option>
+                <option value="CORRECTIVE">Sửa chữa</option>
+              </select>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Tab: Reminders ─────────────────────────────────────────────────── */}
@@ -652,7 +767,7 @@ export default function SupplierMaintenance() {
                   onCancel={() => handleUpdateStatus(wo, "CANCELLED")}
                   onComplete={() => {
                     setCompleteModal(wo);
-                    setCompleteForm({ notes: "", cost: "", imagesBefore: [], imagesAfter: [] });
+                    setCompleteForm({ notes: "", cost: "", imagesAfter: [] });
                   }}
                   onImageClick={setLightboxImg}
                 />
@@ -777,71 +892,205 @@ export default function SupplierMaintenance() {
       {createWoModal && (
         <Modal
           title="Tạo lệnh bảo trì thủ công"
+          maxWidth="max-w-2xl"
           onClose={() => {
             setCreateWoModal(false);
-            setCreateWoForm({ deviceItemId: "", maintenanceType: "PREVENTIVE", scheduledDate: today(), notes: "" });
+            setCreateWoForm({
+              deviceItemId: "",
+              maintenanceType: "PREVENTIVE",
+              scheduledDate: today(),
+              notes: "",
+              priority: "LOW",
+              estimatedCost: "",
+              providerName: "",
+              imagesBefore: [],
+            });
           }}
         >
-          <div className="space-y-4">
-            {/* Dropdown Thiết bị */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Thiết bị <span className="text-rose-500">*</span>
-              </label>
-              {deviceItemsLoading ? (
-                <div className="flex items-center gap-2 text-sm text-slate-400 py-2">
-                  <FiTool size={13} className="animate-spin" /> Đang tải danh sách thiết bị...
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Cột trái */}
+            <div className="space-y-4">
+              {/* Dropdown Thiết bị */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Thiết bị <span className="text-rose-500">*</span>
+                </label>
+                {deviceItemsLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-slate-400 py-2">
+                    <FiTool size={13} className="animate-spin" /> Đang tải danh sách thiết bị...
+                  </div>
+                ) : allDeviceItems.length === 0 ? (
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    ⚠️ Không tìm thấy thiết bị nào trong kho.
+                  </p>
+                ) : (
+                  <DeviceSelector
+                    items={allDeviceItems}
+                    value={createWoForm.deviceItemId}
+                    onChange={(val) => {
+                      const selectedItem = allDeviceItems.find((i) => i._id === val);
+                      const isIssue = selectedItem && selectedItem.status !== "AVAILABLE";
+                      setCreateWoForm((f) => ({
+                        ...f,
+                        deviceItemId: val,
+                        maintenanceType: isIssue ? "CORRECTIVE" : "PREVENTIVE",
+                        priority: isIssue ? "HIGH" : "LOW",
+                        notes: isIssue && (!f.notes || f.notes.trim() === "")
+                          ? `Sửa chữa thiết bị do gặp sự cố (Trạng thái: ${selectedItem.status === "REPAIR" ? "Cần sửa chữa" : selectedItem.status === "DAMAGED" ? "Hư hỏng" : "Không khả dụng"})`
+                          : f.notes
+                      }));
+                    }}
+                    disabled={submitting}
+                  />
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Loại bảo trì</label>
+                <select
+                  value={createWoForm.maintenanceType}
+                  onChange={(e) => setCreateWoForm((f) => ({ ...f, maintenanceType: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="PREVENTIVE">Phòng ngừa</option>
+                  <option value="CORRECTIVE">Sửa chữa (Sự cố)</option>
+                </select>
+                {(() => {
+                  const selected = allDeviceItems.find(i => i._id === createWoForm.deviceItemId);
+                  if (selected && selected.status !== "AVAILABLE" && createWoForm.maintenanceType === "CORRECTIVE") {
+                    return (
+                      <p className="mt-1.5 text-[11px] text-rose-600 font-medium flex items-center gap-1">
+                        <FiInfo size={12} className="flex-shrink-0" />
+                        Hệ thống tự động chuyển sang Sửa chữa do thiết bị đang có sự cố.
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Độ ưu tiên</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {Object.entries(PRIORITY_LABELS).map(([k, v]) => (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => setCreateWoForm(f => ({ ...f, priority: k }))}
+                      className={`py-1.5 text-xs font-medium rounded-lg border transition-all ${createWoForm.priority === k
+                        ? PRIORITY_STYLES[k] + " border-current ring-1 ring-offset-1 ring-slate-100"
+                        : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+                        }`}
+                    >
+                      {v}
+                    </button>
+                  ))}
                 </div>
-              ) : allDeviceItems.length === 0 ? (
-                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  ⚠️ Không tìm thấy thiết bị nào trong kho.
-                </p>
-              ) : (
-                <DeviceSelector
-                  items={allDeviceItems}
-                  value={createWoForm.deviceItemId}
-                  onChange={(val) => setCreateWoForm((f) => ({ ...f, deviceItemId: val }))}
-                  disabled={submitting}
+              </div>
+            </div>
+
+            {/* Cột phải */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Ngày thực hiện <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  min={today()}
+                  value={createWoForm.scheduledDate}
+                  onChange={(e) => setCreateWoForm((f) => ({ ...f, scheduledDate: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
-              )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Chi phí dự kiến (đ)</label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={createWoForm.estimatedCost}
+                    onChange={(e) => setCreateWoForm((f) => ({ ...f, estimatedCost: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Đơn vị thực hiện</label>
+                  <input
+                    type="text"
+                    placeholder="Tên đơn vị/kỹ thuật..."
+                    value={createWoForm.providerName}
+                    onChange={(e) => setCreateWoForm((f) => ({ ...f, providerName: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Ghi chú</label>
+                <textarea
+                  rows={2}
+                  value={createWoForm.notes}
+                  onChange={(e) => setCreateWoForm((f) => ({ ...f, notes: e.target.value }))}
+                  placeholder="Nội dung cần thực hiện..."
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2 text-indigo-600 font-semibold">
+                  Ảnh hiện trạng (Trước bảo trì)
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {(createWoForm.imagesBefore || []).map((file, i) => (
+                    <div key={i} className="relative group">
+                      <img
+                        src={URL.createObjectURL(file)}
+                        className="w-16 h-16 object-cover rounded-lg border border-slate-200"
+                        alt=""
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCreateWoForm((f) => ({
+                            ...f,
+                            imagesBefore: f.imagesBefore.filter((_, idx) => idx !== i),
+                          }))
+                        }
+                        className="absolute -top-1 -right-1 bg-white text-rose-500 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <FiXCircle size={16} className="fill-white" />
+                      </button>
+                    </div>
+                  ))}
+                  <label className="w-16 h-16 rounded-lg bg-slate-50 border-2 border-dashed border-slate-300 hover:border-indigo-400 hover:bg-indigo-50 transition-colors flex flex-col items-center justify-center cursor-pointer text-slate-400 hover:text-indigo-600">
+                    <FiCamera size={16} />
+                    <span className="text-[9px] mt-0.5 font-medium">Thêm</span>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          const selectedFiles = Array.from(e.target.files);
+                          setCreateWoForm((f) => ({
+                            ...f,
+                            imagesBefore: [...(f.imagesBefore || []), ...selectedFiles],
+                          }));
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Loại bảo trì</label>
-              <select
-                value={createWoForm.maintenanceType}
-                onChange={(e) => setCreateWoForm((f) => ({ ...f, maintenanceType: e.target.value }))}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="PREVENTIVE">Phòng ngừa</option>
-                <option value="CORRECTIVE">Sửa chữa (Sự cố)</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Ngày thực hiện <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="date"
-                min={today()}
-                value={createWoForm.scheduledDate}
-                onChange={(e) => setCreateWoForm((f) => ({ ...f, scheduledDate: e.target.value }))}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Ghi chú</label>
-              <textarea
-                rows={3}
-                value={createWoForm.notes}
-                onChange={(e) => setCreateWoForm((f) => ({ ...f, notes: e.target.value }))}
-                placeholder="Nội dung cần thực hiện..."
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-              Thiết bị sẽ chuyển sang trạng thái <strong>Đang bảo trì</strong>.
-            </p>
           </div>
+
+          <p className="mt-4 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            Thiết bị sẽ chuyển sang trạng thái <strong>Đang bảo trì</strong> và tạm dừng cho thuê.
+          </p>
           <div className="flex justify-end gap-2 mt-5">
             <button
               onClick={() => setCreateWoModal(false)}
@@ -863,70 +1112,52 @@ export default function SupplierMaintenance() {
 
       {/* ── Modal: Complete WorkOrder ──────────────────────────────────────── */}
       {completeModal && (
-        <Modal title="Xác nhận hoàn tất bảo trì" onClose={() => setCompleteModal(null)}>
-          <div className="space-y-4">
-            <InfoRow
-              label="Thiết bị"
-              value={`${completeModal.deviceId?.name || "—"} · ${completeModal.deviceItemId?.internalCode || completeModal.deviceItemId?.serialNumber || "N/A"
-                }`}
-            />
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Ảnh trước bảo trì
-              </label>
-              <div className="flex flex-wrap gap-3">
-                {(completeForm.imagesBefore || []).map((file, i) => (
-                  <div key={i} className="relative group">
-                    <img
-                      src={URL.createObjectURL(file)}
-                      className="w-20 h-20 object-cover rounded-xl border border-slate-200"
-                      alt=""
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setCompleteForm((f) => ({
-                          ...f,
-                          imagesBefore: f.imagesBefore.filter((_, idx) => idx !== i),
-                        }))
-                      }
-                      className="absolute -top-2 -right-2 bg-white text-rose-500 rounded-full p-0.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <FiXCircle size={18} className="fill-white" />
-                    </button>
-                  </div>
-                ))}
-                <label className="w-20 h-20 rounded-xl bg-slate-50 border-2 border-dashed border-slate-300 hover:border-indigo-400 hover:bg-indigo-50 transition-colors flex flex-col items-center justify-center cursor-pointer text-slate-500 hover:text-indigo-600">
-                  <FiCamera size={20} />
-                  <span className="text-[10px] mt-1 font-medium">Thêm ảnh</span>
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files.length > 0) {
-                        const selectedFiles = Array.from(e.target.files);
-                        setCompleteForm((f) => ({
-                          ...f,
-                          imagesBefore: [...(f.imagesBefore || []), ...selectedFiles],
-                        }));
-                      }
-                    }}
-                  />
-                </label>
+        <Modal
+          title="Xác nhận hoàn tất bảo trì"
+          maxWidth="max-w-lg"
+          onClose={() => setCompleteModal(null)}
+        >
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+              {completeModal.deviceId?.images?.[0] && (
+                <img src={completeModal.deviceId.images[0]} className="w-10 h-10 rounded-lg object-cover" alt="" />
+              )}
+              <div>
+                <p className="text-sm font-bold text-slate-900">{completeModal.deviceId?.name || "Thiết bị"}</p>
+                <p className="text-xs text-slate-500">{completeModal.deviceItemId?.internalCode || completeModal.deviceItemId?.serialNumber || "N/A"}</p>
               </div>
             </div>
+
+            {/* Review Before Images */}
+            {completeModal.imagesBefore?.length > 0 && (
+              <div className="space-y-2">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Đối chiếu ảnh hiện trạng (Trước khi làm)
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {completeModal.imagesBefore.map((img, i) => (
+                    <img
+                      key={i}
+                      src={img}
+                      className="w-16 h-16 object-cover rounded-lg border border-slate-200 shadow-sm cursor-zoom-in hover:border-indigo-400 transition-colors"
+                      alt="Trước"
+                      onClick={() => setLightboxImg(img)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Ảnh sau bảo trì
+              <label className="block text-sm font-bold text-slate-700 mb-2">
+                Ảnh kết quả sau bảo trì <span className="text-rose-500">*</span>
               </label>
               <div className="flex flex-wrap gap-3">
                 {(completeForm.imagesAfter || []).map((file, i) => (
                   <div key={i} className="relative group">
                     <img
                       src={URL.createObjectURL(file)}
-                      className="w-20 h-20 object-cover rounded-xl border border-slate-200"
+                      className="w-20 h-20 object-cover rounded-xl border border-slate-200 shadow-sm"
                       alt=""
                     />
                     <button
@@ -943,8 +1174,8 @@ export default function SupplierMaintenance() {
                     </button>
                   </div>
                 ))}
-                <label className="w-20 h-20 rounded-xl bg-slate-50 border-2 border-dashed border-slate-300 hover:border-indigo-400 hover:bg-indigo-50 transition-colors flex flex-col items-center justify-center cursor-pointer text-slate-500 hover:text-indigo-600">
-                  <FiCamera size={20} />
+                <label className="w-20 h-20 rounded-xl bg-slate-50 border-2 border-dashed border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 transition-all flex flex-col items-center justify-center cursor-pointer text-slate-400 hover:text-indigo-600 group">
+                  <FiCamera size={20} className="group-hover:scale-110 transition-transform" />
                   <span className="text-[10px] mt-1 font-medium">Thêm ảnh</span>
                   <input
                     type="file"
@@ -964,45 +1195,51 @@ export default function SupplierMaintenance() {
                 </label>
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Chi phí (VND)</label>
-              <input
-                type="number"
-                min={0}
-                value={completeForm.cost}
-                onChange={(e) => setCompleteForm((f) => ({ ...f, cost: e.target.value }))}
-                placeholder="0"
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
+
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Chi phí thực tế (đ)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={completeForm.cost}
+                  onChange={(e) => setCompleteForm((f) => ({ ...f, cost: e.target.value }))}
+                  placeholder="0"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Ghi chú kết quả</label>
+                <textarea
+                  rows={3}
+                  value={completeForm.notes}
+                  onChange={(e) => setCompleteForm((f) => ({ ...f, notes: e.target.value }))}
+                  placeholder="Mô tả công việc đã hoàn thành..."
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Kết quả bảo trì</label>
-              <textarea
-                rows={3}
-                value={completeForm.notes}
-                onChange={(e) => setCompleteForm((f) => ({ ...f, notes: e.target.value }))}
-                placeholder="Mô tả công việc đã thực hiện..."
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
+
+            <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl">
+              <p className="text-xs text-emerald-700 leading-relaxed">
+                ✨ <strong>Thông báo:</strong> Thiết bị sẽ được cập nhật trạng thái <strong>Khả dụng</strong> ngay sau khi lệnh này hoàn tất.
+              </p>
             </div>
-            <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-              Thiết bị sẽ trở về trạng thái <strong>Khả dụng</strong> sau khi hoàn tất.
-            </p>
           </div>
-          <div className="flex justify-end gap-2 mt-5">
+          <div className="flex justify-end gap-3 mt-6">
             <button
               onClick={() => setCompleteModal(null)}
-              className="px-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50"
+              className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
             >
-              Hủy
+              Để sau
             </button>
             <button
               onClick={handleCompleteSubmit}
               disabled={submitting}
-              className="px-5 py-2 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+              className="px-6 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-emerald-100"
             >
               {submitting && <FiLoader size={13} className="animate-spin" />}
-              Xác nhận hoàn tất
+              Hoàn tất bảo trì
             </button>
           </div>
         </Modal>
@@ -1130,6 +1367,13 @@ function WorkOrderCard({ wo, onStart, onCancel, onComplete, onImageClick }) {
             >
               {WO_TYPE_LABELS[wo.maintenanceType] || wo.maintenanceType}
             </span>
+            {/* Priority */}
+            <span
+              className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold border ${PRIORITY_STYLES[wo.priority] || "bg-slate-50 text-slate-500"
+                }`}
+            >
+              Uu tiên: {PRIORITY_LABELS[wo.priority] || wo.priority}
+            </span>
           </div>
           <p className="font-semibold text-slate-900 text-sm">
             {device.name || "Thiết bị"}{" "}
@@ -1137,11 +1381,17 @@ function WorkOrderCard({ wo, onStart, onCancel, onComplete, onImageClick }) {
               · {item.internalCode || item.serialNumber || "N/A"}
             </span>
           </p>
-          <div className="flex items-center gap-4 mt-0.5 text-xs text-slate-400">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs text-slate-400">
             <span className="flex items-center gap-1">
               <FiCalendar size={11} />
               Lên lịch: {formatDate(wo.scheduledDate)}
             </span>
+            {wo.providerName && (
+              <span className="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded border border-slate-100 text-slate-500">
+                <FiTool size={11} />
+                {wo.providerName}
+              </span>
+            )}
             {wo.completedDate && (
               <span className="flex items-center gap-1">
                 <FiCheckCircle size={11} className="text-green-500" />
@@ -1168,15 +1418,34 @@ function WorkOrderCard({ wo, onStart, onCancel, onComplete, onImageClick }) {
             </div>
           )}
 
-          {/* Cost */}
-          {wo.status === "COMPLETED" && wo.cost > 0 && (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">Chi phí</p>
-              <p className="text-sm font-semibold text-slate-700">
-                {new Intl.NumberFormat("vi-VN").format(wo.cost)}₫
-              </p>
-            </div>
-          )}
+          {/* Cost & Provider Details */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {wo.providerName && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">Đơn vị thực hiện</p>
+                <p className="text-sm text-slate-700 font-medium">{wo.providerName}</p>
+              </div>
+            )}
+            {(wo.estimatedCost > 0 || (wo.status === "COMPLETED" && wo.cost > 0)) && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">Chi phí</p>
+                <div className="flex items-center gap-3">
+                  {wo.estimatedCost > 0 && (
+                    <div className="text-sm">
+                      <span className="text-slate-400">Dự kiến:</span>{" "}
+                      <span className="font-medium text-slate-600">{new Intl.NumberFormat("vi-VN").format(wo.estimatedCost)}₫</span>
+                    </div>
+                  )}
+                  {wo.status === "COMPLETED" && wo.cost > 0 && (
+                    <div className="text-sm">
+                      <span className="text-slate-400">Thực tế:</span>{" "}
+                      <span className="font-bold text-indigo-600">{new Intl.NumberFormat("vi-VN").format(wo.cost)}₫</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Images */}
           {(wo.imagesBefore?.length > 0 || wo.imagesAfter?.length > 0) && (
@@ -1273,10 +1542,10 @@ function WorkOrderCard({ wo, onStart, onCancel, onComplete, onImageClick }) {
 
 // ── Shared UI ─────────────────────────────────────────────────────────────────
 
-function Modal({ title, onClose, children }) {
+function Modal({ title, onClose, children, maxWidth = "max-w-md" }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div className={`bg-white rounded-2xl shadow-xl w-full ${maxWidth} max-h-[90vh] overflow-y-auto`}>
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-slate-100">
           <h3 className="text-base font-bold text-slate-900">{title}</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
@@ -1314,6 +1583,26 @@ function LoadingSpinner() {
   return (
     <div className="flex justify-center py-16">
       <div className="h-8 w-8 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
+    </div>
+  );
+}
+
+function StatCard({ label, value, icon: Icon, color, bg, trend }) {
+  return (
+    <div className={`p-5 rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all group overflow-hidden relative`}>
+      <div className={`absolute top-0 right-0 w-24 h-24 ${bg} opacity-10 rounded-full -mr-8 -mt-8 transition-transform group-hover:scale-110`} />
+      <div className="flex items-center gap-4 relative z-10">
+        <div className={`w-12 h-12 rounded-2xl ${bg} ${color} flex items-center justify-center shrink-0 shadow-sm`}>
+          <Icon size={24} />
+        </div>
+        <div>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{label}</p>
+          <div className="flex items-baseline gap-2">
+            <p className={`text-xl font-black text-slate-900`}>{value}</p>
+            {trend && <span className="text-[10px] font-medium text-slate-400">{trend}</span>}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
