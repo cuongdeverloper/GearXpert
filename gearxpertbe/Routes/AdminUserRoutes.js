@@ -17,6 +17,10 @@ router.get('/suppliers', checkAccessToken, checkAdmin, adminDashboardController.
 router.get('/suppliers/:id', checkAccessToken, checkAdmin, adminDashboardController.getAdminSupplierDetail);
 router.get('/devices', checkAccessToken, checkAdmin, adminDashboardController.getAdminDevices);
 
+// Operation Staff management
+router.get('/staff', checkAccessToken, checkAdmin, adminUserController.getOperationStaff);
+router.get('/staff/:id/tasks', checkAccessToken, checkAdmin, adminUserController.getStaffTasks);
+
 // Supplier onboarding (become supplier contract approval)
 router.get(
   '/supplier-onboarding',
